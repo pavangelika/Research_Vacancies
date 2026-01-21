@@ -1,0 +1,34 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: vacancies_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: always
+
+  app:
+    build: .
+    container_name: vacancies_app
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    command: >
+      sh -c "
+      while true; do
+        python main.py;
+        sleep 600;
+      done
+      "
+
+volumes:
+  pg_data:
