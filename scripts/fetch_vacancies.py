@@ -3,15 +3,14 @@ import requests
 from typing import List, Dict
 from dotenv import load_dotenv
 import logging
-
-logger = logging.getLogger(__name__)
-
+from requests.exceptions import RequestException
 import time
 from datetime import datetime
 from bs4 import BeautifulSoup
 import re
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 HH_API_URL = os.getenv("HH_API_URL")
 
@@ -30,36 +29,51 @@ def clean_html(html: str) -> str:
     return text
 
 
-def get_vacancy_details(vacancy_id: str, timeout: int = 10) -> Dict:
+def get_vacancy_details(vacancy_id: str, timeout: int = 10, max_retries: int = 3, backoff: float = 1.0) -> dict:
     """
-    Получает skills и description для вакансии по ID.
+    Получает детали вакансии с HH API с повторными попытками и таймаутами.
     """
     url = f"{HH_API_URL}/{vacancy_id}"
-    resp = requests.get(url, timeout=timeout)
-    resp.raise_for_status()
-    data = resp.json()
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = requests.get(url, timeout=timeout)
+            if resp.status_code == 404:
+                return {"skills": "", "description": "", "requirement": None, "responsibility": None, "experience": None}
+            if resp.status_code == 403 or resp.status_code == 429:
+                # Защита HH (капча / лимит запросов)
+                raise RequestException(f"{resp.status_code} Client Error")
+            resp.raise_for_status()
+            data = resp.json()
 
-    skills = ", ".join([s["name"] for s in data.get("key_skills", [])])
-    raw_description = data.get("description")
-    description = clean_html(raw_description)
-    requirement = data.get("snippet", {}).get("requirement")
-    responsibility = data.get("snippet", {}).get("responsibility")
-    experience = data.get("experience", {}).get("name")
+            skills = ", ".join([s["name"] for s in data.get("key_skills", [])])
+            raw_description = data.get("description")
+            description = clean_html(raw_description)
+            requirement = data.get("snippet", {}).get("requirement")
+            responsibility = data.get("snippet", {}).get("responsibility")
+            experience = data.get("experience", {}).get("name")
 
-    return {
-        "skills": skills,
-        "description": description,
-        "requirement": requirement,
-        "responsibility": responsibility,
-        "experience": experience,
-    }
+            return {
+                "skills": skills,
+                "description": description,
+                "requirement": requirement,
+                "responsibility": responsibility,
+                "experience": experience,
+            }
+
+        except RequestException as e:
+            wait_time = backoff * attempt
+            logger.warning(f"Ошибка при получении вакансии {vacancy_id} (попытка {attempt}/{max_retries}): {e}. Жду {wait_time}s")
+            time.sleep(wait_time)
+
+    logger.warning(f"Вакансия {vacancy_id} недоступна после {max_retries} попыток, считаем архивированной")
+    return {"skills": "", "description": "", "requirement": None, "responsibility": None, "experience": None}
 
 
 def get_vacancies(
         professional_roles: str = os.getenv("PROFESSIONAL_ROLES", "34,124"),
         host: str = "hh.ru",
         per_page: int = 100,
-        period: int = 1,
+        period: int = 2,
         order_by: str = "salary_desc",
         work_format: str = "REMOTE",
         timeout: int = 10,

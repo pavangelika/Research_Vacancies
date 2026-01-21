@@ -74,17 +74,27 @@ def init_table():
                 salary_from INTEGER,
                 salary_to INTEGER,
                 currency TEXT,
-                requirement TEXT,
-                responsibility TEXT,
-                skills TEXT,
                 experience TEXT,
+                skills TEXT,      
+                requirement TEXT,
+                responsibility TEXT,          
                 description TEXT,
                 published_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT NOW(),
                 archived BOOLEAN DEFAULT FALSE,
                 archived_at TIMESTAMP,
                 recovery BOOLEAN DEFAULT FALSE,
-                recovery_at TIMESTAMP
+                recovery_at TIMESTAMP,
+                hr_name TEXT,
+                interview_date TIMESTAMP,
+                interview_stages TEXT,
+                company_type TEXT,
+                result TEXT,
+                feedback TEXT,
+                offer_salary TEXT,
+                pros TEXT,
+                cons TEXT,
+                overall_impression TEXT
             );
             """
         )
@@ -129,3 +139,82 @@ def save_vacancies(vacancies: list[dict]):
 
     logger.info("✅ Сохранение завершено")
 
+
+def update_archived_status(current_vacancy_ids: list[str], timeout: int = 10):
+    """
+    Проверяет все вакансии в базе:
+    - если id нет в current_vacancy_ids, проверяет через API HH
+    - 404 → удаляем запись из базы
+    - 403 → ставим archived=True и archived_at=NOW()
+    """
+    import requests
+    from datetime import datetime
+    from dotenv import load_dotenv
+    import os
+
+    load_dotenv()
+    HH_API_URL = os.getenv("HH_API_URL")
+
+    logger.info("Проверка статуса вакансий на архивирование/удаление...")
+
+    with psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+    ) as conn, conn.cursor() as cur:
+
+        # Получаем все вакансии, которых нет в текущем списке
+        cur.execute(
+            """
+            SELECT id FROM vacancies
+            WHERE id NOT IN %s
+            """,
+            (tuple(current_vacancy_ids) if current_vacancy_ids else ('',),)
+        )
+        missing_vacancies = cur.fetchall()
+
+        for (vac_id,) in missing_vacancies:
+            api_url = f"{HH_API_URL}/{vac_id}"
+            try:
+                resp = requests.get(api_url, timeout=timeout)
+
+                if resp.status_code == 404:
+                    # Вакансия удалена с HH → удаляем из базы
+                    cur.execute("DELETE FROM vacancies WHERE id = %s;", (vac_id,))
+                    logger.info(f"Вакансия {vac_id} удалена из базы (404)")
+
+                elif resp.status_code == 403 or resp.status_code == 429:
+                    # Вакансия недоступна (капча / лимит) → архивируем
+                    cur.execute(
+                        """
+                        UPDATE vacancies
+                        SET archived = TRUE,
+                            archived_at = %s
+                        WHERE id = %s
+                        """,
+                        (datetime.utcnow(), vac_id)
+                    )
+                    logger.warning(f"Вакансия {vac_id} недоступна (403/429), помечена как архивированная")
+
+                else:
+                    resp.raise_for_status()
+                    data = resp.json()
+                    if data.get("archived"):
+                        cur.execute(
+                            """
+                            UPDATE vacancies
+                            SET archived = TRUE,
+                                archived_at = %s
+                            WHERE id = %s
+                            """,
+                            (datetime.utcnow(), vac_id)
+                        )
+                        logger.info(f"Вакансия {vac_id} архивирована по API")
+
+            except Exception as e:
+                logger.warning(f"Не удалось проверить вакансию {vac_id}: {e}")
+
+        conn.commit()
+    logger.info("✅ Проверка архивации/удаления завершена")
