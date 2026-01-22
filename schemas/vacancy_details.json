@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["id", "name", "description", "alternate_url"],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "alternate_url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "salary": {
+      "type": ["object", "null"],
+      "properties": {
+        "from": { "type": ["number", "null"] },
+        "to": { "type": ["number", "null"] },
+        "currency": { "type": "string" }
+      }
+    },
+    "employment": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "experience": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}
