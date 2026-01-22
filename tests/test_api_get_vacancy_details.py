@@ -1,12 +1,16 @@
 import requests
 import json
 from jsonschema import validate
+from pathlib import Path
 
 VACANCY_ID = "129700234"
 URL = f"https://api.hh.ru/vacancies/{VACANCY_ID}"
 PARAMS = {
     "host": "hh.ru"
 }
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+SCHEMA_PATH = BASE_DIR / "schemas" / "vacancy_details.json"
 
 def test_get_vacancy_details_contract():
     response = requests.get(URL, params=PARAMS)
@@ -15,7 +19,7 @@ def test_get_vacancy_details_contract():
 
     response_json = response.json()
 
-    with open("../schemas/vacancy_details.json") as schema_file:
+    with open(SCHEMA_PATH, encoding="utf-8") as schema_file:
         schema = json.load(schema_file)
 
     validate(instance=response_json, schema=schema)

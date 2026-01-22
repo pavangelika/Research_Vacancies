@@ -1,4 +1,5 @@
 import requests
+from pathlib import Path
 import json
 from jsonschema import validate
 
@@ -13,6 +14,9 @@ PARAMS = {
     "work_format": "REMOTE"
 }
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+SCHEMA_PATH = BASE_DIR / "schemas" / "vacancies.json"
+
 def test_get_vacancies_contract():
     response = requests.get(URL, params=PARAMS)
 
@@ -20,7 +24,7 @@ def test_get_vacancies_contract():
 
     response_json = response.json()
 
-    with open("../schemas/vacancies.json") as schema_file:
+    with open(SCHEMA_PATH, encoding="utf-8") as schema_file:
         schema = json.load(schema_file)
 
     validate(instance=response_json, schema=schema)
