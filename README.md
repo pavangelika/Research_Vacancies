@@ -1,19 +1,18 @@
 # Research_Vacancies - API Testing & Automation
 
 ### 🎯 Цель проекта
-* тестирование API
+* Тестирование API: smoke, contract
 * работа с Postman
-* контрактное тестирование
 * PostgreSQL + SQL аналитика
-* Docker / Docker Compose
-* Git + GitHub Actions (CI)
-* автоматический сбор данных
-* автоматический отчет о тестировании
+* Docker
+* Git + GitHub Actions (CI pipeline)
+* Автоматический сбор данных
+* Автоматический отчет о тестировании
 
 ### 🧠 Бизнес-идея
 1. Получаем вакансии с HH API
 2. Сохраняем их в PostgreSQL
-3. Проверяем контракт API (структура ответа)
+3. Тестируем API
 4. Анализируем данные SQL‑запросами
 5. Запускаем тесты по расписанию
 6. Генерируем отчет
@@ -26,10 +25,22 @@
 * professional_role=34 — Designer
 * professional_role=124 — QA
 * work_format=REMOTE
-* period=30
+* period=1
 * per_page=100
 
 ### 🚀 Быстрый старт
+Запуск тестов
+pytest -m smoke
+pytest -m contract
+pytest -m regression
+
+Запуск автоотчета
+pytest -m contract --alluredir=allure-results
+pytest -m smoke --alluredir=allure-results
+pytest -m regression --alluredir=allure-results
+allure serve allure-results
+
+
 
 ### 🛠️ Стек технологий
 

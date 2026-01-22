@@ -1,7 +1,9 @@
 import requests
+import pytest
 from pathlib import Path
 import json
 from jsonschema import validate
+import allure
 
 URL = "https://api.hh.ru/vacancies"
 PARAMS = {
@@ -17,6 +19,9 @@ PARAMS = {
 BASE_DIR = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = BASE_DIR / "schemas" / "vacancies.json"
 
+@allure.feature("Contract API")
+@allure.story("Contract: JSON is validated")
+@pytest.mark.contract
 def test_get_vacancies_contract():
     response = requests.get(URL, params=PARAMS)
 

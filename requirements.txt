@@ -1,7 +1,7 @@
-requests==2.31.0
+requests==2.32.5
 psycopg2-binary==2.9.11
-pytest==8.0.0
-jsonschema==4.19.0
-jinja2==3.1.2
-python-dotenv==1.0.0
+jsonschema==4.26.0
+python-dotenv==1.2.1
 beautifulsoup4==4.14.3
+pytest==9.0.2
+allure-pytest==2.15.3
