@@ -35,11 +35,14 @@ pytest -m contract
 pytest -m regression
 
 Запуск автоотчета
-pytest -m contract --alluredir=allure-results
 pytest -m smoke --alluredir=allure-results
+pytest -m contract --alluredir=allure-results
 pytest -m regression --alluredir=allure-results
 allure serve allure-results
 
+pytest -m contract --alluredir=allure-results 
+--clean-alluredir
+allure generate allure-results --clean -o allure-report --history=allure-history
 
 
 ### 🛠️ Стек технологий

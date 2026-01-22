@@ -16,8 +16,11 @@ PARAMS = {
     "work_format": "REMOTE"
 }
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SCHEMA_PATH = BASE_DIR / "schemas" / "vacancies.json"
+
+print(SCHEMA_PATH)
+
 
 @allure.feature("Contract API")
 @allure.story("Contract: JSON is validated")

@@ -11,7 +11,7 @@ PARAMS = {
     "host": "hh.ru"
 }
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SCHEMA_PATH = BASE_DIR / "schemas" / "vacancy_details.json"
 
 @allure.feature("Contract API")
