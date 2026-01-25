@@ -40,8 +40,10 @@ pytest -m contract --alluredir=allure-results
 pytest -m regression --alluredir=allure-results
 allure serve allure-results
 
-pytest -m contract --alluredir=allure-results 
---clean-alluredir
+
+pytest -m smoke --alluredir=allure-results --clean-alluredir
+pytest -m contract --alluredir=allure-results --clean-alluredir
+pytest -m regression --alluredir=allure-results --clean-alluredir
 allure generate allure-results --clean -o allure-report --history=allure-history
 
 

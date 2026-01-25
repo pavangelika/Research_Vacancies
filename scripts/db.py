@@ -3,7 +3,10 @@ import logging
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
-import time
+import requests
+from datetime import datetime
+
+
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -83,8 +86,8 @@ def init_table():
                 created_at TIMESTAMP DEFAULT NOW(),
                 archived BOOLEAN DEFAULT FALSE,
                 archived_at TIMESTAMP,
-                recovery BOOLEAN DEFAULT FALSE,
-                recovery_at TIMESTAMP,
+                error_403 BOOLEAN DEFAULT FALSE,
+                error_403_at TIMESTAMP,
                 hr_name TEXT,
                 interview_date TIMESTAMP,
                 interview_stages TEXT,
@@ -140,17 +143,13 @@ def save_vacancies(vacancies: list[dict]):
     logger.info("✅ Сохранение завершено")
 
 
-def update_archived_status(current_vacancy_ids: list[str], timeout: int = 10):
+def update_archived_status(current_vacancy_ids: list[str], timeout: int = 30):
     """
     Проверяет все вакансии в базе:
     - если id нет в current_vacancy_ids, проверяет через API HH
     - 404 → удаляем запись из базы
     - 403 → ставим archived=True и archived_at=NOW()
     """
-    import requests
-    from datetime import datetime
-    from dotenv import load_dotenv
-    import os
 
     load_dotenv()
     HH_API_URL = os.getenv("HH_API_URL")
@@ -190,13 +189,13 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 10):
                     cur.execute(
                         """
                         UPDATE vacancies
-                        SET archived = TRUE,
-                            archived_at = %s
+                        SET error_403 = TRUE,
+                            error_403_at = %s
                         WHERE id = %s
                         """,
                         (datetime.utcnow(), vac_id)
                     )
-                    logger.warning(f"Вакансия {vac_id} недоступна (403/429), помечена как архивированная")
+                    logger.warning(f"Вакансия {vac_id} недоступна (403/429), помечена как 403_error")
 
                 else:
                     resp.raise_for_status()
@@ -218,3 +217,39 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 10):
 
         conn.commit()
     logger.info("✅ Проверка архивации/удаления завершена")
+
+def init_employers():
+    logger.info("Инициализация таблицы employers...")
+
+    with psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+    ) as conn, conn.cursor() as cur:
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS employers (
+                name TEXT PRIMARY KEY,
+                inn TEXT,
+                accreditation Boolean,
+                checked_at TEXT,
+                registration_at TEXT,
+                rating Text
+                
+                
+            );
+        """)
+
+        cur.execute("""
+            INSERT INTO employers (name)
+            SELECT DISTINCT employer
+            FROM vacancies
+            WHERE employer IS NOT NULL
+            ON CONFLICT (name) DO NOTHING;
+        """)
+
+        conn.commit()
+
+    logger.info("✅ Таблица employers создана и заполнена")
