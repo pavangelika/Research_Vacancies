@@ -1,0 +1,71 @@
+Стратегия тестирования
+Цель: Обеспечить стабильность, соответствие спецификации, производительность и безопасность эндпоинта.
+Принципы:
+Автоматизация критически важных сценариев (contract, smoke, regression).
+Ручное тестирование нового функционала.
+Интеграция в CI/CD для регрессионного и контрактного тестирования.
+Документация: Опираться на официальную спецификацию HH.
+
+Тест-план с разделением по типам тестирования
+
+1. Smoke Testing (Дымовое тестирование)
+Цель: Быстрая проверка основных функций после деплоя, чтобы убедиться, что API "живой".
+Когда запускать: После каждого деплоя в staging/production.
+Критерии успеха: Все тесты проходят за 2–5 минут.
+Чек-лист:
+1.1. Ручка: GET /vacancies   +
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"]
+1.2. Ручка: GET /vacancies?order_by=salary_desc +
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     вакансии отсортированы в порядке убывания,
+     вакансии без указания зп последние в списке
+1.3. Ручка GET /vacancies?period=1
+     ОР: 200 OK,
+     выведены вакансии за текущий день,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     не отображаются вакансии старше текущего дня
+1.4. Ручка GET /vacancies?professional_role=124
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     выведены вакансии для указанной профессиональной роли
+     вакансии для других профессиональных ролей не отображаются
+1.5. Ручка GET /vacancies?work_format=REMOTE      +
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     выведены вакансии с удаленным форматом работы
+     вакансии с другими форматами работы не отображаются
+1.6. Ручка GET /vacancies?per_page=1
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     выведена одна вакансия
+     другие вакансии не отображаются
+1.7. Ручка GET /vacancies?host=hh.ru
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     выведены вакансии для указанного host
+     вакансии с другими host не отображаются
+1.8. Ручка GET /vacancies?page=3
+     Ручка GET /vacancies?page=2
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
+     выведена страница 2,
+     выведена страница 3,
+     первые вакансии страницы разные
+1.9. Ручка GET https://api.hh.ru/vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
+     ОР: 200 OK,
+     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"]
+1.10 Ручка GET /vacancies/{id} +
+     ОР: 200 OK,
+     ручка GET https://api.hh.ru/vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
+     статус 200
+     взять первый id из списка и подставить в запрос /vacancies/{id}
+     статус 200
+     заполнены обязательные поля required_fields = ["id", "accept_handicapped", "accept_incomplete_resumes", "allow_messages", "alternate_url","apply_alternate_url", "approved", "archived", "area", "description", "driver_license_types", "experience", "has_test", "initial_created_at", "key_skills", "name", "professional_roles", "published_at", "response_letter_required" ]
+
+2. Sanity Testing (Санитарное тестирование)
+Цель: Проверка критических сценариев после небольших правок (например, исправление бага в фильтрации).
+Когда запускать: После мелких изменений в коде или конфигурации.
+Критерии успеха: Основные сценарии работают без сбоев.
+

@@ -57,7 +57,7 @@ def create_database():
 
 
 def init_table():
-    logger.info("Проверка таблицы vacancies...")
+    logger.info("Проверка таблицы get_vacancies...")
     with psycopg2.connect(
         dbname=DB_NAME,
         user=DB_USER,
@@ -67,7 +67,7 @@ def init_table():
     ) as conn, conn.cursor() as cur:
         cur.execute(
             """
-            CREATE TABLE IF NOT EXISTS vacancies (
+            CREATE TABLE IF NOT EXISTS get_vacancies (
                 id TEXT PRIMARY KEY,
                 url TEXT UNIQUE,
                 professional_role TEXT,
@@ -102,7 +102,7 @@ def init_table():
             """
         )
         conn.commit()
-        logger.info("✅ Таблица vacancies готова")
+        logger.info("✅ Таблица get_vacancies готова")
 
 def save_vacancies(vacancies: list[dict]):
     logger.info("Сохранение вакансий в БД...")
@@ -119,7 +119,7 @@ def save_vacancies(vacancies: list[dict]):
             try:
                 cur.execute(
                     """
-                    INSERT INTO vacancies (
+                    INSERT INTO get_vacancies (
                         id, url, professional_role, name, employer, city,
                         salary_from, salary_to, currency,
                         requirement, responsibility, skills,
@@ -167,7 +167,7 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 30):
         # Получаем все вакансии, которых нет в текущем списке
         cur.execute(
             """
-            SELECT id FROM vacancies
+            SELECT id FROM get_vacancies
             WHERE id NOT IN %s
             """,
             (tuple(current_vacancy_ids) if current_vacancy_ids else ('',),)
@@ -181,14 +181,14 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 30):
 
                 if resp.status_code == 404:
                     # Вакансия удалена с HH → удаляем из базы
-                    cur.execute("DELETE FROM vacancies WHERE id = %s;", (vac_id,))
+                    cur.execute("DELETE FROM get_vacancies WHERE id = %s;", (vac_id,))
                     logger.info(f"Вакансия {vac_id} удалена из базы (404)")
 
                 elif resp.status_code == 403 or resp.status_code == 429:
                     # Вакансия недоступна (капча / лимит) → архивируем
                     cur.execute(
                         """
-                        UPDATE vacancies
+                        UPDATE get_vacancies
                         SET error_403 = TRUE,
                             error_403_at = %s
                         WHERE id = %s
@@ -203,7 +203,7 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 30):
                     if data.get("archived"):
                         cur.execute(
                             """
-                            UPDATE vacancies
+                            UPDATE get_vacancies
                             SET archived = TRUE,
                                 archived_at = %s
                             WHERE id = %s
@@ -245,7 +245,7 @@ def init_employers():
         cur.execute("""
             INSERT INTO employers (name)
             SELECT DISTINCT employer
-            FROM vacancies
+            FROM get_vacancies
             WHERE employer IS NOT NULL
             ON CONFLICT (name) DO NOTHING;
         """)

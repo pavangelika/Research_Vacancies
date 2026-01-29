@@ -11,6 +11,14 @@
 
 ### 🌐 Источник данных
 #### HH API:  https://api.hh.ru/vacancies
+параметры запроса:
+host=hh.ru
+per_page=100
+page=0
+period=1
+order_by=salary_desc
+professional_role=124
+work_format=REMOTE
 
 ### 🚀 Быстрый старт
 

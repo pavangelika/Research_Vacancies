@@ -1,32 +1,24 @@
 import requests
-import pytest
-from pathlib import Path
 import json
 from jsonschema import validate
+from pathlib import Path
+import pytest
 import allure
 
-URL = "https://api.hh.ru/vacancies"
+VACANCY_ID = "129700234"
+URL = f"https://api.hh.ru/vacancies/{VACANCY_ID}"
 PARAMS = {
-    "host": "hh.ru",
-    "per_page": 100,
-    "page": 0,
-    "period": 2,
-    "order_by": "salary_desc",
-    "professional_role": 34,
-    "work_format": "REMOTE"
+    "host": "hh.ru"
 }
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-SCHEMA_PATH = BASE_DIR / "schemas" / "vacancies.json"
-
-print(SCHEMA_PATH)
-
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
+SCHEMA_PATH = BASE_DIR / "schemas" / "vacancy_details.json"
 
 @allure.feature("Contract API")
 @allure.story("JSON is validated")
 @allure.title("Структура JSON соответсвует контракту")
 @pytest.mark.contract
-def test_get_vacancies_contract():
+def test_get_vacancy_id_contract():
     with allure.step("1. Запрос с выбранными PARAMS возвращает статус ответа 200"):
         response = requests.get(URL, params=PARAMS)
 
@@ -38,4 +30,3 @@ def test_get_vacancies_contract():
             schema = json.load(schema_file)
 
         validate(instance=response_json, schema=schema)
-

@@ -7,20 +7,22 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (-compatible; HH-Testing/1.0)"}
 
 @allure.epic("API HH")
 @allure.feature("Поиск вакансий")
-@allure.story("Смоук-тест получения списка вакансий")
-@allure.title("Отправка GET-запроса /vacancies с валидными данными")
+@allure.story("Смоук-тест получения списка вакансий по удаленному формату работы")
+@allure.title("Отправка GET-запроса /vacancies?work_format=REMOTE")
+@allure.description("ОР: 200 OK, выведены вакансии с удаленным форматом работы, вакансии с другими форматами работы не отображаются")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancies", name="Документация hh.ru")
-@allure.severity(allure.severity_level.CRITICAL)
-@allure.tag("smoke", "api")
+@allure.severity(allure.severity_level.NORMAL)
+@allure.tag("smoke", "api", "filter")
 @pytest.mark.smoke
 def test_vacancies():
     # Подготовка параметров
     params = {
-        "host": "hh.ru"
+        "host": "hh.ru",
+        "work_format": "REMOTE"
     }
 
 
-    with allure.step("Отправить GET-запрос /vacancies"):
+    with allure.step("Отправить GET-запрос /vacancies?work_format=REMOTE"):
         # Прикрепляем параметры запроса
         allure.attach(
             body=str(params),
@@ -28,8 +30,6 @@ def test_vacancies():
             attachment_type=allure.attachment_type.TEXT
         )
         response = requests.get(BASE_URL, params=params, headers=HEADERS)
-
-
 
     with allure.step("Проверить код ответа "):
         allure.attach(
@@ -53,6 +53,29 @@ def test_vacancies():
             assert field in data, f"Отсутствует поле '{field}' в ответе"
 
         assert data["found"] > 0, "Нет вакансий для указанных параметров"
+
+    with allure.step("Проверяем, что все вакансии REMOTE"):
+        remote_count = 0
+        for vacancy in data["items"]:
+            work_format = vacancy.get("work_format", {})
+            id = work_format[0]
+
+            # Прикрепляем данные вакансии для отладки
+            if "REMOTE".lower() != id.lower():
+                allure.attach(
+                    body=str(vacancy),
+                    name=f"Вакансия с ошибкой (id={vacancy['id']})",
+                    attachment_type=allure.attachment_type.JSON
+                )
+
+            assert "REMOTE" != id, (
+                f"Формат работы не удалённый: {id} (вакансия {vacancy['id']})"
+            )
+            remote_count += 1
+
+        assert remote_count == len(data["items"]), "Не все вакансии с удаленкой"
+
+
 
 
 

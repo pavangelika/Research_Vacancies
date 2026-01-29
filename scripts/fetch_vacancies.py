@@ -29,14 +29,14 @@ def clean_html(html: str) -> str:
     return text
 
 
-def get_vacancy_details(
+def get_vacancy_id(
     vacancy_id: str,
     timeout: int = 10,
     max_retries: int = 3,
     backoff: float = 1.0
 ) -> dict:
     """
-    Получает ТОЛЬКО те поля, которые реально есть в /vacancies/{id}
+    Получает ТОЛЬКО те поля, которые реально есть в /get_vacancies/{id}
     """
     url = f"{HH_API_URL}/{vacancy_id}"
 
@@ -152,7 +152,7 @@ def get_vacancies(
 
             for item in items:
                 try:
-                    details = get_vacancy_details(
+                    details = get_vacancy_id(
                         item["id"], timeout=timeout
                     )
 
