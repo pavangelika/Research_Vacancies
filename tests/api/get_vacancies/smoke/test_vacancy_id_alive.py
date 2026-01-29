@@ -8,7 +8,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (HH-Test-Automation/1.0)"}
 @allure.epic("API HH")
 @allure.feature("Просмотр вакансии")
 @allure.story("Смоук-тест получения деталей вакансии")
-@allure.title("Отправка GET-запроса /vacancies/{id}")
+@allure.title("Отправка GET-запроса /vacancies/{id} с дополнительными параметрами ")
 @allure.description("ОР: Ответ сервера 200, ответ содержит все обязательные поля")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Upravlenie-vakansiyami/operation/get-vacancy", name="Документация hh.ru")
 @allure.severity(allure.severity_level.CRITICAL)
@@ -16,20 +16,25 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (HH-Test-Automation/1.0)"}
 @pytest.mark.smoke
 def test_vacancy_detail():
     # Шаг 1: Получаем список вакансий
-    with allure.step("Запросить список вакансий /vacancies"):
-        list_params = {
+    with allure.step("Запросить список вакансий /vacancies с параметрами"):
+        params = {
             "host": "hh.ru",
-            "per_page": 1  # Получаем только первую вакансию
+            "per_page": 100,
+            "page": 0,
+            "period": 1,
+            "order_by": "salary_desc",
+            "professional_role": 124,
+            "work_format": "REMOTE",
         }
         list_response = requests.get(
             BASE_URL,
-            params=list_params,
+            params=params,
             headers=HEADERS
         )
 
         # Прикрепляем параметры и ответ
         allure.attach(
-            body=str(list_params),
+            body=str(params),
             name="Параметры запроса списка",
             attachment_type=allure.attachment_type.TEXT
         )

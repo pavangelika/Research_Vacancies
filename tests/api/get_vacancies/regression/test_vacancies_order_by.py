@@ -12,8 +12,8 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (-compatible; HH-Testing/1.0)"}
 @allure.description("ОР: 200 OK, вакансии отсортированы в порядке убывания, вакансии без указания зп последние в списке")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancies", name="Документация hh.ru")
 @allure.severity(allure.severity_level.NORMAL)
-@allure.tag("smoke", "api", "filter")
-@pytest.mark.smoke
+@allure.tag("regress", "api", "filter")
+@pytest.mark.regression
 def test_vacancies():
     # Подготовка параметров
     params = {

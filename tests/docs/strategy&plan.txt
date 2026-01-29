@@ -7,16 +7,59 @@
 Документация: Опираться на официальную спецификацию HH.
 
 Тест-план с разделением по типам тестирования
+0. Contract Testing (Контрактное тестирование)
+Цель: Проверка соответствия API спецификации.
+Когда запускать: На каждом этапе разработки, в CI/CD.
+Инструменты: Pact, OpenAPI Validator, Postman Collection.
+Чек-лист:
+0.1. Ручка: GET /vacancies Валидация формата ответа (JSON)
+0.2. Ручка: GET /vacancies Валидация соответсвия структуры ответа
+0.3. Ручка: GET /vacancies Проверка обязательных полей required_fields = ["items", "found", "page", "pages", "per_page"]
+0.4. Ручка: GET /vacancies Проверка типов данных
+0.5. Ручка: GET /vacancies/{id} Валидация формата ответа (JSON)
+0.6. Ручка: GET /vacancies/{id} Валидация соответсвия структуры ответа
+0.7. Ручка: GET /vacancies/{id} Проверка обязательных полей required_fields = ["items", "found", "page", "pages", "per_page"]
+0.8. Ручка: GET /vacancies/{id} Проверка типов данных
 
 1. Smoke Testing (Дымовое тестирование)
 Цель: Быстрая проверка основных функций после деплоя, чтобы убедиться, что API "живой".
 Когда запускать: После каждого деплоя в staging/production.
 Критерии успеха: Все тесты проходят за 2–5 минут.
 Чек-лист:
-1.1. Ручка: GET /vacancies   +
+1.1. Получение списка вакансий
+     Ручка: GET /vacancies   +
+     ОР: 200 OK
+1.2. Получение списка вакансий с параметрами фильтрации +
+     Ручка GET /vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
+     ОР: 200 OK
+1.3. Просмотр первой вакансии из списка вакансий с параметрами фильтрации +
+     Ручка GET /vacancies/{id} +
      ОР: 200 OK,
-     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"]
-1.2. Ручка: GET /vacancies?order_by=salary_desc +
+     ручка GET https://api.hh.ru/vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
+     статус 200
+     взять первый id из списка и подставить в запрос /vacancies/{id}
+     статус 200
+
+2. Sanity Testing (Санитарное тестирование)
+Цель: Проверка критических сценариев после небольших правок (например, исправление бага в фильтрации).
+Когда запускать: После мелких изменений в коде или конфигурации.
+Критерии успеха: Основные сценарии работают без сбоев.
+Чек-лист:
+2.1. проверка сортировки зп по убыванию
+2.2.
+
+3. Regression Testing (Регрессионное тестирование)
+Цель: Убедиться, что новые изменения не сломали существующий функционал.
+Когда запускать: Перед каждым релизом, после крупных изменений.
+Критерии успеха: Все тесты проходят без падений.
+
+3.1. Позитивные тесты
+
+3.2. Негативные тесты
+3.2.2. проверка кодов ошибок
+3.2.3. проверка граничных значений
+
+3.1. Ручка: GET /vacancies?order_by=salary_desc +
      ОР: 200 OK,
      все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"],
      вакансии отсортированы в порядке убывания,
@@ -53,19 +96,4 @@
      выведена страница 2,
      выведена страница 3,
      первые вакансии страницы разные
-1.9. Ручка GET https://api.hh.ru/vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
-     ОР: 200 OK,
-     все обязательные поля присутсвуют: required_fields = ["items", "found", "page", "pages", "per_page"]
-1.10 Ручка GET /vacancies/{id} +
-     ОР: 200 OK,
-     ручка GET https://api.hh.ru/vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
-     статус 200
-     взять первый id из списка и подставить в запрос /vacancies/{id}
-     статус 200
-     заполнены обязательные поля required_fields = ["id", "accept_handicapped", "accept_incomplete_resumes", "allow_messages", "alternate_url","apply_alternate_url", "approved", "archived", "area", "description", "driver_license_types", "experience", "has_test", "initial_created_at", "key_skills", "name", "professional_roles", "published_at", "response_letter_required" ]
-
-2. Sanity Testing (Санитарное тестирование)
-Цель: Проверка критических сценариев после небольших правок (например, исправление бага в фильтрации).
-Когда запускать: После мелких изменений в коде или конфигурации.
-Критерии успеха: Основные сценарии работают без сбоев.
 
