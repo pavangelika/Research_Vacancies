@@ -3,11 +3,16 @@ from scripts.fetch_vacancies import get_vacancies
 from scripts.logger import setup_logger
 import logging
 
+from scripts.professional_roles import save_professional_roles_to_json
+
 setup_logger()
 logger = logging.getLogger(__name__)
 
 def main():
     logger.info("Запуск приложения Research Vacancies...")
+
+    # 0 Список professional_roles
+    # save_professional_roles_to_json()
 
     # 1️ Создаём БД и таблицу
     create_database()
@@ -25,6 +30,7 @@ def main():
 
     # 5 Добавляем уникальные компании в список компаний
     init_employers()
+
 
 
 

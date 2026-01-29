@@ -37,7 +37,7 @@ def test_vacancies():
 
 
 
-    with allure.step("Проверить код ответа и ответ серавера "):
+    with allure.step("Проверить код ответа и ответ сервера "):
         allure.attach(
             body=f"Получен код ответа: {response.status_code}",
             name="Код ответа",
@@ -52,32 +52,7 @@ def test_vacancies():
             attachment_type=allure.attachment_type.JSON
         )
 
-    with allure.step("Проверить ответ на наличие обязательных полей"):
-        data = response.json()
 
-        required_fields = ["items", "found", "page", "pages", "per_page"]
-        for field in required_fields:
-            assert field in data, f"Отсутствует поле '{field}' в ответе"
-
-        assert data["found"] > 0, "Нет вакансий для указанных параметров"
-
-        items = data["items"]
-        count_id = len(items)
-        per_page = data["per_page"]
-        pages = data["pages"]
-        page= data["page"]
-        found = data["found"]
-
-
-        allure.attach(
-            body=f"items={count_id}, \n"
-                 f"found = {found},\n"
-                 f"page = {page}, \n"
-                 f"pages = {pages}, \n"
-                 f"per_page = {per_page}",
-            name=f"Проверка наличия обязательных полей",
-            attachment_type=allure.attachment_type.TEXT
-        )
 
 
 

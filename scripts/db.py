@@ -86,8 +86,7 @@ def init_table():
                 created_at TIMESTAMP DEFAULT NOW(),
                 archived BOOLEAN DEFAULT FALSE,
                 archived_at TIMESTAMP,
-                error_403 BOOLEAN DEFAULT FALSE,
-                error_403_at TIMESTAMP,
+                send_resume BOOLEAN DEFAULT FALSE,
                 hr_name TEXT,
                 interview_date TIMESTAMP,
                 interview_stages TEXT,
@@ -148,7 +147,6 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 30):
     Проверяет все вакансии в базе:
     - если id нет в current_vacancy_ids, проверяет через API HH
     - 404 → удаляем запись из базы
-    - 403 → ставим archived=True и archived_at=NOW()
     """
 
     load_dotenv()
@@ -185,16 +183,6 @@ def update_archived_status(current_vacancy_ids: list[str], timeout: int = 30):
                     logger.info(f"Вакансия {vac_id} удалена из базы (404)")
 
                 elif resp.status_code == 403 or resp.status_code == 429:
-                    # Вакансия недоступна (капча / лимит) → архивируем
-                    cur.execute(
-                        """
-                        UPDATE get_vacancies
-                        SET error_403 = TRUE,
-                            error_403_at = %s
-                        WHERE id = %s
-                        """,
-                        (datetime.utcnow(), vac_id)
-                    )
                     logger.warning(f"Вакансия {vac_id} недоступна (403/429), помечена как 403_error")
 
                 else:

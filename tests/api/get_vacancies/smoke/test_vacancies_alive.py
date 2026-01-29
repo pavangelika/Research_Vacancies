@@ -31,7 +31,7 @@ def test_vacancies():
 
 
 
-    with allure.step("Проверить код ответа и ответ серавера "):
+    with allure.step("Проверить код ответа и ответ сервера "):
         allure.attach(
             body=f"Получен код ответа: {response.status_code}",
             name="Код ответа",
