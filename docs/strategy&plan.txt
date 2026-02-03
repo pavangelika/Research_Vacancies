@@ -21,10 +21,11 @@ Dredd (валидация OpenAPI-спецификации).
 OpenAPI Generator (автоматическая генерация тестов).
 
 Чек-лист:
-0.1. Ручка: GET /vacancies Валидация формата ответа (JSON)
-0.2. Ручка: GET /vacancies Валидация соответсвия структуры ответа
-0.3. Ручка: GET /vacancies Проверка обязательных полей required_fields = ["items", "found", "page", "pages", "per_page"]
-0.4. Ручка: GET /vacancies Проверка типов данных
+0.1. Ручка: GET /vacancies
+     Валидация формата ответа (JSON)
+     Валидация соответсвия структуры ответа
+     Проверка обязательных полей required_fields = ["items", "found", "page", "pages", "per_page"]
+     Проверка типов данных
 0.5. Ручка: GET /vacancies/{id} Валидация формата ответа (JSON)
 0.6. Ручка: GET /vacancies/{id} Валидация соответсвия структуры ответа
 0.7. Ручка: GET /vacancies/{id} Проверка обязательных полей required_fields = ["items", "found", "page", "pages", "per_page"]

@@ -18,7 +18,7 @@ def save_professional_roles_to_json(filename='professional_roles.json', director
         logger.info("Данные успешно получены")
 
         BASE_DIR = Path(__file__).resolve().parent
-        JSON_PATH = BASE_DIR / filename
+        JSON_PATH = BASE_DIR /"data" /filename
 
         logger.info(f"BASE_DIR: {BASE_DIR}")
         logger.info(f"JSON_PATH: {JSON_PATH}")
