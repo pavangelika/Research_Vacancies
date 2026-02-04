@@ -11,6 +11,7 @@ from tests.api.utils.schemas import validate_vacancies_response
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancies", name="Documentation: GET vacancies")
 @allure.tag("smoke", "vacancies")
 @pytest.mark.smoke
+@pytest.mark.vacancies
 class TestVacanciesSmoke:
 
     @allure.severity(allure.severity_level.CRITICAL)

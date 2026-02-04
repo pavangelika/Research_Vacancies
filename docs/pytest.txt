@@ -1,0 +1,9 @@
+
+Метод	Когда использовать	Результат теста	Пример
+pytest.skip()	Временная недоступность, отсутствие данных	Skipped	pytest.skip("Нет данных")
+pytest.fail()	Явный провал теста	Failed	pytest.fail("Ошибка валидации")
+pytest.xfail()	Ожидаемый провал (баг)	XFAIL (если провалился)	pytest.xfail("Известный баг")
+@pytest.mark.skip	Постоянный пропуск теста	Skipped	@pytest.mark.skip(reason="...")
+@pytest.mark.skipif	Условный пропуск	Skipped (если условие истинно)	@pytest.mark.skipif(...)
+@pytest.mark.xfail	Ожидаемый провал с декоратором	XFAIL	@pytest.mark.xfail(...)
+pytest.importorskip()	Пропуск при отсутствии модуля	Skipped	pd = pytest.importorskip("pandas")

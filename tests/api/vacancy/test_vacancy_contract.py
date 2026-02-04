@@ -1,86 +1,157 @@
+import json
 import time
-
 import pytest
 import allure
 import jsonschema
-from tests.api.utils.schemas import validate_vacancy_detail_response, VACANCY_DETAIL_SCHEMA
+from tests.api.utils.schemas import validate_vacancy_detail_response, VACANCY_DETAIL_SCHEMA, check_data_types
 
 
 @allure.epic("API")
 @allure.feature("Get Vacancy")
-@allure.story("Contract Testing")
-@allure.suite("Get Vacancy")
-@allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancy", name="Documentation: GET vacancy")
+@allure.suite("Contract testing")
+@allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancy",
+             name="Документация: Поиск вакансии")
 @allure.tag("contract", "vacancy")
-@pytest.mark.contract
+@allure.severity(allure.severity_level.CRITICAL)
+@pytest.mark.vacancy
 class TestVacancyContract:
 
     @allure.title("Валидация JSON Schema ответа")
-    def test_response_schema_validation(self, api_client, attach_request_response):
+    def test_vacancy_validation(self, api_client, attach_headers_request_response):
         """Контрактный тест - проверка соответствия JSON Schema"""
-        params = {"per_page": 10}
+        with allure.step(f"Получение динамического vacancy_id из запроса к /vacancies"):
+            params = {
+                "host": "hh.ru",
+                "per_page": 100,
+                "page": 0,
+                "period": 1,
+                "order_by": "salary_desc",
+                "professional_role": 124,
+                "work_format": "REMOTE"
+            }
+            response = api_client.get_vacancies(**params)
+            list_vacancies = response.json()
 
-        response = api_client.get_vacancies(**params)
-        attach_request_response("GET", "https://api.hh.ru/vacancies", params,
-                                dict(api_client.session.headers), response, None)
+            if list_vacancies["found"] == 0:
+                pytest.skip("Нет вакансий для тестирования")
 
-        assert response.status_code == 200
+            vacancy_id = list_vacancies["items"][0]["id"]
 
-        data = response.json()
+            attach_headers_request_response(
+                "GET",
+                "https://api.hh.ru/vacancies",
+                params,
+                dict(api_client.session.headers),
+                response)
 
-        params = {
-            "host": "hh.ru",
-            "per_page": 100,
-            "page": 0,
-            "period": 1,
-            "order_by": "salary_desc",
-            "professional_role": 124,
-            "work_format": "REMOTE"
-        }
+            allure.attach(
+                body=json.dumps(list_vacancies, indent=2, ensure_ascii=False),
+                name="Response Body",
+                attachment_type=allure.attachment_type.JSON
+            )
 
-        start_time = time.time()
-        response = api_client.get_vacancies(**params)
-        response_time = (time.time() - start_time) * 1000
-        list_vacancies = response.json()
-        vacancy_id = list_vacancies["items"][0]["id"]
+            allure.attach(
+                body=f"vacancy_id,{vacancy_id}",
+                name="Vacancy_id",
+                attachment_type=allure.attachment_type.CSV
+            )
 
+        with allure.step(f"2. Отправить динамический GET запрос to /vacancies/{vacancy_id}"):
+            response_detail = api_client.session.get(f"https://api.hh.ru/vacancies/{vacancy_id}")
+            detail_vacancy = response_detail.json()
 
-        with allure.step("Send GET request https://api.hh.ru/vacancies/{vacancy_id}"):
+            attach_headers_request_response(
+                "GET",
+                "https://api.hh.ru/vacancies",
+                params,
+                dict(api_client.session.headers),
+                response)
 
-            start_time = time.time()
-            response = api_client.session.get(f"https://api.hh.ru/vacancies/{vacancy_id}")
-            response_time = (time.time() - start_time) * 1000
+            allure.attach(
+                body=json.dumps(detail_vacancy, indent=2, ensure_ascii=False),
+                name="Response Body",
+                attachment_type=allure.attachment_type.JSON
+            )
 
-            detail_vacancy = response.json()
+        with allure.step("3. Код ответа 200"):
+            assert response_detail.status_code == 200, f"Expected 200, received {response_detail.status_code}"
+            allure.attach(
+                body=f"Status code,{response_detail.status_code}",
+                name="Status code of response",
+                attachment_type=allure.attachment_type.CSV
+            )
 
+        with allure.step("4. Ответ в формате JSON "):
+            assert 'application/json' in response_detail.headers.get('Content-Type', '').lower()
+            allure.attach(
+                body=f"Response type,{response_detail.headers.get('Content-Type', '').lower()}",
+                name="Response type",
+                attachment_type=allure.attachment_type.CSV
+            )
 
-        with allure.step("Валидируем ответ по JSON Schema"):
+        with allure.step("5. Структура ответа соответсвует JSON схеме"):
             try:
-                validate_vacancy_detail_response(data)
+                validate_vacancy_detail_response(detail_vacancy)
+            except Exception as e:
                 allure.attach(
-                    str(VACANCY_DETAIL_SCHEMA),
-                    name="Expected Schema",
+                    body=json.dumps(detail_vacancy, indent=2, ensure_ascii=False),
+                    name="Invalid Response",
                     attachment_type=allure.attachment_type.JSON
                 )
-            except jsonschema.ValidationError as e:
+                pytest.fail(f"Ошибка валидации схемы: {str(e)}")
+
+        with allure.step("6. В ответе присутсвуют обязательные поля"):
+            required_fields = VACANCY_DETAIL_SCHEMA.get("required", [])
+            response_required_exists = {}
+            response_required_not_exists = {}
+            for field in required_fields:
+                if field in detail_vacancy:
+                    response_required_exists[field] = detail_vacancy[field]
+                else:
+                    # Логируем отсутствующее поле
+                    response_required_not_exists[field] = None
+
+            allure.attach(
+                body=json.dumps(response_required_exists, indent=2, ensure_ascii=False),
+                name="Required fields filled in response",
+                attachment_type=allure.attachment_type.JSON
+            )
+
+            allure.attach(
+                body=json.dumps(response_required_not_exists, indent=2, ensure_ascii=False),
+                name="Required fields don't filled in response",
+                attachment_type=allure.attachment_type.JSON
+            )
+
+
+        with allure.step("7. Типы данных обязательных полей соответсвуют JSON схеме"):
+
+            validation_results = check_data_types(detail_vacancy, VACANCY_DETAIL_SCHEMA)
+
+            csv_rows = ["Поле, Статус, ФР, ОР"]
+            for result in validation_results:
+                csv_rows.append(
+                    f"{result['field']}, "
+                    f"{result['status']}, "
+                    f"{result['actual_type']}, "
+                    f"{result['expected_type']}, "
+                )
+
+            allure.attach(
+                body="\n".join(csv_rows),
+                name="Field Validation Summary",
+                attachment_type=allure.attachment_type.CSV
+            )
+
+            required_fields = VACANCY_DETAIL_SCHEMA.get("required", [])
+            missing_fields = [field for field in required_fields
+                              if field not in detail_vacancy]
+
+            if missing_fields:
                 allure.attach(
-                    str(e),
-                    name="Validation Error",
+                    body=f"Отсутствующие обязательные поля: {missing_fields}",
+                    name="Missing Required Fields",
                     attachment_type=allure.attachment_type.TEXT
                 )
-                raise
+                assert not missing_fields, f"Отсутствуют обязательные поля: {missing_fields}"
 
-    @allure.title("Проверка обязательных полей")
-    def test_required_fields(self, api_client, attach_request_response):
-        """Проверка наличия обязательных полей в ответе"""
-        response = api_client.get_vacancies(per_page=5)
-        attach_request_response("GET", "https://api.hh.ru/vacancies",
-                                {"per_page": 5}, dict(api_client.session.headers), response, None)
-
-        assert response.status_code == 200
-        data = response.json()
-
-        required_fields = ["items", "found", "pages", "per_page", "page"]
-        for field in required_fields:
-            with allure.step(f"Проверяем наличие поля '{field}'"):
-                assert field in data, f"Обязательное поле '{field}' отсутствует"

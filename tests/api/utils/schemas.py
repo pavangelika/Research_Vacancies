@@ -158,7 +158,7 @@ VACANCY_DETAIL_SCHEMA = {
             }
         },
         "name": {"type": "string"},
-        "professional_role": {
+        "professional_roles": {
             "type": ["array", "object"],
             "properties": {
                 "id": {"type": "string"},
@@ -181,4 +181,71 @@ def validate_vacancy_detail_response(response_json):
     jsonschema.validate(instance=response_json, schema=VACANCY_DETAIL_SCHEMA)
 
 
+def check_data_types(response_json, SCHEMA):
+    """Проверка типов данных на основе схемы"""
+    type_mapping = {
+        "string": str,
+        "boolean": bool,
+        "array": list,
+        "object": dict,
+        "null": type(None)
+    }
 
+    results = []
+    properties = SCHEMA.get("properties", {})
+
+    for field_name, field_schema in properties.items():
+        # Проверяем только поля, которые есть в ответе
+        if field_name not in response_json:
+            continue
+
+        value = response_json[field_name]
+        schema_type = field_schema.get("type")
+
+        # Обработка составных типов (например, ["array", "object"])
+        if isinstance(schema_type, list):
+            allowed_types = []
+            type_checks = []
+            for type_name in schema_type:
+                python_type = type_mapping.get(type_name)
+                if python_type:
+                    allowed_types.append(type_name)
+                    type_checks.append(isinstance(value, python_type))
+
+            is_valid = any(type_checks)
+            expected_type = " or ".join(allowed_types)
+            actual_type = type(value).__name__
+
+        # Обработка простых типов
+        elif isinstance(schema_type, str):
+            python_type = type_mapping.get(schema_type)
+            if not python_type:
+                continue
+
+            is_valid = isinstance(value, python_type)
+            expected_type = schema_type
+            actual_type = type(value).__name__
+
+        else:
+            continue
+
+        # Добавляем информацию о вложенных объектах
+        if schema_type == "object" and "properties" in field_schema:
+            actual_type = f"object with properties: {list(field_schema['properties'].keys())}"
+
+        # Сбор результатов
+        status = "✓" if is_valid else "✗"
+        results.append({
+            "field": field_name,
+            "status": status,
+            "actual_type": actual_type,
+            "expected_type": expected_type,
+            "value": str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
+        })
+
+        # Ассерт для невалидных типов
+        if not is_valid:
+            assert False, (f"Поле '{field_name}' имеет неверный тип: "
+                           f"{type(value).__name__}, ожидается: {expected_type}")
+
+    return results
