@@ -1,4 +1,5 @@
-from scripts.db import create_database, init_table, save_vacancies, update_archived_status, init_employers
+from scripts.db import create_database, init_table, save_vacancies, update_archived_status, init_employers, \
+    update_employers
 from scripts.fetch_vacancies import get_vacancies
 from scripts.logger import setup_logger
 import logging
@@ -30,6 +31,7 @@ def main():
 
     # 5 Добавляем уникальные компании в список компаний
     init_employers()
+    update_employers(vacancies)
 
 
 
