@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 HH_API_URL = os.getenv("HH_API_URL")
 
+
 def clean_html(html: str) -> str:
     if not html:
         return ""
@@ -30,10 +31,10 @@ def clean_html(html: str) -> str:
 
 
 def get_vacancy_id(
-    vacancy_id: str,
-    timeout: int = 10,
-    max_retries: int = 3,
-    backoff: float = 1.0
+        vacancy_id: str,
+        timeout: int = 10,
+        max_retries: int = 3,
+        backoff: float = 1.0
 ) -> dict:
     """
     Получает ТОЛЬКО те поля, которые реально есть в /get_vacancies/{id}
@@ -45,6 +46,7 @@ def get_vacancy_id(
             resp = requests.get(url, timeout=timeout)
 
             if resp.status_code == 404:
+                logger.debug(f"Вакансия {vacancy_id} не найдена (404)")
                 return {
                     "skills": "",
                     "description": "",
@@ -57,12 +59,26 @@ def get_vacancy_id(
             resp.raise_for_status()
             data = resp.json()
 
-            skills = ", ".join(
-                s["name"] for s in data.get("key_skills", [])
-            )
+            # Безопасное извлечение skills
+            skills_list = data.get("key_skills", [])
+            skills = ""
+            if isinstance(skills_list, list):
+                skill_names = []
+                for skill in skills_list:
+                    if isinstance(skill, dict) and "name" in skill:
+                        skill_names.append(skill["name"])
+                skills = ", ".join(skill_names)
 
-            description = clean_html(data.get("description"))
-            experience = data.get("experience", {}).get("name")
+            # Безопасное извлечение description
+            description = data.get("description", "")
+            if description:
+                description = clean_html(description)
+
+            # Безопасное извлечение experience
+            experience_data = data.get("experience", {})
+            experience = None
+            if isinstance(experience_data, dict):
+                experience = experience_data.get("name")
 
             return {
                 "skills": skills,
@@ -78,6 +94,16 @@ def get_vacancy_id(
                 f"Жду {wait_time}s"
             )
             time.sleep(wait_time)
+        except Exception as e:
+            logger.warning(
+                f"Неожиданная ошибка при получении вакансии {vacancy_id}: {e}"
+            )
+            # Возвращаем пустой словарь при любых других ошибках
+            return {
+                "skills": "",
+                "description": "",
+                "experience": None,
+            }
 
     logger.warning(
         f"Вакансия {vacancy_id} недоступна после {max_retries} попыток"
@@ -94,7 +120,7 @@ def get_vacancies(
         professional_roles: str = os.getenv("PROFESSIONAL_ROLES", "124"),
         host: str = "hh.ru",
         per_page: int = 100,
-        period: int = 60,
+        period: int = 1,
         order_by: str = "salary_desc",
         work_format: str = "REMOTE",
         timeout: int = 10,
@@ -156,78 +182,70 @@ def get_vacancies(
                 try:
                     vacancy_id = item.get("id")
 
+                    # Инициализируем переменные заранее
+                    employer_name = employer_id = employer_url = accredited_it_employer = trusted = rating = None
+                    salary_from = salary_to = currency = None
+                    requirement = responsibility = None
+                    city = None
+                    schedule_id = None
+
+                    logger.debug(f"Обработка вакансии {vacancy_id}")
+
                     # Получаем детали вакансии с задержкой
                     details = get_vacancy_id(vacancy_id, timeout=timeout)
+
+                    if not details or not isinstance(details, dict):
+                        logger.warning(f"Некорректные данные для вакансии {vacancy_id}: {details}")
+                        details = {"skills": "", "description": "", "experience": None}
 
                     # Добавляем задержку между запросами деталей вакансий
                     if vacancy_delay > 0:
                         time.sleep(vacancy_delay)
 
                     # Безопасное извлечение employer данных
-                    employer = item.get("employer", {})
-                    if isinstance(employer, dict):
+                    employer = item.get("employer")
+                    if employer and isinstance(employer, dict):
                         employer_name = employer.get("name")
                         employer_id = employer.get("id")
                         employer_url = employer.get("alternate_url")
-                        # ИСПРАВЛЕНО: эти поля находятся внутри employer
                         accredited_it_employer = employer.get("accredited_it_employer")
                         trusted = employer.get("trusted")
-                        rating = employer.get("employer_rating", {}).get("total_rating")
-                    else:
-                        employer_name = employer_id = employer_url = accredited_it_employer = trusted = rating = None
+
+                        # Извлекаем рейтинг
+                        employer_rating = employer.get("employer_rating")
+                        if employer_rating and isinstance(employer_rating, dict):
+                            rating = employer_rating.get("total_rating")
 
                     # Безопасное извлечение salary данных
-                    salary = item.get("salary", {})
-                    if isinstance(salary, dict):
+                    salary = item.get("salary")
+                    if salary and isinstance(salary, dict):
                         salary_from = salary.get("from")
                         salary_to = salary.get("to")
                         currency = salary.get("currency")
-                    else:
-                        salary_from = salary_to = currency = None
 
                     # Безопасное извлечение snippet данных
-                    snippet = item.get("snippet", {})
-                    if isinstance(snippet, dict):
+                    snippet = item.get("snippet")
+                    if snippet and isinstance(snippet, dict):
                         requirement = snippet.get("requirement")
                         responsibility = snippet.get("responsibility")
-                    else:
-                        requirement = responsibility = None
 
                     # Безопасное извлечение area данных
-                    area = item.get("area", {})
-                    if isinstance(area, dict):
+                    area = item.get("area")
+                    if area and isinstance(area, dict):
                         city = area.get("name")
-                    else:
-                        city = None
 
                     # Безопасное извлечение schedule данных
-                    schedule = item.get("schedule", {})
-                    if isinstance(schedule, dict):
+                    schedule = item.get("schedule")
+                    if schedule and isinstance(schedule, dict):
                         schedule_id = schedule.get("id")
-                    else:
-                        schedule_id = None
-
-                    # Безопасное извлечение work_format данных
-                    # ВАЖНО: переименовываем переменную, чтобы не было конфликта с параметром функции
-                    work_format_data = item.get("employment", {})  # ИСПРАВЛЕНО: work_format может быть в employment
-                    if isinstance(work_format_data, dict):
-                        work_format_id = work_format_data.get("id")
-                    else:
-                        # Пробуем получить из альтернативных источников
-                        work_format_data2 = item.get("work_format", {})
-                        if isinstance(work_format_data2, dict):
-                            work_format_id = work_format_data2.get("id")
-                        else:
-                            work_format_id = None
 
                     vacancy_record = {
                         "id": vacancy_id,
-                        "url": item.get("url"),
+                        "url": item.get("url", ""),
                         "professional_role": role,
-                        "name": item.get("name"),
+                        "name": item.get("name", ""),
                         "employer": employer_name,
                         "employer_id": employer_id,
-                        # ИСПРАВЛЕНО: используем правильные переменные
                         "accredited_it_employer": accredited_it_employer,
                         "employer_url": employer_url,
                         "rating": rating,
@@ -240,28 +258,18 @@ def get_vacancies(
                         "responsibility": responsibility,
                         "skills": details.get("skills", ""),
                         'schedule': schedule_id,
-                        'work_format': work_format_id,
                         "experience": details.get("experience"),
                         "description": details.get("description", ""),
                         "published_at": item.get("published_at"),
                         "created_at": datetime.utcnow().isoformat(),
-                        "archived": item.get("archived"),
+                        "archived": item.get("archived", False),
                         "archived_at": None,
-                        "has_test": item.get("has_test"),
-                        "response_letter_required": item.get("response_letter_required"),
-                        "apply_alternate_url": item.get("apply_alternate_url")
+                        "has_test": item.get("has_test", False),
+                        "response_letter_required": item.get("response_letter_required", False),
+                        "apply_alternate_url": item.get("apply_alternate_url", "")
                     }
 
                     count += 1
-
-                    # Добавляем отладочную информацию о полях, которые нас интересуют
-                    logger.debug(
-                        f"Вакансия {count}/{total_found}: "
-                        f"employer: {employer_name}, "
-                        f"accredited: {accredited_it_employer}, "
-                        f"trusted: {trusted}, "
-                        f"rating: {rating}"
-                    )
 
                     logger.info(
                         f"{count}/{total_found} "
@@ -277,10 +285,52 @@ def get_vacancies(
                     all_vacancies.append(vacancy_record)
 
                 except Exception as e:
-                    logger.warning(
-                        f"Ошибка при обработке вакансии "
-                        f"{item.get('id')}: {e}"
-                    )
+                    # Собираем информацию для лога безопасно
+                    try:
+                        log_parts = [f"Ошибка при обработке вакансии {e}"]
+
+                        if 'vacancy_id' in locals():
+                            log_parts.append(f"id: {vacancy_id}")
+
+                        if 'item' in locals() and item:
+                            log_parts.append(f"url: {item.get('url', 'N/A')}")
+
+                        # Добавляем остальные поля
+                        fields_to_log = [
+                            ('employer_name', 'employer'),
+                            ('employer_id', 'employer_id'),
+                            ('accredited_it_employer', 'accredited_it_employer'),
+                            ('employer_url', 'employer_url'),
+                            ('rating', 'rating'),
+                            ('trusted', 'trusted'),
+                            ('city', 'city'),
+                            ('salary_from', 'salary_from'),
+                            ('salary_to', 'salary_to'),
+                            ('currency', 'currency'),
+                            ('schedule_id', 'schedule')
+                        ]
+
+                        for var_name, log_name in fields_to_log:
+                            if var_name in locals():
+                                value = locals()[var_name]
+                                if value is not None:
+                                    log_parts.append(f"{log_name}: {value}")
+                                else:
+                                    log_parts.append(f"{log_name}: None")
+
+                        if 'details' in locals() and details and isinstance(details, dict):
+                            log_parts.append(f"skills: {details.get('skills', '')}")
+                            log_parts.append(f"experience: {details.get('experience', '')}")
+
+                        if 'item' in locals() and item:
+                            log_parts.append(f"has_test: {item.get('has_test', 'N/A')}")
+                            log_parts.append(f"response_letter_required: {item.get('response_letter_required', 'N/A')}")
+                            log_parts.append(f"apply_alternate_url: {item.get('apply_alternate_url', 'N/A')}")
+
+                        logger.warning(", ".join(log_parts))
+
+                    except Exception as log_error:
+                        logger.error(f"Ошибка при формировании лога: {log_error}, исходная ошибка: {e}")
 
             total_for_role += len(items)
             total_pages = data.get("pages", 0)

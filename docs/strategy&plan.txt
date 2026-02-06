@@ -49,14 +49,13 @@ pytest + requests (для запуска в CI/CD) + allure
 1.1. Получение списка вакансий
      Ручка: GET /vacancies   +
      ОР: 200 OK
+     ответ не пустой
 1.2. Получение списка вакансий с параметрами фильтрации +
      Ручка GET /vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
      ОР: 200 OK
+     ответ не пустой
 1.3. Просмотр первой вакансии из списка вакансий с параметрами фильтрации +
      Ручка GET /vacancies/{id} +
-     ОР: 200 OK,
-     ручка GET https://api.hh.ru/vacancies?host=hh.ru&per_page=100&page=0&period=1&order_by=salary_desc&professional_role=124&work_format=REMOTE
-     статус 200
      взять первый id из списка и подставить в запрос /vacancies/{id}
      статус 200
 

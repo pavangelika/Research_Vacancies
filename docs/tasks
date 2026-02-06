@@ -13,3 +13,5 @@ employer_rating.total_rating        рейтинг
 employer.is_identified_by_esia      подтверждение на ЕСИА
 employer.trusted                    наличие проверки на сайте
 employer.alternate_url              Ссылка на представление компании на сайте
+
+#    professional_roles: str = os.getenv("PROFESSIONAL_ROLES", "34,124"),

@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 import requests
 from datetime import datetime
 
-
-
 logger = logging.getLogger(__name__)
 load_dotenv()
 
@@ -82,7 +80,6 @@ def init_table():
                 experience TEXT,
                 skills TEXT,      
                 schedule TEXT,
-                work_format TEXT,
                 requirement TEXT,
                 responsibility TEXT,          
                 description TEXT,
@@ -109,6 +106,7 @@ def init_table():
         conn.commit()
         logger.info("✅ Таблица get_vacancies готова")
 
+
 def save_vacancies(vacancies: list[dict]):
     logger.info("Сохранение вакансий в БД...")
 
@@ -127,14 +125,14 @@ def save_vacancies(vacancies: list[dict]):
                     INSERT INTO get_vacancies (
                         id, url, professional_role, name, employer, city,
                         salary_from, salary_to, currency,
-                        requirement, responsibility, skills, schedule, work_format,
+                        requirement, responsibility, skills, schedule,
                         experience, description, published_at, created_at, 
                         has_test, response_letter_required, apply_alternate_url
                     )
                     VALUES (
                         %(id)s, %(url)s, %(professional_role)s, %(name)s, %(employer)s, %(city)s,
                         %(salary_from)s, %(salary_to)s, %(currency)s,
-                        %(requirement)s, %(responsibility)s, %(skills)s, %(schedule)s, %(work_format)s,
+                        %(requirement)s, %(responsibility)s, %(skills)s, %(schedule)s,
                         %(experience)s, %(description)s, %(published_at)s, %(created_at)s,
                         %(has_test)s, %(response_letter_required)s, %(apply_alternate_url)s
                     )
@@ -273,6 +271,7 @@ def update_archived_status(
 
         logger.info(f"Проверка статуса вакансий завершена. Обработано {total_missing} вакансий")
 
+
 def init_employers():
     logger.info("Инициализация таблицы employers...")
 
@@ -343,7 +342,6 @@ def update_employers(vacancies: list[dict]):
                     continue
 
                 # Используем UPSERT (ON CONFLICT)
-                # В запросе указано 9 полей, передаем 9 значений
                 cur.execute(
                     """
                     INSERT INTO employers
