@@ -7,3 +7,4 @@ reports/*.html
 allure-results
 allure-report
 logs
+type_test.py
