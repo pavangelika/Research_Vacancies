@@ -124,7 +124,7 @@ def get_vacancies(
         order_by: str = "salary_desc",
         work_format: str = "REMOTE",
         timeout: int = 10,
-        vacancy_delay: float = 0.2
+        vacancy_delay: float = 1.2
 ) -> List[Dict]:
     """
     Собирает вакансии с HH API.

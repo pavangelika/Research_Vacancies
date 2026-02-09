@@ -184,6 +184,7 @@ def validate_vacancy_detail_response(response_json):
 def check_data_types(response_json, SCHEMA):
     """Проверка типов данных на основе схемы"""
     type_mapping = {
+        "integer": int,
         "string": str,
         "boolean": bool,
         "array": list,

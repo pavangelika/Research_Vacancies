@@ -68,6 +68,7 @@ def test_basic_request(api_client, attach_headers_request_response):
             attachment_type=allure.attachment_type.JSON
         )
 
+
 @allure.parent_suite("API")
 @allure.suite("Раздел: Вакансии")
 @allure.sub_suite("Поиск вакансий. Ручка: /vacancies")
@@ -138,22 +139,7 @@ def test_example_parameters(api_client, attach_headers_request_response):
             attachment_type=allure.attachment_type.JSON
         )
 
-    # with allure.step("Check structure of response"):
-    #     data = response.json()
-    #     validate_vacancies_response(data)
-    #
-    #     response_body = {
-    #         "items": response.json()["items"][0],
-    #         "found": response.json()["found"],
-    #         "page": response.json()["page"],
-    #         "per_page": response.json()["per_page"],
-    #         "pages": response.json()["pages"]
-    #     }
-    #     allure.attach(
-    #         body = json.dumps(response_body, indent=2, ensure_ascii=False),
-    #         name = "Response Body",
-    #         attachment_type = allure.attachment_type.JSON
-    #     )
+
     #
     # with allure.step("Check time of response"):
     #     assert response_time < 2000, f"Time of response {response_time}ms > 2 sec"
