@@ -10,9 +10,9 @@ from tests.api.utils.schemas import validate_vacancies_response, validate_vacanc
 # @allure.epic("API")
 # @allure.feature("Раздел: Вакансии")
 # @allure.story("Поиск вакансии")
-@allure.parent_suite("API")
-@allure.suite("Раздел: Вакансии")
-@allure.sub_suite("Просмотр вакансии. Ручка: /vacancies/{vacancy_id}")
+@allure.parent_suite("API. Раздел: Вакансии")
+@allure.suite("Поиск вакансий. Ручка: /vacancies/{vacancy_id}")
+@allure.sub_suite("Дымовое тестирование")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancy",
              name="Документация: Поиск вакансии")
 @allure.tag("smoke", "vacancy")
@@ -34,7 +34,7 @@ def test_get_vacancy(api_client, attach_headers_request_response):
         "work_format": "REMOTE"
     }
 
-    with allure.step(f"#1 Получить список вакансий с выбранными параметрами фильтрации"):
+    with allure.step(f"#1 Отправить запрос с выбранными параметрами фильтрации"):
         params = {
             "host": "hh.ru",
             "per_page": 100,
@@ -83,7 +83,7 @@ def test_get_vacancy(api_client, attach_headers_request_response):
             response,
             response_time)
 
-    with allure.step("#4 Проверить: код ответа 200"):
+    with allure.step("#4 Получить ответ сервера 200"):
         assert response.status_code == 200, f"Expected 200, received {response.status_code}"
         allure.attach(
             body=f"Status code,{response.status_code}",

@@ -8,9 +8,9 @@ from tests.api.utils.schemas import validate_vacancies_response
 # @allure.epic("API")
 # @allure.feature("Раздел: Вакансии")
 # @allure.story("Поиск вакансий")
-@allure.parent_suite("API")
-@allure.suite("Раздел: Вакансии")
-@allure.sub_suite("Поиск вакансий. Ручка: /vacancies")
+@allure.parent_suite("API. Раздел: Вакансии")
+@allure.suite("Поиск вакансий. Ручка: /vacancies")
+@allure.sub_suite("Дымовое тестирование")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancies",
              name="Documentation: GET vacancies")
 @allure.tag("smoke", "vacancies")
@@ -22,7 +22,7 @@ from tests.api.utils.schemas import validate_vacancies_response
 @allure.title("Получение списка вакансий без ввода параметров")
 def test_basic_request(api_client, attach_headers_request_response):
     """Проверка получения списка вакансии без применения фильтров"""
-    with allure.step("#1 Получить список вакансий"):
+    with allure.step("#1 Отправить базовый запрос без параметров"):
         start_time = time.time()
         response = api_client.get_vacancies()
         response_time = (time.time() - start_time) * 1000
@@ -35,7 +35,7 @@ def test_basic_request(api_client, attach_headers_request_response):
             response_time
         )
 
-    with allure.step("#2 Проверить: код ответа 200"):
+    with allure.step("#2 Получить ответ сервера 200"):
         assert response.status_code == 200, f"Expected 200, received {response.status_code}"
         allure.attach(
             body=f"Status code,{response.status_code}",
@@ -69,14 +69,14 @@ def test_basic_request(api_client, attach_headers_request_response):
         )
 
 
-@allure.parent_suite("API")
-@allure.suite("Раздел: Вакансии")
-@allure.sub_suite("Поиск вакансий. Ручка: /vacancies")
+@allure.parent_suite("API. Раздел: Вакансии")
+@allure.suite("Поиск вакансий. Ручка: /vacancies")
+@allure.sub_suite("Дымовое тестирование")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancies",
              name="Documentation: GET vacancies")
 @allure.tag("smoke", "vacancies")
 @allure.label("owner", "Pavangelika")
-@allure.testcase("ST-001")
+@allure.testcase("ST-002")
 @allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.smoke
 @pytest.mark.vacancies
@@ -93,7 +93,7 @@ def test_example_parameters(api_client, attach_headers_request_response):
         "work_format": "REMOTE"
     }
 
-    with allure.step("#1 Получение списка вакансий с параметрами"):
+    with allure.step("#1 Отправить запрос с параметрами"):
         start_time = time.time()
         response = api_client.get_vacancies(**params)
         response_time = (time.time() - start_time) * 1000
@@ -106,7 +106,7 @@ def test_example_parameters(api_client, attach_headers_request_response):
             response,
             response_time)
 
-    with allure.step("#2 Проверить: код ответа 200"):
+    with allure.step("#2 Получить ответ сервера 200"):
         assert response.status_code == 200, f"Expected 200, received {response.status_code}"
         allure.attach(
             body=f"Status code,{response.status_code}",

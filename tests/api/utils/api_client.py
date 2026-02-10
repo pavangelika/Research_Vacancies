@@ -24,21 +24,3 @@ class HHAPIClient:
         return self.session.get(url, timeout=self.timeout)
     # https://api.hh.ru/openapi/redoc#tag/Upravlenie-vakansiyami/operation/get-vacancy
 
-    def get_employers(self):
-        """GET запрос к /employers"""
-        url = f"{self.base_url}/employers"
-        return self.session.get(url, timeout=self.timeout)
-    # https://api.hh.ru/openapi/redoc#tag/Rabotodatel
-
-    def get_employer_detail(self, employer_id):
-        """GET запрос к /employers/{employer_id}"""
-        url = f"{self.base_url}/employers/{employer_id}"
-        return self.session.get(url, timeout=self.timeout)
-    # https://api.hh.ru/openapi/redoc#tag/Rabotodatel/operation/get-employer-info
-
-    def get_resumes(self):
-        """GET запрос к /resumes"""
-        url = f"{self.base_url}/resumes"
-        return self.session.get(url, timeout=self.timeout)
-    # https://api.hh.ru/openapi/redoc#tag/Poisk-rezyume/operation/search-for-resumes
-

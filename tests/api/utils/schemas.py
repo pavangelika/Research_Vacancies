@@ -250,3 +250,5 @@ def check_data_types(response_json, SCHEMA):
                            f"{type(value).__name__}, ожидается: {expected_type}")
 
     return results
+
+

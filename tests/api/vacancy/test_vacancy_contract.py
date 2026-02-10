@@ -9,9 +9,9 @@ from tests.api.utils.schemas import validate_vacancy_detail_response, VACANCY_DE
 # @allure.epic("API")
 # @allure.feature("Раздел: Вакансии")
 # @allure.story("Поиск вакансии")
-@allure.parent_suite("API")
-@allure.suite("Раздел: Вакансии")
-@allure.sub_suite("Просмотр вакансии. Ручка: /vacancies/{vacancy_id}")
+@allure.parent_suite("API. Раздел: Вакансии")
+@allure.suite("Поиск вакансий. Ручка: /vacancies/{vacancy_id}")
+@allure.sub_suite("Проверка контракта")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancy",
              name="Документация: Поиск вакансии")
 @allure.tag("contract", "vacancy")
