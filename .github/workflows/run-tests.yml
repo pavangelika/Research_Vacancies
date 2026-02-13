@@ -1,0 +1,72 @@
+name: Nightly Regression + Allure History
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # каждый день в 03:00 UTC
+  workflow_dispatch:       # ручной запуск
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install allure-pytest
+
+      - name: Install Allure
+        run: |
+          sudo apt-add-repository ppa:qameta/allure -y
+          sudo apt-get update
+          sudo apt-get install allure
+
+      # Получаем предыдущую историю из ветки gh-pages
+      - name: Download previous allure history
+        run: |
+          mkdir -p allure-history
+          git fetch origin gh-pages --depth=1
+          if git rev-parse origin/gh-pages >/dev/null 2>&1; then
+            git worktree add allure-history origin/gh-pages
+          else
+            echo "No gh-pages branch yet, starting fresh"
+          fi
+
+      # Запускаем регрессионные тесты (можно добавить и другие маркеры)
+      - name: Run regression tests
+        run: |
+          pytest -m regression --alluredir=allure-results
+        continue-on-error: true
+
+      # Копируем историю в папку с результатами
+      - name: Copy history to results
+        run: |
+          if [ -d "allure-history/history" ]; then
+            cp -r allure-history/history allure-results/
+          fi
+
+      # Генерируем отчёт
+      - name: Generate Allure Report
+        run: |
+          allure generate allure-results --clean -o allure-report
+
+      # Обновляем историю для следующего запуска
+      - name: Update history folder
+        run: |
+          mkdir -p allure-history
+          cp -r allure-report/history allure-history/
+
+      # Публикуем отчёт на GitHub Pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./allure-report
+          destination_dir: latest
+          keep_files: false   # перезаписываем latest

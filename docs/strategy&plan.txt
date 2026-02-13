@@ -95,20 +95,3 @@ Test Case
 проверка work_format
 
 
-[Docker-образ с тестами и Allure]
-         |
-         v
-[CI Runner (GitLab/Jenkins)]
-         |
-         +-- запуск по расписанию (cron)
-         |
-         v
-[Контейнер: pytest + Allure]
-         |
-         +-- сохраняет allure-results
-         |
-         v
-[Генерация отчёта Allure с историей]
-         |
-         v
-[Публикация статического отчёта (Nginx/S3/GitHub Pages)]
