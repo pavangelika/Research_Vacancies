@@ -48,16 +48,6 @@ def attach_headers_request_response():
     return _attach
 
 @pytest.fixture(params=[
-    {"per_page": 10, "page": 0},
-    {"per_page": 50, "page": 1},
-    {"per_page": 100, "page": 0}
-])
-def pagination_params(request):
-    """Параметризованная фикстура для тестирования пагинации"""
-    return request.param
-
-
-@pytest.fixture(params=[
     {"professional_role": 124, "work_format": "REMOTE"},
     {"professional_role": 96, "work_format": "OFFICE"},
     {"professional_role": 156, "work_format": "HYBRID"}

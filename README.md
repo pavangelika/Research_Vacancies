@@ -11,37 +11,8 @@
 
 ### 🌐 Источник данных
 #### HH API:  https://api.hh.ru/vacancies
-параметры запроса:
-host=hh.ru
-per_page=100
-page=0
-period=1
-order_by=salary_desc
-professional_role=124
-work_format=REMOTE
 
 ### 🚀 Быстрый старт
-
-Ручной запуск автоотчета с историей
-
-Первый запуск и создание отчета о тестировании
-pytest -m smoke --alluredir=allure-results
-pytest -m contract --alluredir=allure-results
-pytest -m regression --alluredir=allure-results
-allure serve allure-results
-Создание папки для хранения истории
-allure generate allure-results -o allure-report --clean
-
-Второй и следующие запуски
-cp -r allure-report/history allure-results/
-
-Copy-Item -Recurse -Force "allure-report/history" "allure-results/" -ErrorAction Ignore
-pytest -m smoke --alluredir=allure-results
-pytest -m contract --alluredir=allure-results
-pytest -m regression --alluredir=allure-results
-allure generate allure-results -o allure-report --clean
-allure serve allure-results
-
 
 
 ### 🛠️ Стек технологий
@@ -53,17 +24,33 @@ allure serve allure-results
 * Автотестирование API: Python + Pytest + Allure 
 
 ### 📁 Структура проекта
+[Docker-образ с тестами, скриптами и Allure]
+         |
+         v
+[CI Runner (GitLab)]
+         |
+         +-- запуск по расписанию (cron)
+         |
+         v
+[Контейнер: pytest + Allure]
+         |
+         +-- сохраняет allure-results
+         |
+         v
+[Генерация отчёта Allure с историей]
+         |
+         v
+[Публикация статического отчёта (Nginx/S3/GitHub Pages)]
 
 ### 🗄️ Схема базы данных
 
-### 🐍 Сбор вакансий (Python)
+### 🐍 Python: что тестируем
 
 ### 📬 Postman: что тестируем
 
 ### 🔍 Контракт (пример schema)
 
 ### 🐳 Docker Desktop
-docker exec -it vacancies_postgres psql -U postgres -d vacancies_db
 
 ### 📊 SQL аналитика
 

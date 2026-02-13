@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+import allure
+
 
 def validate_salary_sorting(items, order="desc"):
     """Валидация сортировки по зарплате"""
@@ -26,3 +28,5 @@ def validate_date_range(items, days=1):
         published_at = datetime.fromisoformat(item['published_at'].replace('Z', '+00:00'))
         time_diff = now - published_at
         assert time_diff.days <= days, f"Вакансия опубликована более {days} дней назад"
+
+

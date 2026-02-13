@@ -7,7 +7,7 @@ from tests.api.utils.validators import validate_salary_sorting, validate_date_ra
 # @allure.story("Поиск вакансии")
 @allure.parent_suite("API. Раздел: Вакансии")
 @allure.suite("Поиск вакансий. Ручка: /vacancies")
-@allure.sub_suite("Проверка фильтрации запроса по параметру per_page")
+@allure.sub_suite("Проверка фильтрации запроса по параметрам per_page и page")
 @allure.link("https://api.hh.ru/openapi/redoc#tag/Poisk-vakansij/operation/get-vacancies",
              name="Documentation: GET vacancies")
 @allure.tag("regression", "vacancies", "per_page")
@@ -18,13 +18,23 @@ from tests.api.utils.validators import validate_salary_sorting, validate_date_ra
 class TestVacanciesRegress:
 
     @allure.tag("positive")
-    @pytest.mark.parametrize("per_page", [0, 1, 50, 100])
-    @allure.title("Параметр per_page: {per_page}")
-    def test_pagination_per_page_positive(self, api_client, attach_headers_request_response, per_page):
+    @pytest.mark.parametrize("per_page,page", [
+        (0,0),
+        (1, 0),
+        (50, 0),
+        (100, 0),
+        (1, 1),
+        (1, 1000),
+        (1, 1999),
+        (10, 199),
+        (100, 19),
+    ])
+    @allure.title("Positive. Параметр per_page: {per_page}, page={page}")
+    def test_pagination_per_page_positive(self, api_client, attach_headers_request_response, per_page, page):
         """Тестирование параметра per_page"""
-        params = {"per_page": per_page, "page": 0}
+        params = {"per_page": per_page, "page": page}
 
-        with allure.step(f"Отправить запрос к vacancies с per_page={per_page}"):
+        with allure.step(f"Отправить запрос к vacancies с per_page={per_page}, page={page}"):
             response = api_client.get_vacancies(**params)
 
             attach_headers_request_response(
@@ -64,13 +74,22 @@ class TestVacanciesRegress:
             )
 
     @allure.tag("negative")
-    @pytest.mark.parametrize("per_page", [-1, 101, "invalid", 1000000000000000000000000])
-    @allure.title("Параметр per_page: {per_page}")
-    def test_pagination_per_page_negative(self, api_client, attach_headers_request_response, per_page):
+    @pytest.mark.parametrize("per_page,page", [
+        (-1, 0),
+        (101, 0),
+        ("invalid", 0),
+        (1000000000000000000000000, 0),
+        (1, 1000000000000000000000000),
+        (1, 2000),
+        (10, 200),
+        (100, 20),
+    ])
+    @allure.title("Negative. Параметр per_page: {per_page}, page: {page}")
+    def test_pagination_per_page_negative(self, api_client, attach_headers_request_response, per_page, page):
         """Тестирование невалидных значений параметра per_page"""
-        params = {"per_page": per_page, "page": 0}
+        params = {"per_page": per_page, "page": page}
 
-        with allure.step(f"Отправить запрос с невалидным per_page={per_page}"):
+        with allure.step(f"Отправить запрос с невалидным per_page={per_page}, page={page}"):
             response = api_client.get_vacancies(**params)
 
             attach_headers_request_response(
@@ -81,44 +100,56 @@ class TestVacanciesRegress:
                 response
             )
 
-        with allure.step("Проверить, что сервер возвращает ошибку 400"):
+        with allure.step("Получить ошибку 400 Bad Request"):
             # Для негативных тестов ожидаем статус 400
             assert 400 == response.status_code, (
                 f"Для невалидного значения ожидается 400, получено {response.status_code}"
             )
 
-            allure.attach(
-                body=f"Status code,{response.status_code}",
-                name="Response details",
-                attachment_type=allure.attachment_type.CSV
-            )
-
-        with allure.step("Проверить структуру ответа с ошибкой"):
+        with allure.step("Сохранить ПОЛНЫЙ текст ошибки"):
             try:
-                data = response.json()
+                error_data = response.json()
+                error_text = response.text
+                allure.attach(
+                    body=error_text,
+                    name="Полный ответ с ошибкой (JSON)",
+                    attachment_type=allure.attachment_type.JSON
+                )
 
-                # Для API hh.ru обычно есть поле 'errors' в ответе при ошибке
-                # Проверяем, что есть информация об ошибке
-                if 'errors' in data:
+                if 'errors' in error_data:
                     allure.attach(
-                        body="\n".join([f"{err}" for err in data.get('errors', [])]),
-                        name="Error messages",
+                        body="\n".join(
+                            [f"{e.get('type')}: {e.get('value')} - {e.get('message')}"
+                             for e in error_data['errors']]
+                        ),
+                        name="Детали ошибки (parsed)",
                         attachment_type=allure.attachment_type.TEXT
                     )
-                elif 'error' in data:
+                elif 'error' in error_data:
                     allure.attach(
-                        body=data['error'],
+                        body=error_data['error'],
                         name="Error message",
                         attachment_type=allure.attachment_type.TEXT
                     )
-
             except ValueError:
-                # Если ответ не в JSON формате, это тоже может быть валидной ошибкой
                 allure.attach(
-                    body=response.text[:500],  # Первые 500 символов
-                    name="Error response (non-JSON)",
+                    body=response.text[:2000],
+                    name="Ответ с ошибкой (не JSON)",
                     attachment_type=allure.attachment_type.TEXT
                 )
+        # Краткий отчёт
+        allure.attach(
+            body=(
+                f"Параметр,Значение\n"
+                f"per_page,{per_page}\n"
+                f"page,{page}\n"
+                f"Статус код,{response.status_code}\n"
+                f"Ожидаемый статус,400\n"
+                f"Результат,PASSED (ошибка корректна)"
+            ),
+            name=f"Негативный тест: per_page={per_page}, page={page}",
+            attachment_type=allure.attachment_type.CSV
+        )
 
 
     # @pytest.mark.parametrize("order_by,expected_order", [
