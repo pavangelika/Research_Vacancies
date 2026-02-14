@@ -2,8 +2,11 @@ name: Nightly Regression + Allure History
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # каждый день в 03:00 UTC
-  workflow_dispatch:       # ручной запуск
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # необходимо для обновления ветки gh-pages
 
 jobs:
   regression:
@@ -21,11 +24,15 @@ jobs:
           pip install -r requirements.txt
           pip install allure-pytest
 
-      - name: Install Allure
+      # Установка Allure через загрузку бинарника (вместо PPA)
+      - name: Install Allure (binary)
         run: |
-          sudo apt-add-repository ppa:qameta/allure -y
-          sudo apt-get update
-          sudo apt-get install allure
+          ALLURE_VERSION="2.32.0"   # можно указать актуальную версию
+          wget -q "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
+          tar -xzf "allure-${ALLURE_VERSION}.tgz"
+          sudo mv "allure-${ALLURE_VERSION}" /opt/allure
+          sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
+          allure --version   # проверка
 
       # Получаем предыдущую историю из ветки gh-pages
       - name: Download previous allure history
@@ -38,7 +45,7 @@ jobs:
             echo "No gh-pages branch yet, starting fresh"
           fi
 
-      # Запускаем регрессионные тесты (можно добавить и другие маркеры)
+      # Запуск регрессионных тестов
       - name: Run regression tests
         run: |
           pytest -m regression --alluredir=allure-results
@@ -51,7 +58,7 @@ jobs:
             cp -r allure-history/history allure-results/
           fi
 
-      # Генерируем отчёт
+      # Генерация отчёта Allure
       - name: Generate Allure Report
         run: |
           allure generate allure-results --clean -o allure-report
@@ -62,11 +69,11 @@ jobs:
           mkdir -p allure-history
           cp -r allure-report/history allure-history/
 
-      # Публикуем отчёт на GitHub Pages
+      # Публикация отчёта на GitHub Pages
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./allure-report
           destination_dir: latest
-          keep_files: false   # перезаписываем latest
+          keep_files: false
