@@ -1,0 +1,10 @@
+listen_addr: "0.0.0.0:8080"
+default_database:
+  host: postgres
+  port: 5432
+  user: ${DB_USER}
+  password: ${DB_PASS}
+  dbname:  ${DB_NAME}
+allowed_sql_patterns:
+  - "(?i)^SELECT\\b"
+log_level: info
