@@ -117,7 +117,7 @@ def get_vacancy_id(
 
 #    professional_roles: str = os.getenv("PROFESSIONAL_ROLES", "34,124"),
 def get_vacancies(
-        professional_roles: str = os.getenv("PROFESSIONAL_ROLES", "124"),
+        professional_roles: str = os.getenv("PROFESSIONAL_ROLES", "25, 34, 13, 20, 55, 139, 40, 124"),
         host: str = "hh.ru",
         per_page: int = 100,
         period: int = 1,
