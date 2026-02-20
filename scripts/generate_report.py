@@ -31,7 +31,6 @@ def get_db_connection():
         DB_NAME = os.getenv("DB_NAME", "mydb")
         DB_HOST = os.getenv("DB_HOST", "postgres")
         DB_PORT = os.getenv("DB_PORT", "5432")
-        # Исправлено: добавлен @ и параметры
         database_url = os.environ.get(
             'DATABASE_URL',
             f'postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
@@ -45,62 +44,88 @@ def get_db_connection():
 
 def fetch_data(mapping):
     """
-    Получает из БД для каждой роли:
-    - общее количество вакансий
-    - количество открытых вакансий (archived = false)
-    Возвращает список кортежей (role_id, role_name, total, open).
+    Выполняет запрос с помесячной статистикой по ролям.
+    Возвращает список словарей:
+        {
+            'id': role_id,
+            'name': role_name,
+            'monthly': [
+                {'month': '2025-01', 'total': 10, 'archived': 2, 'active': 8},
+                ...
+            ]
+        }
     """
     conn = get_db_connection()
     cur = conn.cursor()
-    # Единый запрос с двумя агрегациями
     query = """
+        WITH salary_normalized AS (
+            SELECT
+                date_trunc('month', published_at) AS month,
+                archived,
+                professional_role        
+            FROM get_vacancies
+            WHERE published_at IS NOT NULL
+        )
         SELECT
+            month,
             professional_role,
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE archived = false) as open,
-            COUNT(*) FILTER (WHERE archived = true) as close
-        FROM get_vacancies
-        GROUP BY professional_role
-        ORDER BY professional_role;
+            COUNT(*) AS vacancies_total,
+            COUNT(*) FILTER (WHERE archived = true) AS vacancies_archived,
+            COUNT(*) FILTER (WHERE archived = false) AS vacancies_active
+        FROM salary_normalized
+        GROUP BY month, professional_role
+        ORDER BY month, professional_role;
     """
     cur.execute(query)
     rows = cur.fetchall()
     cur.close()
     conn.close()
 
-    result = []
-    for role_id, total, open_count, close_count in rows:
+    roles_dict = {}
+    for month, role_id, total, archived, active in rows:
+        # Определяем ключ и имя роли
         if role_id is None:
-            result.append(("NULL", "Не указана", total, open_count,close_count ))
+            role_key = "NULL"
+            role_name = mapping.get(role_key, "Не указана")
         else:
             role_id_str = str(role_id)
+            role_key = role_id_str
             role_name = mapping.get(role_id_str, f"ID {role_id} (неизвестная роль)")
-            result.append((role_id_str, role_name, total, open_count, close_count))
-    return result
 
-def render_report(data):
+        if role_key not in roles_dict:
+            roles_dict[role_key] = {
+                'id': role_key,
+                'name': role_name,
+                'monthly': []
+            }
+
+        # Форматируем месяц как строку (ГГГГ-ММ)
+        month_str = month.strftime('%Y-%m')
+        roles_dict[role_key]['monthly'].append({
+            'month': month_str,
+            'total': total,
+            'archived': archived,
+            'active': active
+        })
+
+    # Преобразуем в список и сортируем по имени роли
+    roles_list = list(roles_dict.values())
+    roles_list.sort(key=lambda x: x['name'])
+    return roles_list
+
+def render_report(roles_data):
     """Рендерит HTML-шаблон с данными и текущей датой."""
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     logging.info(f"Template loaded from: {template.filename}")
-    roles = [
-        {
-            'id': row[0],
-            'name': row[1],
-            'total': row[2],
-            'open': row[3],
-            'close':row[4]
-        }
-        for row in data
-    ]
     current_date = datetime.now().strftime("%d.%m.%Y")
-    return template.render(roles=roles, current_date=current_date)
+    return template.render(roles=roles_data, current_date=current_date)
 
 def save_report(html_content):
     """Сохраняет HTML-файл отчёта."""
     output_dir = '/reports'
     os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, 'report.html')  # Исправлено имя
+    output_file = os.path.join(output_dir, 'report.html')
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     logging.info(f"Report saved to {output_file}")

@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vacancy Report by Professional Role - {{ current_date }}</title>
+    <title>Vacancy Report by Month and Role - {{ current_date }}</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Анализ рынка вакансий на {{ current_date }}</h1>
+    <h1>Vacancy Report by Professional Role (Monthly)</h1>
+    <p class="report-date">Generated on: <strong>{{ current_date }}</strong></p>
 
     <div class="tabs">
         {% for role in roles %}
@@ -18,9 +18,26 @@
     {% for role in roles %}
     <div id="tab-{{ loop.index }}" class="tab-content">
         <h2>{{ role.name }} (ID: {{ role.id }})</h2>
-        <p>Количество вакансий: <strong>{{ role.total }}</strong></p>
-        <p>Количество открытых вакансий: <strong>{{ role.open }}</strong></p>
-        <p>Количество архивных вакансий: <strong>{{ role.close }}</strong></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Месяц</th>
+                    <th>Всего вакансий</th>
+                    <th>Архивных</th>
+                    <th>Активных</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in role.monthly %}
+                <tr>
+                    <td>{{ entry.month }}</td>
+                    <td>{{ entry.total }}</td>
+                    <td>{{ entry.archived }}</td>
+                    <td>{{ entry.active }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% endfor %}
 
