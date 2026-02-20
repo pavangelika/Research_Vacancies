@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # необходимо для обновления ветки gh-pages
+  contents: write
 
 jobs:
   regression:
@@ -24,22 +24,24 @@ jobs:
           pip install -r requirements.txt
           pip install allure-pytest
 
-      # Установка Allure через загрузку бинарника (вместо PPA)
-      - name: Install Allure (binary)
+      # Установка Allure (бинарник)
+      - name: Install Allure
         run: |
-          ALLURE_VERSION="2.32.0"   # можно указать актуальную версию
+          ALLURE_VERSION="2.32.0"
           wget -q "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
           tar -xzf "allure-${ALLURE_VERSION}.tgz"
           sudo mv "allure-${ALLURE_VERSION}" /opt/allure
           sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
-          allure --version   # проверка
+          allure --version
 
-      # Получаем предыдущую историю из ветки gh-pages
+      # Загрузка предыдущей истории (с обработкой отсутствия ветки)
       - name: Download previous allure history
         run: |
           mkdir -p allure-history
-          git fetch origin gh-pages --depth=1
-          if git rev-parse origin/gh-pages >/dev/null 2>&1; then
+          # Проверяем, существует ли ветка gh-pages на удалённом репозитории
+          if git ls-remote --heads origin gh-pages | grep gh-pages; then
+            echo "Branch gh-pages exists, fetching..."
+            git fetch origin gh-pages --depth=1
             git worktree add allure-history origin/gh-pages
           else
             echo "No gh-pages branch yet, starting fresh"
@@ -51,7 +53,7 @@ jobs:
           pytest -m regression --alluredir=allure-results
         continue-on-error: true
 
-      # Копируем историю в папку с результатами
+      # Копируем старую историю в папку с результатами (если есть)
       - name: Copy history to results
         run: |
           if [ -d "allure-history/history" ]; then
@@ -63,7 +65,7 @@ jobs:
         run: |
           allure generate allure-results --clean -o allure-report
 
-      # Обновляем историю для следующего запуска
+      # Обновляем папку истории для следующего запуска
       - name: Update history folder
         run: |
           mkdir -p allure-history
