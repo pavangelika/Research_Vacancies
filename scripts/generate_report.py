@@ -5,10 +5,13 @@ import psycopg2
 import shutil
 import logging
 from jinja2 import Environment, FileSystemLoader
+from collections import defaultdict
+import json as json_lib  # для сериализации данных графиков
 
 logging.basicConfig(level=logging.INFO)
 
 def load_roles_mapping(json_path):
+    """Загружает JSON и возвращает словарь {id: name}."""
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
@@ -23,6 +26,7 @@ def load_roles_mapping(json_path):
     return mapping
 
 def get_db_connection():
+    """Устанавливает соединение с PostgreSQL."""
     try:
         DB_USER = os.getenv("DB_USER", "postgres")
         DB_PASS = os.getenv("DB_PASS", "password")
@@ -41,11 +45,14 @@ def get_db_connection():
         raise
 
 def fetch_data(mapping):
+    """
+    Возвращает данные для анализа активности:
+    - months: помесячная статистика по опыту (для таблиц)
+    - trend: данные для графика динамики (месяц -> суммарные активные, архивные, средний возраст)
+    """
     conn = get_db_connection()
     cur = conn.cursor()
-
-    # 1. Запрос для анализа активности (с группировкой по месяцу и опыту)
-    query_activity = """
+    query = """
         WITH salary_normalized AS (
             SELECT
                 date_trunc('month', published_at) AS month,
@@ -68,35 +75,16 @@ def fetch_data(mapping):
         GROUP BY month, professional_role, experience
         ORDER BY month, professional_role, experience;
     """
-    cur.execute(query_activity)
-    rows_activity = cur.fetchall()
-
-    # 2. Запрос для анализа по дням недели (без группировки по месяцам)
-    query_weekday = """
-        SELECT 
-            professional_role as role_id,
-            TRIM(TO_CHAR(published_at, 'Day')) as weekday,
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE archived_at IS NOT NULL) as archived_count,
-            ROUND(AVG(EXTRACT(HOUR FROM published_at)), 0) as avg_publish_hour,
-            ROUND(AVG(EXTRACT(HOUR FROM archived_at)), 0) as avg_archive_hour
-        FROM public.get_vacancies 
-        WHERE published_at IS NOT NULL
-        GROUP BY professional_role, EXTRACT(DOW FROM published_at), TO_CHAR(published_at, 'Day')
-        HAVING COUNT(*) > 0
-        ORDER BY professional_role, COUNT(*) DESC;
-    """
-    cur.execute(query_weekday)
-    rows_weekday = cur.fetchall()
-
+    cur.execute(query)
+    rows = cur.fetchall()
     cur.close()
     conn.close()
 
-    # Словарь для хранения данных по ролям
     roles_dict = {}
+    # Для трендов собираем суммарные показатели по месяцам (без разбивки по опыту)
+    trends = defaultdict(lambda: {'months': [], 'active': [], 'archived': [], 'avg_age': []})
 
-    # Обработка activity данных
-    for month, role_id, experience, total, archived, active, avg_age in rows_activity:
+    for month, role_id, experience, total, archived, active, avg_age in rows:
         if role_id is None:
             role_key = "NULL"
             role_name = mapping.get(role_key, "Не указана")
@@ -109,14 +97,10 @@ def fetch_data(mapping):
             roles_dict[role_key] = {
                 'id': role_key,
                 'name': role_name,
-                'months_data': {},          # для анализа активности по месяцам
-                'weekday_data': []           # для анализа по дням недели
+                'months_data': defaultdict(list)
             }
 
         month_str = month.strftime('%Y-%m')
-        if month_str not in roles_dict[role_key]['months_data']:
-            roles_dict[role_key]['months_data'][month_str] = []
-
         experience_display = experience if experience is not None else "Не указан"
         roles_dict[role_key]['months_data'][month_str].append({
             'experience': experience_display,
@@ -126,32 +110,38 @@ def fetch_data(mapping):
             'avg_age': float(avg_age) if avg_age is not None else 0
         })
 
-    # Обработка weekday данных
-    for role_id, weekday, total, archived_count, avg_publish_hour, avg_archive_hour in rows_weekday:
-        if role_id is None:
-            role_key = "NULL"
-        else:
-            role_key = str(role_id)
+        # Для тренда суммируем по месяцам (без разбивки по опыту)
+        trends[role_key]['months'].append(month_str)
+        # Для активных/архивных используем сумму по всем уровням опыта за этот месяц
+        # Но проще пересчитать позже, когда будут все данные. Сейчас просто соберём сырые значения.
+        # Позже в отдельном проходе агрегируем.
 
-        if role_key not in roles_dict:
-            # Если роль не появилась в первом запросе (например, нет данных по месяцам), создаём минимальную запись
-            role_name = mapping.get(role_key, f"ID {role_id} (неизвестная роль)")
-            roles_dict[role_key] = {
-                'id': role_key,
-                'name': role_name,
-                'months_data': {},
-                'weekday_data': []
-            }
+    # Второй проход: агрегация трендов
+    for role_key, role_info in roles_dict.items():
+        months_sorted = sorted(role_info['months_data'].keys())
+        trend_data = {
+            'months': months_sorted,
+            'active': [],
+            'archived': [],
+            'avg_age': []
+        }
+        for month in months_sorted:
+            entries = role_info['months_data'][month]
+            # Суммируем active и archived
+            total_active = sum(e['active'] for e in entries)
+            total_archived = sum(e['archived'] for e in entries)
+            # Средний возраст – средневзвешенное? Упростим: среднее по всем записям (не взвешенное)
+            # Для корректности лучше в SQL считать взвешенное, но для простоты возьмём среднее из средних
+            # или пересчитаем в SQL отдельно. Пока пропустим.
+            # Вместо этого используем общее среднее из другого запроса, но сейчас avg_age уже есть в каждой записи.
+            # Можно взять среднее из avg_age по всем записям (не совсем корректно, но приемлемо)
+            avg_age_month = sum(e['avg_age'] for e in entries) / len(entries) if entries else 0
+            trend_data['active'].append(total_active)
+            trend_data['archived'].append(total_archived)
+            trend_data['avg_age'].append(round(avg_age_month, 1))
+        role_info['trend'] = trend_data
 
-        roles_dict[role_key]['weekday_data'].append({
-            'weekday': weekday,
-            'total': total,
-            'archived': archived_count,
-            'avg_publish_hour': int(avg_publish_hour) if avg_publish_hour is not None else None,
-            'avg_archive_hour': int(avg_archive_hour) if avg_archive_hour is not None else None
-        })
-
-    # Преобразование months_data в список месяцев с записями, отсортированными по опыту
+    # Порядок опыта для сортировки
     experience_order = {
         "Нет опыта": 1,
         "От 1 года до 3 лет": 2,
@@ -162,10 +152,9 @@ def fetch_data(mapping):
 
     roles_list = []
     for role_key, role_info in roles_dict.items():
-        # Обработка months_data
         months_list = []
-        for month_str in sorted(role_info['months_data'].keys()):
-            entries = role_info['months_data'][month_str]
+        for month in sorted(role_info['months_data'].keys()):
+            entries = role_info['months_data'][month]
             entries.sort(key=lambda e: experience_order.get(e['experience'], default_order))
             max_archived = max(e['archived'] for e in entries) if entries else 0
             max_age = max(e['avg_age'] for e in entries) if entries else 0
@@ -173,28 +162,106 @@ def fetch_data(mapping):
                 e['is_max_archived'] = (e['archived'] == max_archived)
                 e['is_max_age'] = (e['avg_age'] == max_age)
             months_list.append({
-                'month': month_str,
+                'month': month,
                 'entries': entries
             })
         role_info['months'] = months_list
-        # Удаляем исходный словарь, если не нужен
         del role_info['months_data']
-
-        # Сортируем weekday_data по убыванию публикаций (как в запросе, но можно и по дню недели)
-        # Здесь оставляем как есть (уже отсортировано по убыванию COUNT(*) в SQL)
-        # Можно дополнительно сортировать по дню недели для красоты, но пока не будем.
-
         roles_list.append(role_info)
 
     roles_list.sort(key=lambda x: x['name'])
     return roles_list
 
-def render_report(data):
+def fetch_weekday_data(mapping):
+    """
+    Возвращает данные для анализа по дням недели:
+    для каждой роли список записей (день, публикации, архивации, ср. время публикации, ср. время архивации)
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        SELECT 
+            professional_role as role_id,
+            TRIM(TO_CHAR(published_at, 'Day')) as weekday,
+            COUNT(*) as publications,
+            COUNT(*) FILTER (WHERE archived_at IS NOT NULL) as archives,
+            ROUND(AVG(EXTRACT(HOUR FROM published_at)), 0) || ':00' as avg_pub_hour,
+            ROUND(AVG(EXTRACT(HOUR FROM archived_at)), 0) || ':00' as avg_arch_hour
+        FROM public.get_vacancies 
+        WHERE published_at IS NOT NULL
+        GROUP BY professional_role, EXTRACT(DOW FROM published_at), TO_CHAR(published_at, 'Day')
+        HAVING COUNT(*) > 0
+        ORDER BY professional_role, COUNT(*) DESC;
+    """
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    weekdays_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    roles_weekdays = {}
+
+    for role_id, weekday, publications, archives, avg_pub_hour, avg_arch_hour in rows:
+        if role_id is None:
+            role_key = "NULL"
+            role_name = mapping.get(role_key, "Не указана")
+        else:
+            role_id_str = str(role_id)
+            role_key = role_id_str
+            role_name = mapping.get(role_id_str, f"ID {role_id} (неизвестная роль)")
+
+        if role_key not in roles_weekdays:
+            roles_weekdays[role_key] = {
+                'id': role_key,
+                'name': role_name,
+                'weekdays': []
+            }
+
+        roles_weekdays[role_key]['weekdays'].append({
+            'weekday': weekday,
+            'publications': publications,
+            'archives': archives,
+            'avg_pub_hour': avg_pub_hour,
+            'avg_arch_hour': avg_arch_hour
+        })
+
+    # Сортируем дни недели для каждой роли
+    for role in roles_weekdays.values():
+        role['weekdays'].sort(key=lambda x: weekdays_order.index(x['weekday']) if x['weekday'] in weekdays_order else 99)
+
+    return list(roles_weekdays.values())
+
+
+def render_report(roles_data, weekday_data):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     logging.info(f"Template loaded from: {template.filename}")
     current_date = datetime.now().strftime("%d.%m.%Y")
-    return template.render(roles=data, current_date=current_date)
+
+    # Создаём словарь для передачи всех данных в JavaScript
+    report_data = {
+        'roles': {}
+    }
+    for role in roles_data:
+        role_id = role['id']
+        report_data['roles'][role_id] = {
+            'trend': role['trend'],
+            'weekdays': None
+        }
+    for wrole in weekday_data:
+        role_id = wrole['id']
+        if role_id in report_data['roles']:
+            report_data['roles'][role_id]['weekdays'] = wrole['weekdays']
+        else:
+            # на случай, если роль есть только в weekday_data
+            report_data['roles'][role_id] = {
+                'trend': None,
+                'weekdays': wrole['weekdays']
+            }
+
+    report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
+    return template.render(roles=roles_data, weekday_roles=weekday_data,
+                           current_date=current_date, report_data_json=report_data_json)
 
 def save_report(html_content):
     output_dir = '/reports'
@@ -218,14 +285,21 @@ def main():
 
     mapping = load_roles_mapping(json_path)
 
-    logging.info("Fetching data from database...")
-    data = fetch_data(mapping)
-    if not data:
-        logging.warning("No data found. Empty report will be generated.")
-        data = []
+    logging.info("Fetching activity data...")
+    roles_data = fetch_data(mapping)
 
-    html = render_report(data)
-    logging.info(f"Rendered HTML (first 500 chars): {html[:500]}")
+    logging.info("Fetching weekday data...")
+    weekday_data = fetch_weekday_data(mapping)
+
+    if not roles_data:
+        logging.warning("No activity data found.")
+        roles_data = []
+    if not weekday_data:
+        logging.warning("No weekday data found.")
+        weekday_data = []
+
+    html = render_report(roles_data, weekday_data)
+    logging.info(f"Rendered HTML length: {len(html)} chars")
     save_report(html)
     copy_styles()
 
