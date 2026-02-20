@@ -2,60 +2,99 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Анализ динамики вакансий по месяцам - {{ current_date }}</title>
+    <title>Анализ вакансий по ролям - {{ current_date }}</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Анализ динамики вакансий по месяцам</h1>
+    <h1>Анализ вакансий по профессиональным ролям</h1>
     <p class="report-date">Отчёт сгенерирован: <strong>{{ current_date }}</strong></p>
 
     <!-- Вкладки по ролям (первый уровень) -->
     <div class="tabs role-tabs">
-        {% for role in roles %}
+        {% for role in monthly_roles %}
         <button class="tab-button role-button" onclick="openRoleTab(event, 'role-{{ loop.index }}')">{{ role.id }}</button>
         {% endfor %}
     </div>
 
-    {% for role in roles %}
-    {% set role_index = loop.index %}  {# сохраняем индекс роли #}
+    {% for role in monthly_roles %}
+    {% set role_index = loop.index %}
     <div id="role-{{ role_index }}" class="role-content">
         <h2>{{ role.name }} (ID: {{ role.id }})</h2>
 
-        <!-- Вкладки по месяцам (второй уровень) -->
-        {% if role.months %}
-        <div class="tabs month-tabs">
-            {% for month_data in role.months %}
-            <button class="tab-button month-button" onclick="openMonthTab(event, 'month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
-            {% endfor %}
+        <!-- Вкладки выбора анализа (второй уровень) -->
+        <div class="tabs analysis-tabs">
+            <button class="tab-button analysis-button active" onclick="switchAnalysis(event, 'monthly-{{ role_index }}')">Анализ активности вакансий</button>
+            <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
         </div>
 
-        {% for month_data in role.months %}
-        <div id="month-{{ role_index }}-{{ loop.index }}" class="month-content">
+        <!-- Блок для помесячного анализа -->
+        <div class="analysis-panel" id="monthly-{{ role_index }}">
+            <!-- Вкладки по месяцам -->
+            {% if role.months %}
+            <div class="tabs month-tabs">
+                {% for month_data in role.months %}
+                <button class="tab-button month-button" onclick="openMonthTab(event, 'month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
+                {% endfor %}
+            </div>
+
+            <!-- Блоки месяцев -->
+            {% for month_data in role.months %}
+            <div id="month-{{ role_index }}-{{ loop.index }}" class="month-content">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Опыт</th>
+                            <th>Всего</th>
+                            <th>Архивных</th>
+                            <th>Активных</th>
+                            <th>Ср. возраст (дни)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in month_data.entries %}
+                        <tr {% if entry.is_max_archived %}class="max-archived"{% endif %}>
+                            <td>{{ entry.experience }}</td>
+                            <td>{{ entry.total }}</td>
+                            <td>{{ entry.archived }}</td>
+                            <td>{{ entry.active }}</td>
+                            <td>{{ "%.1f"|format(entry.avg_age) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endfor %}
+            {% else %}
+            <p>Нет помесячных данных</p>
+            {% endif %}
+        </div>
+
+        <!-- Блок для анализа по дням недели -->
+        <div class="analysis-panel" id="weekday-{{ role_index }}" style="display: none;">
+            {% set weekday_role = weekday_roles[role_index-1] %}
             <table>
                 <thead>
                     <tr>
-                        <th>Опыт</th>
-                        <th>Всего вакансий</th>
-                        <th>Архивных</th>
-                        <th>Активных</th>
+                        <th>День недели</th>
+                        <th>Публикаций</th>
+                        <th>Архиваций</th>
+                        <th>Ср. время публикации</th>
+                        <th>Ср. время архивации</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for entry in month_data.entries %}
-                    <tr {% if entry.is_max_archived %}class="max-archived"{% endif %}>
-                        <td>{{ entry.experience }}</td>
-                        <td>{{ entry.total }}</td>
-                        <td>{{ entry.archived }}</td>
-                        <td>{{ entry.active }}</td>
+                    {% for day in weekday_role.weekdays %}
+                    <tr>
+                        <td>{{ day.day }}</td>
+                        <td>{{ day.published }}</td>
+                        <td>{{ day.archived }}</td>
+                        <td>{{ day.avg_pub_time }}</td>
+                        <td>{{ day.avg_arch_time }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        {% endfor %}
-        {% else %}
-        <p>Нет данных за указанный период</p>
-        {% endif %}
     </div>
     {% endfor %}
 
@@ -73,21 +112,46 @@
             document.getElementById(roleId).style.display = "block";
             evt.currentTarget.className += " active";
 
-            // Активируем первый месяц в открытой роли
-            var firstMonthButton = document.querySelector("#" + roleId + " .month-button");
-            if (firstMonthButton) {
-                firstMonthButton.click();
+            // Активируем первую вкладку анализа и первый месяц
+            var roleDiv = document.getElementById(roleId);
+            var firstAnalysisButton = roleDiv.querySelector('.analysis-button');
+            if (firstAnalysisButton) firstAnalysisButton.click();
+            var firstMonthButton = roleDiv.querySelector('.month-button');
+            if (firstMonthButton) firstMonthButton.click();
+        }
+
+        function switchAnalysis(evt, analysisId) {
+            var parentRole = evt.currentTarget.closest('.role-content');
+            var analysisButtons = parentRole.getElementsByClassName("analysis-button");
+            for (var i = 0; i < analysisButtons.length; i++) {
+                analysisButtons[i].className = analysisButtons[i].className.replace(" active", "");
+            }
+            evt.currentTarget.className += " active";
+
+            // Скрываем все панели анализа
+            var panels = parentRole.getElementsByClassName("analysis-panel");
+            for (i = 0; i < panels.length; i++) {
+                panels[i].style.display = "none";
+            }
+
+            // Показываем выбранную панель
+            var targetPanel = parentRole.querySelector('#' + analysisId);
+            if (targetPanel) targetPanel.style.display = "block";
+
+            // Если выбрана панель с месяцами, активируем первый месяц
+            if (analysisId.startsWith('monthly')) {
+                var firstMonthButton = targetPanel.querySelector('.month-button');
+                if (firstMonthButton) firstMonthButton.click();
             }
         }
 
         function openMonthTab(evt, monthId) {
-            var i, monthContent, monthButtons;
             var parentRole = evt.currentTarget.closest('.role-content');
-            monthContent = parentRole.getElementsByClassName("month-content");
-            for (i = 0; i < monthContent.length; i++) {
+            var monthContent = parentRole.getElementsByClassName("month-content");
+            for (var i = 0; i < monthContent.length; i++) {
                 monthContent[i].style.display = "none";
             }
-            monthButtons = parentRole.getElementsByClassName("month-button");
+            var monthButtons = parentRole.getElementsByClassName("month-button");
             for (i = 0; i < monthButtons.length; i++) {
                 monthButtons[i].className = monthButtons[i].className.replace(" active", "");
             }

@@ -177,6 +177,55 @@ tr:hover {
     color: var(--ios-text);
 }
 
+/* Вкладки анализа (под заголовком роли) */
+.analysis-tabs {
+    margin-top: 16px;
+    margin-bottom: 12px;
+    background-color: var(--ios-light-gray);
+    border-radius: 8px;
+    padding: 4px;
+}
+
+.analysis-button {
+    font-size: 14px;
+    padding: 10px 16px;
+}
+
+.analysis-button.active {
+    background-color: var(--ios-blue);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+/* Выделение максимума среднего возраста (голубоватый фон) */
+.max-age {
+    font-weight: 600;
+    background-color: rgba(0, 122, 255, 0.1); /* светло-голубой */
+}
+.max-age td {
+    color: var(--ios-text);
+    border-bottom-color: rgba(0, 122, 255, 0.2);
+}
+
+/* Убедимся, что вкладки месяцев не конфликтуют */
+.month-tabs {
+    margin-top: 8px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.month-button {
+    font-size: 13px;
+    padding: 8px 12px;
+}
+
+.month-button.active {
+    background-color: var(--ios-green);
+    color: white;
+}
+
 /* Адаптивность для маленьких экранов (iPhone) */
 @media (max-width: 480px) {
     body {

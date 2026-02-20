@@ -1,19 +1,17 @@
-from collections import defaultdict
 from datetime import datetime
 import os
 import json
 import psycopg2
 import shutil
 import logging
+from collections import defaultdict
 from jinja2 import Environment, FileSystemLoader
 
 logging.basicConfig(level=logging.INFO)
 
 def load_roles_mapping(json_path):
-    """Загружает JSON и возвращает словарь {id: name}."""
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
-
     mapping = {}
     for category in data.get('categories', []):
         for role in category.get('roles', []):
@@ -25,7 +23,6 @@ def load_roles_mapping(json_path):
     return mapping
 
 def get_db_connection():
-    """Устанавливает соединение с PostgreSQL."""
     try:
         DB_USER = os.getenv("DB_USER", "postgres")
         DB_PASS = os.getenv("DB_PASS", "password")
@@ -43,7 +40,8 @@ def get_db_connection():
         logging.error(f"Database connection failed: {e}")
         raise
 
-def fetch_data(mapping):
+def fetch_monthly_data(mapping):
+    """Собирает данные для вкладки 'Анализ активности вакансий' (помесячная статистика с возрастом)."""
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -52,7 +50,8 @@ def fetch_data(mapping):
                 date_trunc('month', published_at) AS month,
                 archived,
                 experience,
-                professional_role        
+                professional_role,
+                EXTRACT(DAY FROM NOW() - published_at) AS age_days
             FROM get_vacancies
             WHERE published_at IS NOT NULL
         )
@@ -62,7 +61,8 @@ def fetch_data(mapping):
             experience,
             COUNT(*) AS vacancies_total,
             COUNT(*) FILTER (WHERE archived = true) AS vacancies_archived,
-            COUNT(*) FILTER (WHERE archived = false) AS vacancies_active
+            COUNT(*) FILTER (WHERE archived = false) AS vacancies_active,
+            AVG(age_days) AS avg_age_days
         FROM salary_normalized
         GROUP BY month, professional_role, experience
         ORDER BY month, professional_role, experience;
@@ -73,8 +73,7 @@ def fetch_data(mapping):
     conn.close()
 
     roles_dict = {}
-    for month, role_id, experience, total, archived, active in rows:
-        # Определяем ключ и имя роли
+    for month, role_id, experience, total, archived, active, avg_age in rows:
         if role_id is None:
             role_key = "NULL"
             role_name = mapping.get(role_key, "Не указана")
@@ -87,7 +86,7 @@ def fetch_data(mapping):
             roles_dict[role_key] = {
                 'id': role_key,
                 'name': role_name,
-                'months_data': defaultdict(list)   # месяц -> список записей
+                'months_data': defaultdict(list)
             }
 
         month_str = month.strftime('%Y-%m')
@@ -96,7 +95,8 @@ def fetch_data(mapping):
             'experience': experience_display,
             'total': total,
             'archived': archived,
-            'active': active
+            'active': active,
+            'avg_age': float(avg_age) if avg_age is not None else 0
         })
 
     # Порядок опыта для сортировки
@@ -108,15 +108,12 @@ def fetch_data(mapping):
     }
     default_order = 100
 
-    roles_list = []
+    monthly_result = []
     for role_key, role_info in roles_dict.items():
         months_list = []
-        # Сортируем месяцы по возрастанию
         for month in sorted(role_info['months_data'].keys()):
             entries = role_info['months_data'][month]
-            # Сортируем записи по опыту
             entries.sort(key=lambda e: experience_order.get(e['experience'], default_order))
-            # Находим максимум архивных вакансий в этом месяце
             max_archived = max(e['archived'] for e in entries) if entries else 0
             for e in entries:
                 e['is_max_archived'] = (e['archived'] == max_archived)
@@ -125,22 +122,78 @@ def fetch_data(mapping):
                 'entries': entries
             })
         role_info['months'] = months_list
-        del role_info['months_data']   # больше не нужно
-        roles_list.append(role_info)
+        del role_info['months_data']
+        monthly_result.append(role_info)
 
-    roles_list.sort(key=lambda x: x['name'])
-    return roles_list
+    monthly_result.sort(key=lambda x: x['name'])
+    return monthly_result
 
-def render_report(roles_data):
-    """Рендерит HTML-шаблон с данными и текущей датой."""
+def fetch_weekday_data(mapping):
+    """Собирает данные для вкладки 'Анализ по дням недели'."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        SELECT 
+          professional_role as role_id,
+          TRIM(TO_CHAR(published_at, 'Day')) as day_name,
+          EXTRACT(DOW FROM published_at) as day_num,
+          COUNT(*) as total_published,
+          COUNT(*) FILTER (WHERE archived_at IS NOT NULL) as total_archived,
+          ROUND(AVG(EXTRACT(HOUR FROM published_at)), 0) || ':00' as avg_pub_hour,
+          ROUND(AVG(EXTRACT(HOUR FROM archived_at)), 0) || ':00' as avg_arch_hour
+        FROM public.get_vacancies 
+        WHERE published_at IS NOT NULL
+        GROUP BY professional_role, day_name, day_num
+        HAVING COUNT(*) > 0
+        ORDER BY professional_role, day_num;
+    """
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    roles_dict = {}
+    for role_id, day_name, day_num, total_pub, total_arch, avg_pub, avg_arch in rows:
+        if role_id is None:
+            role_key = "NULL"
+            role_name = mapping.get(role_key, "Не указана")
+        else:
+            role_id_str = str(role_id)
+            role_key = role_id_str
+            role_name = mapping.get(role_id_str, f"ID {role_id} (неизвестная роль)")
+
+        if role_key not in roles_dict:
+            roles_dict[role_key] = {
+                'id': role_key,
+                'name': role_name,
+                'weekdays': []
+            }
+
+        roles_dict[role_key]['weekdays'].append({
+            'day': day_name,
+            'day_num': day_num,
+            'published': total_pub,
+            'archived': total_arch,
+            'avg_pub_time': avg_pub,
+            'avg_arch_time': avg_arch
+        })
+
+    # Сортируем дни недели
+    for role_info in roles_dict.values():
+        role_info['weekdays'].sort(key=lambda x: x['day_num'])
+
+    result = list(roles_dict.values())
+    result.sort(key=lambda x: x['name'])
+    return result
+
+def render_report(monthly_data, weekday_data):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     logging.info(f"Template loaded from: {template.filename}")
     current_date = datetime.now().strftime("%d.%m.%Y")
-    return template.render(roles=roles_data, current_date=current_date)
+    return template.render(monthly_roles=monthly_data, weekday_roles=weekday_data, current_date=current_date)
 
 def save_report(html_content):
-    """Сохраняет HTML-файл отчёта."""
     output_dir = '/reports'
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'report.html')
@@ -149,7 +202,6 @@ def save_report(html_content):
     logging.info(f"Report saved to {output_file}")
 
 def copy_styles():
-    """Копирует файл стилей в папку с отчётом."""
     src = 'static/styles.css'
     dst = os.path.join('/reports', 'styles.css')
     shutil.copy2(src, dst)
@@ -163,13 +215,18 @@ def main():
 
     mapping = load_roles_mapping(json_path)
 
-    logging.info("Fetching data from database...")
-    data = fetch_data(mapping)
-    if not data:
-        logging.warning("No data found. Empty report will be generated.")
-        data = []
+    logging.info("Fetching monthly data...")
+    monthly_data = fetch_monthly_data(mapping)
 
-    html = render_report(data)
+    logging.info("Fetching weekday data...")
+    weekday_data = fetch_weekday_data(mapping)
+
+    if not monthly_data and not weekday_data:
+        logging.warning("No data found. Empty report will be generated.")
+        monthly_data = []
+        weekday_data = []
+
+    html = render_report(monthly_data, weekday_data)
     logging.info(f"Rendered HTML (first 500 chars): {html[:500]}")
     save_report(html)
     copy_styles()
