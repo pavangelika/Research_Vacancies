@@ -2,23 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Vacancy Report by Professional Role</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vacancy Report by Professional Role - {{ current_date }}</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Vacancy Report by Professional Role</h1>
+    <h1>Анализ рынка вакансий на {{ current_date }}</h1>
 
     <div class="tabs">
         {% for role in roles %}
-        <button class="tab-button" onclick="openTab(event, 'tab-{{ loop.index }}')">{{ role.name }}</button>
+        <button class="tab-button" onclick="openTab(event, 'tab-{{ loop.index }}')">{{ role.id }}</button>
         {% endfor %}
     </div>
 
     {% for role in roles %}
     <div id="tab-{{ loop.index }}" class="tab-content">
-        <h2>{{ role.name }}</h2>
-        <p>Number of vacancies: <strong>{{ role.count }}</strong></p>
+        <h2>{{ role.name }} (ID: {{ role.id }})</h2>
+        <p>Количество вакансий: <strong>{{ role.count }}</strong></p>
+        <p>Количество открытых вакансий: <strong>{{ role.count }}</strong></p>
     </div>
     {% endfor %}
 
@@ -38,7 +39,8 @@
         }
 
         document.addEventListener("DOMContentLoaded", function() {
-            document.getElementsByClassName("tab-button")[0].click();
+            var firstTab = document.getElementsByClassName("tab-button")[0];
+            if (firstTab) firstTab.click();
         });
     </script>
 </body>

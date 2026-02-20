@@ -100,11 +100,16 @@ h1 {
 }
 
 .tab-content strong {
-    font-size: 2.5rem;
     font-weight: 700;
     color: var(--ios-blue);
     display: inline-block;
     margin-left: 8px;
+}
+
+.report-date {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
 }
 
 /* Адаптивность для маленьких экранов (iPhone) */
@@ -126,6 +131,6 @@ h1 {
         font-size: 1.5rem;
     }
     .tab-content strong {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
 }

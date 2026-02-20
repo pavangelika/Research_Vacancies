@@ -13,12 +13,9 @@ RUN apt-get update &&  \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем скрипт из scripts
 COPY scripts/generate_report.py .
-
-# Копируем папки templates и static из report
-COPY report/templates ./templates
-COPY report/static ./static
+COPY reports/templates ./templates
+COPY reports/static ./static
 
 RUN mkdir /reports
 

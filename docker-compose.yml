@@ -47,14 +47,16 @@ services:
       done
       "
 
-  report-generator:                     # ← теперь внутри services, с отступом
+  report-generator:
     build:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./reports:/reports
+    - ./reports:/reports
+    - ./data/professional_roles.json:/app/data/professional_roles.json
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${DB_NAME}
+      ROLES_JSON_PATH: /app/data/professional_roles.json   # опционально
     depends_on:
       - postgres
 
