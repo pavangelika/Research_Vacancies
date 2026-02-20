@@ -13,6 +13,15 @@ RUN apt-get update &&  \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Копируем скрипт из scripts
+COPY scripts/generate_report.py .
+
+# Копируем папки templates и static из report
+COPY report/templates ./templates
+COPY report/static ./static
+
+RUN mkdir /reports
+
 COPY . .
 
-CMD ["python", "main.py", "-m", "contract", "smoke", "regression", "--alluredir=allure-results"]
+CMD ["python", "generate_report.py", "main.py", "-m", "contract", "smoke", "regression", "--alluredir=allure-results"]

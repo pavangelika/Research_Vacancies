@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Vacancy Report by Professional Role</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Vacancy Report by Professional Role</h1>
+
+    <div class="tabs">
+        {% for role in roles %}
+        <button class="tab-button" onclick="openTab(event, 'tab-{{ loop.index }}')">{{ role.name }}</button>
+        {% endfor %}
+    </div>
+
+    {% for role in roles %}
+    <div id="tab-{{ loop.index }}" class="tab-content">
+        <h2>{{ role.name }}</h2>
+        <p>Number of vacancies: <strong>{{ role.count }}</strong></p>
+    </div>
+    {% endfor %}
+
+    <script>
+        function openTab(evt, tabId) {
+            var i, tabcontent, tabbuttons;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tabbuttons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabbuttons.length; i++) {
+                tabbuttons[i].className = tabbuttons[i].className.replace(" active", "");
+            }
+            document.getElementById(tabId).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            document.getElementsByClassName("tab-button")[0].click();
+        });
+    </script>
+</body>
+</html>
