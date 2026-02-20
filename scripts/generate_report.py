@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 import os
 import json
@@ -43,18 +44,6 @@ def get_db_connection():
         raise
 
 def fetch_data(mapping):
-    """
-    Выполняет запрос с помесячной статистикой по ролям.
-    Возвращает список словарей:
-        {
-            'id': role_id,
-            'name': role_name,
-            'monthly': [
-                {'month': '2025-01', 'total': 10, 'archived': 2, 'active': 8},
-                ...
-            ]
-        }
-    """
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
@@ -62,6 +51,7 @@ def fetch_data(mapping):
             SELECT
                 date_trunc('month', published_at) AS month,
                 archived,
+                experience,
                 professional_role        
             FROM get_vacancies
             WHERE published_at IS NOT NULL
@@ -69,12 +59,13 @@ def fetch_data(mapping):
         SELECT
             month,
             professional_role,
+            experience,
             COUNT(*) AS vacancies_total,
             COUNT(*) FILTER (WHERE archived = true) AS vacancies_archived,
             COUNT(*) FILTER (WHERE archived = false) AS vacancies_active
         FROM salary_normalized
-        GROUP BY month, professional_role
-        ORDER BY month, professional_role;
+        GROUP BY month, professional_role, experience
+        ORDER BY month, professional_role, experience;
     """
     cur.execute(query)
     rows = cur.fetchall()
@@ -82,7 +73,7 @@ def fetch_data(mapping):
     conn.close()
 
     roles_dict = {}
-    for month, role_id, total, archived, active in rows:
+    for month, role_id, experience, total, archived, active in rows:
         # Определяем ключ и имя роли
         if role_id is None:
             role_key = "NULL"
@@ -96,20 +87,47 @@ def fetch_data(mapping):
             roles_dict[role_key] = {
                 'id': role_key,
                 'name': role_name,
-                'monthly': []
+                'months_data': defaultdict(list)   # месяц -> список записей
             }
 
-        # Форматируем месяц как строку (ГГГГ-ММ)
         month_str = month.strftime('%Y-%m')
-        roles_dict[role_key]['monthly'].append({
-            'month': month_str,
+        experience_display = experience if experience is not None else "Не указан"
+        roles_dict[role_key]['months_data'][month_str].append({
+            'experience': experience_display,
             'total': total,
             'archived': archived,
             'active': active
         })
 
-    # Преобразуем в список и сортируем по имени роли
-    roles_list = list(roles_dict.values())
+    # Порядок опыта для сортировки
+    experience_order = {
+        "Нет опыта": 1,
+        "От 1 года до 3 лет": 2,
+        "От 3 до 6 лет": 3,
+        "Более 6 лет": 4
+    }
+    default_order = 100
+
+    roles_list = []
+    for role_key, role_info in roles_dict.items():
+        months_list = []
+        # Сортируем месяцы по возрастанию
+        for month in sorted(role_info['months_data'].keys()):
+            entries = role_info['months_data'][month]
+            # Сортируем записи по опыту
+            entries.sort(key=lambda e: experience_order.get(e['experience'], default_order))
+            # Находим максимум архивных вакансий в этом месяце
+            max_archived = max(e['archived'] for e in entries) if entries else 0
+            for e in entries:
+                e['is_max_archived'] = (e['archived'] == max_archived)
+            months_list.append({
+                'month': month,
+                'entries': entries
+            })
+        role_info['months'] = months_list
+        del role_info['months_data']   # больше не нужно
+        roles_list.append(role_info)
+
     roles_list.sort(key=lambda x: x['name'])
     return roles_list
 

@@ -1,64 +1,103 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Vacancy Report by Month and Role - {{ current_date }}</title>
+    <title>Анализ динамики вакансий по месяцам - {{ current_date }}</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Vacancy Report by Professional Role (Monthly)</h1>
-    <p class="report-date">Generated on: <strong>{{ current_date }}</strong></p>
+    <h1>Анализ динамики вакансий по месяцам</h1>
+    <p class="report-date">Отчёт сгенерирован: <strong>{{ current_date }}</strong></p>
 
-    <div class="tabs">
+    <!-- Вкладки по ролям (первый уровень) -->
+    <div class="tabs role-tabs">
         {% for role in roles %}
-        <button class="tab-button" onclick="openTab(event, 'tab-{{ loop.index }}')">{{ role.id }}</button>
+        <button class="tab-button role-button" onclick="openRoleTab(event, 'role-{{ loop.index }}')">{{ role.id }}</button>
         {% endfor %}
     </div>
 
     {% for role in roles %}
-    <div id="tab-{{ loop.index }}" class="tab-content">
+    {% set role_index = loop.index %}  {# сохраняем индекс роли #}
+    <div id="role-{{ role_index }}" class="role-content">
         <h2>{{ role.name }} (ID: {{ role.id }})</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Месяц</th>
-                    <th>Всего вакансий</th>
-                    <th>Архивных</th>
-                    <th>Активных</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in role.monthly %}
-                <tr>
-                    <td>{{ entry.month }}</td>
-                    <td>{{ entry.total }}</td>
-                    <td>{{ entry.archived }}</td>
-                    <td>{{ entry.active }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+        <!-- Вкладки по месяцам (второй уровень) -->
+        {% if role.months %}
+        <div class="tabs month-tabs">
+            {% for month_data in role.months %}
+            <button class="tab-button month-button" onclick="openMonthTab(event, 'month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
+            {% endfor %}
+        </div>
+
+        {% for month_data in role.months %}
+        <div id="month-{{ role_index }}-{{ loop.index }}" class="month-content">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Опыт</th>
+                        <th>Всего вакансий</th>
+                        <th>Архивных</th>
+                        <th>Активных</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in month_data.entries %}
+                    <tr {% if entry.is_max_archived %}class="max-archived"{% endif %}>
+                        <td>{{ entry.experience }}</td>
+                        <td>{{ entry.total }}</td>
+                        <td>{{ entry.archived }}</td>
+                        <td>{{ entry.active }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p>Нет данных за указанный период</p>
+        {% endif %}
     </div>
     {% endfor %}
 
     <script>
-        function openTab(evt, tabId) {
-            var i, tabcontent, tabbuttons;
-            tabcontent = document.getElementsByClassName("tab-content");
-            for (i = 0; i < tabcontent.length; i++) {
-                tabcontent[i].style.display = "none";
+        function openRoleTab(evt, roleId) {
+            var i, roleContent, roleButtons;
+            roleContent = document.getElementsByClassName("role-content");
+            for (i = 0; i < roleContent.length; i++) {
+                roleContent[i].style.display = "none";
             }
-            tabbuttons = document.getElementsByClassName("tab-button");
-            for (i = 0; i < tabbuttons.length; i++) {
-                tabbuttons[i].className = tabbuttons[i].className.replace(" active", "");
+            roleButtons = document.getElementsByClassName("role-button");
+            for (i = 0; i < roleButtons.length; i++) {
+                roleButtons[i].className = roleButtons[i].className.replace(" active", "");
             }
-            document.getElementById(tabId).style.display = "block";
+            document.getElementById(roleId).style.display = "block";
+            evt.currentTarget.className += " active";
+
+            // Активируем первый месяц в открытой роли
+            var firstMonthButton = document.querySelector("#" + roleId + " .month-button");
+            if (firstMonthButton) {
+                firstMonthButton.click();
+            }
+        }
+
+        function openMonthTab(evt, monthId) {
+            var i, monthContent, monthButtons;
+            var parentRole = evt.currentTarget.closest('.role-content');
+            monthContent = parentRole.getElementsByClassName("month-content");
+            for (i = 0; i < monthContent.length; i++) {
+                monthContent[i].style.display = "none";
+            }
+            monthButtons = parentRole.getElementsByClassName("month-button");
+            for (i = 0; i < monthButtons.length; i++) {
+                monthButtons[i].className = monthButtons[i].className.replace(" active", "");
+            }
+            document.getElementById(monthId).style.display = "block";
             evt.currentTarget.className += " active";
         }
 
         document.addEventListener("DOMContentLoaded", function() {
-            var firstTab = document.getElementsByClassName("tab-button")[0];
-            if (firstTab) firstTab.click();
+            var firstRoleButton = document.getElementsByClassName("role-button")[0];
+            if (firstRoleButton) firstRoleButton.click();
         });
     </script>
 </body>
