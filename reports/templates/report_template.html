@@ -18,8 +18,9 @@
     {% for role in roles %}
     <div id="tab-{{ loop.index }}" class="tab-content">
         <h2>{{ role.name }} (ID: {{ role.id }})</h2>
-        <p>Количество вакансий: <strong>{{ role.count }}</strong></p>
-        <p>Количество открытых вакансий: <strong>{{ role.count }}</strong></p>
+        <p>Количество вакансий: <strong>{{ role.total }}</strong></p>
+        <p>Количество открытых вакансий: <strong>{{ role.open }}</strong></p>
+        <p>Количество архивных вакансий: <strong>{{ role.close }}</strong></p>
     </div>
     {% endfor %}
 
