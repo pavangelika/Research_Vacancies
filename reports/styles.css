@@ -207,6 +207,19 @@ tr:hover {
     border-bottom-color: rgba(0, 122, 255, 0.2);
 }
 
+.plotly-chart {
+    margin-top: 20px;
+    width: 100%;
+    height: 400px;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 480px) {
+    .plotly-chart {
+        height: 300px;
+    }
+}
+
 /* Убедимся, что вкладки месяцев не конфликтуют */
 .month-tabs {
     margin-top: 8px;
