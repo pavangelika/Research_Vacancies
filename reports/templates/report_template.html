@@ -20,7 +20,7 @@
     {% for role in roles %}
     {% set role_index = loop.index %}
     <div id="role-{{ role_index }}" class="role-content">
-        <h2>{{ role.name }} (ID: {{ role.id }})</h2>
+        <h2>{{ role.name }} [ID: {{ role.id }}]</h2>
 
         <!-- Вкладки выбора анализа (4) -->
         <div class="tabs analysis-tabs">

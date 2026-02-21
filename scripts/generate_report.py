@@ -47,7 +47,7 @@ def get_db_connection():
 def fetch_data(mapping):
     """
     Возвращает данные для анализа активности:
-    - months: помесячная статистика по опыту (для таблиц)
+    - months: помесячная статистика по опыту (для таблиц), включая сводный месяц и итоговую строку "Всего"
     - trend: данные для графика динамики (месяц -> суммарные активные, архивные, средний возраст)
     """
     conn = get_db_connection()
@@ -81,7 +81,6 @@ def fetch_data(mapping):
     conn.close()
 
     roles_dict = {}
-    # Для трендов собираем суммарные показатели по месяцам (без разбивки по опыту)
     trends = defaultdict(lambda: {'months': [], 'active': [], 'archived': [], 'avg_age': []})
 
     for month, role_id, experience, total, archived, active, avg_age in rows:
@@ -110,11 +109,7 @@ def fetch_data(mapping):
             'avg_age': float(avg_age) if avg_age is not None else 0
         })
 
-        # Для тренда суммируем по месяцам (без разбивки по опыту)
         trends[role_key]['months'].append(month_str)
-        # Для активных/архивных используем сумму по всем уровням опыта за этот месяц
-        # Но проще пересчитать позже, когда будут все данные. Сейчас просто соберём сырые значения.
-        # Позже в отдельном проходе агрегируем.
 
     # Второй проход: агрегация трендов
     for role_key, role_info in roles_dict.items():
@@ -127,14 +122,8 @@ def fetch_data(mapping):
         }
         for month in months_sorted:
             entries = role_info['months_data'][month]
-            # Суммируем active и archived
             total_active = sum(e['active'] for e in entries)
             total_archived = sum(e['archived'] for e in entries)
-            # Средний возраст – средневзвешенное? Упростим: среднее по всем записям (не взвешенное)
-            # Для корректности лучше в SQL считать взвешенное, но для простоты возьмём среднее из средних
-            # или пересчитаем в SQL отдельно. Пока пропустим.
-            # Вместо этого используем общее среднее из другого запроса, но сейчас avg_age уже есть в каждой записи.
-            # Можно взять среднее из avg_age по всем записям (не совсем корректно, но приемлемо)
             avg_age_month = sum(e['avg_age'] for e in entries) / len(entries) if entries else 0
             trend_data['active'].append(total_active)
             trend_data['archived'].append(total_archived)
@@ -152,6 +141,7 @@ def fetch_data(mapping):
 
     roles_list = []
     for role_key, role_info in roles_dict.items():
+        # Сначала формируем список обычных месяцев
         months_list = []
         for month in sorted(role_info['months_data'].keys()):
             entries = role_info['months_data'][month]
@@ -161,10 +151,98 @@ def fetch_data(mapping):
             for e in entries:
                 e['is_max_archived'] = (e['archived'] == max_archived)
                 e['is_max_age'] = (e['avg_age'] == max_age)
+
+            # Добавляем итоговую строку "Всего" для текущего месяца
+            total_entry = {
+                'experience': 'Всего',
+                'total': sum(e['total'] for e in entries),
+                'archived': sum(e['archived'] for e in entries),
+                'active': sum(e['active'] for e in entries),
+                'avg_age': sum(e['avg_age'] for e in entries) / len(entries) if entries else 0,
+                'is_max_archived': False,
+                'is_max_age': False
+            }
+            entries.append(total_entry)
+
             months_list.append({
                 'month': month,
                 'entries': entries
             })
+
+        # --- Добавляем сводный месяц ---
+        # Агрегируем данные по всем месяцам (без учёта итоговых строк "Всего")
+        agg_exp = {}
+        for month_data in months_list:
+            for entry in month_data['entries']:
+                if entry['experience'] == 'Всего':
+                    continue  # пропускаем итоговые строки
+                exp = entry['experience']
+                if exp not in agg_exp:
+                    agg_exp[exp] = {
+                        'total': 0,
+                        'archived': 0,
+                        'active': 0,
+                        'avg_age_sum': 0,
+                        'count': 0
+                    }
+                agg_exp[exp]['total'] += entry['total']
+                agg_exp[exp]['archived'] += entry['archived']
+                agg_exp[exp]['active'] += entry['active']
+                agg_exp[exp]['avg_age_sum'] += entry['avg_age']
+                agg_exp[exp]['count'] += 1
+
+        # Формируем записи для сводного месяца
+        all_entries = []
+        for exp, vals in agg_exp.items():
+            avg_age = vals['avg_age_sum'] / vals['count'] if vals['count'] > 0 else 0
+            all_entries.append({
+                'experience': exp,
+                'total': vals['total'],
+                'archived': vals['archived'],
+                'active': vals['active'],
+                'avg_age': avg_age
+            })
+
+        # Сортируем по опыту
+        all_entries.sort(key=lambda e: experience_order.get(e['experience'], default_order))
+
+        # Вычисляем максимумы для сводного месяца
+        if all_entries:
+            max_archived = max(e['archived'] for e in all_entries)
+            max_age = max(e['avg_age'] for e in all_entries)
+            for e in all_entries:
+                e['is_max_archived'] = (e['archived'] == max_archived)
+                e['is_max_age'] = (e['avg_age'] == max_age)
+
+        # Добавляем итоговую строку "Всего" для сводного месяца
+        total_all = {
+            'experience': 'Всего',
+            'total': sum(e['total'] for e in all_entries),
+            'archived': sum(e['archived'] for e in all_entries),
+            'active': sum(e['active'] for e in all_entries),
+            'avg_age': sum(e['avg_age'] for e in all_entries) / len(all_entries) if all_entries else 0,
+            'is_max_archived': False,
+            'is_max_age': False
+        }
+        all_entries.append(total_all)
+
+        # Определяем количество месяцев для этой роли
+        num_months = len(months_list)
+        if num_months == 1:
+            month_title = "За 1 месяц"
+        elif 2 <= num_months <= 4:
+            month_title = f"За {num_months} месяца"
+        else:
+            month_title = f"За {num_months} месяцев"
+
+        # Создаём запись сводного месяца и вставляем в начало
+        summary_month = {
+            'month': month_title,
+            'entries': all_entries
+        }
+        months_list.insert(0, summary_month)
+
+        # Сохраняем обновлённый список месяцев
         role_info['months'] = months_list
         del role_info['months_data']
         roles_list.append(role_info)
