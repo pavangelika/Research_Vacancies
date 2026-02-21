@@ -40,7 +40,9 @@
         <!-- Блоки месяцев (содержат таблицу и график) -->
         {% for month_data in role.months %}
         {% set month_index = loop.index %}
-        <div id="month-{{ role_index }}-{{ month_index }}" class="month-content activity-only" data-entries='{{ month_data.entries | tojson }}'>
+        <div id="month-{{ role_index }}-{{ month_index }}" class="month-content activity-only"
+             data-entries='{{ month_data.entries | tojson }}'
+             data-month="{{ month_data.month }}">
             <div class="analysis-flex">
                 <div class="table-container">
                     <table>

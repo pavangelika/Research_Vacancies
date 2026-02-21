@@ -1,8 +1,8 @@
 // Цветовая палитра графиков в стиле Material Design (монохромные серые)
 const CHART_COLORS = {
-    light: '#9E9E9E',   // gray 500 – для светлых столбцов (активные, публикации)
-    medium: '#757575',  // gray 600 – для средних столбцов (навыки)
-    dark: '#424242'     // gray 800 – для тёмных столбцов (архивные, архивации)
+    light: '#B0BEC5',   // gray 500 – для светлых столбцов (активные, публикации)
+    medium: '#90A4AE',  // gray 600 – для средних столбцов (навыки)
+    dark: '#607D8B'     // gray 800 – для тёмных столбцов (архивные, архивации)
 };
 
 // Состояние интерфейса: для каждой роли и типа анализа храним последние активные внутренние вкладки
@@ -27,12 +27,8 @@ function openRoleTab(evt, roleId) {
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
 
-    // При смене роли активируем первый анализ и восстанавливаем его состояние
     var firstAnalysisButton = document.querySelector("#" + roleId + " .analysis-button");
     if (firstAnalysisButton) {
-        // Определяем тип анализа по data-атрибуту или по тексту? Лучше по onclick, но сложно.
-        // Вместо этого эмулируем клик, но чтобы сохранить состояние, нам нужно знать тип.
-        // Просто вызовем switchAnalysis с правильным analysisId.
         var analysisId = firstAnalysisButton.getAttribute('onclick').match(/'([^']+)'/)[1];
         switchAnalysis({ currentTarget: firstAnalysisButton }, analysisId);
     }
@@ -40,15 +36,14 @@ function openRoleTab(evt, roleId) {
 
 function openMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
-    var roleId = parentRole.id; // например "role-1"
+    var roleId = parentRole.id;
     var monthDiv = document.getElementById(monthId);
-    var monthStr = monthDiv.dataset.month; // нужно добавить data-month в HTML
+    var monthStr = monthDiv.dataset.month;
 
-    // Сохраняем состояние
+    // Сохраняем выбранный месяц для анализа активности
     var stateKey = getStateKey(roleId, 'activity');
     uiState[stateKey] = { month: monthStr };
 
-    // Скрываем другие месяцы
     var monthContent = parentRole.getElementsByClassName("month-content");
     for (var i = 0; i < monthContent.length; i++) {
         monthContent[i].style.display = "none";
@@ -79,20 +74,17 @@ function switchAnalysis(evt, analysisId) {
     var skillsBlock = parentRole.querySelector('.skills-content');
     var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
 
-    // Определяем тип анализа из analysisId
     var analysisType;
     if (analysisId.includes('activity')) analysisType = 'activity';
     else if (analysisId.includes('weekday')) analysisType = 'weekday';
     else if (analysisId.includes('skills-') && !analysisId.includes('monthly')) analysisType = 'skills';
     else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
 
-    // Скрываем все блоки
     activityBlocks.forEach(block => block.style.display = 'none');
     if (weekdayBlock) weekdayBlock.style.display = 'none';
     if (skillsBlock) skillsBlock.style.display = 'none';
     if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
 
-    // Показываем нужный блок
     if (analysisType === 'activity') {
         activityBlocks.forEach(block => block.style.display = 'block');
         restoreActivityState(parentRole, roleId);
@@ -109,7 +101,6 @@ function switchAnalysis(evt, analysisId) {
     }
 }
 
-// Функции восстановления состояния
 function restoreActivityState(parentRole, roleId) {
     var stateKey = getStateKey(roleId, 'activity');
     var saved = uiState[stateKey];
@@ -117,7 +108,6 @@ function restoreActivityState(parentRole, roleId) {
     if (monthButtons.length === 0) return;
 
     if (saved && saved.month) {
-        // Ищем кнопку с нужным месяцем (по тексту или data-атрибуту)
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
                 btn.click();
@@ -125,7 +115,6 @@ function restoreActivityState(parentRole, roleId) {
             }
         }
     }
-    // Если не нашли или нет сохранения, кликаем первый
     monthButtons[0].click();
 }
 
@@ -155,36 +144,15 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
     if (saved && saved.month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
-                // После клика на месяц восстановится опыт через обработчик
                 btn.click();
-                // Но нужно также восстановить опыт после загрузки месяца
-                // Для этого добавим вызов restoreExpAfterMonth
-                setTimeout(function() {
-                    restoreExpAfterMonth(parentRole, saved.experience);
-                }, 0);
                 return;
             }
         }
     }
-    // Если нет сохранения, кликаем первый месяц и первый опыт
     monthButtons[0].click();
 }
 
-function restoreExpAfterMonth(parentRole, savedExp) {
-    var expButtons = parentRole.querySelectorAll('.monthly-skills-exp-button');
-    if (expButtons.length === 0) return;
-    if (savedExp) {
-        for (var btn of expButtons) {
-            if (btn.textContent.trim() === savedExp) {
-                btn.click();
-                return;
-            }
-        }
-    }
-    expButtons[0].click();
-}
-
-// Обновлённые обработчики вкладок с сохранением состояния
+// Обработчик выбора опыта в общем анализе навыков
 function openExperienceTab(evt, expId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -192,7 +160,6 @@ function openExperienceTab(evt, expId) {
     var expData = JSON.parse(expDiv.dataset.exp);
     var experience = expData.experience;
 
-    // Сохраняем состояние
     var stateKey = getStateKey(roleId, 'skills');
     uiState[stateKey] = { experience: experience };
 
@@ -211,6 +178,7 @@ function openExperienceTab(evt, expId) {
     buildHorizontalBarChart(graphId, expData.skills, expData.experience);
 }
 
+// Обработчик выбора месяца в анализе навыков по месяцам
 function openMonthlySkillsMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -218,12 +186,13 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     var monthData = JSON.parse(monthDiv.dataset.month);
     var monthStr = monthData.month;
 
-    // Сохраняем месяц, но опыт пока не знаем
+    // Сохраняем выбранный месяц
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
     saved.month = monthStr;
     uiState[stateKey] = saved;
 
+    // Переключаем видимость месяцев
     var monthContents = parentRole.getElementsByClassName("monthly-skills-month-content");
     for (var i = 0; i < monthContents.length; i++) {
         monthContents[i].style.display = "none";
@@ -235,12 +204,29 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем опыт для этого месяца, если сохранён
-    setTimeout(function() {
-        restoreExpAfterMonth(parentRole, saved.experience);
-    }, 0);
+    // Восстанавливаем опыт для этого месяца (если сохранён)
+    restoreExpInMonth(parentRole, saved.experience);
 }
 
+function restoreExpInMonth(parentRole, savedExp) {
+    // Находим видимый блок месяца
+    var visibleMonth = parentRole.querySelector('.monthly-skills-month-content[style*="display: block"]');
+    if (!visibleMonth) return;
+    var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
+    if (expButtons.length === 0) return;
+
+    if (savedExp) {
+        for (var btn of expButtons) {
+            if (btn.textContent.trim() === savedExp) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    expButtons[0].click();
+}
+
+// Обработчик выбора опыта внутри месяца (навыки по месяцам)
 function openMonthlySkillsExpTab(evt, expId) {
     var parentMonth = evt.currentTarget.closest('.monthly-skills-month-content');
     var parentRole = parentMonth.closest('.role-content');
@@ -270,7 +256,7 @@ function openMonthlySkillsExpTab(evt, expId) {
     buildHorizontalBarChart(graphId, expData.skills, expData.experience);
 }
 
-// --- Функции построения графиков (без изменений) ---
+// --- Функции построения графиков ---
 function buildActivityBarChart(graphId, entries) {
     var experiences = entries.map(e => e.experience);
     var activeData = entries.map(e => e.active);

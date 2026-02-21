@@ -235,7 +235,7 @@ def fetch_skills_monthly_data(mapping):
     """
     Возвращает данные для анализа навыков по ролям, опыту и месяцам.
     Для каждой роли список месяцев, внутри каждого месяца список уровней опыта,
-    а внутри каждого опыта – топ-10 навыков.
+    а внутри каждого опыта – топ-15 навыков.
     """
     conn = get_db_connection()
     cur = conn.cursor()
@@ -304,7 +304,7 @@ def fetch_skills_monthly_data(mapping):
             skill_coverage_percent,
             rank_position
         FROM ranked
-        WHERE rank_position <= 10
+        WHERE rank_position <= 15
         ORDER BY
             professional_role,
             CASE experience

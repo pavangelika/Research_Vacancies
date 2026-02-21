@@ -260,18 +260,7 @@ tr:hover {
 /* Выделение максимумов (приглушённые) */
 .max-archived {
     font-weight: 600;
-    background-color: var(--blue-gray-200);
-}
-.max-archived td {
-    border-bottom-color: var(--blue-gray-300);
-}
-
-.max-age {
-    font-weight: 600;
-    background-color: var(--blue-gray-200);
-}
-.max-age td {
-    border-bottom-color: var(--blue-gray-300);
+    background-color: var(--blue-gray-50);
 }
 
 /* Адаптивность */
