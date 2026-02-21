@@ -22,11 +22,17 @@
     <div id="role-{{ role_index }}" class="role-content">
         <h2>{{ role.name }} [ID: {{ role.id }}]</h2>
 
-        <!-- Вкладки выбора анализа (4) -->
+        <!-- Вкладки выбора анализа (теперь 3) -->
         <div class="tabs analysis-tabs">
-            <button class="tab-button analysis-button active" onclick="switchAnalysis(event, 'activity-{{ role_index }}')">Анализ активности</button>
-            <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
-            <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
+            <button class="tab-button analysis-button active"
+                    data-analysis-id="activity-{{ role_index }}"
+                    onclick="switchAnalysis(event, 'activity-{{ role_index }}')">Анализ активности</button>
+            <button class="tab-button analysis-button"
+                    data-analysis-id="weekday-{{ role_index }}"
+                    onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
+            <button class="tab-button analysis-button"
+                    data-analysis-id="skills-monthly-{{ role_index }}"
+                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
         </div>
 
         <!-- Вкладки по месяцам (только для анализа активности) -->
