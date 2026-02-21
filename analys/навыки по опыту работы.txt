@@ -1,0 +1,69 @@
+-- Детальный анализ навыков по ролям и опыту с агрегацией
+WITH skill_analysis AS (
+  SELECT
+    professional_role,
+    experience,
+    -- Разбиваем навыки и очищаем
+    TRIM(REGEXP_REPLACE(UNNEST(STRING_TO_ARRAY(skills, ',')), '\s+', ' ')) as skill,
+    -- Дополнительная информация
+    COUNT(*) OVER (PARTITION BY professional_role, experience) as vacancies_with_skills
+  FROM public.get_vacancies
+  WHERE skills IS NOT NULL
+    AND skills != ''
+    AND experience IS NOT NULL
+    AND experience != ''
+),
+aggregated_skills AS (
+  SELECT
+    professional_role,
+    experience,
+    skill,
+    COUNT(*) as skill_count,
+    MAX(vacancies_with_skills) as total_vacancies_in_group,
+    ROUND(COUNT(*) * 100.0 / MAX(vacancies_with_skills), 2) as skill_coverage_percent
+  FROM skill_analysis
+  GROUP BY professional_role, experience, skill
+),
+ranked AS (
+  SELECT
+    professional_role,
+    experience,
+    skill,
+    skill_count,
+    total_vacancies_in_group,
+    skill_coverage_percent,
+    ROW_NUMBER() OVER (
+      PARTITION BY professional_role, experience
+      ORDER BY skill_count DESC, skill
+    ) as rank_position,
+    SUM(skill_count) OVER (
+      PARTITION BY professional_role, experience
+      ORDER BY skill_count DESC
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) as cumulative_count,
+    ROUND(SUM(skill_count) OVER (
+      PARTITION BY professional_role, experience
+      ORDER BY skill_count DESC
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) * 100.0 / SUM(skill_count) OVER (PARTITION BY professional_role, experience), 2) as cumulative_percent
+  FROM aggregated_skills
+  WHERE skill_count >= 2
+)
+SELECT
+  professional_role as "Профессиональная роль",
+  experience as "Требуемый опыт",
+  skill as "Навык",
+  skill_count as "Упоминаний",
+  total_vacancies_in_group as "Вакансий в группе"
+FROM ranked
+WHERE rank_position <= 10
+ORDER BY
+  professional_role,
+  CASE experience
+    WHEN 'Нет опыта' THEN 1
+    WHEN 'От 1 года до 3 лет' THEN 2
+    WHEN 'От 3 до 6 лет' THEN 3
+    WHEN 'Более 6 лет' THEN 4
+    ELSE 5
+  END,
+  rank_position;
