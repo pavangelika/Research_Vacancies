@@ -1,0 +1,92 @@
+WITH skill_analysis AS (
+    -- Разбиваем строку с навыками на отдельные элементы, очищаем и добавляем месяц
+    SELECT
+        id,
+        professional_role,
+        experience,
+        date_trunc('month', published_at) AS month,
+        TRIM(REGEXP_REPLACE(UNNEST(STRING_TO_ARRAY(skills, ',')), '\s+', ' ')) AS skill
+    FROM public.get_vacancies
+    WHERE skills IS NOT NULL
+      AND skills != ''
+      AND experience IS NOT NULL
+      AND experience != ''
+),
+group_stats AS (
+    -- Общее количество вакансий в каждой группе (роль, опыт, месяц)
+    SELECT
+        professional_role,
+        experience,
+        month,
+        COUNT(DISTINCT id) AS total_vacancies_in_group
+    FROM skill_analysis
+    GROUP BY professional_role, experience, month
+),
+aggregated_skills AS (
+    -- Агрегация по навыкам внутри каждой группы
+    SELECT
+        sa.professional_role,
+        sa.experience,
+        sa.month,
+        sa.skill,
+        COUNT(*) AS skill_count,
+        gs.total_vacancies_in_group,
+        ROUND(COUNT(*) * 100.0 / gs.total_vacancies_in_group, 2) AS skill_coverage_percent
+    FROM skill_analysis sa
+    JOIN group_stats gs
+        ON sa.professional_role = gs.professional_role
+        AND sa.experience = gs.experience
+        AND sa.month = gs.month
+    GROUP BY sa.professional_role, sa.experience, sa.month, sa.skill, gs.total_vacancies_in_group
+),
+ranked AS (
+    -- Ранжирование навыков внутри каждой группы (роль, опыт, месяц)
+    SELECT
+        professional_role,
+        experience,
+        month,
+        skill,
+        skill_count,
+        total_vacancies_in_group,
+        skill_coverage_percent,
+        ROW_NUMBER() OVER (
+            PARTITION BY professional_role, experience, month
+            ORDER BY skill_count DESC, skill
+        ) AS rank_position,
+        SUM(skill_count) OVER (
+            PARTITION BY professional_role, experience, month
+            ORDER BY skill_count DESC
+            ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ) AS cumulative_count,
+        ROUND(
+            SUM(skill_count) OVER (
+                PARTITION BY professional_role, experience, month
+                ORDER BY skill_count DESC
+                ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+            ) * 100.0 / SUM(skill_count) OVER (PARTITION BY professional_role, experience, month),
+            2
+        ) AS cumulative_percent
+    FROM aggregated_skills
+    WHERE skill_count >= 2   -- исключаем редкие навыки
+)
+-- Финальная выборка: топ-10 навыков для каждой комбинации (роль, опыт, месяц)
+SELECT
+    professional_role AS "Профессиональная роль",
+    experience AS "Требуемый опыт",
+    month AS "Месяц",
+    skill AS "Навык",
+    skill_count AS "Упоминаний",
+    total_vacancies_in_group AS "Вакансий в группе"
+FROM ranked
+WHERE rank_position <= 10
+ORDER BY
+    professional_role,
+    CASE experience
+        WHEN 'Нет опыта' THEN 1
+        WHEN 'От 1 года до 3 лет' THEN 2
+        WHEN 'От 3 до 6 лет' THEN 3
+        WHEN 'Более 6 лет' THEN 4
+        ELSE 5
+    END,
+    month,
+    rank_position;
