@@ -231,14 +231,125 @@ def fetch_weekday_data(mapping):
 
     return list(roles_weekdays.values())
 
+def fetch_skills_data(mapping):
+    """
+    Возвращает данные для анализа навыков по ролям и опыту.
+    Для каждой роли список уровней опыта с топ-10 навыков.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        WITH skill_analysis AS (
+            SELECT 
+                professional_role,
+                experience,
+                TRIM(REGEXP_REPLACE(UNNEST(STRING_TO_ARRAY(skills, ',')), '\\s+', ' ')) as skill,
+                COUNT(*) OVER (PARTITION BY professional_role, experience) as vacancies_with_skills
+            FROM public.get_vacancies 
+            WHERE skills IS NOT NULL 
+                AND skills != ''
+                AND experience IS NOT NULL
+                AND experience != ''
+        ),
+        aggregated_skills AS (
+            SELECT 
+                professional_role,
+                experience,
+                skill,
+                COUNT(*) as skill_count,
+                MAX(vacancies_with_skills) as total_vacancies_in_group,
+                ROUND(COUNT(*) * 100.0 / MAX(vacancies_with_skills), 2) as skill_coverage_percent
+            FROM skill_analysis
+            GROUP BY professional_role, experience, skill
+        ),
+        ranked AS (
+            SELECT 
+                professional_role,
+                experience,
+                skill,
+                skill_count,
+                total_vacancies_in_group,
+                skill_coverage_percent,
+                ROW_NUMBER() OVER (
+                    PARTITION BY professional_role, experience 
+                    ORDER BY skill_count DESC, skill
+                ) as rank_position
+            FROM aggregated_skills
+            WHERE skill_count >= 2
+        )
+        SELECT 
+            professional_role as role_id,
+            experience,
+            skill,
+            skill_count,
+            total_vacancies_in_group,
+            skill_coverage_percent,
+            rank_position
+        FROM ranked
+        WHERE rank_position <= 10
+        ORDER BY professional_role,
+            CASE experience
+                WHEN 'Нет опыта' THEN 1
+                WHEN 'От 1 года до 3 лет' THEN 2
+                WHEN 'От 3 до 6 лет' THEN 3
+                WHEN 'Более 6 лет' THEN 4
+                ELSE 5
+            END,
+            rank_position;
+    """
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
 
-def render_report(roles_data, weekday_data):
+    skills_by_role = {}
+    for role_id, experience, skill, skill_count, total_vacancies, coverage, rank in rows:
+        if role_id is None:
+            role_key = "NULL"
+        else:
+            role_key = str(role_id)
+        role_name = mapping.get(role_key, f"ID {role_id} (неизвестная роль)")
+
+        if role_key not in skills_by_role:
+            skills_by_role[role_key] = {
+                'id': role_key,
+                'name': role_name,
+                'experiences': {}
+            }
+
+        if experience not in skills_by_role[role_key]['experiences']:
+            skills_by_role[role_key]['experiences'][experience] = {
+                'experience': experience,
+                'total_vacancies': total_vacancies,
+                'skills': []
+            }
+
+        # Преобразуем Decimal в float
+        skills_by_role[role_key]['experiences'][experience]['skills'].append({
+            'skill': skill,
+            'count': skill_count,
+            'coverage': float(coverage) if coverage is not None else 0.0,
+            'rank': rank
+        })
+
+    # Преобразуем в удобный для шаблона формат
+    result = []
+    exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
+    for role_key, role_data in skills_by_role.items():
+        experiences_list = list(role_data['experiences'].values())
+        experiences_list.sort(key=lambda e: exp_order.get(e['experience'], 5))
+        role_data['experiences_list'] = experiences_list
+        del role_data['experiences']
+        result.append(role_data)
+
+    result.sort(key=lambda x: x['name'])
+    return result
+
+def render_report(roles_data, weekday_data, skills_data):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
-    logging.info(f"Template loaded from: {template.filename}")
     current_date = datetime.now().strftime("%d.%m.%Y")
 
-    # Создаём словарь для передачи всех данных в JavaScript
     report_data = {
         'roles': {}
     }
@@ -246,21 +357,32 @@ def render_report(roles_data, weekday_data):
         role_id = role['id']
         report_data['roles'][role_id] = {
             'trend': role['trend'],
-            'weekdays': None
+            'weekdays': None,
+            'skills': None
         }
     for wrole in weekday_data:
         role_id = wrole['id']
         if role_id in report_data['roles']:
             report_data['roles'][role_id]['weekdays'] = wrole['weekdays']
         else:
-            # на случай, если роль есть только в weekday_data
             report_data['roles'][role_id] = {
                 'trend': None,
-                'weekdays': wrole['weekdays']
+                'weekdays': wrole['weekdays'],
+                'skills': None
+            }
+    for srole in skills_data:
+        role_id = srole['id']
+        if role_id in report_data['roles']:
+            report_data['roles'][role_id]['skills'] = srole['experiences_list']
+        else:
+            report_data['roles'][role_id] = {
+                'trend': None,
+                'weekdays': None,
+                'skills': srole['experiences_list']
             }
 
     report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
-    return template.render(roles=roles_data, weekday_roles=weekday_data,
+    return template.render(roles=roles_data, weekday_roles=weekday_data, skills_roles=skills_data,
                            current_date=current_date, report_data_json=report_data_json)
 
 def save_report(html_content):
@@ -291,15 +413,20 @@ def main():
     logging.info("Fetching weekday data...")
     weekday_data = fetch_weekday_data(mapping)
 
+    logging.info("Fetching skills data...")
+    skills_data = fetch_skills_data(mapping)
+
     if not roles_data:
         logging.warning("No activity data found.")
         roles_data = []
     if not weekday_data:
         logging.warning("No weekday data found.")
         weekday_data = []
+    if not skills_data:
+        logging.warning("No skills data found.")
+        skills_data = []
 
-    html = render_report(roles_data, weekday_data)
-    logging.info(f"Rendered HTML length: {len(html)} chars")
+    html = render_report(roles_data, weekday_data, skills_data)
     save_report(html)
     copy_styles()
 
