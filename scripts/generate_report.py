@@ -497,6 +497,7 @@ def render_report(roles_data, weekday_data, skills_data, skills_monthly_data):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
+    current_time = datetime.now().strftime("%H:%M")
 
     report_data = {
         'roles': {}
@@ -546,7 +547,7 @@ def render_report(roles_data, weekday_data, skills_data, skills_monthly_data):
     report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
     return template.render(roles=roles_data, weekday_roles=weekday_data,
                            skills_roles=skills_data, skills_monthly_roles=skills_monthly_data,
-                           current_date=current_date, report_data_json=report_data_json)
+                           current_date=current_date, current_time=current_time, report_data_json=report_data_json)
 
 def save_report(html_content):
     output_dir = '/reports'
@@ -559,6 +560,12 @@ def save_report(html_content):
 def copy_styles():
     src = 'static/styles.css'
     dst = os.path.join('/reports', 'styles.css')
+    shutil.copy2(src, dst)
+    logging.info(f"Styles copied to {dst}")
+
+def copy_js():
+    src = 'static/report.js'
+    dst = os.path.join('/reports', 'report.js')
     shutil.copy2(src, dst)
     logging.info(f"Styles copied to {dst}")
 
@@ -585,6 +592,7 @@ def main():
     html = render_report(roles_data, weekday_data, skills_data, skills_monthly_data)
     save_report(html)
     copy_styles()
+    copy_js()
 
 if __name__ == '__main__':
     main()

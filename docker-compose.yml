@@ -60,5 +60,6 @@ services:
     depends_on:
       - postgres
 
+
 volumes:
   pg_data:
