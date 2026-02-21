@@ -1,0 +1,19 @@
+WITH salary_normalized AS (
+    SELECT
+        date_trunc('month', published_at) AS month,
+        archived,
+        experience,
+        professional_role
+    FROM get_vacancies
+    WHERE published_at IS NOT NULL
+)
+SELECT
+    month,
+    professional_role,
+    experience,
+    COUNT(*) AS vacancies_total,
+    COUNT(*) FILTER (WHERE archived = true) AS vacancies_archived,
+    COUNT(*) FILTER (WHERE archived = false) AS vacancies_active
+FROM salary_normalized
+GROUP BY month, professional_role, experience
+ORDER BY month, professional_role, experience;

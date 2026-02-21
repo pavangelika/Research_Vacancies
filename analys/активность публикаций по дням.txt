@@ -1,0 +1,13 @@
+-- Компактный анализ по дням недели для каждой профессиональной роли
+SELECT
+  professional_role as "Код роли",
+  TRIM(TO_CHAR(published_at, 'Day')) as "День публикации",
+  COUNT(*) as "Публикаций",
+  COUNT(*) FILTER (WHERE archived_at IS NOT NULL) as "Архиваций",
+  ROUND(AVG(EXTRACT(HOUR FROM published_at)), 0) || ':00' as "Ср. время публикации",
+  ROUND(AVG(EXTRACT(HOUR FROM archived_at)), 0) || ':00' as "Ср. время архивации"
+FROM public.get_vacancies
+WHERE published_at IS NOT NULL
+GROUP BY professional_role, EXTRACT(DOW FROM published_at), TO_CHAR(published_at, 'Day')
+HAVING COUNT(*) > 0
+ORDER BY professional_role, COUNT(*) DESC;
