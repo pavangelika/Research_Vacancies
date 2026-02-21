@@ -1,16 +1,19 @@
 // Цветовая палитра графиков в стиле Material Design (монохромные серые)
 const CHART_COLORS = {
-    light: '#B0BEC5',
-    medium: '#90A4AE',
-    dark: '#607D8B'
+    light: '#B0BEC5',   // gray 500 – для светлых столбцов (активные, публикации)
+    medium: '#90A4AE',  // gray 600 – для средних столбцов (навыки)
+    dark: '#607D8B'     // gray 800 – для тёмных столбцов (архивные, архивации)
 };
 
-// Состояние интерфейса: для каждой роли храним внутренние вкладки (месяц, опыт), а тип анализа глобально
+// Состояние интерфейса
 let uiState = {
-    global_analysis_type: null // 'activity', 'weekday', 'skills-monthly'
+    global_analysis_type: null,      // последний выбранный тип анализа (activity/weekday/skills-monthly)
+    global_activity_month: null,     // последний выбранный месяц для анализа активности
+    global_skills_month: null,       // последний выбранный месяц для навыков по месяцам
+    global_skills_experience: null   // последний выбранный опыт для навыков по месяцам
 };
 
-// Вспомогательная функция для получения ключа состояния внутренних вкладок
+// Вспомогательная функция для получения ключа состояния (для внутренних вкладок, специфичных для роли)
 function getStateKey(roleId, analysisType) {
     return roleId + '_' + analysisType;
 }
@@ -29,12 +32,9 @@ function openRoleTab(evt, roleId) {
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем глобальный тип анализа для этой роли
-    var globalType = uiState['global_analysis_type'];
-    var roleNum = roleId.split('-')[1];
-
-    if (globalType) {
-        var targetId = globalType + '-' + roleNum;
+    // Восстанавливаем глобальный тип анализа
+    if (uiState.global_analysis_type) {
+        var targetId = uiState.global_analysis_type + '-' + roleId.split('-')[1];
         var targetButton = document.querySelector("#" + roleId + " .analysis-button[data-analysis-id='" + targetId + "']");
         if (targetButton) {
             targetButton.click();
@@ -42,7 +42,7 @@ function openRoleTab(evt, roleId) {
         }
     }
 
-    // Если нет глобального типа или кнопка не найдена, активируем первую вкладку
+    // Если нет глобального типа, активируем первую вкладку
     var firstButton = document.querySelector("#" + roleId + " .analysis-button");
     if (firstButton) {
         firstButton.click();
@@ -55,6 +55,8 @@ function openMonthTab(evt, monthId) {
     var monthDiv = document.getElementById(monthId);
     var monthStr = monthDiv.dataset.month;
 
+    // Сохраняем выбранный месяц глобально и для этой роли
+    uiState.global_activity_month = monthStr;
     var stateKey = getStateKey(roleId, 'activity');
     uiState[stateKey] = { month: monthStr };
 
@@ -92,8 +94,8 @@ function switchAnalysis(evt, analysisId) {
     else if (analysisId.includes('weekday')) analysisType = 'weekday';
     else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
 
-    // Сохраняем глобальный тип анализа (без суффикса)
-    uiState['global_analysis_type'] = analysisType;
+    // Сохраняем глобальный тип анализа
+    uiState.global_analysis_type = analysisType;
 
     activityBlocks.forEach(block => block.style.display = 'none');
     if (weekdayBlock) weekdayBlock.style.display = 'none';
@@ -113,11 +115,22 @@ function switchAnalysis(evt, analysisId) {
 }
 
 function restoreActivityState(parentRole, roleId) {
-    var stateKey = getStateKey(roleId, 'activity');
-    var saved = uiState[stateKey];
     var monthButtons = parentRole.querySelectorAll('.month-button');
     if (monthButtons.length === 0) return;
 
+    // Сначала пробуем восстановить глобальный месяц
+    if (uiState.global_activity_month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === uiState.global_activity_month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+
+    // Если глобальный не подошёл, пробуем сохранённый для этой роли
+    var stateKey = getStateKey(roleId, 'activity');
+    var saved = uiState[stateKey];
     if (saved && saved.month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
@@ -126,15 +139,29 @@ function restoreActivityState(parentRole, roleId) {
             }
         }
     }
+
+    // Иначе активируем первый месяц
     monthButtons[0].click();
 }
 
 function restoreSkillsMonthlyState(parentRole, roleId) {
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
 
+    // Функция для восстановления опыта после выбора месяца (будет вызвана из обработчика месяца)
+    // Сначала пробуем восстановить глобальный месяц
+    if (uiState.global_skills_month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === uiState.global_skills_month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+
+    // Если глобальный не подошёл, пробуем сохранённый для этой роли
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
     if (saved && saved.month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
@@ -143,9 +170,12 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
             }
         }
     }
+
+    // Иначе активируем первый месяц
     monthButtons[0].click();
 }
 
+// Обработчик выбора месяца в анализе навыков по месяцам
 function openMonthlySkillsMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -153,11 +183,14 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     var monthData = JSON.parse(monthDiv.dataset.month);
     var monthStr = monthData.month;
 
+    // Сохраняем выбранный месяц глобально и для этой роли
+    uiState.global_skills_month = monthStr;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
     saved.month = monthStr;
     uiState[stateKey] = saved;
 
+    // Переключаем видимость месяцев
     var monthContents = parentRole.getElementsByClassName("monthly-skills-month-content");
     for (var i = 0; i < monthContents.length; i++) {
         monthContents[i].style.display = "none";
@@ -169,26 +202,43 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    restoreExpInMonth(parentRole, saved.experience);
+    // Восстанавливаем опыт для этого месяца (сначала глобальный, потом для роли)
+    restoreExpInMonth(parentRole, roleId);
 }
 
-function restoreExpInMonth(parentRole, savedExp) {
+function restoreExpInMonth(parentRole, roleId) {
     var visibleMonth = parentRole.querySelector('.monthly-skills-month-content[style*="display: block"]');
     if (!visibleMonth) return;
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
 
-    if (savedExp) {
+    // Сначала пробуем глобальный опыт
+    if (uiState.global_skills_experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === savedExp) {
+            if (btn.textContent.trim() === uiState.global_skills_experience) {
                 btn.click();
                 return;
             }
         }
     }
+
+    // Если нет, пробуем сохранённый для этой роли
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    if (saved && saved.experience) {
+        for (var btn of expButtons) {
+            if (btn.textContent.trim() === saved.experience) {
+                btn.click();
+                return;
+            }
+        }
+    }
+
+    // Иначе первый
     expButtons[0].click();
 }
 
+// Обработчик выбора опыта внутри месяца (навыки по месяцам)
 function openMonthlySkillsExpTab(evt, expId) {
     var parentMonth = evt.currentTarget.closest('.monthly-skills-month-content');
     var parentRole = parentMonth.closest('.role-content');
@@ -197,6 +247,8 @@ function openMonthlySkillsExpTab(evt, expId) {
     var expData = JSON.parse(expDiv.dataset.exp);
     var experience = expData.experience;
 
+    // Сохраняем опыт глобально и для этой роли
+    uiState.global_skills_experience = experience;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
     saved.experience = experience;
