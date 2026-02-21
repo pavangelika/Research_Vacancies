@@ -352,7 +352,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     };
 
     var layout = {
-        title: 'Топ-10 навыков · ' + experience,
+        title: 'Топ-15 навыков · ' + experience,
         xaxis: { title: 'Количество упоминаний' },
         margin: { l: 200, r: 50, t: 50, b: 50 },
         height: 400,
