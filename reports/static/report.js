@@ -71,18 +71,15 @@ function switchAnalysis(evt, analysisId) {
 
     var activityBlocks = parentRole.querySelectorAll('.activity-only');
     var weekdayBlock = parentRole.querySelector('.weekday-content');
-    var skillsBlock = parentRole.querySelector('.skills-content');
     var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
 
     var analysisType;
     if (analysisId.includes('activity')) analysisType = 'activity';
     else if (analysisId.includes('weekday')) analysisType = 'weekday';
-    else if (analysisId.includes('skills-') && !analysisId.includes('monthly')) analysisType = 'skills';
     else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
 
     activityBlocks.forEach(block => block.style.display = 'none');
     if (weekdayBlock) weekdayBlock.style.display = 'none';
-    if (skillsBlock) skillsBlock.style.display = 'none';
     if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
 
     if (analysisType === 'activity') {
@@ -92,9 +89,6 @@ function switchAnalysis(evt, analysisId) {
         weekdayBlock.style.display = 'block';
         var roleNum = analysisId.split('-')[1];
         buildWeekdayBarChart(roleNum, weekdayBlock);
-    } else if (analysisType === 'skills') {
-        skillsBlock.style.display = 'block';
-        restoreSkillsState(parentRole, roleId);
     } else if (analysisType === 'skills-monthly') {
         skillsMonthlyBlock.style.display = 'block';
         restoreSkillsMonthlyState(parentRole, roleId);
@@ -118,23 +112,6 @@ function restoreActivityState(parentRole, roleId) {
     monthButtons[0].click();
 }
 
-function restoreSkillsState(parentRole, roleId) {
-    var stateKey = getStateKey(roleId, 'skills');
-    var saved = uiState[stateKey];
-    var expButtons = parentRole.querySelectorAll('.experience-button');
-    if (expButtons.length === 0) return;
-
-    if (saved && saved.experience) {
-        for (var btn of expButtons) {
-            if (btn.textContent.trim() === saved.experience) {
-                btn.click();
-                return;
-            }
-        }
-    }
-    expButtons[0].click();
-}
-
 function restoreSkillsMonthlyState(parentRole, roleId) {
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
@@ -150,32 +127,6 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
         }
     }
     monthButtons[0].click();
-}
-
-// Обработчик выбора опыта в общем анализе навыков
-function openExperienceTab(evt, expId) {
-    var parentRole = evt.currentTarget.closest('.role-content');
-    var roleId = parentRole.id;
-    var expDiv = document.getElementById(expId);
-    var expData = JSON.parse(expDiv.dataset.exp);
-    var experience = expData.experience;
-
-    var stateKey = getStateKey(roleId, 'skills');
-    uiState[stateKey] = { experience: experience };
-
-    var expContents = parentRole.getElementsByClassName("experience-content");
-    for (var i = 0; i < expContents.length; i++) {
-        expContents[i].style.display = "none";
-    }
-    var expButtons = parentRole.getElementsByClassName("experience-button");
-    for (var i = 0; i < expButtons.length; i++) {
-        expButtons[i].className = expButtons[i].className.replace(" active", "");
-    }
-    expDiv.style.display = "block";
-    evt.currentTarget.className += " active";
-
-    var graphId = 'skills-graph-' + expId.replace('exp-', '');
-    buildHorizontalBarChart(graphId, expData.skills, expData.experience);
 }
 
 // Обработчик выбора месяца в анализе навыков по месяцам
@@ -339,7 +290,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     };
 
     var layout = {
-        title: 'Топ-10 навыков · ' + experience,
+        title: 'Топ-15 навыков · ' + experience,
         xaxis: { title: 'Количество упоминаний' },
         margin: { l: 200, r: 50, t: 50, b: 50 },
         height: 400,

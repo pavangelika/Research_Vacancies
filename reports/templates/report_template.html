@@ -26,7 +26,6 @@
         <div class="tabs analysis-tabs">
             <button class="tab-button analysis-button active" onclick="switchAnalysis(event, 'activity-{{ role_index }}')">Анализ активности</button>
             <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
-            <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'skills-{{ role_index }}')">Анализ навыков</button>
             <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
         </div>
 
@@ -107,53 +106,6 @@
             </div>
             {% else %}
             <p>Нет данных по дням недели для этой роли</p>
-            {% endif %}
-        </div>
-
-        <!-- Блок для анализа навыков (по общему опыту) -->
-        {% set skills_role = skills_roles | selectattr('id', 'equalto', role.id) | first %}
-        <div class="skills-content" data-analysis="skills-{{ role_index }}" style="display: none;"
-             data-skills='{{ skills_role.experiences_list | tojson if skills_role else "[]" }}'>
-            {% if skills_role and skills_role.experiences_list %}
-                <!-- Вкладки для выбора уровня опыта -->
-                <div class="tabs experience-tabs" style="justify-content: center; margin-top: 10px;">
-                    {% for exp in skills_role.experiences_list %}
-                    <button class="tab-button experience-button" onclick="openExperienceTab(event, 'exp-{{ role_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
-                    {% endfor %}
-                </div>
-
-                <!-- Контейнеры для каждого уровня опыта -->
-                {% for exp in skills_role.experiences_list %}
-                {% set exp_index = loop.index %}
-                <div id="exp-{{ role_index }}-{{ exp_index }}" class="experience-content" data-exp='{{ exp | tojson }}' style="display: none;">
-                    <div class="analysis-flex">
-                        <div class="table-container">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Навык</th>
-                                        <th>Упоминаний</th>
-                                        <th>% покрытия</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for skill in exp.skills %}
-                                    <tr>
-                                        <td>{{ skill.skill }}</td>
-                                        <td>{{ skill.count }}</td>
-                                        <td>{{ skill.coverage }}%</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                            <p style="margin-top: 10px; color: var(--ios-dark-gray);">Всего вакансий с навыками: {{ exp.total_vacancies }}</p>
-                        </div>
-                        <div class="plotly-graph" id="skills-graph-{{ role_index }}-{{ exp_index }}"></div>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>Нет данных по навыкам для этой роли</p>
             {% endif %}
         </div>
 

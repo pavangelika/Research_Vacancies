@@ -236,6 +236,8 @@ def fetch_skills_monthly_data(mapping):
     Возвращает данные для анализа навыков по ролям, опыту и месяцам.
     Для каждой роли список месяцев, внутри каждого месяца список уровней опыта,
     а внутри каждого опыта – топ-15 навыков.
+    В начало списка месяцев добавляется сводный месяц с агрегированными
+    данными по всем месяцам, с названием вида "За N мес.".
     """
     conn = get_db_connection()
     cur = conn.cursor()
@@ -356,144 +358,87 @@ def fetch_skills_monthly_data(mapping):
             'rank': rank
         })
 
-    # Преобразуем в список для шаблона
-    result = []
+    # Агрегируем данные по всем месяцам для каждой роли и опыта
     exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
 
     for role_key, role_data in skills_by_role.items():
-        # Сортируем месяцы по возрастанию
-        months_list = []
+        # Словарь для агрегатов: опыт -> общее количество вакансий и навыков
+        agg_exp = {}
+        for month_str, exp_dict in role_data['months'].items():
+            for exp_name, exp_data in exp_dict.items():
+                if exp_name not in agg_exp:
+                    agg_exp[exp_name] = {
+                        'total_vacancies': 0,
+                        'skills': defaultdict(int)
+                    }
+                agg_exp[exp_name]['total_vacancies'] += exp_data['total_vacancies']
+                for skill_item in exp_data['skills']:
+                    agg_exp[exp_name]['skills'][skill_item['skill']] += skill_item['count']
+
+        # Формируем список опыта для сводного месяца
+        all_experiences = []
+        for exp_name, exp_agg in agg_exp.items():
+            total = exp_agg['total_vacancies']
+            # Преобразуем навыки в список и сортируем по убыванию частоты
+            skills_list = []
+            for skill, count in exp_agg['skills'].items():
+                coverage = round(count * 100.0 / total, 2) if total > 0 else 0
+                skills_list.append({
+                    'skill': skill,
+                    'count': count,
+                    'coverage': coverage,
+                    'rank': 0  # ранг не нужен для отображения
+                })
+            skills_list.sort(key=lambda x: (-x['count'], x['skill']))
+            skills_list = skills_list[:15]  # топ-15
+            all_experiences.append({
+                'experience': exp_name,
+                'total_vacancies': total,
+                'skills': skills_list
+            })
+
+        # Сортируем опыты по заданному порядку
+        all_experiences.sort(key=lambda e: exp_order.get(e['experience'], 5))
+
+        # Определяем количество месяцев для этой роли
+        num_months = len(role_data['months'])
+        # Формируем название сводного месяца
+        if num_months == 1:
+            month_title = "За 1 месяц"
+        elif 2 <= num_months <= 4:
+            month_title = f"За {num_months} месяца"
+        else:
+            month_title = f"За {num_months} месяцев"
+
+        # Создаём запись для сводного месяца
+        all_month_entry = {
+            'month': month_title,
+            'experiences': all_experiences
+        }
+
+        # Добавляем сводный месяц в начало списка
+        months_list = [all_month_entry]
+
+        # Добавляем остальные месяцы, отсортированные по дате
         for month_str in sorted(role_data['months'].keys()):
             exp_dict = role_data['months'][month_str]
-            # Для каждого месяца сортируем уровни опыта
             exp_list = list(exp_dict.values())
             exp_list.sort(key=lambda e: exp_order.get(e['experience'], 5))
             months_list.append({
                 'month': month_str,
                 'experiences': exp_list
             })
+
         role_data['months_list'] = months_list
         del role_data['months']
-        result.append(role_data)
 
+    # Преобразуем в список для шаблона и сортируем по имени роли
+    result = list(skills_by_role.values())
     result.sort(key=lambda x: x['name'])
+
     return result
 
-def fetch_skills_data(mapping):
-    """
-    Возвращает данные для анализа навыков по ролям и опыту.
-    Для каждой роли список уровней опыта с топ-10 навыков.
-    """
-    conn = get_db_connection()
-    cur = conn.cursor()
-    query = """
-        WITH skill_analysis AS (
-            SELECT 
-                professional_role,
-                experience,
-                TRIM(REGEXP_REPLACE(UNNEST(STRING_TO_ARRAY(skills, ',')), '\\s+', ' ')) as skill,
-                COUNT(*) OVER (PARTITION BY professional_role, experience) as vacancies_with_skills
-            FROM public.get_vacancies 
-            WHERE skills IS NOT NULL 
-                AND skills != ''
-                AND experience IS NOT NULL
-                AND experience != ''
-        ),
-        aggregated_skills AS (
-            SELECT 
-                professional_role,
-                experience,
-                skill,
-                COUNT(*) as skill_count,
-                MAX(vacancies_with_skills) as total_vacancies_in_group,
-                ROUND(COUNT(*) * 100.0 / MAX(vacancies_with_skills), 2) as skill_coverage_percent
-            FROM skill_analysis
-            GROUP BY professional_role, experience, skill
-        ),
-        ranked AS (
-            SELECT 
-                professional_role,
-                experience,
-                skill,
-                skill_count,
-                total_vacancies_in_group,
-                skill_coverage_percent,
-                ROW_NUMBER() OVER (
-                    PARTITION BY professional_role, experience 
-                    ORDER BY skill_count DESC, skill
-                ) as rank_position
-            FROM aggregated_skills
-            WHERE skill_count >= 2
-        )
-        SELECT 
-            professional_role as role_id,
-            experience,
-            skill,
-            skill_count,
-            total_vacancies_in_group,
-            skill_coverage_percent,
-            rank_position
-        FROM ranked
-        WHERE rank_position <= 10
-        ORDER BY professional_role,
-            CASE experience
-                WHEN 'Нет опыта' THEN 1
-                WHEN 'От 1 года до 3 лет' THEN 2
-                WHEN 'От 3 до 6 лет' THEN 3
-                WHEN 'Более 6 лет' THEN 4
-                ELSE 5
-            END,
-            rank_position;
-    """
-    cur.execute(query)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    skills_by_role = {}
-    for role_id, experience, skill, skill_count, total_vacancies, coverage, rank in rows:
-        if role_id is None:
-            role_key = "NULL"
-        else:
-            role_key = str(role_id)
-        role_name = mapping.get(role_key, f"ID {role_id} (неизвестная роль)")
-
-        if role_key not in skills_by_role:
-            skills_by_role[role_key] = {
-                'id': role_key,
-                'name': role_name,
-                'experiences': {}
-            }
-
-        if experience not in skills_by_role[role_key]['experiences']:
-            skills_by_role[role_key]['experiences'][experience] = {
-                'experience': experience,
-                'total_vacancies': total_vacancies,
-                'skills': []
-            }
-
-        # Преобразуем Decimal в float
-        skills_by_role[role_key]['experiences'][experience]['skills'].append({
-            'skill': skill,
-            'count': skill_count,
-            'coverage': float(coverage) if coverage is not None else 0.0,
-            'rank': rank
-        })
-
-    # Преобразуем в удобный для шаблона формат
-    result = []
-    exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
-    for role_key, role_data in skills_by_role.items():
-        experiences_list = list(role_data['experiences'].values())
-        experiences_list.sort(key=lambda e: exp_order.get(e['experience'], 5))
-        role_data['experiences_list'] = experiences_list
-        del role_data['experiences']
-        result.append(role_data)
-
-    result.sort(key=lambda x: x['name'])
-    return result
-
-def render_report(roles_data, weekday_data, skills_data, skills_monthly_data):
+def render_report(roles_data, weekday_data, skills_monthly_data):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
@@ -507,7 +452,6 @@ def render_report(roles_data, weekday_data, skills_data, skills_monthly_data):
         report_data['roles'][role_id] = {
             'trend': role['trend'],
             'weekdays': None,
-            'skills': None,
             'skills_monthly': None
         }
     for wrole in weekday_data:
@@ -518,18 +462,6 @@ def render_report(roles_data, weekday_data, skills_data, skills_monthly_data):
             report_data['roles'][role_id] = {
                 'trend': None,
                 'weekdays': wrole['weekdays'],
-                'skills': None,
-                'skills_monthly': None
-            }
-    for srole in skills_data:
-        role_id = srole['id']
-        if role_id in report_data['roles']:
-            report_data['roles'][role_id]['skills'] = srole['experiences_list']
-        else:
-            report_data['roles'][role_id] = {
-                'trend': None,
-                'weekdays': None,
-                'skills': srole['experiences_list'],
                 'skills_monthly': None
             }
     for smrole in skills_monthly_data:
@@ -540,14 +472,15 @@ def render_report(roles_data, weekday_data, skills_data, skills_monthly_data):
             report_data['roles'][role_id] = {
                 'trend': None,
                 'weekdays': None,
-                'skills': None,
                 'skills_monthly': smrole['months_list']
             }
 
     report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
+    # Передаём skills_roles как пустой список, так как отдельная вкладка навыков больше не используется
     return template.render(roles=roles_data, weekday_roles=weekday_data,
-                           skills_roles=skills_data, skills_monthly_roles=skills_monthly_data,
+                           skills_roles=[], skills_monthly_roles=skills_monthly_data,
                            current_date=current_date, current_time=current_time, report_data_json=report_data_json)
+
 
 def save_report(html_content):
     output_dir = '/reports'
@@ -583,13 +516,10 @@ def main():
     logging.info("Fetching weekday data...")
     weekday_data = fetch_weekday_data(mapping)
 
-    logging.info("Fetching skills data...")
-    skills_data = fetch_skills_data(mapping)
-
     logging.info("Fetching skills monthly data...")
     skills_monthly_data = fetch_skills_monthly_data(mapping)
 
-    html = render_report(roles_data, weekday_data, skills_data, skills_monthly_data)
+    html = render_report(roles_data, weekday_data, skills_monthly_data)
     save_report(html)
     copy_styles()
     copy_js()
