@@ -8,6 +8,7 @@
     --ios-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     --ios-green: #34c759;
     --ios-yellow: #ffcc00;
+    --ios-orange: #ff9500; /* для графика навыков по месяцам */
 }
 
 body {
@@ -97,7 +98,7 @@ h1 {
     box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
 }
 
-/* Вкладки месяцев */
+/* Вкладки месяцев (основные) */
 .month-tabs {
     justify-content: center;
     margin-top: 8px;
@@ -114,6 +115,66 @@ h1 {
 
 .month-button.active {
     background-color: var(--ios-green);
+    color: white;
+}
+
+/* Вкладки для выбора опыта в анализе навыков (общий) */
+.experience-tabs {
+    justify-content: center;
+    margin-top: 8px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.experience-button {
+    font-size: 13px;
+    padding: 8px 12px;
+}
+
+.experience-button.active {
+    background-color: var(--ios-blue);
+    color: white;
+}
+
+/* Вкладки для выбора месяца в анализе навыков по месяцам */
+.monthly-skills-month-tabs {
+    justify-content: center;
+    margin-top: 8px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.monthly-skills-month-button {
+    font-size: 13px;
+    padding: 8px 12px;
+}
+
+.monthly-skills-month-button.active {
+    background-color: var(--ios-blue);
+    color: white;
+}
+
+/* Вкладки для выбора опыта внутри месяца (навыки по месяцам) */
+.monthly-skills-exp-tabs {
+    justify-content: center;
+    margin-top: 8px;
+    background-color: white;
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.monthly-skills-exp-button {
+    font-size: 13px;
+    padding: 8px 12px;
+}
+
+.monthly-skills-exp-button.active {
+    background-color: var(--ios-blue);
     color: white;
 }
 
@@ -158,11 +219,6 @@ h1 {
     flex: 1;
     min-width: 400px;
     height: 400px;
-}
-
-/* Центрирование вкладок месяцев */
-.month-tabs {
-    justify-content: center;
 }
 
 /* Таблицы */
@@ -225,6 +281,6 @@ tr:hover {
     .tab-button { padding: 10px 8px; font-size: 13px; }
     .role-content { padding: 16px; }
     .role-content h2 { font-size: 1.5rem; }
-    .analysis-content { flex-direction: column; }
+    .analysis-flex { flex-direction: column; }
     .plotly-graph { min-width: 100%; height: 350px; }
 }

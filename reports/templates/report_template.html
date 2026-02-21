@@ -21,11 +21,12 @@
     <div id="role-{{ role_index }}" class="role-content">
         <h2>{{ role.name }} (ID: {{ role.id }})</h2>
 
-        <!-- Вкладки выбора анализа (ТРИ) -->
+        <!-- Вкладки выбора анализа (ЧЕТЫРЕ) -->
         <div class="tabs analysis-tabs">
             <button class="tab-button analysis-button active" onclick="switchAnalysis(event, 'activity-{{ role_index }}')">Анализ активности</button>
             <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
             <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'skills-{{ role_index }}')">Анализ навыков</button>
+            <button class="tab-button analysis-button" onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
         </div>
 
         <!-- Вкладки по месяцам (только для анализа активности) -->
@@ -106,7 +107,7 @@
             {% endif %}
         </div>
 
-        <!-- Блок для анализа навыков (НОВЫЙ) -->
+        <!-- Блок для анализа навыков (по общему опыту) -->
         {% set skills_role = skills_roles | selectattr('id', 'equalto', role.id) | first %}
         <div class="skills-content" data-analysis="skills-{{ role_index }}" style="display: none;"
              data-skills='{{ skills_role.experiences_list | tojson if skills_role else "[]" }}'>
@@ -150,6 +151,66 @@
                 {% endfor %}
             {% else %}
                 <p>Нет данных по навыкам для этой роли</p>
+            {% endif %}
+        </div>
+
+        <!-- Блок для анализа навыков по месяцам -->
+        {% set skills_monthly_role = skills_monthly_roles | selectattr('id', 'equalto', role.id) | first %}
+        <div class="skills-monthly-content" data-analysis="skills-monthly-{{ role_index }}" style="display: none;"
+             data-skills-monthly='{{ skills_monthly_role.months_list | tojson if skills_monthly_role else "[]" }}'>
+            {% if skills_monthly_role and skills_monthly_role.months_list %}
+                <!-- Вкладки для выбора месяца -->
+                <div class="tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">
+                    {% for month_data in skills_monthly_role.months_list %}
+                    <button class="tab-button monthly-skills-month-button" onclick="openMonthlySkillsMonthTab(event, 'ms-month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
+                    {% endfor %}
+                </div>
+
+                <!-- Контейнеры для каждого месяца -->
+                {% for month_data in skills_monthly_role.months_list %}
+                {% set month_index = loop.index %}
+                <div id="ms-month-{{ role_index }}-{{ month_index }}" class="monthly-skills-month-content" data-month='{{ month_data | tojson }}' style="display: none;">
+                    <!-- Внутри месяца - вкладки для выбора опыта -->
+                    <div class="tabs monthly-skills-exp-tabs" style="justify-content: center; margin-top: 5px;">
+                        {% for exp in month_data.experiences %}
+                        <button class="tab-button monthly-skills-exp-button" onclick="openMonthlySkillsExpTab(event, 'ms-exp-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Контейнеры для каждого опыта внутри месяца -->
+                    {% for exp in month_data.experiences %}
+                    {% set exp_index = loop.index %}
+                    <div id="ms-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="monthly-skills-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
+                        <div class="analysis-flex">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Навык</th>
+                                            <th>Упоминаний</th>
+                                            <th>% покрытия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for skill in exp.skills %}
+                                        <tr>
+                                            <td>{{ skill.skill }}</td>
+                                            <td>{{ skill.count }}</td>
+                                            <td>{{ skill.coverage }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                                <p style="margin-top: 10px; color: var(--ios-dark-gray);">Всего вакансий с навыками: {{ exp.total_vacancies }}</p>
+                            </div>
+                            <div class="plotly-graph" id="skills-monthly-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Нет данных по навыкам с разбивкой по месяцам для этой роли</p>
             {% endif %}
         </div>
     </div>
@@ -198,7 +259,7 @@
             buildActivityBarChart(graphId, entries);
         }
 
-        // Переключение между видами анализа (активность / дни недели / навыки)
+        // Переключение между видами анализа (4 варианта)
         function switchAnalysis(evt, analysisId) {
             var parentRole = evt.currentTarget.closest('.role-content');
             var analysisButtons = parentRole.getElementsByClassName("analysis-button");
@@ -210,30 +271,40 @@
             var activityBlocks = parentRole.querySelectorAll('.activity-only');
             var weekdayBlock = parentRole.querySelector('.weekday-content');
             var skillsBlock = parentRole.querySelector('.skills-content');
+            var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
 
             if (analysisId.includes('activity')) {
                 activityBlocks.forEach(block => block.style.display = 'block');
                 if (weekdayBlock) weekdayBlock.style.display = 'none';
                 if (skillsBlock) skillsBlock.style.display = 'none';
+                if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
                 var firstMonthButton = parentRole.querySelector('.month-button');
                 if (firstMonthButton) firstMonthButton.click();
             } else if (analysisId.includes('weekday')) {
                 activityBlocks.forEach(block => block.style.display = 'none');
                 if (weekdayBlock) weekdayBlock.style.display = 'block';
                 if (skillsBlock) skillsBlock.style.display = 'none';
+                if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
                 var roleId = analysisId.split('-')[1];
                 buildWeekdayBarChart(roleId, weekdayBlock);
-            } else if (analysisId.includes('skills')) {
+            } else if (analysisId.includes('skills-') && !analysisId.includes('monthly')) {
                 activityBlocks.forEach(block => block.style.display = 'none');
                 if (weekdayBlock) weekdayBlock.style.display = 'none';
                 if (skillsBlock) skillsBlock.style.display = 'block';
-                // Активируем первый уровень опыта
+                if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
                 var firstExpButton = parentRole.querySelector('.experience-button');
                 if (firstExpButton) firstExpButton.click();
+            } else if (analysisId.includes('skills-monthly')) {
+                activityBlocks.forEach(block => block.style.display = 'none');
+                if (weekdayBlock) weekdayBlock.style.display = 'none';
+                if (skillsBlock) skillsBlock.style.display = 'none';
+                if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'block';
+                var firstMonthButton = parentRole.querySelector('.monthly-skills-month-button');
+                if (firstMonthButton) firstMonthButton.click();
             }
         }
 
-        // Переключение между уровнями опыта внутри анализа навыков
+        // Переключение между уровнями опыта внутри анализа навыков (общий)
         function openExperienceTab(evt, expId) {
             var parentRole = evt.currentTarget.closest('.role-content');
             var expContents = parentRole.getElementsByClassName("experience-content");
@@ -254,6 +325,46 @@
             buildSkillsBarChart(graphId, expData.skills, expData.experience);
         }
 
+        // Переключение между месяцами в анализе навыков по месяцам
+        function openMonthlySkillsMonthTab(evt, monthId) {
+            var parentRole = evt.currentTarget.closest('.role-content');
+            var monthContents = parentRole.getElementsByClassName("monthly-skills-month-content");
+            for (var i = 0; i < monthContents.length; i++) {
+                monthContents[i].style.display = "none";
+            }
+            var monthButtons = parentRole.getElementsByClassName("monthly-skills-month-button");
+            for (var i = 0; i < monthButtons.length; i++) {
+                monthButtons[i].className = monthButtons[i].className.replace(" active", "");
+            }
+            document.getElementById(monthId).style.display = "block";
+            evt.currentTarget.className += " active";
+
+            // Активируем первый опыт в этом месяце
+            var firstExpButton = document.querySelector("#" + monthId + " .monthly-skills-exp-button");
+            if (firstExpButton) firstExpButton.click();
+        }
+
+        // Переключение между опытами внутри месяца (навыки по месяцам)
+        function openMonthlySkillsExpTab(evt, expId) {
+            var parentMonth = evt.currentTarget.closest('.monthly-skills-month-content');
+            var expContents = parentMonth.getElementsByClassName("monthly-skills-exp-content");
+            for (var i = 0; i < expContents.length; i++) {
+                expContents[i].style.display = "none";
+            }
+            var expButtons = parentMonth.getElementsByClassName("monthly-skills-exp-button");
+            for (var i = 0; i < expButtons.length; i++) {
+                expButtons[i].className = expButtons[i].className.replace(" active", "");
+            }
+            document.getElementById(expId).style.display = "block";
+            evt.currentTarget.className += " active";
+
+            // Строим график для этого опыта
+            var expDiv = document.getElementById(expId);
+            var expData = JSON.parse(expDiv.dataset.exp);
+            var graphId = 'skills-monthly-graph-' + expId.replace('ms-exp-', '');
+            buildMonthlySkillsBarChart(graphId, expData.skills, expData.experience);
+        }
+
         // Построение столбчатой диаграммы для месяца (активные/архивные по опыту)
         function buildActivityBarChart(graphId, entries) {
             var experiences = entries.map(e => e.experience);
@@ -265,24 +376,19 @@
                 y: activeData,
                 name: 'Активные',
                 type: 'bar',
-                marker: { color: '#34c759' }  // зелёный iOS
+                marker: { color: '#34c759' }
             };
             var traceArchived = {
                 x: experiences,
                 y: archivedData,
                 name: 'Архивные',
                 type: 'bar',
-                marker: { color: '#49494d' }  // серый iOS
+                marker: { color: '#49494d' }
             };
 
             var layout = {
                 barmode: 'group',
-                legend: {
-                    orientation: 'h',
-                    y: -0.1,
-                    x: 0.5,
-                    xanchor: 'center'
-                },
+                legend: { orientation: 'h', y: -0.1, x: 0.5, xanchor: 'center' },
                 margin: { t: 50, b: 80, l: 50, r: 20 },
                 height: 340,
                 title: ''
@@ -317,12 +423,7 @@
 
             var layout = {
                 barmode: 'group',
-                legend: {
-                    orientation: 'h',
-                    y: -0.1,
-                    x: 0.5,
-                    xanchor: 'center'
-                },
+                legend: { orientation: 'h', y: -0.1, x: 0.5, xanchor: 'center' },
                 margin: { t: 50, b: 80, l: 50, r: 20 },
                 height: 400,
                 title: ''
@@ -331,13 +432,11 @@
             Plotly.newPlot('weekday-graph-' + roleId, [tracePubs, traceArchs], layout);
         }
 
-        // Построение горизонтальной столбчатой диаграммы для навыков
+        // Построение горизонтальной столбчатой диаграммы для навыков (общий)
         function buildSkillsBarChart(graphId, skills, experience) {
             var skillNames = skills.map(s => s.skill);
             var counts = skills.map(s => s.count);
             var coverages = skills.map(s => s.coverage);
-
-            // Используем проценты покрытия для подписей
             var text = skills.map(s => s.count + ' (' + s.coverage + '%)');
 
             var trace = {
@@ -347,6 +446,36 @@
                 type: 'bar',
                 orientation: 'h',
                 marker: { color: '#007aff' },
+                text: text,
+                textposition: 'outside',
+                hoverinfo: 'x+text'
+            };
+
+            var layout = {
+                title: 'Топ-10 навыков · ' + experience,
+                xaxis: { title: 'Количество упоминаний' },
+                margin: { l: 200, r: 50, t: 50, b: 50 },
+                height: 400,
+                bargap: 0.15
+            };
+
+            Plotly.newPlot(graphId, [trace], layout);
+        }
+
+        // Построение горизонтальной столбчатой диаграммы для навыков по месяцам
+        function buildMonthlySkillsBarChart(graphId, skills, experience) {
+            var skillNames = skills.map(s => s.skill);
+            var counts = skills.map(s => s.count);
+            var coverages = skills.map(s => s.coverage);
+            var text = skills.map(s => s.count + ' (' + s.coverage + '%)');
+
+            var trace = {
+                x: counts,
+                y: skillNames,
+                name: 'Упоминания',
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#ff9500' }, // оранжевый
                 text: text,
                 textposition: 'outside',
                 hoverinfo: 'x+text'
