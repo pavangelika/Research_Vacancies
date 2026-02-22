@@ -649,11 +649,29 @@ function renderVacancyDetails(container, withList, withoutList) {
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
 
-function openVacancyModal(withList, withoutList) {
+function buildRowContext(row) {
+    var headerCells = Array.from(row.closest('table').querySelectorAll('thead th'))
+        .map(th => '<th>' + escapeHtml(th.textContent.trim()) + '</th>')
+        .join('');
+    var valueCells = Array.from(row.querySelectorAll('td'))
+        .map(td => '<td>' + escapeHtml(td.textContent.trim() || '—') + '</td>')
+        .join('');
+
+    return '<div class="context-table-wrap">' +
+        '<table class="context-table">' +
+            '<thead><tr>' + headerCells + '</tr></thead>' +
+            '<tbody><tr>' + valueCells + '</tr></tbody>' +
+        '</table>' +
+    '</div>';
+}
+
+function openVacancyModal(withList, withoutList, contextHtml) {
     var backdrop = document.getElementById('vacancy-modal-backdrop');
     var body = document.getElementById('vacancy-modal-body');
-    if (!backdrop || !body) return;
+    var context = document.getElementById('vacancy-modal-context');
+    if (!backdrop || !body || !context) return;
 
+    context.innerHTML = contextHtml || '';
     body.innerHTML = '<div class="vacancy-details-container"></div>';
     var container = body.querySelector('.vacancy-details-container');
     renderVacancyDetails(container, withList, withoutList);
@@ -674,6 +692,7 @@ document.addEventListener('click', function(e) {
     if (!row) return;
 
     e.preventDefault();
+    var contextHtml = buildRowContext(row);
     var withList = [];
     var withoutList = [];
     try {
@@ -687,7 +706,7 @@ document.addEventListener('click', function(e) {
         withoutList = [];
     }
 
-    openVacancyModal(withList, withoutList);
+    openVacancyModal(withList, withoutList, contextHtml);
 });
 
 document.addEventListener('click', function(e) {
