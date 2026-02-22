@@ -359,7 +359,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
 
 // ---------- Анализ зарплат (обновлённый) ----------
 function restoreSalaryState(parentRole, roleId) {
-    // Восстанавливаем режим отображения
+    // Восстанавливаем режим отображения (кнопки переключателя)
     var viewButtons = parentRole.querySelectorAll('.view-mode-button');
     for (var btn of viewButtons) {
         if (btn.dataset.view === uiState.global_salary_view_mode) {
@@ -477,13 +477,13 @@ function openSalaryExpTab(evt, expId) {
     evt.currentTarget.className += " active";
 
     // Применяем текущий режим отображения
-    applySalaryViewMode(parentRole, expDiv, expData.entries);
+    applySalaryViewMode(expDiv, expData.entries);
 }
 
-// Обработчик переключения режимов отображения
+// Обработчик переключения режимов отображения (вертикальные иконки)
 function switchSalaryViewMode(evt) {
-    var parentRole = evt.currentTarget.closest('.role-content');
-    var viewButtons = parentRole.querySelectorAll('.view-mode-button');
+    var parentExp = evt.currentTarget.closest('.salary-exp-content');
+    var viewButtons = parentExp.querySelectorAll('.view-mode-button');
     for (var btn of viewButtons) {
         btn.classList.remove('active');
     }
@@ -491,46 +491,46 @@ function switchSalaryViewMode(evt) {
     var mode = evt.currentTarget.dataset.view;
     uiState.global_salary_view_mode = mode;
 
-    // Находим видимый опыт и обновляем отображение
-    var visibleExp = parentRole.querySelector('.salary-exp-content[style*="display: block"]');
-    if (visibleExp) {
-        var expData = JSON.parse(visibleExp.dataset.exp);
-        applySalaryViewMode(parentRole, visibleExp, expData.entries);
-    }
+    var expData = JSON.parse(parentExp.dataset.exp);
+    applySalaryViewMode(parentExp, expData.entries);
 }
 
-function applySalaryViewMode(parentRole, expDiv, entries) {
+function applySalaryViewMode(expDiv, entries) {
     var mode = uiState.global_salary_view_mode;
-    var flexContainer = expDiv.querySelector('.salary-display-flex');
+    var mainContent = expDiv.querySelector('.salary-main-content');
     var tableContainer = expDiv.querySelector('.salary-table-container');
     var graphContainer = expDiv.querySelector('.salary-graph-container');
     var graphId = expDiv.querySelector('.plotly-graph').id;
 
+    // Сначала сбрасываем inline-стили
+    mainContent.style.display = 'flex';
+    mainContent.style.flexDirection = 'row';
+    mainContent.style.flexWrap = 'wrap';
+    tableContainer.style.display = 'block';
+    graphContainer.style.display = 'block';
+    tableContainer.style.width = '';
+    graphContainer.style.width = '';
+
     if (mode === 'table') {
-        flexContainer.style.flexDirection = 'column';
-        tableContainer.style.width = '100%';
         graphContainer.style.display = 'none';
+        tableContainer.style.width = '100%';
     } else if (mode === 'graph') {
-        flexContainer.style.flexDirection = 'column';
         tableContainer.style.display = 'none';
-        graphContainer.style.display = 'block';
         graphContainer.style.width = '100%';
-        // Перестраиваем график на полную ширину
         buildSalaryBarChart(graphId, entries);
     } else { // together
-        tableContainer.style.display = 'block';
-        graphContainer.style.display = 'block';
         // Проверяем, помещаются ли рядом
-        var availableWidth = flexContainer.offsetWidth;
+        var availableWidth = mainContent.offsetWidth;
         var tableWidth = tableContainer.offsetWidth;
         var graphWidth = graphContainer.offsetWidth;
-        // Если сумма ширин больше доступной, показываем только таблицу
         if (tableWidth + graphWidth > availableWidth) {
-            flexContainer.style.flexDirection = 'column';
+            // Не помещаются – ставим вертикально
+            mainContent.style.flexDirection = 'column';
             tableContainer.style.width = '100%';
             graphContainer.style.width = '100%';
         } else {
-            flexContainer.style.flexDirection = 'row';
+            // Помещаются – рядом
+            mainContent.style.flexDirection = 'row';
             tableContainer.style.width = '50%';
             graphContainer.style.width = '50%';
         }
@@ -539,7 +539,7 @@ function applySalaryViewMode(parentRole, expDiv, entries) {
 }
 
 function buildSalaryBarChart(graphId, entries) {
-    // Группируем по валютам и статусам
+    // Группируем по валютам и статусам (статусы уже отсортированы: Открытая, Архивная)
     var currencies = [...new Set(entries.map(e => e.currency))];
     var statuses = ['Открытая', 'Архивная'];
     var data = [];
@@ -570,7 +570,7 @@ function buildSalaryBarChart(graphId, entries) {
     Plotly.newPlot(graphId, data, layout);
 }
 
-// Инициализация переключателей режимов
+// Инициализация переключателей режимов (делегирование событий)
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('view-mode-button')) {
         switchSalaryViewMode(e);

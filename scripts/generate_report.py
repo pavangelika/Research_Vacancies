@@ -1002,6 +1002,7 @@ def fetch_salary_data(mapping):
         # Добавляем сводный месяц
         total_for_role = total_data.get(role_key, {})
         # Группируем по опыту
+        # Группируем по опыту
         exp_dict_all = {}
         for (exp, currency, status), vals in total_for_role.items():
             if exp not in exp_dict_all:
@@ -1024,6 +1025,10 @@ def fetch_salary_data(mapping):
                 'top_skills': vals['top_skills']
             }
             exp_dict_all[exp]['entries'].append(entry)
+
+        # Сортируем записи внутри каждого опыта по статусу (Открытая -> Архивная)
+        for exp_data in exp_dict_all.values():
+            exp_data['entries'].sort(key=lambda x: (x['status'] != 'Открытая', x['status']))
 
         all_experiences_list = list(exp_dict_all.values())
         all_experiences_list.sort(key=lambda e: exp_order.get(e['experience'], 5))

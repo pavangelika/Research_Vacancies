@@ -178,18 +178,11 @@
             {% endif %}
         </div>
 
-        <!-- Блок для анализа зарплат (обновлённый) -->
+        <!-- Блок для анализа зарплат (обновлённый с вертикальным переключателем) -->
         {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
         <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
              data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
             {% if salary_role and salary_role.months_list %}
-                <!-- Переключатель режимов отображения -->
-                <div class="tabs view-mode-tabs" style="justify-content: center; margin-bottom: 10px;">
-                    <button class="tab-button view-mode-button active" data-view="together">Вместе</button>
-                    <button class="tab-button view-mode-button" data-view="table">Таблица</button>
-                    <button class="tab-button view-mode-button" data-view="graph">График</button>
-                </div>
-
                 <!-- Вкладки для выбора месяца -->
                 <div class="tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">
                     {% for month_data in salary_role.months_list %}
@@ -213,48 +206,57 @@
                     {% set exp_index = loop.index %}
                     <div id="sal-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="salary-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
                         <div class="salary-display-flex" data-exp-index="{{ exp_index }}">
-                            <div class="salary-table-container">
-                                <div style="overflow-x: auto;">
-                                    <table>
-                                        <thead>
-                                            <tr>
-                                                <th>Статус</th>
-                                                <th>Валюта</th>
-                                                <th>Всего</th>
-                                                <th>С з/п</th>
-                                                <th>% с з/п</th>
-                                                <th>Средняя</th>
-                                                <th>Медианная</th>
-                                                <th>Модальная</th>
-                                                <th>Мин</th>
-                                                <th>Макс</th>
-                                                <th>Размах</th>
-                                                <th>Топ-5 навыков</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for entry in exp.entries %}
-                                            <tr>
-                                                <td>{{ entry.status }}</td>
-                                                <td>{{ entry.currency }}</td>
-                                                <td>{{ entry.total_vacancies }}</td>
-                                                <td>{{ entry.vacancies_with_salary }}</td>
-                                                <td>{{ entry.salary_percentage }}%</td>
-                                                <td>{{ "{:,.0f}".format(entry.avg_salary) }}</td>
-                                                <td>{% if entry.median_salary is not none %}{{ "{:,.0f}".format(entry.median_salary) }}{% else %}—{% endif %}</td>
-                                                <td>{% if entry.mode_salary is not none %}{{ "{:,.0f}".format(entry.mode_salary) }}{% else %}—{% endif %}</td>
-                                                <td>{{ "{:,.0f}".format(entry.min_salary) }}</td>
-                                                <td>{{ "{:,.0f}".format(entry.max_salary) }}</td>
-                                                <td>{{ "{:,.0f}".format(entry.salary_range) }}</td>
-                                                <td>{{ entry.top_skills }}</td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
+                            <!-- Основная область: таблица и график -->
+                            <div class="salary-main-content">
+                                <div class="salary-table-container">
+                                    <div style="overflow-x: auto;">
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Статус</th>
+                                                    <th>Валюта</th>
+                                                    <th>Всего</th>
+                                                    <th>С з/п</th>
+                                                    <th>% с з/п</th>
+                                                    <th>Средняя</th>
+                                                    <th>Медианная</th>
+                                                    <th>Модальная</th>
+                                                    <th>Мин</th>
+                                                    <th>Макс</th>
+                                                    <th>Размах</th>
+                                                    <th>Топ-10 навыков</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for entry in exp.entries %}
+                                                <tr>
+                                                    <td>{{ entry.status }}</td>
+                                                    <td>{{ entry.currency }}</td>
+                                                    <td>{{ entry.total_vacancies }}</td>
+                                                    <td>{{ entry.vacancies_with_salary }}</td>
+                                                    <td>{{ entry.salary_percentage }}%</td>
+                                                    <td>{{ "{:,.0f}".format(entry.avg_salary) }}</td>
+                                                    <td>{% if entry.median_salary is not none %}{{ "{:,.0f}".format(entry.median_salary) }}{% else %}—{% endif %}</td>
+                                                    <td>{% if entry.mode_salary is not none %}{{ "{:,.0f}".format(entry.mode_salary) }}{% else %}—{% endif %}</td>
+                                                    <td>{{ "{:,.0f}".format(entry.min_salary) }}</td>
+                                                    <td>{{ "{:,.0f}".format(entry.max_salary) }}</td>
+                                                    <td>{{ "{:,.0f}".format(entry.salary_range) }}</td>
+                                                    <td>{{ entry.top_skills }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="salary-graph-container">
+                                    <div class="plotly-graph" id="salary-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
                                 </div>
                             </div>
-                            <div class="salary-graph-container">
-                                <div class="plotly-graph" id="salary-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
+                            <!-- Вертикальный переключатель режимов -->
+                            <div class="salary-view-toggle">
+                                <button class="view-mode-button active" data-view="together" title="Вместе">⊞</button>
+                                <button class="view-mode-button" data-view="table" title="Таблица">☷</button>
+                                <button class="view-mode-button" data-view="graph" title="График">📊</button>
                             </div>
                         </div>
                     </div>
