@@ -942,7 +942,7 @@ def fetch_salary_data(mapping):
             skills,
             requirement,
             responsibility,
-            url,
+            apply_alternate_url,
             professional_role,
             experience,
             archived,
@@ -1055,7 +1055,7 @@ def fetch_salary_data(mapping):
 
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
-         skills, requirement, responsibility, url, role_id,
+         skills, requirement, responsibility, apply_alternate_url, role_id,
          experience, archived, published_at) = row
 
         role_key = "NULL" if role_id is None else str(role_id)
@@ -1074,7 +1074,7 @@ def fetch_salary_data(mapping):
             'skills': skills,
             'requirement': requirement,
             'responsibility': responsibility,
-            'url': url
+            'apply_alternate_url': apply_alternate_url
         }
 
         if has_salary:

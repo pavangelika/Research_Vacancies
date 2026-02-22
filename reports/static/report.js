@@ -592,9 +592,15 @@ function buildVacancyTableHtml(vacancies) {
     }
 
     var rows = vacancies.map(v => {
-        var urlCell = v.url ? '<a href="' + escapeHtml(v.url) + '" target="_blank" rel="noopener">ссылка</a>' : '—';
+        var linkUrl = v.id ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(v.id) : '';
+        var idCell = linkUrl
+            ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
+            : formatCell(v.id);
+        var replyCell = v.apply_alternate_url
+            ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
+            : '—';
         return '<tr>' +
-            '<td>' + formatCell(v.id) + '</td>' +
+            '<td>' + idCell + '</td>' +
             '<td>' + formatCell(v.name) + '</td>' +
             '<td>' + formatCell(v.employer) + '</td>' +
             '<td>' + formatCell(v.city) + '</td>' +
@@ -603,7 +609,7 @@ function buildVacancyTableHtml(vacancies) {
             '<td>' + formatCell(v.skills) + '</td>' +
             '<td>' + formatCell(v.requirement) + '</td>' +
             '<td>' + formatCell(v.responsibility) + '</td>' +
-            '<td>' + urlCell + '</td>' +
+            '<td>' + replyCell + '</td>' +
         '</tr>';
     }).join('');
 
@@ -620,7 +626,7 @@ function buildVacancyTableHtml(vacancies) {
                     '<th>Навыки</th>' +
                     '<th>Требования</th>' +
                     '<th>Обязанности</th>' +
-                    '<th>URL</th>' +
+                    '<th>Отклик</th>' +
                 '</tr>' +
             '</thead>' +
             '<tbody>' + rows + '</tbody>' +
