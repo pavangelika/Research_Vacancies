@@ -1,80 +1,44 @@
-/* Светлая воздушная тема на основе Blue Gray (Material Blue Grey) */
+/* Светлая компактная тема на основе Blue Gray */
 :root {
-    /* Blue Grey палитра */
-    --blue-gray-50: #ECEFF1;
-    --blue-gray-100: #CFD8DC;
-    --blue-gray-200: #B0BEC5;
-    --blue-gray-300: #90A4AE;
-    --blue-gray-400: #78909C;
-    --blue-gray-500: #607D8B;
-    --blue-gray-600: #546E7A;
-    --blue-gray-700: #455A64;
-    --blue-gray-800: #37474F;
-    --blue-gray-900: #263238;
-
-    /* Основные цвета интерфейса */
-    --bg-body: var(--blue-gray-50);
-    --surface: #FFFFFF;
-    --surface-variant: var(--blue-gray-100);
-    --border-light: var(--blue-gray-200);
-    --text-primary: var(--blue-gray-900);
-    --text-secondary: var(--blue-gray-600);
-    --text-hint: var(--blue-gray-400);
-
-    /* Акцентные цвета (монохромные) */
-    --primary: var(--blue-gray-700);
-    --primary-light: var(--blue-gray-500);
-    --primary-dark: var(--blue-gray-800);
-    --on-primary: #FFFFFF;
-
-    /* Вкладки */
-    --tab-inactive: var(--blue-gray-600);
-    --tab-active-bg: var(--blue-gray-700);
-    --tab-active-text: #FFFFFF;
-    --tab-hover-bg: var(--blue-gray-200);
-
-    /* Специальные вкладки */
-    --month-tab-active-bg: var(--blue-gray-500);
-    --skill-tab-active-bg: var(--blue-gray-500);
-
-    /* Тени (лёгкие, воздушные) */
-    --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.05);
-    --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-card: 0 8px 16px rgba(0, 0, 0, 0.05);
-
-    /* Размеры */
-    --border-radius-card: 16px;
-    --border-radius-tab: 30px;
-    --spacing: 20px;
+    --bg-body: #f5f7fa;
+    --surface: #ffffff;
+    --surface-variant: #edf0f5;
+    --border-light: #dde3e9;
+    --text-primary: #2c3e50;
+    --text-secondary: #5e7a93;
+    --primary: #3a6b92;
+    --primary-light: #5f8db0;
+    --primary-dark: #2a4b6a;
+    --tab-inactive: #6c859e;
+    --tab-active-bg: #2c3e50;
+    --tab-active-text: #ffffff;
+    --tab-hover-bg: #e2e9f0;
+    --shadow-light: 0 1px 4px rgba(0, 0, 0, 0.04);
+    --shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --border-radius-card: 12px;
+    --border-radius-tab: 20px;
+    --spacing: 16px;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--bg-body);
     margin: 0;
     padding: var(--spacing);
     color: var(--text-primary);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
 }
 
 h1 {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     font-weight: 400;
-    letter-spacing: -0.02em;
-    color: var(--text-primary);
-    margin: 0 0 var(--spacing) 0;
-    padding-bottom: 12px;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
     border-bottom: 1px solid var(--border-light);
 }
 
-.report-date {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: var(--spacing);
-}
-
-/* Общие стили для вкладок */
+/* Вкладки */
 .tabs {
     display: flex;
     flex-wrap: wrap;
@@ -82,265 +46,209 @@ h1 {
     border-radius: var(--border-radius-tab);
     padding: 4px;
     box-shadow: var(--shadow-light);
-    margin-bottom: var(--spacing);
+    margin-bottom: 12px;
 }
 
 .tab-button {
     flex: 1 1 auto;
-    background-color: transparent;
+    background: transparent;
     border: none;
     border-radius: var(--border-radius-tab);
-    padding: 10px 16px;
-    font-size: 0.95rem;
+    padding: 8px 12px;
+    font-size: 0.9rem;
     font-weight: 500;
     color: var(--tab-inactive);
-    transition: all 0.2s ease;
+    transition: all 0.2s;
     cursor: pointer;
-    outline: none;
     white-space: nowrap;
-    min-width: 0;
-    text-overflow: ellipsis;
     overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.tab-button:hover {
-    background-color: var(--tab-hover-bg);
-}
-
+.tab-button:hover { background-color: var(--tab-hover-bg); }
 .tab-button.active {
     background-color: var(--tab-active-bg);
     color: var(--tab-active-text);
     box-shadow: var(--shadow-medium);
 }
 
-/* Вкладки анализа (вторичные) */
-.analysis-tabs {
-    margin-top: 16px;
-    margin-bottom: 12px;
-    border-radius: var(--border-radius-tab);
-    padding: 4px;
-    box-shadow: none;
-}
+/* Вторичные вкладки */
+.analysis-tabs { margin-top: 8px; margin-bottom: 8px; }
+.analysis-button { font-size: 0.85rem; padding: 6px 10px; }
+.analysis-button.active { background-color: var(--primary-dark); }
 
-.analysis-button {
-    font-size: 0.9rem;
-    padding: 8px 14px;
-}
-
-.analysis-button.active {
-    background-color: var(--primary-dark);
-    color: white;
-}
-
-/* Вкладки месяцев */
-.month-tabs {
+/* Месяцы и опыт */
+.month-tabs, .monthly-skills-month-tabs, .monthly-skills-exp-tabs,
+.salary-month-tabs, .salary-exp-tabs {
     justify-content: center;
-    margin-top: 8px;
+    margin-top: 6px;
     background-color: var(--surface);
     border-radius: var(--border-radius-tab);
     padding: 4px;
     box-shadow: var(--shadow-light);
 }
 
-.month-button {
-    font-size: 0.85rem;
-    padding: 6px 12px;
+.month-button, .monthly-skills-month-button, .monthly-skills-exp-button,
+.salary-month-button, .salary-exp-button {
+    font-size: 0.8rem;
+    padding: 4px 8px;
 }
-
-.month-button.active {
-    background-color: var(--month-tab-active-bg);
-    color: white;
-}
-
-/* Вкладки для выбора опыта */
-.experience-tabs,
-.monthly-skills-month-tabs,
-.monthly-skills-exp-tabs,
-.salary-month-tabs,
-.salary-exp-tabs {
-    justify-content: center;
-    margin-top: 8px;
-    background-color: var(--surface);
-    border-radius: var(--border-radius-tab);
-    padding: 4px;
-    box-shadow: var(--shadow-light);
-}
-
-.experience-button,
-.monthly-skills-month-button,
-.monthly-skills-exp-button,
-.salary-month-button,
-.salary-exp-button {
-    font-size: 0.85rem;
-    padding: 6px 12px;
-}
-
-.experience-button.active,
-.monthly-skills-month-button.active,
-.monthly-skills-exp-button.active,
-.salary-month-button.active,
+.month-button.active, .monthly-skills-month-button.active,
+.monthly-skills-exp-button.active, .salary-month-button.active,
 .salary-exp-button.active {
-    background-color: var(--skill-tab-active-bg);
+    background-color: var(--primary-light);
     color: white;
 }
 
-/* Контейнеры ролей (карточки) */
+/* Карточка роли */
 .role-content {
     display: none;
     background-color: var(--surface);
     border-radius: var(--border-radius-card);
-    padding: 24px;
+    padding: 20px;
     box-shadow: var(--shadow-card);
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.2s;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.role-content h2 { font-size: 1.5rem; font-weight: 400; margin-top: 0; margin-bottom: 12px; }
+
+/* Горизонтальный переключатель режимов */
+.view-toggle-horizontal {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+    justify-content: flex-end;
+}
+.view-mode-btn {
+    background: var(--surface-variant);
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+    box-shadow: var(--shadow-light);
+}
+.view-mode-btn:hover { background: var(--border-light); }
+.view-mode-btn.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: var(--shadow-medium);
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.role-content h2 {
-    font-size: 1.8rem;
-    font-weight: 400;
-    color: var(--text-primary);
-    margin-top: 0;
-    margin-bottom: 16px;
-}
-
-/* Блок с таблицей и графиком (общий) */
+/* Контейнер с таблицей и графиком */
 .analysis-flex {
     display: flex;
-    gap: 24px;
+    gap: 16px;
     align-items: flex-start;
-    margin-top: 16px;
+    justify-content: center;  /* центрирование дочерних элементов */
 }
 
 .table-container {
-    flex: 1;
+    flex: 0 1 auto;
+    width: max-content;
+    max-width: 60%;
     min-width: 0;
 }
 
 .plotly-graph {
-    flex: 1;
-    min-width: 400px;
-    height: 400px;
+    flex: 1 1 auto;
+    min-width: 300px;
+    height: 350px;
+}
+
+/* Когда таблица скрыта (режим "график"), центрируем график */
+.analysis-flex:has(.table-container[style*="display: none"]) {
+    justify-content: center;
+}
+.analysis-flex:has(.table-container[style*="display: none"]) .plotly-graph {
+    flex: 0 1 auto;
+    max-width: 100%;
+    margin: 0 auto;
 }
 
 /* Таблицы */
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.9rem;
-    border-radius: 12px;
+    font-size: 0.85rem;
+    border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--shadow-light);
 }
-
 th {
     background-color: var(--surface-variant);
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.5px;
-    padding: 12px 16px;
-    text-align: left;
+    font-size: 0.7rem;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border-light);
 }
-
 td {
-    padding: 12px 16px;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--border-light);
     color: var(--text-primary);
 }
+tr:last-child td { border-bottom: none; }
+tr:hover { background-color: #f0f4f9; }
 
-tr:last-child td {
-    border-bottom: none;
-}
+/* Выделение максимумов */
+.max-archived { background-color: #f8fafc; font-weight: 500; }
 
-tr:hover {
-    background-color: var(--blue-gray-100);
-}
-
-/* Выделение максимумов (приглушённые) */
-.max-archived {
-    font-weight: 600;
-    background-color: var(--blue-gray-50);
-}
-
-/* --- Стили для анализа зарплат с вертикальным переключателем --- */
+/* Анализ зарплат (вертикальный переключатель) */
 .salary-display-flex {
     display: flex;
-    gap: 16px;
-    margin-top: 16px;
+    gap: 12px;
+    margin-top: 12px;
 }
-
 .salary-main-content {
     flex: 1;
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 12px;
 }
-
-.salary-table-container,
-.salary-graph-container {
+.salary-table-container, .salary-graph-container {
     flex: 1 1 300px;
     min-width: 0;
 }
-
 .salary-view-toggle {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    width: 40px;
+    gap: 4px;
+    width: 32px;
     flex-shrink: 0;
 }
-
 .view-mode-button {
     background: var(--surface-variant);
     border: none;
-    border-radius: 8px;
-    padding: 8px 0;
-    font-size: 1.4rem;
-    line-height: 1;
+    border-radius: 6px;
+    padding: 4px 0;
+    font-size: 1.2rem;
     cursor: pointer;
     color: var(--text-secondary);
     transition: all 0.2s;
     box-shadow: var(--shadow-light);
-    width: 100%;
     text-align: center;
 }
-
-.view-mode-button:hover {
-    background: var(--blue-gray-300);
-    color: var(--text-primary);
-}
-
+.view-mode-button:hover { background: var(--border-light); }
 .view-mode-button.active {
     background: var(--primary);
     color: white;
-    box-shadow: var(--shadow-medium);
 }
 
 /* Адаптивность */
 @media (max-width: 600px) {
-    body { padding: 12px; }
-    h1 { font-size: 1.8rem; }
-    .tab-button { padding: 8px 10px; font-size: 0.85rem; }
-    .role-content { padding: 16px; }
-    .role-content h2 { font-size: 1.5rem; }
+    body { padding: 10px; }
+    h1 { font-size: 1.5rem; }
     .analysis-flex { flex-direction: column; }
-    .plotly-graph { min-width: 100%; height: 350px; }
-    .salary-display-flex {
-        flex-direction: column;
-    }
+    .plotly-graph { min-width: 100%; height: 300px; }
     .salary-view-toggle {
         flex-direction: row;
         width: 100%;
         justify-content: center;
     }
-    .view-mode-button {
-        width: auto;
-        padding: 8px 16px;
-    }
+    .view-mode-button { width: auto; padding: 4px 12px; }
 }

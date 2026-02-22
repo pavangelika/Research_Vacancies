@@ -51,7 +51,13 @@
         <div id="month-{{ role_index }}-{{ month_index }}" class="month-content activity-only"
              data-entries='{{ month_data.entries | tojson }}'
              data-month="{{ month_data.month }}">
-            <div class="analysis-flex">
+            <!-- Горизонтальный переключатель режимов для активности -->
+            <div class="view-toggle-horizontal">
+                <button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>
+                <button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>
+                <button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>
+            </div>
+            <div class="analysis-flex view-mode-container" data-analysis="activity">
                 <div class="table-container">
                     <table>
                         <thead>
@@ -86,7 +92,13 @@
         <div class="weekday-content" data-analysis="weekday-{{ role_index }}" style="display: none;"
              data-weekdays='{{ weekday_role.weekdays | tojson if weekday_role else "[]" }}'>
             {% if weekday_role %}
-            <div class="analysis-flex">
+            <!-- Горизонтальный переключатель режимов для дней недели -->
+            <div class="view-toggle-horizontal">
+                <button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>
+                <button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>
+                <button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>
+            </div>
+            <div class="analysis-flex view-mode-container" data-analysis="weekday">
                 <div class="table-container">
                     <table>
                         <thead>
@@ -145,7 +157,13 @@
                     {% for exp in month_data.experiences %}
                     {% set exp_index = loop.index %}
                     <div id="ms-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="monthly-skills-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
-                        <div class="analysis-flex">
+                        <!-- Горизонтальный переключатель режимов для навыков -->
+                        <div class="view-toggle-horizontal">
+                            <button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>
+                            <button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>
+                            <button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>
+                        </div>
+                        <div class="analysis-flex view-mode-container" data-analysis="skills-monthly">
                             <div class="table-container">
                                 <table>
                                     <thead>
@@ -165,7 +183,7 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                                <p style="margin-top: 10px; color: var(--ios-dark-gray);">Всего вакансий с навыками: {{ exp.total_vacancies }}</p>
+                                <p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: {{ exp.total_vacancies }}</p>
                             </div>
                             <div class="plotly-graph" id="skills-monthly-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
                         </div>
@@ -178,7 +196,7 @@
             {% endif %}
         </div>
 
-        <!-- Блок для анализа зарплат (обновлённый с вертикальным переключателем) -->
+        <!-- Блок для анализа зарплат (с вертикальным переключателем, по умолчанию таблица) -->
         {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
         <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
              data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
@@ -254,9 +272,9 @@
                             </div>
                             <!-- Вертикальный переключатель режимов -->
                             <div class="salary-view-toggle">
-                                <button class="view-mode-button active" data-view="together" title="Вместе">⊞</button>
-                                <button class="view-mode-button" data-view="table" title="Таблица">☷</button>
-                                <button class="view-mode-button" data-view="graph" title="График">📊</button>
+                                <button class="view-mode-btn" data-view="together" title="Вместе">⊞</button>
+                                <button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>
+                                <button class="view-mode-btn" data-view="graph" title="График">📊</button>
                             </div>
                         </div>
                     </div>
