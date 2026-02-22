@@ -11,15 +11,21 @@
     <h1>Анализ вакансий на {{ current_date }} {{ current_time }}</h1>
 
     <!-- Вкладки по ролям -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary);">
+            <input type="checkbox" id="multi-role-toggle">
+            Мультивыбор
+        </label>
+    </div>
     <div class="tabs role-tabs">
         {% for role in roles %}
-        <button class="tab-button role-button" onclick="openRoleTab(event, 'role-{{ loop.index }}')">{{ role.id }}</button>
+        <button class="tab-button role-button" data-role-index="{{ loop.index }}" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">{{ role.name }}</button>
         {% endfor %}
     </div>
 
     {% for role in roles %}
     {% set role_index = loop.index %}
-    <div id="role-{{ role_index }}" class="role-content">
+    <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">
         <h2>{{ role.name }} [ID: {{ role.id }}]</h2>
 
         <!-- Вкладки выбора анализа (4) -->
@@ -294,6 +300,8 @@
         </div>
     </div>
     {% endfor %}
+
+    <div id="role-combined" class="role-content" style="display: none;"></div>
 
     <div id="vacancy-modal-backdrop" class="vacancy-modal-backdrop" style="display: none;">
         <div class="vacancy-modal" role="dialog" aria-modal="true" aria-labelledby="vacancy-modal-title">

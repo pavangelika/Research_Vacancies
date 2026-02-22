@@ -1053,6 +1053,17 @@ def fetch_salary_data(mapping):
     total_with_salary = defaultdict(list)
     total_without_salary = defaultdict(list)
 
+    currency_rates = {
+        'RUR': 1.0,
+        'USD': 1.0,
+        'EUR': 1.08,
+        'KZT': 0.0021,
+        'BYR': 0.00031,
+        'UZS': 0.000079,
+        'AZN': 0.59,
+        'KGS': 0.011
+    }
+
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
          skills, requirement, responsibility, apply_alternate_url, role_id,
@@ -1064,6 +1075,19 @@ def fetch_salary_data(mapping):
         display_currency = _display_currency(currency)
         has_salary = salary_from is not None or salary_to is not None
 
+        calculated_salary = None
+        if salary_from is not None and salary_to is not None:
+            calculated_salary = (salary_from + salary_to) / 2.0
+        elif salary_from is not None:
+            calculated_salary = salary_from
+        elif salary_to is not None:
+            calculated_salary = salary_to
+
+        converted_salary = None
+        if calculated_salary is not None and currency is not None:
+            rate = currency_rates.get(currency, 1.0)
+            converted_salary = calculated_salary if currency in ('RUR', 'USD') else calculated_salary * rate
+
         vacancy_obj = {
             'id': vac_id,
             'name': name,
@@ -1071,6 +1095,9 @@ def fetch_salary_data(mapping):
             'city': city,
             'salary_from': salary_from,
             'salary_to': salary_to,
+            'currency': currency,
+            'calculated_salary': calculated_salary,
+            'converted_salary': converted_salary,
             'skills': skills,
             'requirement': requirement,
             'responsibility': responsibility,

@@ -101,7 +101,7 @@ function openMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
     var monthDiv = document.getElementById(monthId);
-    var monthStr = monthDiv.dataset.month;
+    var monthStr = (monthDiv._data && monthDiv._data.month) ? monthDiv._data.month : monthDiv.dataset.month;
 
     uiState.global_activity_month = monthStr;
     var stateKey = getStateKey(roleId, 'activity');
@@ -124,7 +124,7 @@ function openMonthTab(evt, monthId) {
     var container = monthDiv.querySelector('.view-mode-container');
     applyViewMode(container, uiState.activity_view_mode);
 
-    var entries = JSON.parse(monthDiv.dataset.entries);
+    var entries = parseJsonDataset(monthDiv, 'entries', []);
     var graphId = 'activity-graph-' + monthId.replace('month-', '');
     buildActivityBarChart(graphId, entries);
 }
@@ -187,7 +187,7 @@ function buildActivityBarChart(graphId, entries) {
 
 // ---------- Анализ по дням недели ----------
 function buildWeekdayBarChart(roleId, weekdayBlock) {
-    var weekdaysData = JSON.parse(weekdayBlock.dataset.weekdays);
+    var weekdaysData = parseJsonDataset(weekdayBlock, 'weekdays', []);
     if (!weekdaysData || weekdaysData.length === 0) return;
 
     var days = weekdaysData.map(d => d.weekday);
@@ -249,7 +249,7 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
     var monthDiv = document.getElementById(monthId);
-    var monthData = JSON.parse(monthDiv.dataset.month);
+    var monthData = (monthDiv._data && monthDiv._data.month) ? monthDiv._data.month : parseJsonDataset(monthDiv, 'month', {});
     var monthStr = monthData.month;
 
     uiState.global_skills_month = monthStr;
@@ -304,7 +304,7 @@ function openMonthlySkillsExpTab(evt, expId) {
     var parentRole = parentMonth.closest('.role-content');
     var roleId = parentRole.id;
     var expDiv = document.getElementById(expId);
-    var expData = JSON.parse(expDiv.dataset.exp);
+    var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
     var experience = expData.experience;
 
     uiState.global_skills_experience = experience;
@@ -451,7 +451,7 @@ function openSalaryExpTab(evt, expId) {
     var parentRole = parentMonth.closest('.role-content');
     var roleId = parentRole.id;
     var expDiv = document.getElementById(expId);
-    var expData = JSON.parse(expDiv.dataset.exp);
+    var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
     var experience = expData.experience;
 
     uiState.global_salary_experience = experience;
@@ -662,6 +662,676 @@ function renderVacancyDetails(container, withList, withoutList) {
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
 
+function getExperienceOrder() {
+    return {
+        'Нет опыта': 1,
+        'От 1 года до 3 лет': 2,
+        'От 3 до 6 лет': 3,
+        'Более 6 лет': 4
+    };
+}
+
+function formatMonthTitle(numMonths) {
+    if (numMonths === 1) return 'За 1 месяц';
+    if (numMonths >= 2 && numMonths <= 4) return 'За ' + numMonths + ' месяца';
+    return 'За ' + numMonths + ' месяцев';
+}
+
+function isSummaryMonth(monthStr) {
+    return monthStr && monthStr.startsWith('За ');
+}
+
+function parseJsonDataset(el, key, fallback) {
+    if (el && el._data && el._data[key] !== undefined) return el._data[key];
+    try {
+        return JSON.parse(el.dataset[key] || JSON.stringify(fallback));
+    } catch (_e) {
+        return fallback;
+    }
+}
+
+function computeMedian(values) {
+    if (!values.length) return 0;
+    var sorted = values.slice().sort((a, b) => a - b);
+    var mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 1) return sorted[mid];
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function computeMode(values) {
+    if (!values.length) return 0;
+    var counts = new Map();
+    for (var v of values) counts.set(v, (counts.get(v) || 0) + 1);
+    var bestVal = values[0];
+    var bestCount = 0;
+    counts.forEach((count, val) => {
+        if (count > bestCount || (count === bestCount && val < bestVal)) {
+            bestCount = count;
+            bestVal = val;
+        }
+    });
+    return bestVal;
+}
+
+function getRoleContentByIndex(idx) {
+    return document.getElementById('role-' + idx);
+}
+
+function getRoleSalaryData(roleContent) {
+    var salaryBlock = roleContent.querySelector('.salary-content');
+    if (!salaryBlock) return [];
+    return parseJsonDataset(salaryBlock, 'salary', []);
+}
+
+function getRoleWeekdayData(roleContent) {
+    var weekdayBlock = roleContent.querySelector('.weekday-content');
+    if (!weekdayBlock) return [];
+    return parseJsonDataset(weekdayBlock, 'weekdays', []);
+}
+
+function getRoleSkillsMonthlyData(roleContent) {
+    var block = roleContent.querySelector('.skills-monthly-content');
+    if (!block) return [];
+    return parseJsonDataset(block, 'skillsMonthly', []);
+}
+
+function getRoleActivityMonths(roleContent) {
+    var monthBlocks = roleContent.querySelectorAll('.month-content');
+    var months = [];
+    monthBlocks.forEach(block => {
+        var month = block.dataset.month;
+        var entries = parseJsonDataset(block, 'entries', []);
+        months.push({ month: month, entries: entries });
+    });
+    return months;
+}
+
+function aggregateActivity(roleContents) {
+    var expOrder = getExperienceOrder();
+    var byMonth = {};
+    roleContents.forEach(roleContent => {
+        var months = getRoleActivityMonths(roleContent);
+        months.forEach(m => {
+            if (isSummaryMonth(m.month)) return;
+            byMonth[m.month] = byMonth[m.month] || {};
+            m.entries.forEach(e => {
+                if (e.experience === 'Всего') return;
+                var bucket = byMonth[m.month][e.experience] || { total: 0, archived: 0, active: 0, ageSum: 0 };
+                bucket.total += e.total || 0;
+                bucket.archived += e.archived || 0;
+                bucket.active += e.active || 0;
+                bucket.ageSum += (e.avg_age || 0) * (e.total || 0);
+                byMonth[m.month][e.experience] = bucket;
+            });
+        });
+    });
+
+    var monthsList = Object.keys(byMonth).sort().map(month => {
+        var entries = [];
+        var maxArchived = 0;
+        var maxAge = 0;
+        Object.keys(byMonth[month]).forEach(exp => {
+            var vals = byMonth[month][exp];
+            var avgAge = vals.total ? (vals.ageSum / vals.total) : 0;
+            maxArchived = Math.max(maxArchived, vals.archived);
+            maxAge = Math.max(maxAge, avgAge);
+            entries.push({
+                experience: exp,
+                total: vals.total,
+                archived: vals.archived,
+                active: vals.active,
+                avg_age: avgAge
+            });
+        });
+        entries.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        entries.forEach(e => {
+            e.is_max_archived = e.archived === maxArchived;
+            e.is_max_age = e.avg_age === maxAge;
+        });
+        var totalEntry = {
+            experience: 'Всего',
+            total: entries.reduce((s, e) => s + e.total, 0),
+            archived: entries.reduce((s, e) => s + e.archived, 0),
+            active: entries.reduce((s, e) => s + e.active, 0),
+            avg_age: entries.reduce((s, e) => s + e.avg_age, 0) / (entries.length || 1),
+            is_max_archived: false,
+            is_max_age: false
+        };
+        entries.push(totalEntry);
+        return { month: month, entries: entries };
+    });
+
+    var numMonths = monthsList.length;
+    if (numMonths > 0) {
+        var agg = {};
+        monthsList.forEach(m => {
+            m.entries.forEach(e => {
+                if (e.experience === 'Всего') return;
+                var bucket = agg[e.experience] || { total: 0, archived: 0, active: 0, ageSum: 0 };
+                bucket.total += e.total;
+                bucket.archived += e.archived;
+                bucket.active += e.active;
+                bucket.ageSum += (e.avg_age || 0) * (e.total || 0);
+                agg[e.experience] = bucket;
+            });
+        });
+        var summaryEntries = Object.keys(agg).map(exp => {
+            var vals = agg[exp];
+            return {
+                experience: exp,
+                total: vals.total,
+                archived: vals.archived,
+                active: vals.active,
+                avg_age: vals.total ? (vals.ageSum / vals.total) : 0
+            };
+        });
+        summaryEntries.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        summaryEntries.push({
+            experience: 'Всего',
+            total: summaryEntries.reduce((s, e) => s + e.total, 0),
+            archived: summaryEntries.reduce((s, e) => s + e.archived, 0),
+            active: summaryEntries.reduce((s, e) => s + e.active, 0),
+            avg_age: summaryEntries.reduce((s, e) => s + e.avg_age, 0) / (summaryEntries.length || 1),
+            is_max_archived: false,
+            is_max_age: false
+        });
+        monthsList.unshift({ month: formatMonthTitle(numMonths), entries: summaryEntries });
+    }
+
+    return monthsList;
+}
+
+function aggregateWeekdays(roleContents) {
+    var weekdaysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    var map = {};
+    roleContents.forEach(roleContent => {
+        var days = getRoleWeekdayData(roleContent);
+        days.forEach(d => {
+            var key = d.weekday;
+            map[key] = map[key] || { weekday: key, publications: 0, archives: 0, pubHourSum: 0, pubHourCount: 0, archHourSum: 0, archHourCount: 0 };
+            map[key].publications += d.publications || 0;
+            map[key].archives += d.archives || 0;
+            var pubHour = parseInt((d.avg_pub_hour || '').split(':')[0], 10);
+            if (!isNaN(pubHour)) {
+                map[key].pubHourSum += pubHour * (d.publications || 0);
+                map[key].pubHourCount += (d.publications || 0);
+            }
+            var archHour = parseInt((d.avg_arch_hour || '').split(':')[0], 10);
+            if (!isNaN(archHour)) {
+                map[key].archHourSum += archHour * (d.archives || 0);
+                map[key].archHourCount += (d.archives || 0);
+            }
+        });
+    });
+    var list = Object.values(map);
+    list.forEach(d => {
+        var pubAvg = d.pubHourCount ? Math.round(d.pubHourSum / d.pubHourCount) : 0;
+        var archAvg = d.archHourCount ? Math.round(d.archHourSum / d.archHourCount) : 0;
+        d.avg_pub_hour = d.pubHourCount ? (pubAvg + ':00') : '—';
+        d.avg_arch_hour = d.archHourCount ? (archAvg + ':00') : '—';
+        delete d.pubHourSum;
+        delete d.pubHourCount;
+        delete d.archHourSum;
+        delete d.archHourCount;
+    });
+    list.sort((a, b) => weekdaysOrder.indexOf(a.weekday) - weekdaysOrder.indexOf(b.weekday));
+    return list;
+}
+
+function aggregateSkillsMonthly(roleContents) {
+    var expOrder = getExperienceOrder();
+    var byMonth = {};
+    roleContents.forEach(roleContent => {
+        var months = getRoleSkillsMonthlyData(roleContent);
+        months.forEach(m => {
+            if (isSummaryMonth(m.month)) return;
+            byMonth[m.month] = byMonth[m.month] || {};
+            (m.experiences || []).forEach(exp => {
+                var bucket = byMonth[m.month][exp.experience] || { total: 0, skills: new Map() };
+                bucket.total += exp.total_vacancies || 0;
+                (exp.skills || []).forEach(s => {
+                    bucket.skills.set(s.skill, (bucket.skills.get(s.skill) || 0) + (s.count || 0));
+                });
+                byMonth[m.month][exp.experience] = bucket;
+            });
+        });
+    });
+
+    function buildExpList(expMap) {
+        var expList = Object.keys(expMap).map(expName => {
+            var bucket = expMap[expName];
+            var skills = Array.from(bucket.skills.entries()).map(([skill, count]) => {
+                return {
+                    skill: skill,
+                    count: count,
+                    coverage: bucket.total ? Math.round((count * 10000) / bucket.total) / 100 : 0,
+                    rank: 0
+                };
+            });
+            skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
+            skills = skills.slice(0, 15);
+            return { experience: expName, total_vacancies: bucket.total, skills: skills };
+        });
+        expList.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        return expList;
+    }
+
+    var monthsList = Object.keys(byMonth).sort().map(month => {
+        return { month: month, experiences: buildExpList(byMonth[month]) };
+    });
+
+    if (monthsList.length > 0) {
+        var agg = {};
+        monthsList.forEach(m => {
+            m.experiences.forEach(exp => {
+                var bucket = agg[exp.experience] || { total: 0, skills: new Map() };
+                bucket.total += exp.total_vacancies || 0;
+                exp.skills.forEach(s => {
+                    bucket.skills.set(s.skill, (bucket.skills.get(s.skill) || 0) + (s.count || 0));
+                });
+                agg[exp.experience] = bucket;
+            });
+        });
+        monthsList.unshift({ month: formatMonthTitle(monthsList.length), experiences: buildExpList(agg) });
+    }
+
+    return monthsList;
+}
+
+function computeSalaryValue(v, currency) {
+    if (currency === '%USD') {
+        if (v.converted_salary !== null && v.converted_salary !== undefined) return Number(v.converted_salary);
+    }
+    if (v.calculated_salary !== null && v.calculated_salary !== undefined) return Number(v.calculated_salary);
+    if (v.salary_from !== null && v.salary_to !== null) return (Number(v.salary_from) + Number(v.salary_to)) / 2;
+    if (v.salary_from !== null) return Number(v.salary_from);
+    if (v.salary_to !== null) return Number(v.salary_to);
+    return null;
+}
+
+function buildTopSkills(vacancies) {
+    var counts = new Map();
+    vacancies.forEach(v => {
+        if (!v.skills) return;
+        String(v.skills).split(',').map(s => s.trim()).filter(Boolean).forEach(skill => {
+            counts.set(skill, (counts.get(skill) || 0) + 1);
+        });
+    });
+    if (counts.size === 0) return 'Нет данных о навыках';
+    var sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return sorted.slice(0, 10).map(([skill, count]) => skill + ' (' + count + ')').join(', ');
+}
+
+function aggregateSalary(roleContents) {
+    var expOrder = getExperienceOrder();
+    var byMonth = {};
+    var allMonths = new Set();
+    roleContents.forEach(roleContent => {
+        var months = getRoleSalaryData(roleContent);
+        months.forEach(m => {
+            if (isSummaryMonth(m.month)) return;
+            allMonths.add(m.month);
+            byMonth[m.month] = byMonth[m.month] || {};
+            (m.experiences || []).forEach(exp => {
+                byMonth[m.month][exp.experience] = byMonth[m.month][exp.experience] || {};
+                (exp.entries || []).forEach(entry => {
+                    var key = entry.status + '|' + entry.currency;
+                    var bucket = byMonth[m.month][exp.experience][key] || {
+                        status: entry.status,
+                        currency: entry.currency,
+                        with: [],
+                        without: []
+                    };
+                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
+                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    byMonth[m.month][exp.experience][key] = bucket;
+                });
+            });
+        });
+    });
+
+    function buildEntryList(bucketsByKey) {
+        var entries = Object.values(bucketsByKey).map(b => {
+            var values = [];
+            b.with.forEach(v => {
+                var val = computeSalaryValue(v, b.currency);
+                if (val !== null && !isNaN(val)) values.push(val);
+            });
+            var total = b.with.length + b.without.length;
+            var avg = values.length ? values.reduce((s, x) => s + x, 0) / values.length : 0;
+            var min = values.length ? Math.min(...values) : 0;
+            var max = values.length ? Math.max(...values) : 0;
+            var median = values.length ? computeMedian(values) : 0;
+            var mode = values.length ? computeMode(values) : 0;
+            return {
+                status: b.status,
+                currency: b.currency,
+                total_vacancies: total,
+                vacancies_with_salary: b.with.length,
+                salary_percentage: total ? Math.round((b.with.length * 10000) / total) / 100 : 0,
+                avg_salary: avg,
+                median_salary: median,
+                mode_salary: mode,
+                min_salary: min,
+                max_salary: max,
+                top_skills: buildTopSkills(b.with),
+                vacancy_ids: [],
+                vacancies_with_salary_list: b.with,
+                vacancies_without_salary_list: b.without
+            };
+        });
+        entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
+        return entries;
+    }
+
+    var monthsList = Array.from(allMonths).sort().map(month => {
+        var expMap = byMonth[month] || {};
+        var experiences = Object.keys(expMap).map(expName => {
+            return { experience: expName, entries: buildEntryList(expMap[expName]) };
+        });
+        experiences.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        return { month: month, experiences: experiences };
+    });
+
+    if (monthsList.length > 0) {
+        var agg = {};
+        monthsList.forEach(m => {
+            m.experiences.forEach(exp => {
+                agg[exp.experience] = agg[exp.experience] || {};
+                exp.entries.forEach(entry => {
+                    var key = entry.status + '|' + entry.currency;
+                    var bucket = agg[exp.experience][key] || { status: entry.status, currency: entry.currency, with: [], without: [] };
+                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
+                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    agg[exp.experience][key] = bucket;
+                });
+            });
+        });
+        var expList = Object.keys(agg).map(expName => {
+            return { experience: expName, entries: buildEntryList(agg[expName]) };
+        });
+        expList.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        monthsList.unshift({ month: formatMonthTitle(monthsList.length), experiences: expList });
+    }
+
+    return monthsList;
+}
+
+function renderCombinedContainer(container, roleContents) {
+    var activityMonths = aggregateActivity(roleContents);
+    var weekdays = aggregateWeekdays(roleContents);
+    var skillsMonthly = aggregateSkillsMonthly(roleContents);
+    var salaryMonths = aggregateSalary(roleContents);
+
+    var roleTitle = 'Роли: ' + roleContents.map(rc => {
+        var name = rc.dataset.roleName || '';
+        var id = rc.dataset.roleId || '';
+        return (name ? name : 'Роль') + (id ? ' (ID: ' + id + ')' : '');
+    }).join(', ');
+
+    var activityTabs = activityMonths.map((m, i) => (
+        '<button class="tab-button month-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+    )).join('');
+
+    var activityBlocks = activityMonths.map((m, i) => (
+        '<div id="month-combined-' + (i + 1) + '" class="month-content activity-only" data-entries="" data-month="' + m.month + '">' +
+            '<div class="view-toggle-horizontal">' +
+                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '</div>' +
+            '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead><tr><th>Опыт</th><th>Всего</th><th>Архивных</th><th>Активных</th><th>Ср. возраст (дни)</th></tr></thead>' +
+                        '<tbody>' +
+                            m.entries.map(e => (
+                                '<tr' + (e.is_max_archived ? ' class="max-archived"' : '') + '>' +
+                                    '<td>' + e.experience + '</td>' +
+                                    '<td>' + e.total + '</td>' +
+                                    '<td>' + e.archived + '</td>' +
+                                    '<td>' + e.active + '</td>' +
+                                    '<td>' + (Number(e.avg_age).toFixed(1)) + '</td>' +
+                                '</tr>'
+                            )).join('') +
+                        '</tbody>' +
+                    '</table>' +
+                '</div>' +
+                '<div class="plotly-graph" id="activity-graph-combined-' + (i + 1) + '"></div>' +
+            '</div>' +
+        '</div>'
+    )).join('');
+
+    var weekdayBlock = (
+        '<div class="weekday-content" data-analysis="weekday-combined" style="display: none;" data-weekdays="">' +
+            (weekdays.length ? (
+                '<div class="view-toggle-horizontal">' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '</div>' +
+                '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
+                    '<div class="table-container">' +
+                        '<table>' +
+                            '<thead><tr><th>День недели</th><th>Публикаций</th><th>Архиваций</th><th>Ср. время публикации</th><th>Ср. время архивации</th></tr></thead>' +
+                            '<tbody>' +
+                                weekdays.map(d => (
+                                    '<tr><td>' + d.weekday + '</td><td>' + d.publications + '</td><td>' + d.archives + '</td><td>' + d.avg_pub_hour + '</td><td>' + d.avg_arch_hour + '</td></tr>'
+                                )).join('') +
+                            '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                    '<div class="plotly-graph" id="weekday-graph-combined"></div>' +
+                '</div>'
+            ) : '<p>Нет данных по дням недели</p>') +
+        '</div>'
+    );
+
+    var skillsBlock = (
+        '<div class="skills-monthly-content" data-analysis="skills-monthly-combined" style="display: none;" data-skills-monthly="">' +
+            (skillsMonthly.length ? (
+                '<div class="tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">' +
+                    skillsMonthly.map((m, i) => (
+                        '<button class="tab-button monthly-skills-month-button" onclick="openMonthlySkillsMonthTab(event, \'ms-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+                    )).join('') +
+                '</div>' +
+                skillsMonthly.map((m, i) => (
+                    '<div id="ms-month-combined-' + (i + 1) + '" class="monthly-skills-month-content" data-month="" style="display: none;">' +
+                        '<div class="tabs monthly-skills-exp-tabs" style="justify-content: center; margin-top: 5px;">' +
+                            m.experiences.map((exp, j) => (
+                                '<button class="tab-button monthly-skills-exp-button" onclick="openMonthlySkillsExpTab(event, \'ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '\')">' + exp.experience + '</button>'
+                            )).join('') +
+                        '</div>' +
+                        m.experiences.map((exp, j) => (
+                            '<div id="ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="monthly-skills-exp-content" data-exp="" style="display: none;">' +
+                                '<div class="view-toggle-horizontal">' +
+                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
+                                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                                '</div>' +
+                                '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
+                                    '<div class="table-container">' +
+                                        '<table>' +
+                                            '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
+                                            '<tbody>' +
+                                                exp.skills.map(s => (
+                                                    '<tr><td>' + s.skill + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>'
+                                                )).join('') +
+                                            '</tbody>' +
+                                        '</table>' +
+                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + exp.total_vacancies + '</p>' +
+                                    '</div>' +
+                                    '<div class="plotly-graph" id="skills-monthly-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
+                                '</div>' +
+                            '</div>'
+                        )).join('') +
+                    '</div>'
+                )).join('')
+            ) : '<p>Нет данных по навыкам</p>') +
+        '</div>'
+    );
+
+    var salaryBlock = (
+        '<div class="salary-content" data-analysis="salary-combined" style="display: none;" data-salary="">' +
+            (salaryMonths.length ? (
+                '<div class="tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">' +
+                    salaryMonths.map((m, i) => (
+                        '<button class="tab-button salary-month-button" onclick="openSalaryMonthTab(event, \'sal-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+                    )).join('') +
+                '</div>' +
+                salaryMonths.map((m, i) => (
+                    '<div id="sal-month-combined-' + (i + 1) + '" class="salary-month-content" data-month="" style="display: none;">' +
+                        '<div class="tabs salary-exp-tabs" style="justify-content: center; margin-top: 5px;">' +
+                            m.experiences.map((exp, j) => (
+                                '<button class="tab-button salary-exp-button" onclick="openSalaryExpTab(event, \'sal-exp-combined-' + (i + 1) + '-' + (j + 1) + '\')">' + exp.experience + '</button>'
+                            )).join('') +
+                        '</div>' +
+                        m.experiences.map((exp, j) => (
+                            '<div id="sal-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="salary-exp-content" data-exp="" style="display: none;">' +
+                                '<div class="salary-display-flex" data-exp-index="' + (j + 1) + '">' +
+                                    '<div class="salary-main-content">' +
+                                        '<div class="salary-table-container">' +
+                                            '<div style="overflow-x: auto;">' +
+                                                '<table>' +
+                                                    '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                                    '<tbody>' +
+                                                        exp.entries.map(entry => (
+                                                            '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
+                                                                '<td>' + entry.status + '</td>' +
+                                                                '<td>' + entry.currency + '</td>' +
+                                                                '<td>' + entry.total_vacancies + '</td>' +
+                                                                '<td>' + entry.vacancies_with_salary + '</td>' +
+                                                                '<td>' + entry.salary_percentage + '%</td>' +
+                                                                '<td>' + Math.round(entry.avg_salary) + '</td>' +
+                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                                                                '<td>' + Math.round(entry.min_salary) + '</td>' +
+                                                                '<td>' + Math.round(entry.max_salary) + '</td>' +
+                                                                '<td>' + entry.top_skills + '</td>' +
+                                                            '</tr>'
+                                                        )).join('') +
+                                                    '</tbody>' +
+                                                '</table>' +
+                                            '</div>' +
+                                        '</div>' +
+                                        '<div class="salary-graph-container">' +
+                                            '<div class="plotly-graph" id="salary-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="salary-view-toggle">' +
+                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>' +
+                                        '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>'
+                        )).join('') +
+                    '</div>'
+                )).join('')
+            ) : '<p>Нет данных по зарплатам</p>') +
+        '</div>'
+    );
+
+    container.innerHTML =
+        '<h2>' + roleTitle + '</h2>' +
+        '<div class="tabs analysis-tabs">' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Анализ активности</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Анализ по дням недели</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Навыки по месяцам</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Анализ зарплат</button>' +
+        '</div>' +
+        '<div class="tabs month-tabs activity-only" style="justify-content: center;">' +
+            activityTabs +
+        '</div>' +
+        activityBlocks +
+        weekdayBlock +
+        skillsBlock +
+        salaryBlock;
+
+    var monthBlocks = container.querySelectorAll('.month-content');
+    monthBlocks.forEach((block, i) => {
+        block._data = { entries: activityMonths[i] ? activityMonths[i].entries : [], month: activityMonths[i] ? activityMonths[i].month : '' };
+    });
+
+    var weekdayContent = container.querySelector('.weekday-content');
+    if (weekdayContent) {
+        weekdayContent._data = { weekdays: weekdays };
+    }
+
+    var skillsRoot = container.querySelector('.skills-monthly-content');
+    if (skillsRoot) {
+        skillsRoot._data = { skillsMonthly: skillsMonthly };
+    }
+    var skillsMonthBlocks = container.querySelectorAll('.monthly-skills-month-content');
+    skillsMonthBlocks.forEach((block, i) => {
+        block._data = { month: skillsMonthly[i] || {} };
+        var expBlocks = block.querySelectorAll('.monthly-skills-exp-content');
+        expBlocks.forEach((expBlock, j) => {
+            var expData = (skillsMonthly[i] && skillsMonthly[i].experiences) ? skillsMonthly[i].experiences[j] : {};
+            expBlock._data = { exp: expData };
+        });
+    });
+
+    var salaryRoot = container.querySelector('.salary-content');
+    if (salaryRoot) {
+        salaryRoot._data = { salary: salaryMonths };
+    }
+    var salaryMonthBlocks = container.querySelectorAll('.salary-month-content');
+    salaryMonthBlocks.forEach((block, i) => {
+        block._data = { month: salaryMonths[i] || {} };
+        var expBlocks = block.querySelectorAll('.salary-exp-content');
+        expBlocks.forEach((expBlock, j) => {
+            var expData = (salaryMonths[i] && salaryMonths[i].experiences) ? salaryMonths[i].experiences[j] : {};
+            expBlock._data = { exp: expData };
+            var rows = expBlock.querySelectorAll('.salary-row');
+            rows.forEach((row, k) => {
+                var entry = (expData.entries || [])[k] || {};
+                row._data = {
+                    withList: entry.vacancies_with_salary_list || [],
+                    withoutList: entry.vacancies_without_salary_list || []
+                };
+            });
+        });
+    });
+
+    var analysisButton = container.querySelector('.analysis-button');
+    if (analysisButton) analysisButton.click();
+}
+
+function updateRoleSelectionUI(selectedIndices) {
+    var buttons = document.querySelectorAll('.role-button');
+    buttons.forEach(btn => {
+        var idx = btn.dataset.roleIndex;
+        if (selectedIndices.has(idx)) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+}
+
+function showSingleRole(idx) {
+    var btn = document.querySelector('.role-button[data-role-index="' + idx + '"]');
+    if (!btn) return;
+    openRoleTab({ currentTarget: btn }, 'role-' + idx);
+    updateRoleSelectionUI(new Set([String(idx)]));
+}
+
+function updateRoleView(selectedIndices) {
+    var combined = document.getElementById('role-combined');
+    var roleContents = Array.from(document.querySelectorAll('.role-content')).filter(c => c.id !== 'role-combined');
+
+    if (selectedIndices.size <= 1) {
+        if (combined) combined.style.display = 'none';
+        var idx = selectedIndices.size === 1 ? Array.from(selectedIndices)[0] : '1';
+        showSingleRole(idx);
+        return;
+    }
+
+    roleContents.forEach(c => c.style.display = 'none');
+    if (combined) {
+        var selectedContents = Array.from(selectedIndices).map(i => getRoleContentByIndex(i)).filter(Boolean);
+        combined.style.display = 'block';
+        renderCombinedContainer(combined, selectedContents);
+    }
+}
+
 function buildRowContext(row) {
     var headerCells = Array.from(row.closest('table').querySelectorAll('thead th'))
         .map(th => '<th>' + escapeHtml(th.textContent.trim()) + '</th>')
@@ -708,15 +1378,23 @@ document.addEventListener('click', function(e) {
     var contextHtml = buildRowContext(row);
     var withList = [];
     var withoutList = [];
-    try {
-        withList = JSON.parse(row.dataset.vacanciesWith || '[]');
-    } catch (_e) {
-        withList = [];
+    if (row._data && row._data.withList) {
+        withList = row._data.withList;
+    } else {
+        try {
+            withList = JSON.parse(row.dataset.vacanciesWith || '[]');
+        } catch (_e) {
+            withList = [];
+        }
     }
-    try {
-        withoutList = JSON.parse(row.dataset.vacanciesWithout || '[]');
-    } catch (_e) {
-        withoutList = [];
+    if (row._data && row._data.withoutList) {
+        withoutList = row._data.withoutList;
+    } else {
+        try {
+            withoutList = JSON.parse(row.dataset.vacanciesWithout || '[]');
+        } catch (_e) {
+            withoutList = [];
+        }
     }
 
     openVacancyModal(withList, withoutList, contextHtml);
@@ -803,7 +1481,7 @@ document.addEventListener('click', function(e) {
     // Применяем режим
     if (analysisType === 'salary') {
         // Для зарплат данные берутся из dataset.exp
-        var expData = JSON.parse(container.dataset.exp);
+        var expData = (container._data && container._data.exp) ? container._data.exp : parseJsonDataset(container, 'exp', {});
         applySalaryViewMode(container, expData.entries);
     } else {
         var viewContainer = container.querySelector('.view-mode-container');
@@ -813,6 +1491,46 @@ document.addEventListener('click', function(e) {
 
 // ---------- Инициализация ----------
 document.addEventListener("DOMContentLoaded", function() {
-    var firstRoleButton = document.getElementsByClassName("role-button")[0];
-    if (firstRoleButton) firstRoleButton.click();
+    var buttons = Array.from(document.getElementsByClassName("role-button"));
+    var multiToggle = document.getElementById('multi-role-toggle');
+    if (buttons.length === 0) return;
+
+    var selected = new Set([buttons[0].dataset.roleIndex]);
+    updateRoleSelectionUI(selected);
+    updateRoleView(selected);
+
+    function enforceSingle(idx) {
+        selected = new Set([idx]);
+        updateRoleSelectionUI(selected);
+        updateRoleView(selected);
+    }
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var idx = btn.dataset.roleIndex;
+            if (multiToggle && multiToggle.checked) {
+                var next = new Set(selected);
+                if (next.has(idx)) next.delete(idx);
+                else next.add(idx);
+                if (next.size === 0) next.add(idx);
+                selected = next;
+                updateRoleSelectionUI(selected);
+                updateRoleView(selected);
+            } else {
+                enforceSingle(idx);
+            }
+        });
+    });
+
+    if (multiToggle) {
+        multiToggle.addEventListener('change', function() {
+            if (!multiToggle.checked) {
+                enforceSingle(Array.from(selected)[0] || buttons[0].dataset.roleIndex);
+            } else {
+                updateRoleSelectionUI(selected);
+                updateRoleView(selected);
+            }
+        });
+    }
 });
