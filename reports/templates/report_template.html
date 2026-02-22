@@ -247,7 +247,10 @@
                                             </thead>
                                             <tbody>
                                                 {% for entry in exp.entries %}
-                                                <tr class="salary-row" data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'>
+                                                <tr class="salary-row"
+                                                    data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'
+                                                    data-vacancies-with='{{ entry.vacancies_with_salary_list | tojson }}'
+                                                    data-vacancies-without='{{ entry.vacancies_without_salary_list | tojson }}'>
                                                     <td>{{ entry.status }}</td>
                                                     <td>{{ entry.currency }}</td>
                                                     <td>{{ entry.total_vacancies }}</td>
@@ -262,9 +265,7 @@
                                                 </tr>
                                                 <tr class="vacancy-details" style="display: none;">
                                                     <td colspan="11">
-                                                        <div class="vacancy-list">
-                                                            Загрузка...
-                                                        </div>
+                                                        <div class="vacancy-details-container"></div>
                                                     </td>
                                                 </tr>
                                                 {% endfor %}
@@ -293,5 +294,16 @@
         </div>
     </div>
     {% endfor %}
+
+    <div id="vacancy-modal-backdrop" class="vacancy-modal-backdrop" style="display: none;">
+    <div class="vacancy-modal" role="dialog" aria-modal="true" aria-labelledby="vacancy-modal-title">
+        <div class="vacancy-modal-header">
+            <div id="vacancy-modal-title" class="vacancy-modal-title">Вакансии</div>
+            <button type="button" class="vacancy-modal-close" aria-label="Закрыть">×</button>
+        </div>
+        <div id="vacancy-modal-body" class="vacancy-modal-body"></div>
+    </div>
+</div>
 </body>
+</html>
 </html>

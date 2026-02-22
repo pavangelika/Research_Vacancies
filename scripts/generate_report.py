@@ -527,6 +527,15 @@ def fetch_salary_data(mapping):
     conn = get_db_connection()
     cur = conn.cursor()
 
+    def _display_currency(currency):
+        if currency == 'RUR':
+            return 'RUR'
+        if currency == 'USD':
+            return 'USD'
+        if currency is None:
+            return None
+        return '%USD'
+
     # Основной запрос для помесячной статистики (добавлен id и vacancy_ids)
     query_monthly = """
         WITH 
@@ -920,6 +929,31 @@ def fetch_salary_data(mapping):
     """
     cur.execute(query_total)
     rows_total = cur.fetchall()
+
+    query_vacancies = """
+        SELECT
+            id,
+            name,
+            employer,
+            city,
+            salary_from,
+            salary_to,
+            currency,
+            skills,
+            requirement,
+            responsibility,
+            url,
+            professional_role,
+            experience,
+            archived,
+            published_at
+        FROM get_vacancies
+        WHERE published_at IS NOT NULL
+          AND professional_role IS NOT NULL
+          AND experience IS NOT NULL;
+    """
+    cur.execute(query_vacancies)
+    vacancy_rows = cur.fetchall()
     cur.close()
     conn.close()
 
@@ -967,7 +1001,9 @@ def fetch_salary_data(mapping):
             'min_salary': float(min_salary) if min_salary else 0,
             'max_salary': float(max_salary) if max_salary else 0,
             'top_skills': top_skills,
-            'vacancy_ids': vacancy_ids_list  # добавляем список id
+            'vacancy_ids': vacancy_ids_list,  # добавляем список id
+            'vacancies_with_salary_list': [],
+            'vacancies_without_salary_list': []
         }
         salary_by_role[role_key]['months'][month][experience]['entries'].append(entry)
 
@@ -999,6 +1035,74 @@ def fetch_salary_data(mapping):
             'top_skills': top_skills,
             'vacancy_ids': list(vacancy_ids) if vacancy_ids else []
         }
+
+    monthly_currency_groups = defaultdict(set)
+    for role_key, role_data in salary_by_role.items():
+        for month_str, exp_dict in role_data['months'].items():
+            for exp_name, exp_data in exp_dict.items():
+                for entry in exp_data['entries']:
+                    monthly_currency_groups[(role_key, month_str, exp_name, entry['status'])].add(entry['currency'])
+
+    total_currency_groups = defaultdict(set)
+    for role_key, exp_map in total_data.items():
+        for (exp, currency, status), _vals in exp_map.items():
+            total_currency_groups[(role_key, exp, status)].add(currency)
+
+    monthly_with_salary = defaultdict(list)
+    monthly_without_salary = defaultdict(list)
+    total_with_salary = defaultdict(list)
+    total_without_salary = defaultdict(list)
+
+    for row in vacancy_rows:
+        (vac_id, name, employer, city, salary_from, salary_to, currency,
+         skills, requirement, responsibility, url, role_id,
+         experience, archived, published_at) = row
+
+        role_key = "NULL" if role_id is None else str(role_id)
+        month_str = published_at.strftime('%Y-%m')
+        status = 'Архивная' if archived else 'Открытая'
+        display_currency = _display_currency(currency)
+        has_salary = salary_from is not None or salary_to is not None
+
+        vacancy_obj = {
+            'id': vac_id,
+            'name': name,
+            'employer': employer,
+            'city': city,
+            'salary_from': salary_from,
+            'salary_to': salary_to,
+            'skills': skills,
+            'requirement': requirement,
+            'responsibility': responsibility,
+            'url': url
+        }
+
+        if has_salary:
+            if display_currency is None:
+                continue
+            monthly_with_salary[(role_key, month_str, experience, status, display_currency)].append(vacancy_obj)
+            total_with_salary[(role_key, experience, status, display_currency)].append(vacancy_obj)
+        else:
+            if currency is None:
+                month_currencies = monthly_currency_groups.get((role_key, month_str, experience, status), set())
+                for curr in month_currencies:
+                    monthly_without_salary[(role_key, month_str, experience, status, curr)].append(vacancy_obj)
+                total_currencies = total_currency_groups.get((role_key, experience, status), set())
+                for curr in total_currencies:
+                    total_without_salary[(role_key, experience, status, curr)].append(vacancy_obj)
+            else:
+                if display_currency is None:
+                    continue
+                monthly_without_salary[(role_key, month_str, experience, status, display_currency)].append(vacancy_obj)
+                total_without_salary[(role_key, experience, status, display_currency)].append(vacancy_obj)
+
+    for role_key, role_data in salary_by_role.items():
+        for month_str, exp_dict in role_data['months'].items():
+            for exp_name, exp_data in exp_dict.items():
+                for entry in exp_data['entries']:
+                    entry_key = (role_key, month_str, exp_name, entry['status'], entry['currency'])
+                    entry['vacancies_with_salary_list'] = monthly_with_salary.get(entry_key, [])
+                    entry['vacancies_without_salary_list'] = monthly_without_salary.get(entry_key, [])
 
     # Формирование итоговой структуры для каждой роли (как ранее, но без salary_range)
     exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
@@ -1036,8 +1140,13 @@ def fetch_salary_data(mapping):
                 'min_salary': vals['min_salary'],
                 'max_salary': vals['max_salary'],
                 'top_skills': vals['top_skills'],
-                'vacancy_ids': vals['vacancy_ids']
+                'vacancy_ids': vals['vacancy_ids'],
+                'vacancies_with_salary_list': [],
+                'vacancies_without_salary_list': []
             }
+            entry_key = (role_key, exp, status, currency)
+            entry['vacancies_with_salary_list'] = total_with_salary.get(entry_key, [])
+            entry['vacancies_without_salary_list'] = total_without_salary.get(entry_key, [])
             exp_dict_all[exp]['entries'].append(entry)
 
         # Сортируем записи внутри каждого опыта по статусу (Открытая -> Архивная)

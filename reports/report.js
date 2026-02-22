@@ -570,6 +570,85 @@ function buildSalaryBarChart(graphId, entries) {
     };
     Plotly.newPlot(graphId, data, layout);
 }
+
+function escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatCell(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    return escapeHtml(value);
+}
+
+function buildVacancyTableHtml(vacancies) {
+    if (!vacancies || vacancies.length === 0) {
+        return '<div class="vacancy-empty">Нет вакансий</div>';
+    }
+
+    var rows = vacancies.map(v => {
+        var urlCell = v.url ? '<a href="' + escapeHtml(v.url) + '" target="_blank" rel="noopener">ссылка</a>' : '—';
+        return '<tr>' +
+            '<td>' + formatCell(v.id) + '</td>' +
+            '<td>' + formatCell(v.name) + '</td>' +
+            '<td>' + formatCell(v.employer) + '</td>' +
+            '<td>' + formatCell(v.city) + '</td>' +
+            '<td>' + formatCell(v.salary_from) + '</td>' +
+            '<td>' + formatCell(v.salary_to) + '</td>' +
+            '<td>' + formatCell(v.skills) + '</td>' +
+            '<td>' + formatCell(v.requirement) + '</td>' +
+            '<td>' + formatCell(v.responsibility) + '</td>' +
+            '<td>' + urlCell + '</td>' +
+        '</tr>';
+    }).join('');
+
+    return '<div class="vacancy-table-wrap">' +
+        '<table class="vacancy-table">' +
+            '<thead>' +
+                '<tr>' +
+                    '<th>ID</th>' +
+                    '<th>Название</th>' +
+                    '<th>Работодатель</th>' +
+                    '<th>Город</th>' +
+                    '<th>ЗП от</th>' +
+                    '<th>ЗП до</th>' +
+                    '<th>Навыки</th>' +
+                    '<th>Требования</th>' +
+                    '<th>Обязанности</th>' +
+                    '<th>URL</th>' +
+                '</tr>' +
+            '</thead>' +
+            '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+    '</div>';
+}
+
+function renderVacancyDetails(container, withList, withoutList) {
+    var withCount = (withList || []).length;
+    var withoutCount = (withoutList || []).length;
+    var defaultTab = withCount > 0 ? 'with' : 'without';
+
+    container.dataset.with = JSON.stringify(withList || []);
+    container.dataset.without = JSON.stringify(withoutList || []);
+
+    var filterHtml = '<div class="vacancy-filter">' +
+        '<button class="vacancy-filter-btn' + (defaultTab === 'with' ? ' active' : '') + '" data-filter="with">' +
+            'С з/п (' + withCount + ')' +
+        '</button>' +
+        '<button class="vacancy-filter-btn' + (defaultTab === 'without' ? ' active' : '') + '" data-filter="without">' +
+            'Без з/п (' + withoutCount + ')' +
+        '</button>' +
+    '</div>';
+
+    var initialList = defaultTab === 'with' ? withList : withoutList;
+    container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
+}
+
 document.addEventListener('click', function(e) {
     var row = e.target.closest('.salary-row');
     if (!row) return;
@@ -579,20 +658,60 @@ document.addEventListener('click', function(e) {
     if (!detailsRow || !detailsRow.classList.contains('vacancy-details')) return;
 
     if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
-        // Получаем список id
-        var vacancyIds = row.dataset.vacancyIds;
-        if (vacancyIds) {
-            try {
-                var ids = JSON.parse(vacancyIds);
-                var listHtml = '<strong>ID вакансий:</strong> ' + ids.join(', ');
-                detailsRow.querySelector('.vacancy-list').innerHTML = listHtml;
-            } catch (e) {
-                detailsRow.querySelector('.vacancy-list').innerHTML = 'Ошибка загрузки данных';
-            }
+        var withList = [];
+        var withoutList = [];
+        try {
+            withList = JSON.parse(row.dataset.vacanciesWith || '[]');
+        } catch (_e) {
+            withList = [];
+        }
+        try {
+            withoutList = JSON.parse(row.dataset.vacanciesWithout || '[]');
+        } catch (_e) {
+            withoutList = [];
+        }
+
+        var container = detailsRow.querySelector('.vacancy-details-container');
+        if (container) {
+            renderVacancyDetails(container, withList, withoutList);
         }
         detailsRow.style.display = 'table-row';
     } else {
         detailsRow.style.display = 'none';
+    }
+});
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.vacancy-filter-btn');
+    if (!btn) return;
+
+    var container = btn.closest('.vacancy-details-container');
+    if (!container) return;
+
+    var filter = btn.dataset.filter;
+    var withList = [];
+    var withoutList = [];
+    try {
+        withList = JSON.parse(container.dataset.with || '[]');
+    } catch (_e) {
+        withList = [];
+    }
+    try {
+        withoutList = JSON.parse(container.dataset.without || '[]');
+    } catch (_e) {
+        withoutList = [];
+    }
+
+    var allBtns = container.querySelectorAll('.vacancy-filter-btn');
+    allBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    var list = filter === 'with' ? withList : withoutList;
+    var replaceTarget = container.querySelector('.vacancy-table-wrap, .vacancy-empty');
+    if (replaceTarget) {
+        replaceTarget.outerHTML = buildVacancyTableHtml(list);
+    } else {
+        container.innerHTML = container.innerHTML + buildVacancyTableHtml(list);
     }
 });
 

@@ -176,12 +176,43 @@ h1 {
 .vacancy-details td {
     padding: 10px;
 }
-.vacancy-list {
-    max-height: 200px;
-    overflow-y: auto;
+.vacancy-details-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.vacancy-filter {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.vacancy-filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.vacancy-filter-btn:hover { background: var(--tab-hover-bg); }
+.vacancy-filter-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+.vacancy-table-wrap {
+    max-height: 320px;
+    overflow: auto;
+}
+.vacancy-table td {
+    vertical-align: top;
+}
+.vacancy-empty {
+    padding: 8px 10px;
+    color: var(--text-secondary);
     font-size: 0.85rem;
-    line-height: 1.4;
-    color: var(--text-primary);
 }
 .salary-row {
     cursor: pointer;
