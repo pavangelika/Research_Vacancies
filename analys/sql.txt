@@ -3,6 +3,7 @@
 Динамика публикаций (дни когда больше опубликованных вакансий, когда вакансий больше открытых, когда больше закрывается вакансий)
 Количество вакансий по опыту работы:
 Топ-15 самых востребованных навыков по опыту работы
+Вакансий с указанной зарплатой, из них в RUR, в USD, другая валюта конвертированная в USD (средняя, мода, медиана, минимум, максимум)
 
 
 Уникальных работодателей:
@@ -11,201 +12,8 @@ select count(*) from employers;
 
 Топ работодателей по рейтингу:
 
-Вакансий с указанной зарплатой:
 
 Топ-3 вакансии с зарплатой:
-
-составь запрос, чтобы посчитать для каждой профессиональной роли, по опыту, и по месяцам от начала публикации общее количество вакансий, количество вакансий с указанной зарплатой, средння зарплата, медианная зарплата, мода зарплаты, минимальная и макисмальная зарплата, вывести отдельно в RUR и в USD
-
-
-Анализ зарплат по уровню опыта (в рублях):
-WITH salary_data AS (
-    SELECT
-        experience,
-        (COALESCE(salary_from, salary_to) + COALESCE(salary_to, salary_from)) / 2.0 AS salary_est
-    FROM get_vacancies
-    WHERE currency = 'RUR'
-      AND (salary_from IS NOT NULL OR salary_to IS NOT NULL)
-),
-mode_salary AS (
-    SELECT DISTINCT ON (experience)
-        experience,
-        salary_est AS mode_salary,
-        COUNT(*) AS freq
-    FROM salary_data
-    GROUP BY experience, salary_est
-    ORDER BY experience, freq DESC, salary_est
-),
-avg_salary as  (SELECT
-     experience,
-    ROUND(avg((COALESCE(salary_from, 0) + COALESCE(salary_to, 0)) / 2)) as avg_salary
-FROM get_vacancies
-WHERE salary_from IS NOT NULL OR salary_to IS NOT NULL
-GROUP BY experience),
-max_salary as (SELECT
-    experience,
-    max((COALESCE(salary_from, 0) + COALESCE(salary_to, 0)) / 2) as max_salary
-FROM get_vacancies
-WHERE salary_from IS NOT NULL OR salary_to IS NOT NULL
-GROUP BY experience
-)
-SELECT
-    s.experience,
-    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary_est)::numeric, 0) AS median_salary,
-    m.mode_salary, a.avg_salary, ma.max_salary
-FROM salary_data s
-LEFT JOIN mode_salary m ON s.experience = m.experience
-left join avg_salary a on s.experience = a.experience
-left join max_salary ma on s.experience = ma.experience
-GROUP BY s.experience, m.mode_salary, a.avg_salary, ma.max_salary
-ORDER BY s.experience;
-
-Анализ зарплат по уровню опыта (для вакансий с зп в рублях и долларах):
-WITH
-    rub_estimates AS (
-        SELECT
-            experience,
-            (COALESCE(salary_from, salary_to) + COALESCE(salary_to, salary_from)) / 2.0 AS salary_est
-        FROM get_vacancies
-        WHERE currency = 'RUR'
-          AND (salary_from IS NOT NULL OR salary_to IS NOT NULL)
-    ),
-    usd_estimates AS (
-        SELECT
-            experience,
-            (COALESCE(salary_from, salary_to) + COALESCE(salary_to, salary_from)) / 2.0 AS salary_est
-        FROM get_vacancies
-        WHERE currency = 'USD'
-          AND (salary_from IS NOT NULL OR salary_to IS NOT NULL)
-    ),
-    rub_stats AS (
-        SELECT
-            experience,
-            MIN(salary_est) AS min_rub,
-            MAX(salary_est) AS max_rub,
-            ROUND(AVG(salary_est)) AS avg_rub,
-            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary_est)::numeric, 0) AS median_rub
-        FROM rub_estimates
-        GROUP BY experience
-    ),
-    usd_stats AS (
-        SELECT
-            experience,
-            MIN(salary_est) AS min_usd,
-            MAX(salary_est) AS max_usd,
-            ROUND(AVG(salary_est)::numeric, 2) AS avg_usd,
-            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary_est)::numeric, 2) AS median_usd
-        FROM usd_estimates
-        GROUP BY experience
-    ),
-    rub_mode AS (
-        SELECT DISTINCT ON (experience)
-            experience,
-            salary_est AS mode_rub
-        FROM rub_estimates
-        GROUP BY experience, salary_est
-        ORDER BY experience, COUNT(*) DESC, salary_est
-    ),
-    usd_mode AS (
-        SELECT DISTINCT ON (experience)
-            experience,
-            salary_est AS mode_usd
-        FROM usd_estimates
-        GROUP BY experience, salary_est
-        ORDER BY experience, COUNT(*) DESC, salary_est
-    )
-SELECT
-    COALESCE(r.experience, u.experience) AS experience,
-    r.min_rub,
-    r.median_rub,
-    rm.mode_rub,
-    r.max_rub,
-    r.avg_rub,
-    u.min_usd,
-    u.median_usd,
-    um.mode_usd,
-    u.max_usd,
-    u.avg_usd
-FROM rub_stats r
-FULL JOIN usd_stats u ON r.experience = u.experience
-LEFT JOIN rub_mode rm ON COALESCE(r.experience, u.experience) = rm.experience
-LEFT JOIN usd_mode um ON COALESCE(r.experience, u.experience) = um.experience
-ORDER BY experience;
-
-Анализ зарплат по уровню опыта (с конвертацией всех валют в рублях):
-WITH salary_data AS (
-    -- Конвертируем зарплаты в рубли, сохраняя NULL для отсутствующих полей
-    SELECT
-        v.experience,
-        CASE
-            WHEN v.currency = 'USD' THEN v.salary_from * 90
-            WHEN v.currency = 'EUR' THEN v.salary_from * 100
-            WHEN v.currency = 'KZT' THEN v.salary_from * 0.2
-            WHEN v.currency = 'BYR' THEN v.salary_from * 30
-            WHEN v.currency = 'AZN' THEN v.salary_from * 50
-            WHEN v.currency = 'UZS' THEN v.salary_from * 0.007
-            ELSE v.salary_from                     -- для рублевых или неизвестных валют оставляем как есть
-        END AS salary_from_rub,
-        CASE
-            WHEN v.currency = 'USD' THEN v.salary_to * 90
-            WHEN v.currency = 'EUR' THEN v.salary_to * 100
-            WHEN v.currency = 'KZT' THEN v.salary_to * 0.2
-            WHEN v.currency = 'BYR' THEN v.salary_to * 30
-            WHEN v.currency = 'AZN' THEN v.salary_to * 50
-            WHEN v.currency = 'UZS' THEN v.salary_to * 0.007
-            ELSE v.salary_to
-        END AS salary_to_rub
-    FROM public.get_vacancies v
-    WHERE v.experience IS NOT NULL
-      AND v.currency IS NOT NULL
-      AND (v.salary_from IS NOT NULL OR v.salary_to IS NOT NULL)  -- хотя бы одна зарплата указана
-),
-salary_estimates AS (
-    -- Оценка зарплаты для вакансии: если оба поля есть – среднее, иначе – одно из них
-    SELECT
-        experience,
-        (COALESCE(salary_from_rub, salary_to_rub) + COALESCE(salary_to_rub, salary_from_rub)) / 2.0 AS salary_est
-    FROM salary_data
-),
-mode_salary AS (
-    -- Находим моду (наиболее часто встречающуюся оценку) для каждого уровня опыта
-    SELECT DISTINCT ON (experience)
-        experience,
-        salary_est AS mode_salary,
-        COUNT(*) AS freq
-    FROM salary_estimates
-    GROUP BY experience, salary_est
-    ORDER BY experience, freq DESC, salary_est   -- при равной частоте выбираем меньшую зарплату
-),
-avg_salary AS (
-    -- Средняя оценка зарплаты
-    SELECT
-        experience,
-        ROUND(AVG(salary_est)) AS avg_salary
-    FROM salary_estimates
-    GROUP BY experience
-),
-max_salary AS (
-    -- Максимальная оценка зарплаты
-    SELECT
-        experience,
-        MAX(salary_est) AS max_salary
-    FROM salary_estimates
-    GROUP BY experience
-)
-SELECT
-    s.experience,
-    ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.salary_est)::numeric, 0) AS median_salary,
-    m.mode_salary,
-    a.avg_salary,
-    ma.max_salary
-FROM salary_estimates s
-LEFT JOIN mode_salary m ON s.experience = m.experience
-LEFT JOIN avg_salary a ON s.experience = a.experience
-LEFT JOIN max_salary ma ON s.experience = ma.experience
-GROUP BY s.experience, m.mode_salary, a.avg_salary, ma.max_salary
-ORDER BY s.experience;
-
 
 Эффективность откликов:
 SELECT
@@ -276,13 +84,6 @@ JOIN employers e ON g.employer = e.name
 WHERE g.salary_from IS NOT NULL OR g.salary_to IS NOT NULL
 GROUP BY e.accredited_it_employer;
 
-Количество вакансий по профессиональной роли
-SELECT
-    professional_role,
-    COUNT(*) AS cnt
-FROM get_vacancies
-GROUP BY professional_role
-ORDER BY cnt DESC;
 
 Анализ тестового задания
 
@@ -292,39 +93,3 @@ SELECT
     ROUND(AVG((COALESCE(salary_from, salary_to) + COALESCE(salary_to, salary_from)) / 2)) AS avg_salary
 FROM get_vacancies
 GROUP BY has_test;
-
-
-Сезонность и тренды (если данные за большой период)
-Количество вакансий и средняя зарплата по месяцам публикации
-WITH salary_normalized AS (
-    SELECT
-        date_trunc('month', published_at) AS month,
-        -- средняя точка вилки, если хоть одно значение указано
-        CASE
-            WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL THEN (salary_from + salary_to) / 2
-            WHEN salary_from IS NOT NULL THEN salary_from
-            WHEN salary_to IS NOT NULL THEN salary_to
-            ELSE NULL
-        END AS salary_mid,
-        currency
-    FROM get_vacancies
-    WHERE published_at IS NOT NULL
-)
-SELECT
-    month,
-    COUNT(*) AS vacancies_count,
-    ROUND(AVG(salary_mid)) AS avg_salary_rur
-FROM salary_normalized
-WHERE currency = 'RUR' -- или привести все к одной валюте по курсу
-GROUP BY month
-ORDER BY month;
-
-Время жизни вакансии
-SELECT
-    date_trunc('month', archived_at) AS archive_month,
-    COUNT(*) AS archived_count,
-     ROUND(AVG(EXTRACT(DAY FROM (archived_at - published_at)))) AS avg_lifetime_days
-FROM get_vacancies
-WHERE archived = true AND archived_at IS NOT NULL AND published_at IS NOT NULL
-GROUP BY archive_month
-ORDER BY archive_month;

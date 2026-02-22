@@ -263,6 +263,57 @@ tr:hover {
     background-color: var(--blue-gray-50);
 }
 
+.view-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+    gap: 5px;
+}
+
+.view-toggle-btn {
+    background: var(--gray-200);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+
+.view-toggle-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+.analysis-flex.view-table .plotly-graph {
+    display: none;
+}
+
+.analysis-flex.view-table .table-container {
+    flex: 1 1 100%;
+}
+
+.analysis-flex.view-chart .table-container {
+    display: none;
+}
+
+.analysis-flex.view-chart .plotly-graph {
+    flex: 1 1 100%;
+}
+
+.analysis-flex.view-split .table-container,
+.analysis-flex.view-split .plotly-graph {
+    flex: 1 1 50%;
+}
+
+/* Прокрутка таблицы */
+.table-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 500px; /* при необходимости */
+}
+
 /* Адаптивность */
 @media (max-width: 600px) {
     body { padding: 12px; }

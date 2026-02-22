@@ -7,12 +7,13 @@ const CHART_COLORS = {
 
 // Состояние интерфейса
 let uiState = {
-    global_analysis_type: null,      // последний выбранный тип анализа (activity/weekday/skills-monthly/salary)
-    global_activity_month: null,     // последний выбранный месяц для анализа активности
-    global_skills_month: null,       // последний выбранный месяц для навыков по месяцам
-    global_skills_experience: null,  // последний выбранный опыт для навыков по месяцам
-    global_salary_month: null,       // последний выбранный месяц для зарплат
-    global_salary_experience: null   // последний выбранный опыт для зарплат
+    global_analysis_type: null,           // последний выбранный тип анализа
+    global_activity_month: null,          // последний месяц для активности
+    global_skills_month: null,            // последний месяц для навыков
+    global_skills_experience: null,       // последний опыт для навыков
+    global_salary_month: null,             // последний месяц для зарплат
+    global_salary_experience: null,        // последний опыт для зарплат
+    global_salary_view_mode: 'together'    // режим отображения зарплат (together/table/graph)
 };
 
 // Вспомогательная функция для получения ключа состояния (для внутренних вкладок, специфичных для роли)
@@ -103,7 +104,6 @@ function openMonthTab(evt, monthId) {
     var monthDiv = document.getElementById(monthId);
     var monthStr = monthDiv.dataset.month;
 
-    // Сохраняем выбранный месяц глобально и для этой роли
     uiState.global_activity_month = monthStr;
     var stateKey = getStateKey(roleId, 'activity');
     uiState[stateKey] = { month: monthStr };
@@ -128,7 +128,6 @@ function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
     if (monthButtons.length === 0) return;
 
-    // Сначала пробуем восстановить глобальный месяц
     if (uiState.global_activity_month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === uiState.global_activity_month) {
@@ -138,7 +137,6 @@ function restoreActivityState(parentRole, roleId) {
         }
     }
 
-    // Если глобальный не подошёл, пробуем сохранённый для этой роли
     var stateKey = getStateKey(roleId, 'activity');
     var saved = uiState[stateKey];
     if (saved && saved.month) {
@@ -150,12 +148,10 @@ function restoreActivityState(parentRole, roleId) {
         }
     }
 
-    // Иначе активируем первый месяц
     monthButtons[0].click();
 }
 
 function buildActivityBarChart(graphId, entries) {
-    // Отфильтровываем итоговую строку "Всего" для графика (если есть)
     var filteredEntries = entries.filter(e => e.experience !== 'Всего');
     var experiences = filteredEntries.map(e => e.experience);
     var activeData = filteredEntries.map(e => e.active);
@@ -225,7 +221,6 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
 
-    // Сначала пробуем глобальный месяц
     if (uiState.global_skills_month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === uiState.global_skills_month) {
@@ -235,7 +230,6 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
         }
     }
 
-    // Если нет, пробуем сохранённый для этой роли
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
     if (saved && saved.month) {
@@ -247,7 +241,6 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
         }
     }
 
-    // Иначе первый месяц
     monthButtons[0].click();
 }
 
@@ -258,14 +251,12 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     var monthData = JSON.parse(monthDiv.dataset.month);
     var monthStr = monthData.month;
 
-    // Сохраняем месяц глобально и для роли
     uiState.global_skills_month = monthStr;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
     saved.month = monthStr;
     uiState[stateKey] = saved;
 
-    // Переключаем видимость месяцев
     var monthContents = parentRole.getElementsByClassName("monthly-skills-month-content");
     for (var i = 0; i < monthContents.length; i++) {
         monthContents[i].style.display = "none";
@@ -277,7 +268,6 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем опыт
     restoreExpInMonth(parentRole, roleId);
 }
 
@@ -287,7 +277,6 @@ function restoreExpInMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
 
-    // Сначала глобальный опыт
     if (uiState.global_skills_experience) {
         for (var btn of expButtons) {
             if (btn.textContent.trim() === uiState.global_skills_experience) {
@@ -297,7 +286,6 @@ function restoreExpInMonth(parentRole, roleId) {
         }
     }
 
-    // Затем сохранённый для роли
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
     if (saved && saved.experience) {
@@ -309,7 +297,6 @@ function restoreExpInMonth(parentRole, roleId) {
         }
     }
 
-    // Иначе первый
     expButtons[0].click();
 }
 
@@ -321,7 +308,6 @@ function openMonthlySkillsExpTab(evt, expId) {
     var expData = JSON.parse(expDiv.dataset.exp);
     var experience = expData.experience;
 
-    // Сохраняем опыт глобально и для роли
     uiState.global_skills_experience = experience;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
@@ -343,11 +329,7 @@ function openMonthlySkillsExpTab(evt, expId) {
     buildHorizontalBarChart(graphId, expData.skills, expData.experience);
 }
 
-// Универсальная горизонтальная диаграмма для навыков
 function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_COLORS.medium) {
-    // Данные уже отсортированы по убыванию count (самый частый первый)
-    // Для горизонтальной бар-диаграммы Plotly первый элемент y отображается снизу.
-    // Чтобы самый частый навык был сверху, разворачиваем массивы.
     var skillNames = skills.map(s => s.skill).reverse();
     var counts = skills.map(s => s.count).reverse();
     var coverages = skills.map(s => s.coverage).reverse();
@@ -375,12 +357,21 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     Plotly.newPlot(graphId, [trace], layout);
 }
 
-// ---------- Анализ зарплат ----------
+// ---------- Анализ зарплат (обновлённый) ----------
 function restoreSalaryState(parentRole, roleId) {
+    // Восстанавливаем режим отображения
+    var viewButtons = parentRole.querySelectorAll('.view-mode-button');
+    for (var btn of viewButtons) {
+        if (btn.dataset.view === uiState.global_salary_view_mode) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    }
+
     var monthButtons = parentRole.querySelectorAll('.salary-month-button');
     if (monthButtons.length === 0) return;
 
-    // Сначала глобальный месяц
     if (uiState.global_salary_month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === uiState.global_salary_month) {
@@ -390,7 +381,6 @@ function restoreSalaryState(parentRole, roleId) {
         }
     }
 
-    // Затем сохранённый для роли
     var stateKey = getStateKey(roleId, 'salary');
     var saved = uiState[stateKey];
     if (saved && saved.month) {
@@ -402,7 +392,6 @@ function restoreSalaryState(parentRole, roleId) {
         }
     }
 
-    // Иначе первый
     monthButtons[0].click();
 }
 
@@ -413,14 +402,12 @@ function openSalaryMonthTab(evt, monthId) {
     var monthData = JSON.parse(monthDiv.dataset.month);
     var monthStr = monthData.month;
 
-    // Сохраняем месяц глобально и для роли
     uiState.global_salary_month = monthStr;
     var stateKey = getStateKey(roleId, 'salary');
     var saved = uiState[stateKey] || {};
     saved.month = monthStr;
     uiState[stateKey] = saved;
 
-    // Переключаем видимость месяцев
     var monthContents = parentRole.getElementsByClassName("salary-month-content");
     for (var i = 0; i < monthContents.length; i++) {
         monthContents[i].style.display = "none";
@@ -432,7 +419,6 @@ function openSalaryMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем опыт
     restoreExpInSalaryMonth(parentRole, roleId);
 }
 
@@ -442,7 +428,6 @@ function restoreExpInSalaryMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.salary-exp-button');
     if (expButtons.length === 0) return;
 
-    // Сначала глобальный опыт
     if (uiState.global_salary_experience) {
         for (var btn of expButtons) {
             if (btn.textContent.trim() === uiState.global_salary_experience) {
@@ -452,7 +437,6 @@ function restoreExpInSalaryMonth(parentRole, roleId) {
         }
     }
 
-    // Затем сохранённый для роли
     var stateKey = getStateKey(roleId, 'salary');
     var saved = uiState[stateKey];
     if (saved && saved.experience) {
@@ -464,7 +448,6 @@ function restoreExpInSalaryMonth(parentRole, roleId) {
         }
     }
 
-    // Иначе первый
     expButtons[0].click();
 }
 
@@ -476,7 +459,6 @@ function openSalaryExpTab(evt, expId) {
     var expData = JSON.parse(expDiv.dataset.exp);
     var experience = expData.experience;
 
-    // Сохраняем опыт глобально и для роли
     uiState.global_salary_experience = experience;
     var stateKey = getStateKey(roleId, 'salary');
     var saved = uiState[stateKey] || {};
@@ -494,31 +476,106 @@ function openSalaryExpTab(evt, expId) {
     expDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    var graphId = 'salary-graph-' + expId.replace('sal-exp-', '');
-    buildSalaryBarChart(graphId, expData.currencies);
+    // Применяем текущий режим отображения
+    applySalaryViewMode(parentRole, expDiv, expData.entries);
 }
 
-function buildSalaryBarChart(graphId, currencies) {
-    var currencyNames = currencies.map(c => c.currency);
-    var avgData = currencies.map(c => c.avg_salary);
+// Обработчик переключения режимов отображения
+function switchSalaryViewMode(evt) {
+    var parentRole = evt.currentTarget.closest('.role-content');
+    var viewButtons = parentRole.querySelectorAll('.view-mode-button');
+    for (var btn of viewButtons) {
+        btn.classList.remove('active');
+    }
+    evt.currentTarget.classList.add('active');
+    var mode = evt.currentTarget.dataset.view;
+    uiState.global_salary_view_mode = mode;
 
-    var trace = {
-        x: currencyNames,
-        y: avgData,
-        name: 'Средняя зарплата',
-        type: 'bar',
-        marker: { color: CHART_COLORS.medium }
-    };
+    // Находим видимый опыт и обновляем отображение
+    var visibleExp = parentRole.querySelector('.salary-exp-content[style*="display: block"]');
+    if (visibleExp) {
+        var expData = JSON.parse(visibleExp.dataset.exp);
+        applySalaryViewMode(parentRole, visibleExp, expData.entries);
+    }
+}
+
+function applySalaryViewMode(parentRole, expDiv, entries) {
+    var mode = uiState.global_salary_view_mode;
+    var flexContainer = expDiv.querySelector('.salary-display-flex');
+    var tableContainer = expDiv.querySelector('.salary-table-container');
+    var graphContainer = expDiv.querySelector('.salary-graph-container');
+    var graphId = expDiv.querySelector('.plotly-graph').id;
+
+    if (mode === 'table') {
+        flexContainer.style.flexDirection = 'column';
+        tableContainer.style.width = '100%';
+        graphContainer.style.display = 'none';
+    } else if (mode === 'graph') {
+        flexContainer.style.flexDirection = 'column';
+        tableContainer.style.display = 'none';
+        graphContainer.style.display = 'block';
+        graphContainer.style.width = '100%';
+        // Перестраиваем график на полную ширину
+        buildSalaryBarChart(graphId, entries);
+    } else { // together
+        tableContainer.style.display = 'block';
+        graphContainer.style.display = 'block';
+        // Проверяем, помещаются ли рядом
+        var availableWidth = flexContainer.offsetWidth;
+        var tableWidth = tableContainer.offsetWidth;
+        var graphWidth = graphContainer.offsetWidth;
+        // Если сумма ширин больше доступной, показываем только таблицу
+        if (tableWidth + graphWidth > availableWidth) {
+            flexContainer.style.flexDirection = 'column';
+            tableContainer.style.width = '100%';
+            graphContainer.style.width = '100%';
+        } else {
+            flexContainer.style.flexDirection = 'row';
+            tableContainer.style.width = '50%';
+            graphContainer.style.width = '50%';
+        }
+        buildSalaryBarChart(graphId, entries);
+    }
+}
+
+function buildSalaryBarChart(graphId, entries) {
+    // Группируем по валютам и статусам
+    var currencies = [...new Set(entries.map(e => e.currency))];
+    var statuses = ['Открытая', 'Архивная'];
+    var data = [];
+    for (var status of statuses) {
+        var y = [];
+        for (var curr of currencies) {
+            var entry = entries.find(e => e.currency === curr && e.status === status);
+            y.push(entry ? entry.avg_salary : 0);
+        }
+        data.push({
+            x: currencies,
+            y: y,
+            name: status,
+            type: 'bar',
+            marker: { color: status === 'Открытая' ? CHART_COLORS.light : CHART_COLORS.dark }
+        });
+    }
 
     var layout = {
-        title: 'Средняя зарплата по валютам',
+        barmode: 'group',
+        title: 'Средняя зарплата по валютам и статусу',
         xaxis: { title: 'Валюта' },
         yaxis: { title: 'Средняя зарплата' },
         margin: { t: 50, b: 80, l: 50, r: 20 },
-        height: 400
+        height: 400,
+        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
     };
-    Plotly.newPlot(graphId, [trace], layout);
+    Plotly.newPlot(graphId, data, layout);
 }
+
+// Инициализация переключателей режимов
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('view-mode-button')) {
+        switchSalaryViewMode(e);
+    }
+});
 
 // ---------- Инициализация ----------
 document.addEventListener("DOMContentLoaded", function() {

@@ -518,16 +518,16 @@ def fetch_skills_monthly_data(mapping):
 
 def fetch_salary_data(mapping):
     """
-    Возвращает данные для анализа зарплат по ролям, опыту и месяцам.
+    Возвращает данные для анализа зарплат архивных и открытых вакансий с топ-навыками
+    по профессиональным ролям, опыту и месяцам с разделением по статусу.
     Для каждой роли список месяцев, внутри каждого месяца список уровней опыта,
-    а внутри каждого опыта – статистика по валютам.
-    В начало списка месяцев добавляется сводный месяц с агрегированными данными по всем месяцам,
-    включая медианную и модальную зарплату.
+    а внутри каждого опыта – список записей (для статусов и валют) с полной статистикой.
+    В начало списка месяцев добавляется сводный месяц с агрегированными данными по всем месяцам.
     """
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # --- Первый запрос: помесячная статистика ---
+    # Основной запрос для помесячной статистики
     query_monthly = """
         WITH 
         currency_rates AS (
@@ -546,6 +546,8 @@ def fetch_salary_data(mapping):
                 experience,
                 DATE_TRUNC('month', published_at) as month_start,
                 currency,
+                archived,
+                skills,
                 CASE 
                     WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL THEN (salary_from + salary_to) / 2.0
                     WHEN salary_from IS NOT NULL THEN salary_from::numeric
@@ -563,6 +565,8 @@ def fetch_salary_data(mapping):
                 bd.experience,
                 bd.month_start,
                 bd.currency,
+                bd.archived,
+                bd.skills,
                 bd.calculated_salary,
                 CASE 
                     WHEN bd.currency IN ('RUR', 'USD') THEN bd.calculated_salary
@@ -577,26 +581,111 @@ def fetch_salary_data(mapping):
             LEFT JOIN currency_rates cr ON bd.currency = cr.currency
             WHERE bd.calculated_salary IS NOT NULL
         ),
-        aggregated AS (
+        skills_split AS (
+            SELECT 
+                cd.professional_role,
+                cd.experience,
+                cd.month_start,
+                cd.display_currency,
+                cd.archived,
+                cd.converted_salary,
+                TRIM(BOTH ' ' FROM unnest(string_to_array(cd.skills, ','))) as skill
+            FROM converted_data cd
+            WHERE cd.skills IS NOT NULL AND cd.skills != ''
+        ),
+        skills_aggregated AS (
             SELECT 
                 professional_role,
                 experience,
                 month_start,
                 display_currency,
+                archived,
+                skill,
+                COUNT(*) as skill_count
+            FROM skills_split
+            GROUP BY professional_role, experience, month_start, display_currency, archived, skill
+        ),
+        top_skills AS (
+            SELECT 
+                professional_role,
+                experience,
+                month_start,
+                display_currency,
+                archived,
+                STRING_AGG(skill || ' (' || skill_count || ')', ', ' ORDER BY skill_count DESC, skill) as top_skills_list
+            FROM (
+                SELECT 
+                    *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY professional_role, experience, month_start, display_currency, archived 
+                        ORDER BY skill_count DESC, skill
+                    ) as skill_rank
+                FROM skills_aggregated
+            ) ranked_skills
+            WHERE skill_rank <= 10
+            GROUP BY professional_role, experience, month_start, display_currency, archived
+        ),
+        aggregated AS (
+            SELECT 
+                cd.professional_role,
+                cd.experience,
+                cd.month_start,
+                cd.display_currency,
+                cd.archived,
                 COUNT(*) as count_with_salary,
-                AVG(converted_salary) as avg_salary,
-                MIN(converted_salary) as min_salary,
-                MAX(converted_salary) as max_salary,
-                array_agg(converted_salary ORDER BY converted_salary) as salary_values
-            FROM converted_data
-            GROUP BY professional_role, experience, month_start, display_currency
+                AVG(cd.converted_salary) as avg_salary,
+                MIN(cd.converted_salary) as min_salary,
+                MAX(cd.converted_salary) as max_salary,
+                array_agg(cd.converted_salary ORDER BY cd.converted_salary) as salary_values
+            FROM converted_data cd
+            GROUP BY cd.professional_role, cd.experience, cd.month_start, cd.display_currency, cd.archived
         )
         SELECT 
             a.professional_role as role_id,
             a.experience,
             TO_CHAR(a.month_start, 'YYYY-MM') as month,
             a.display_currency,
-            a.count_with_salary,
+            CASE 
+                WHEN a.archived THEN 'Архивная'
+                ELSE 'Открытая'
+            END as vacancy_status,
+            (
+                SELECT COUNT(*)
+                FROM base_data bd2
+                WHERE bd2.professional_role = a.professional_role
+                  AND bd2.experience = a.experience
+                  AND bd2.month_start = a.month_start
+                  AND bd2.archived = a.archived
+                  AND (
+                      bd2.currency IS NULL OR 
+                      CASE 
+                          WHEN bd2.currency = 'RUR' THEN 'RUR'
+                          WHEN bd2.currency = 'USD' THEN 'USD'
+                          ELSE '%USD'
+                      END = a.display_currency
+                  )
+            ) as total_vacancies,
+            a.count_with_salary as vacancies_with_salary,
+            ROUND(
+                (a.count_with_salary::numeric / NULLIF(
+                    (
+                        SELECT COUNT(*)
+                        FROM base_data bd2
+                        WHERE bd2.professional_role = a.professional_role
+                          AND bd2.experience = a.experience
+                          AND bd2.month_start = a.month_start
+                          AND bd2.archived = a.archived
+                          AND (
+                              bd2.currency IS NULL OR 
+                              CASE 
+                                  WHEN bd2.currency = 'RUR' THEN 'RUR'
+                                  WHEN bd2.currency = 'USD' THEN 'USD'
+                                  ELSE '%USD'
+                              END = a.display_currency
+                          )
+                    ), 0
+                ) * 100)::numeric, 2
+            ) as salary_percentage,
             ROUND(a.avg_salary::numeric, 2) as average_salary,
             (
                 CASE 
@@ -614,19 +703,28 @@ def fetch_salary_data(mapping):
                   AND cd.experience = a.experience
                   AND cd.month_start = a.month_start
                   AND cd.display_currency = a.display_currency
+                  AND cd.archived = a.archived
                 GROUP BY cd.converted_salary
                 ORDER BY COUNT(*) DESC, cd.converted_salary
                 LIMIT 1
             ) as mode_salary,
             ROUND(a.min_salary::numeric, 2) as min_salary,
-            ROUND(a.max_salary::numeric, 2) as max_salary
+            ROUND(a.max_salary::numeric, 2) as max_salary,
+            ROUND((a.max_salary - a.min_salary)::numeric, 2) as salary_range,
+            COALESCE(ts.top_skills_list, 'Нет данных о навыках') as top_skills
         FROM aggregated a
-        ORDER BY a.professional_role, a.experience, a.month_start, a.display_currency;
+        LEFT JOIN top_skills ts ON 
+            ts.professional_role = a.professional_role
+            AND ts.experience = a.experience
+            AND ts.month_start = a.month_start
+            AND ts.display_currency = a.display_currency
+            AND ts.archived = a.archived
+        ORDER BY a.professional_role, a.experience, a.month_start, a.display_currency, a.archived;
     """
     cur.execute(query_monthly)
     rows_monthly = cur.fetchall()
 
-    # --- Второй запрос: общая статистика за все месяцы (для сводного месяца) ---
+    # Запрос для общих данных по всем месяцам (для сводного месяца)
     query_total = """
         WITH 
         currency_rates AS (
@@ -644,6 +742,8 @@ def fetch_salary_data(mapping):
                 professional_role,
                 experience,
                 currency,
+                archived,
+                skills,
                 CASE 
                     WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL THEN (salary_from + salary_to) / 2.0
                     WHEN salary_from IS NOT NULL THEN salary_from::numeric
@@ -660,6 +760,8 @@ def fetch_salary_data(mapping):
                 bd.professional_role,
                 bd.experience,
                 bd.currency,
+                bd.archived,
+                bd.skills,
                 bd.calculated_salary,
                 CASE 
                     WHEN bd.currency IN ('RUR', 'USD') THEN bd.calculated_salary
@@ -673,31 +775,146 @@ def fetch_salary_data(mapping):
             FROM base_data bd
             LEFT JOIN currency_rates cr ON bd.currency = cr.currency
             WHERE bd.calculated_salary IS NOT NULL
+        ),
+        skills_split AS (
+            SELECT 
+                cd.professional_role,
+                cd.experience,
+                cd.display_currency,
+                cd.archived,
+                cd.converted_salary,
+                TRIM(BOTH ' ' FROM unnest(string_to_array(cd.skills, ','))) as skill
+            FROM converted_data cd
+            WHERE cd.skills IS NOT NULL AND cd.skills != ''
+        ),
+        skills_aggregated AS (
+            SELECT 
+                professional_role,
+                experience,
+                display_currency,
+                archived,
+                skill,
+                COUNT(*) as skill_count
+            FROM skills_split
+            GROUP BY professional_role, experience, display_currency, archived, skill
+        ),
+        top_skills AS (
+            SELECT 
+                professional_role,
+                experience,
+                display_currency,
+                archived,
+                STRING_AGG(skill || ' (' || skill_count || ')', ', ' ORDER BY skill_count DESC, skill) as top_skills_list
+            FROM (
+                SELECT 
+                    *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY professional_role, experience, display_currency, archived 
+                        ORDER BY skill_count DESC, skill
+                    ) as skill_rank
+                FROM skills_aggregated
+            ) ranked_skills
+            WHERE skill_rank <= 10
+            GROUP BY professional_role, experience, display_currency, archived
+        ),
+        aggregated AS (
+            SELECT 
+                cd.professional_role,
+                cd.experience,
+                cd.display_currency,
+                cd.archived,
+                COUNT(*) as count_with_salary,
+                AVG(cd.converted_salary) as avg_salary,
+                MIN(cd.converted_salary) as min_salary,
+                MAX(cd.converted_salary) as max_salary,
+                array_agg(cd.converted_salary ORDER BY cd.converted_salary) as salary_values
+            FROM converted_data cd
+            GROUP BY cd.professional_role, cd.experience, cd.display_currency, cd.archived
         )
-        SELECT
-            professional_role as role_id,
-            experience,
-            display_currency,
-            COUNT(*) as count_with_salary,
-            AVG(converted_salary) as avg_salary,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY converted_salary) as median_salary,
-            MODE() WITHIN GROUP (ORDER BY converted_salary) as mode_salary,
-            MIN(converted_salary) as min_salary,
-            MAX(converted_salary) as max_salary
-        FROM converted_data
-        GROUP BY professional_role, experience, display_currency
-        ORDER BY professional_role, experience, display_currency;
+        SELECT 
+            a.professional_role as role_id,
+            a.experience,
+            a.display_currency,
+            CASE WHEN a.archived THEN 'Архивная' ELSE 'Открытая' END as vacancy_status,
+            (
+                SELECT COUNT(*)
+                FROM base_data bd2
+                WHERE bd2.professional_role = a.professional_role
+                  AND bd2.experience = a.experience
+                  AND bd2.archived = a.archived
+                  AND (
+                      bd2.currency IS NULL OR 
+                      CASE 
+                          WHEN bd2.currency = 'RUR' THEN 'RUR'
+                          WHEN bd2.currency = 'USD' THEN 'USD'
+                          ELSE '%USD'
+                      END = a.display_currency
+                  )
+            ) as total_vacancies,
+            a.count_with_salary as vacancies_with_salary,
+            ROUND(
+                (a.count_with_salary::numeric / NULLIF(
+                    (
+                        SELECT COUNT(*)
+                        FROM base_data bd2
+                        WHERE bd2.professional_role = a.professional_role
+                          AND bd2.experience = a.experience
+                          AND bd2.archived = a.archived
+                          AND (
+                              bd2.currency IS NULL OR 
+                              CASE 
+                                  WHEN bd2.currency = 'RUR' THEN 'RUR'
+                                  WHEN bd2.currency = 'USD' THEN 'USD'
+                                  ELSE '%USD'
+                              END = a.display_currency
+                          )
+                    ), 0
+                ) * 100)::numeric, 2
+            ) as salary_percentage,
+            ROUND(a.avg_salary::numeric, 2) as average_salary,
+            (
+                CASE 
+                    WHEN array_length(a.salary_values, 1) % 2 = 1 THEN
+                        a.salary_values[(array_length(a.salary_values, 1) + 1) / 2]
+                    ELSE
+                        (a.salary_values[array_length(a.salary_values, 1) / 2] + 
+                         a.salary_values[array_length(a.salary_values, 1) / 2 + 1]) / 2
+                END
+            ) as median_salary,
+            (
+                SELECT cd.converted_salary
+                FROM converted_data cd
+                WHERE cd.professional_role = a.professional_role
+                  AND cd.experience = a.experience
+                  AND cd.display_currency = a.display_currency
+                  AND cd.archived = a.archived
+                GROUP BY cd.converted_salary
+                ORDER BY COUNT(*) DESC, cd.converted_salary
+                LIMIT 1
+            ) as mode_salary,
+            ROUND(a.min_salary::numeric, 2) as min_salary,
+            ROUND(a.max_salary::numeric, 2) as max_salary,
+            ROUND((a.max_salary - a.min_salary)::numeric, 2) as salary_range,
+            COALESCE(ts.top_skills_list, 'Нет данных о навыках') as top_skills
+        FROM aggregated a
+        LEFT JOIN top_skills ts ON 
+            ts.professional_role = a.professional_role
+            AND ts.experience = a.experience
+            AND ts.display_currency = a.display_currency
+            AND ts.archived = a.archived
+        ORDER BY a.professional_role, a.experience, a.display_currency, a.archived;
     """
     cur.execute(query_total)
     rows_total = cur.fetchall()
     cur.close()
     conn.close()
 
-    # --- Обработка помесячных данных ---
+    # Обработка помесячных данных
     salary_by_role = {}
     for row in rows_monthly:
-        (role_id, experience, month, currency, count_with_salary,
-         avg_salary, median_salary, mode_salary, min_salary, max_salary) = row
+        (role_id, experience, month, currency, status, total_vacancies,
+         vacancies_with_salary, salary_percentage, avg_salary, median_salary,
+         mode_salary, min_salary, max_salary, salary_range, top_skills) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -718,24 +935,32 @@ def fetch_salary_data(mapping):
         if experience not in salary_by_role[role_key]['months'][month]:
             salary_by_role[role_key]['months'][month][experience] = {
                 'experience': experience,
-                'currencies': []
+                'entries': []
             }
 
-        salary_by_role[role_key]['months'][month][experience]['currencies'].append({
+        # Добавляем запись
+        entry = {
+            'status': status,
             'currency': currency,
-            'count_with_salary': count_with_salary,
+            'total_vacancies': total_vacancies,
+            'vacancies_with_salary': vacancies_with_salary,
+            'salary_percentage': float(salary_percentage) if salary_percentage else 0,
             'avg_salary': float(avg_salary) if avg_salary else 0,
             'median_salary': float(median_salary) if median_salary else 0,
             'mode_salary': float(mode_salary) if mode_salary else 0,
             'min_salary': float(min_salary) if min_salary else 0,
-            'max_salary': float(max_salary) if max_salary else 0
-        })
+            'max_salary': float(max_salary) if max_salary else 0,
+            'salary_range': float(salary_range) if salary_range else 0,
+            'top_skills': top_skills
+        }
+        salary_by_role[role_key]['months'][month][experience]['entries'].append(entry)
 
-    # --- Обработка общих данных (для сводного месяца) ---
+    # Обработка общих данных (для сводного месяца)
     total_data = {}
     for row in rows_total:
-        (role_id, experience, currency, count_with_salary,
-         avg_salary, median_salary, mode_salary, min_salary, max_salary) = row
+        (role_id, experience, currency, status, total_vacancies,
+         vacancies_with_salary, salary_percentage, avg_salary, median_salary,
+         mode_salary, min_salary, max_salary, salary_range, top_skills) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -745,22 +970,25 @@ def fetch_salary_data(mapping):
         if role_key not in total_data:
             total_data[role_key] = {}
 
-        exp_key = (experience, currency)
+        exp_key = (experience, currency, status)
         total_data[role_key][exp_key] = {
-            'count_with_salary': count_with_salary,
+            'total_vacancies': total_vacancies,
+            'vacancies_with_salary': vacancies_with_salary,
+            'salary_percentage': float(salary_percentage) if salary_percentage else 0,
             'avg_salary': float(avg_salary) if avg_salary else 0,
             'median_salary': float(median_salary) if median_salary else 0,
             'mode_salary': float(mode_salary) if mode_salary else 0,
             'min_salary': float(min_salary) if min_salary else 0,
-            'max_salary': float(max_salary) if max_salary else 0
+            'max_salary': float(max_salary) if max_salary else 0,
+            'salary_range': float(salary_range) if salary_range else 0,
+            'top_skills': top_skills
         }
 
-    # --- Формирование итоговой структуры для каждой роли ---
+    # Формирование итоговой структуры для каждой роли
     exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
     result = []
 
     for role_key, role_data in salary_by_role.items():
-        # Сначала обычные месяцы
         months_list = []
         for month_str in sorted(role_data['months'].keys()):
             exp_dict = role_data['months'][month_str]
@@ -771,25 +999,31 @@ def fetch_salary_data(mapping):
                 'experiences': exp_list
             })
 
-        # Сводный месяц из общих данных
+        # Добавляем сводный месяц
         total_for_role = total_data.get(role_key, {})
         # Группируем по опыту
         exp_dict_all = {}
-        for (exp, currency), vals in total_for_role.items():
+        for (exp, currency, status), vals in total_for_role.items():
             if exp not in exp_dict_all:
                 exp_dict_all[exp] = {
                     'experience': exp,
-                    'currencies': []
+                    'entries': []
                 }
-            exp_dict_all[exp]['currencies'].append({
+            entry = {
+                'status': status,
                 'currency': currency,
-                'count_with_salary': vals['count_with_salary'],
+                'total_vacancies': vals['total_vacancies'],
+                'vacancies_with_salary': vals['vacancies_with_salary'],
+                'salary_percentage': vals['salary_percentage'],
                 'avg_salary': vals['avg_salary'],
                 'median_salary': vals['median_salary'],
                 'mode_salary': vals['mode_salary'],
                 'min_salary': vals['min_salary'],
-                'max_salary': vals['max_salary']
-            })
+                'max_salary': vals['max_salary'],
+                'salary_range': vals['salary_range'],
+                'top_skills': vals['top_skills']
+            }
+            exp_dict_all[exp]['entries'].append(entry)
 
         all_experiences_list = list(exp_dict_all.values())
         all_experiences_list.sort(key=lambda e: exp_order.get(e['experience'], 5))
