@@ -72,6 +72,78 @@ h1 {
     margin-bottom: 12px;
 }
 
+/* Роли: сворачиваемая панель */
+.role-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.role-selector-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.role-selector-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.role-selector-choices {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+}
+.role-multiselect {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.role-selected-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+.role-chip {
+    background: var(--surface-variant);
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+.role-selector-toggle {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    width: 32px;
+    height: 28px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.role-selector-toggle:hover { background: var(--tab-hover-bg); }
+.role-selector.collapsed #role-selector-panel { display: none; }
+.role-selector.collapsed .role-selector-toggle { transform: rotate(180deg); }
+.role-selection-clear {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.role-selection-clear:hover { background: var(--tab-hover-bg); }
+
 .tab-button {
     flex: 1 1 auto;
     background: transparent;

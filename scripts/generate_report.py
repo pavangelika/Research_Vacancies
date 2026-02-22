@@ -1088,6 +1088,7 @@ def fetch_salary_data(mapping):
             rate = currency_rates.get(currency, 1.0)
             converted_salary = calculated_salary if currency in ('RUR', 'USD') else calculated_salary * rate
 
+        published_iso = published_at.isoformat() if published_at else None
         vacancy_obj = {
             'id': vac_id,
             'name': name,
@@ -1098,6 +1099,7 @@ def fetch_salary_data(mapping):
             'currency': currency,
             'calculated_salary': calculated_salary,
             'converted_salary': converted_salary,
+            'published_at': published_iso,
             'skills': skills,
             'requirement': requirement,
             'responsibility': responsibility,

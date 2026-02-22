@@ -11,16 +11,27 @@
     <h1>Анализ вакансий на {{ current_date }} {{ current_time }}</h1>
 
     <!-- Вкладки по ролям -->
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary);">
-            <input type="checkbox" id="multi-role-toggle">
-            Мультивыбор
-        </label>
-    </div>
-    <div class="tabs role-tabs">
-        {% for role in roles %}
-        <button class="tab-button role-button" data-role-index="{{ loop.index }}" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">{{ role.name }}</button>
-        {% endfor %}
+    <div id="role-selector" class="role-selector">
+        <div class="role-selector-header">
+            <div class="role-selector-controls">
+                <label class="role-multiselect">
+                    <input type="checkbox" id="multi-role-toggle">
+                    Мультивыбор
+                </label>
+                <button id="role-selector-toggle" class="role-selector-toggle" type="button" aria-expanded="true" aria-controls="role-selector-panel">
+                    ▼
+                </button>
+            </div>
+            <div class="role-selector-choices">
+                <div id="role-selected-chips" class="role-selected-chips"></div>
+                <button id="role-selection-clear" class="role-selection-clear" type="button" aria-label="Сбросить выбор">×</button>
+            </div>
+        </div>
+        <div id="role-selector-panel" class="tabs role-tabs">
+            {% for role in roles %}
+            <button class="tab-button role-button" data-role-index="{{ loop.index }}" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">{{ role.name }}</button>
+            {% endfor %}
+        </div>
     </div>
 
     {% for role in roles %}
