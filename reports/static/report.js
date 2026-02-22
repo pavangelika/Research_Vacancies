@@ -1058,10 +1058,27 @@ function aggregateSalary(roleContents) {
                         status: entry.status,
                         currency: entry.currency,
                         with: [],
-                        without: []
+                        without: [],
+                        raw_total: 0,
+                        raw_with: 0,
+                        raw_avg: 0,
+                        raw_median: 0,
+                        raw_mode: 0,
+                        raw_min: 0,
+                        raw_max: 0
                     };
-                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    if (entry.vacancies_with_salary_list || entry.vacancies_without_salary_list) {
+                        bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
+                        bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    } else {
+                        bucket.raw_total += entry.total_vacancies || 0;
+                        bucket.raw_with += entry.vacancies_with_salary || 0;
+                        bucket.raw_avg += entry.avg_salary || 0;
+                        bucket.raw_median += entry.median_salary || 0;
+                        bucket.raw_mode += entry.mode_salary || 0;
+                        bucket.raw_min += entry.min_salary || 0;
+                        bucket.raw_max += entry.max_salary || 0;
+                    }
                     byMonth[m.month][exp.experience][key] = bucket;
                 });
             });
@@ -1069,7 +1086,32 @@ function aggregateSalary(roleContents) {
     });
 
     function buildEntryList(bucketsByKey) {
-        return buildSalaryEntriesFromBuckets(bucketsByKey);
+        var entries = buildSalaryEntriesFromBuckets(bucketsByKey);
+        if (entries.some(e => e.total_vacancies > 0)) return entries;
+
+        // fallback: если нет списков вакансий, используем суммированные значения
+        entries = Object.values(bucketsByKey).map(b => {
+            var total = b.raw_total || 0;
+            var withCount = b.raw_with || 0;
+            return {
+                status: b.status,
+                currency: b.currency,
+                total_vacancies: total,
+                vacancies_with_salary: withCount,
+                salary_percentage: total ? Math.round((withCount * 10000) / total) / 100 : 0,
+                avg_salary: b.raw_avg || 0,
+                median_salary: b.raw_median || 0,
+                mode_salary: b.raw_mode || 0,
+                min_salary: b.raw_min || 0,
+                max_salary: b.raw_max || 0,
+                top_skills: b.top_skills || '—',
+                vacancy_ids: [],
+                vacancies_with_salary_list: [],
+                vacancies_without_salary_list: []
+            };
+        });
+        entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
+        return entries;
     }
 
     var monthsList = Array.from(allMonths).sort().map(month => {
@@ -1088,9 +1130,31 @@ function aggregateSalary(roleContents) {
                 agg[exp.experience] = agg[exp.experience] || {};
                 exp.entries.forEach(entry => {
                     var key = entry.status + '|' + entry.currency;
-                    var bucket = agg[exp.experience][key] || { status: entry.status, currency: entry.currency, with: [], without: [] };
-                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    var bucket = agg[exp.experience][key] || {
+                        status: entry.status,
+                        currency: entry.currency,
+                        with: [],
+                        without: [],
+                        raw_total: 0,
+                        raw_with: 0,
+                        raw_avg: 0,
+                        raw_median: 0,
+                        raw_mode: 0,
+                        raw_min: 0,
+                        raw_max: 0
+                    };
+                    if (entry.vacancies_with_salary_list || entry.vacancies_without_salary_list) {
+                        bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
+                        bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    } else {
+                        bucket.raw_total += entry.total_vacancies || 0;
+                        bucket.raw_with += entry.vacancies_with_salary || 0;
+                        bucket.raw_avg += entry.avg_salary || 0;
+                        bucket.raw_median += entry.median_salary || 0;
+                        bucket.raw_mode += entry.mode_salary || 0;
+                        bucket.raw_min += entry.min_salary || 0;
+                        bucket.raw_max += entry.max_salary || 0;
+                    }
                     agg[exp.experience][key] = bucket;
                 });
             });
@@ -1392,7 +1456,7 @@ function renderCombinedContainer(container, roleContents) {
     var activityMonths = aggregateActivity(roleContents);
     var weekdays = aggregateWeekdays(roleContents);
     var skillsMonthly = aggregateSkillsMonthly(roleContents);
-    var salaryMonths = aggregateSalarySum(roleContents);
+    var salaryMonths = aggregateSalary(roleContents);
 
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
     var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
