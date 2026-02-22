@@ -20,6 +20,10 @@ let uiState = {
     salary_view_mode: 'table'           // по умолчанию таблица
 };
 
+function getAnalysisStateKey(roleId) {
+    return roleId + '_analysis';
+}
+
 function getStateKey(roleId, analysisType) {
     return roleId + '_' + analysisType;
 }
@@ -38,8 +42,9 @@ function openRoleTab(evt, roleId) {
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
 
-    if (uiState.global_analysis_type) {
-        var targetId = uiState.global_analysis_type + '-' + roleId.split('-')[1];
+    var savedType = uiState[getAnalysisStateKey(roleId)] || uiState.global_analysis_type;
+    if (savedType) {
+        var targetId = savedType + '-' + roleId.split('-')[1];
         var targetButton = document.querySelector("#" + roleId + " .analysis-button[data-analysis-id='" + targetId + "']");
         if (targetButton) {
             targetButton.click();
@@ -72,6 +77,7 @@ function switchAnalysis(evt, analysisId) {
     else if (analysisId.includes('salary')) analysisType = 'salary';
 
     uiState.global_analysis_type = analysisType;
+    uiState[getAnalysisStateKey(roleId)] = analysisType;
 
     activityBlocks.forEach(block => block.style.display = 'none');
     if (weekdayBlock) weekdayBlock.style.display = 'none';
@@ -133,19 +139,19 @@ function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
     if (monthButtons.length === 0) return;
 
-    if (uiState.global_activity_month) {
-        for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_activity_month) {
-                btn.click();
-                return;
-            }
-        }
-    }
     var stateKey = getStateKey(roleId, 'activity');
     var saved = uiState[stateKey];
     if (saved && saved.month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    if (uiState.global_activity_month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === uiState.global_activity_month) {
                 btn.click();
                 return;
             }
@@ -224,19 +230,19 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
 
-    if (uiState.global_skills_month) {
-        for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_month) {
-                btn.click();
-                return;
-            }
-        }
-    }
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
     if (saved && saved.month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    if (uiState.global_skills_month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === uiState.global_skills_month) {
                 btn.click();
                 return;
             }
@@ -278,19 +284,19 @@ function restoreExpInMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
 
-    if (uiState.global_skills_experience) {
-        for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_experience) {
-                btn.click();
-                return;
-            }
-        }
-    }
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
     if (saved && saved.experience) {
         for (var btn of expButtons) {
             if (btn.textContent.trim() === saved.experience) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    if (uiState.global_skills_experience) {
+        for (var btn of expButtons) {
+            if (btn.textContent.trim() === uiState.global_skills_experience) {
                 btn.click();
                 return;
             }
@@ -371,19 +377,19 @@ function restoreSalaryState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.salary-month-button');
     if (monthButtons.length === 0) return;
 
-    if (uiState.global_salary_month) {
-        for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_salary_month) {
-                btn.click();
-                return;
-            }
-        }
-    }
     var stateKey = getStateKey(roleId, 'salary');
     var saved = uiState[stateKey];
     if (saved && saved.month) {
         for (var btn of monthButtons) {
             if (btn.textContent.trim() === saved.month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    if (uiState.global_salary_month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === uiState.global_salary_month) {
                 btn.click();
                 return;
             }
@@ -425,19 +431,19 @@ function restoreExpInSalaryMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.salary-exp-button');
     if (expButtons.length === 0) return;
 
-    if (uiState.global_salary_experience) {
-        for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_salary_experience) {
-                btn.click();
-                return;
-            }
-        }
-    }
     var stateKey = getStateKey(roleId, 'salary');
     var saved = uiState[stateKey];
     if (saved && saved.experience) {
         for (var btn of expButtons) {
             if (btn.textContent.trim() === saved.experience) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    if (uiState.global_salary_experience) {
+        for (var btn of expButtons) {
+            if (btn.textContent.trim() === uiState.global_salary_experience) {
                 btn.click();
                 return;
             }
@@ -598,6 +604,7 @@ function buildVacancyTableHtml(vacancies) {
         return '<div class="vacancy-empty">Нет вакансий</div>';
     }
 
+    var showRole = vacancies.some(v => v && (v.role_name || v.role_id));
     var rows = vacancies.map(v => {
         var linkUrl = v.id ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(v.id) : '';
         var idCell = linkUrl
@@ -606,8 +613,10 @@ function buildVacancyTableHtml(vacancies) {
         var replyCell = v.apply_alternate_url
             ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
             : '—';
+        var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
         return '<tr>' +
             '<td>' + idCell + '</td>' +
+            (showRole ? '<td>' + roleCell + '</td>' : '') +
             '<td>' + formatCell(v.name) + '</td>' +
             '<td>' + formatCell(v.employer) + '</td>' +
             '<td>' + formatCell(v.city) + '</td>' +
@@ -625,6 +634,7 @@ function buildVacancyTableHtml(vacancies) {
             '<thead>' +
                 '<tr>' +
                     '<th>ID</th>' +
+                    (showRole ? '<th>Роль</th>' : '') +
                     '<th>Название</th>' +
                     '<th>Работодатель</th>' +
                     '<th>Город</th>' +
@@ -1095,6 +1105,128 @@ function aggregateSalary(roleContents) {
     return monthsList;
 }
 
+function aggregateSalarySum(roleContents) {
+    var expOrder = getExperienceOrder();
+    var byMonth = {};
+    var allMonths = new Set();
+
+    roleContents.forEach(roleContent => {
+        var months = getRoleSalaryData(roleContent);
+        months.forEach(m => {
+            if (isSummaryMonth(m.month)) return;
+            allMonths.add(m.month);
+            byMonth[m.month] = byMonth[m.month] || {};
+            (m.experiences || []).forEach(exp => {
+                byMonth[m.month][exp.experience] = byMonth[m.month][exp.experience] || {};
+                (exp.entries || []).forEach(entry => {
+                    var key = entry.status + '|' + entry.currency;
+                    var bucket = byMonth[m.month][exp.experience][key] || {
+                        status: entry.status,
+                        currency: entry.currency,
+                        total_vacancies: 0,
+                        vacancies_with_salary: 0,
+                        avg_salary: 0,
+                        median_salary: 0,
+                        mode_salary: 0,
+                        min_salary: 0,
+                        max_salary: 0,
+                        top_skills: entry.top_skills || '—',
+                        with: [],
+                        without: []
+                    };
+                    bucket.total_vacancies += entry.total_vacancies || 0;
+                    bucket.vacancies_with_salary += entry.vacancies_with_salary || 0;
+                    bucket.avg_salary += entry.avg_salary || 0;
+                    bucket.median_salary += entry.median_salary || 0;
+                    bucket.mode_salary += entry.mode_salary || 0;
+                    bucket.min_salary += entry.min_salary || 0;
+                    bucket.max_salary += entry.max_salary || 0;
+                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
+                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    byMonth[m.month][exp.experience][key] = bucket;
+                });
+            });
+        });
+    });
+
+    function toEntries(bucketsByKey) {
+        var entries = Object.values(bucketsByKey).map(b => {
+            var total = b.total_vacancies || 0;
+            var withCount = b.vacancies_with_salary || 0;
+            return {
+                status: b.status,
+                currency: b.currency,
+                total_vacancies: total,
+                vacancies_with_salary: withCount,
+                salary_percentage: total ? Math.round((withCount * 10000) / total) / 100 : 0,
+                avg_salary: b.avg_salary || 0,
+                median_salary: b.median_salary || 0,
+                mode_salary: b.mode_salary || 0,
+                min_salary: b.min_salary || 0,
+                max_salary: b.max_salary || 0,
+                top_skills: b.top_skills || '—',
+                vacancy_ids: [],
+                vacancies_with_salary_list: b.with || [],
+                vacancies_without_salary_list: b.without || []
+            };
+        });
+        entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
+        return entries;
+    }
+
+    var monthsList = Array.from(allMonths).sort().map(month => {
+        var expMap = byMonth[month] || {};
+        var experiences = Object.keys(expMap).map(expName => {
+            return { experience: expName, entries: toEntries(expMap[expName]) };
+        });
+        experiences.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        return { month: month, experiences: experiences };
+    });
+
+    if (monthsList.length > 0) {
+        var agg = {};
+        monthsList.forEach(m => {
+            m.experiences.forEach(exp => {
+                agg[exp.experience] = agg[exp.experience] || {};
+                exp.entries.forEach(entry => {
+                    var key = entry.status + '|' + entry.currency;
+                    var bucket = agg[exp.experience][key] || {
+                        status: entry.status,
+                        currency: entry.currency,
+                        total_vacancies: 0,
+                        vacancies_with_salary: 0,
+                        avg_salary: 0,
+                        median_salary: 0,
+                        mode_salary: 0,
+                        min_salary: 0,
+                        max_salary: 0,
+                        top_skills: entry.top_skills || '—',
+                        with: [],
+                        without: []
+                    };
+                    bucket.total_vacancies += entry.total_vacancies || 0;
+                    bucket.vacancies_with_salary += entry.vacancies_with_salary || 0;
+                    bucket.avg_salary += entry.avg_salary || 0;
+                    bucket.median_salary += entry.median_salary || 0;
+                    bucket.mode_salary += entry.mode_salary || 0;
+                    bucket.min_salary += entry.min_salary || 0;
+                    bucket.max_salary += entry.max_salary || 0;
+                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
+                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    agg[exp.experience][key] = bucket;
+                });
+            });
+        });
+        var expList = Object.keys(agg).map(expName => {
+            return { experience: expName, entries: toEntries(agg[expName]) };
+        });
+        expList.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+        monthsList.unshift({ month: formatMonthTitle(monthsList.length), experiences: expList });
+    }
+
+    return monthsList;
+}
+
 function buildSkillsSummaryExp(monthData) {
     var agg = { total: 0, skills: new Map() };
     (monthData.experiences || []).forEach(exp => {
@@ -1260,7 +1392,7 @@ function renderCombinedContainer(container, roleContents) {
     var activityMonths = aggregateActivity(roleContents);
     var weekdays = aggregateWeekdays(roleContents);
     var skillsMonthly = aggregateSkillsMonthly(roleContents);
-    var salaryMonths = aggregateSalary(roleContents);
+    var salaryMonths = aggregateSalarySum(roleContents);
 
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
     var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
@@ -1491,9 +1623,15 @@ function renderCombinedContainer(container, roleContents) {
         });
     });
 
-    var analysisButton = container.querySelector('.analysis-button');
-    if (analysisButton) analysisButton.click();
     addSummaryTabs(container);
+
+    var savedType = uiState[getAnalysisStateKey(container.id)] || uiState.global_analysis_type || 'activity';
+    var targetButton = container.querySelector(".analysis-button[data-analysis-id='" + savedType + "-combined']");
+    if (targetButton) targetButton.click();
+    else {
+        var analysisButton = container.querySelector('.analysis-button');
+        if (analysisButton) analysisButton.click();
+    }
 }
 
 function updateRoleSelectionUI(selectedIndices) {

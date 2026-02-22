@@ -1069,7 +1069,12 @@ def fetch_salary_data(mapping):
          skills, requirement, responsibility, apply_alternate_url, role_id,
          experience, archived, published_at) = row
 
-        role_key = "NULL" if role_id is None else str(role_id)
+        if role_id is None:
+            role_key = "NULL"
+            role_name = mapping.get(role_key, "Не указана")
+        else:
+            role_key = str(role_id)
+            role_name = mapping.get(role_key, f"ID {role_id} (неизвестная роль)")
         month_str = published_at.strftime('%Y-%m')
         status = 'Архивная' if archived else 'Открытая'
         display_currency = _display_currency(currency)
@@ -1100,6 +1105,8 @@ def fetch_salary_data(mapping):
             'calculated_salary': calculated_salary,
             'converted_salary': converted_salary,
             'published_at': published_iso,
+            'role_id': role_key,
+            'role_name': role_name,
             'skills': skills,
             'requirement': requirement,
             'responsibility': responsibility,
