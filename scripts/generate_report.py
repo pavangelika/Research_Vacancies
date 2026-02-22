@@ -516,7 +516,243 @@ def fetch_skills_monthly_data(mapping):
 
     return result
 
-def render_report(roles_data, weekday_data, skills_monthly_data):
+def fetch_salary_data(mapping):
+    """
+    Возвращает данные для анализа зарплат по ролям, опыту и месяцам.
+    Для каждой роли список месяцев, внутри каждого месяца список уровней опыта,
+    а внутри каждого опыта – статистика по валютам.
+    В начало списка месяцев добавляется сводный месяц с агрегированными данными по всем месяцам.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        WITH 
+        currency_rates AS (
+            SELECT 'RUR' as currency, 1.0 as rate_to_usd
+            UNION ALL SELECT 'USD', 1.0
+            UNION ALL SELECT 'EUR', 1.08
+            UNION ALL SELECT 'KZT', 0.0021
+            UNION ALL SELECT 'BYR', 0.00031
+            UNION ALL SELECT 'UZS', 0.000079
+            UNION ALL SELECT 'AZN', 0.59
+            UNION ALL SELECT 'KGS', 0.011
+        ),
+        base_data AS (
+            SELECT 
+                professional_role,
+                experience,
+                DATE_TRUNC('month', published_at) as month_start,
+                currency,
+                CASE 
+                    WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL THEN (salary_from + salary_to) / 2.0
+                    WHEN salary_from IS NOT NULL THEN salary_from::numeric
+                    WHEN salary_to IS NOT NULL THEN salary_to::numeric
+                    ELSE NULL
+                END as calculated_salary
+            FROM get_vacancies
+            WHERE published_at IS NOT NULL
+              AND professional_role IS NOT NULL
+              AND experience IS NOT NULL
+        ),
+        converted_data AS (
+            SELECT 
+                bd.professional_role,
+                bd.experience,
+                bd.month_start,
+                bd.currency,
+                bd.calculated_salary,
+                CASE 
+                    WHEN bd.currency IN ('RUR', 'USD') THEN bd.calculated_salary
+                    ELSE bd.calculated_salary * COALESCE(cr.rate_to_usd, 1.0)
+                END as converted_salary,
+                CASE 
+                    WHEN bd.currency = 'RUR' THEN 'RUR'
+                    WHEN bd.currency = 'USD' THEN 'USD'
+                    ELSE '%USD'
+                END as display_currency
+            FROM base_data bd
+            LEFT JOIN currency_rates cr ON bd.currency = cr.currency
+            WHERE bd.calculated_salary IS NOT NULL
+        ),
+        aggregated AS (
+            SELECT 
+                professional_role,
+                experience,
+                month_start,
+                display_currency,
+                COUNT(*) as count_with_salary,
+                AVG(converted_salary) as avg_salary,
+                MIN(converted_salary) as min_salary,
+                MAX(converted_salary) as max_salary,
+                array_agg(converted_salary ORDER BY converted_salary) as salary_values
+            FROM converted_data
+            GROUP BY professional_role, experience, month_start, display_currency
+        )
+        SELECT 
+            a.professional_role as role_id,
+            a.experience,
+            TO_CHAR(a.month_start, 'YYYY-MM') as month,
+            a.display_currency,
+            a.count_with_salary,
+            ROUND(a.avg_salary::numeric, 2) as average_salary,
+            (
+                CASE 
+                    WHEN array_length(a.salary_values, 1) % 2 = 1 THEN
+                        a.salary_values[(array_length(a.salary_values, 1) + 1) / 2]
+                    ELSE
+                        (a.salary_values[array_length(a.salary_values, 1) / 2] + 
+                         a.salary_values[array_length(a.salary_values, 1) / 2 + 1]) / 2
+                END
+            ) as median_salary,
+            (
+                SELECT cd.converted_salary
+                FROM converted_data cd
+                WHERE cd.professional_role = a.professional_role
+                  AND cd.experience = a.experience
+                  AND cd.month_start = a.month_start
+                  AND cd.display_currency = a.display_currency
+                GROUP BY cd.converted_salary
+                ORDER BY COUNT(*) DESC, cd.converted_salary
+                LIMIT 1
+            ) as mode_salary,
+            ROUND(a.min_salary::numeric, 2) as min_salary,
+            ROUND(a.max_salary::numeric, 2) as max_salary
+        FROM aggregated a
+        ORDER BY a.professional_role, a.experience, a.month_start, a.display_currency;
+    """
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    # Организуем данные: role -> month -> experience -> список валют со статистикой
+    salary_by_role = {}
+    for row in rows:
+        (role_id, experience, month, currency, count_with_salary,
+         avg_salary, median_salary, mode_salary, min_salary, max_salary) = row
+
+        if role_id is None:
+            role_key = "NULL"
+        else:
+            role_key = str(role_id)
+        role_name = mapping.get(role_key, f"ID {role_id} (неизвестная роль)")
+
+        if role_key not in salary_by_role:
+            salary_by_role[role_key] = {
+                'id': role_key,
+                'name': role_name,
+                'months': {}
+            }
+
+        if month not in salary_by_role[role_key]['months']:
+            salary_by_role[role_key]['months'][month] = {}
+
+        if experience not in salary_by_role[role_key]['months'][month]:
+            salary_by_role[role_key]['months'][month][experience] = {
+                'experience': experience,
+                'currencies': []
+            }
+
+        salary_by_role[role_key]['months'][month][experience]['currencies'].append({
+            'currency': currency,
+            'count_with_salary': count_with_salary,
+            'avg_salary': float(avg_salary) if avg_salary else 0,
+            'median_salary': float(median_salary) if median_salary else 0,
+            'mode_salary': float(mode_salary) if mode_salary else 0,
+            'min_salary': float(min_salary) if min_salary else 0,
+            'max_salary': float(max_salary) if max_salary else 0
+        })
+
+    # Агрегируем данные по всем месяцам для каждой роли и опыта
+    exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
+    result = []
+
+    for role_key, role_data in salary_by_role.items():
+        # Сначала формируем обычные месяцы
+        months_list = []
+        for month_str in sorted(role_data['months'].keys()):
+            exp_dict = role_data['months'][month_str]
+            exp_list = list(exp_dict.values())
+            exp_list.sort(key=lambda e: exp_order.get(e['experience'], 5))
+            months_list.append({
+                'month': month_str,
+                'experiences': exp_list
+            })
+
+        # --- Добавляем сводный месяц ---
+        # Собираем агрегированные данные по всем месяцам
+        agg_by_exp_currency = {}
+        for month_item in months_list:
+            for exp_item in month_item['experiences']:
+                exp_name = exp_item['experience']
+                for curr_item in exp_item['currencies']:
+                    key = (exp_name, curr_item['currency'])
+                    if key not in agg_by_exp_currency:
+                        agg_by_exp_currency[key] = {
+                            'count_with_salary': 0,
+                            'avg_salary_sum': 0,
+                            'avg_salary_count': 0,
+                            'min_salary': float('inf'),
+                            'max_salary': float('-inf'),
+                            'currency': curr_item['currency']
+                        }
+                    agg = agg_by_exp_currency[key]
+                    agg['count_with_salary'] += curr_item['count_with_salary']
+                    agg['avg_salary_sum'] += curr_item['avg_salary'] * curr_item['count_with_salary']
+                    agg['avg_salary_count'] += curr_item['count_with_salary']
+                    if curr_item['min_salary'] < agg['min_salary']:
+                        agg['min_salary'] = curr_item['min_salary']
+                    if curr_item['max_salary'] > agg['max_salary']:
+                        agg['max_salary'] = curr_item['max_salary']
+
+        # Формируем структуру для сводного месяца
+        all_experiences = {}
+        for (exp_name, currency), agg in agg_by_exp_currency.items():
+            if exp_name not in all_experiences:
+                all_experiences[exp_name] = {
+                    'experience': exp_name,
+                    'currencies': []
+                }
+            # Вычисляем среднюю взвешенную
+            avg_salary = agg['avg_salary_sum'] / agg['avg_salary_count'] if agg['avg_salary_count'] > 0 else 0
+            all_experiences[exp_name]['currencies'].append({
+                'currency': currency,
+                'count_with_salary': agg['count_with_salary'],
+                'avg_salary': round(avg_salary, 2),
+                'median_salary': None,  # не рассчитываем
+                'mode_salary': None,    # не рассчитываем
+                'min_salary': agg['min_salary'] if agg['min_salary'] != float('inf') else 0,
+                'max_salary': agg['max_salary'] if agg['max_salary'] != float('-inf') else 0
+            })
+
+        # Преобразуем в список и сортируем опыты
+        all_experiences_list = list(all_experiences.values())
+        all_experiences_list.sort(key=lambda e: exp_order.get(e['experience'], 5))
+
+        # Определяем количество месяцев для этой роли
+        num_months = len(months_list)
+        if num_months == 1:
+            month_title = "За 1 месяц"
+        elif 2 <= num_months <= 4:
+            month_title = f"За {num_months} месяца"
+        else:
+            month_title = f"За {num_months} месяцев"
+
+        # Создаём запись сводного месяца и вставляем в начало
+        summary_month = {
+            'month': month_title,
+            'experiences': all_experiences_list
+        }
+        months_list.insert(0, summary_month)
+
+        role_data['months_list'] = months_list
+        del role_data['months']
+        result.append(role_data)
+
+    result.sort(key=lambda x: x['name'])
+    return result
+
+def render_report(roles_data, weekday_data, skills_monthly_data, salary_data):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
@@ -553,11 +789,24 @@ def render_report(roles_data, weekday_data, skills_monthly_data):
                 'skills_monthly': smrole['months_list']
             }
 
+    for srole in salary_data:
+        role_id = srole['id']
+        if role_id in report_data['roles']:
+            report_data['roles'][role_id]['salary'] = srole['months_list']
+        else:
+            report_data['roles'][role_id] = {
+                'trend': None,
+                'weekdays': None,
+                'skills_monthly': None,
+                'salary': srole['months_list']
+            }
+
     report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
-    # Передаём skills_roles как пустой список, так как отдельная вкладка навыков больше не используется
     return template.render(roles=roles_data, weekday_roles=weekday_data,
-                           skills_roles=[], skills_monthly_roles=skills_monthly_data,
-                           current_date=current_date, current_time=current_time, report_data_json=report_data_json)
+                           skills_monthly_roles=skills_monthly_data,
+                           salary_roles=salary_data,
+                           current_date=current_date, current_time=current_time,
+                           report_data_json=report_data_json)
 
 
 def save_report(html_content):
@@ -597,7 +846,10 @@ def main():
     logging.info("Fetching skills monthly data...")
     skills_monthly_data = fetch_skills_monthly_data(mapping)
 
-    html = render_report(roles_data, weekday_data, skills_monthly_data)
+    logging.info("Fetching salary data...")
+    salary_data = fetch_salary_data(mapping)
+
+    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data)
     save_report(html)
     copy_styles()
     copy_js()

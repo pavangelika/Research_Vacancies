@@ -22,7 +22,7 @@
     <div id="role-{{ role_index }}" class="role-content">
         <h2>{{ role.name }} [ID: {{ role.id }}]</h2>
 
-        <!-- Вкладки выбора анализа (теперь 3) -->
+        <!-- Вкладки выбора анализа (4) -->
         <div class="tabs analysis-tabs">
             <button class="tab-button analysis-button active"
                     data-analysis-id="activity-{{ role_index }}"
@@ -32,7 +32,10 @@
                     onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="skills-monthly-{{ role_index }}"
-                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Топ-навыки</button>
+                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
+            <button class="tab-button analysis-button"
+                    data-analysis-id="salary-{{ role_index }}"
+                    onclick="switchAnalysis(event, 'salary-{{ role_index }}')">Анализ зарплат</button>
         </div>
 
         <!-- Вкладки по месяцам (только для анализа активности) -->
@@ -172,6 +175,73 @@
                 {% endfor %}
             {% else %}
                 <p>Нет данных по навыкам с разбивкой по месяцам для этой роли</p>
+            {% endif %}
+        </div>
+
+        <!-- Блок для анализа зарплат -->
+        {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
+        <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
+             data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
+            {% if salary_role and salary_role.months_list %}
+                <!-- Вкладки для выбора месяца -->
+                <div class="tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">
+                    {% for month_data in salary_role.months_list %}
+                    <button class="tab-button salary-month-button" onclick="openSalaryMonthTab(event, 'sal-month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
+                    {% endfor %}
+                </div>
+
+                <!-- Контейнеры для каждого месяца -->
+                {% for month_data in salary_role.months_list %}
+                {% set month_index = loop.index %}
+                <div id="sal-month-{{ role_index }}-{{ month_index }}" class="salary-month-content" data-month='{{ month_data | tojson }}' style="display: none;">
+                    <!-- Внутри месяца - вкладки для выбора опыта -->
+                    <div class="tabs salary-exp-tabs" style="justify-content: center; margin-top: 5px;">
+                        {% for exp in month_data.experiences %}
+                        <button class="tab-button salary-exp-button" onclick="openSalaryExpTab(event, 'sal-exp-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Контейнеры для каждого опыта внутри месяца -->
+                    {% for exp in month_data.experiences %}
+                    {% set exp_index = loop.index %}
+                    <div id="sal-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="salary-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
+                        <div class="analysis-flex">
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Валюта</th>
+                                            <th>Вакансий с з/п</th>
+                                            <th>Средняя</th>
+                                            <th>Медианная</th>
+                                            <th>Модальная</th>
+                                            <th>Мин.</th>
+                                            <th>Макс.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for curr in exp.currencies %}
+                                        <tr>
+                                            <td>{{ curr.currency }}</td>
+                                            <td>{{ curr.count_with_salary }}</td>
+                                            <td>{{ "{:,.0f}".format(curr.avg_salary) }}</td>
+                                            <td>{% if curr.median_salary is not none %}{{ "{:,.0f}".format(curr.median_salary) }}{% else %}—{% endif %}</td>
+                                            <td>{% if curr.mode_salary is not none %}{{ "{:,.0f}".format(curr.mode_salary) }}{% else %}—{% endif %}</td>
+                                            <td>{{ "{:,.0f}".format(curr.min_salary) }}</td>
+                                            <td>{{ "{:,.0f}".format(curr.max_salary) }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="plotly-graph" id="salary-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>Нет данных по зарплатам для этой роли</p>
             {% endif %}
         </div>
     </div>
