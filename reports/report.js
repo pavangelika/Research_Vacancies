@@ -541,34 +541,41 @@ function applySalaryViewMode(expDiv, entries) {
 }
 
 function buildSalaryBarChart(graphId, entries) {
-    var currencies = [...new Set(entries.map(e => e.currency))];
+    var container = document.getElementById(graphId);
+    if (!container) return;
+
+    var currencies = ['RUR', 'USD', '%USD'];
+    container.innerHTML = '<div class="salary-graphs-3">' +
+        currencies.map(c => '<div class="salary-graph-item"><div class="plotly-graph" id="' + graphId + '-' + c.replace('%', 'p') + '"></div></div>').join('') +
+    '</div>';
+
     var statuses = ['Открытая', 'Архивная'];
-    var data = [];
-    for (var status of statuses) {
+    for (var curr of currencies) {
+        var graphElId = graphId + '-' + curr.replace('%', 'p');
         var y = [];
-        for (var curr of currencies) {
+        for (var status of statuses) {
             var entry = entries.find(e => e.currency === curr && e.status === status);
             y.push(entry ? entry.avg_salary : 0);
         }
-        data.push({
-            x: currencies,
-            y: y,
-            name: status,
-            type: 'bar',
-            marker: { color: status === 'Открытая' ? CHART_COLORS.light : CHART_COLORS.dark }
-        });
-    }
 
-    var layout = {
-        barmode: 'group',
-        title: 'Средняя зарплата по валютам и статусу',
-        xaxis: { title: 'Валюта' },
-        yaxis: { title: 'Средняя зарплата' },
-        margin: { t: 50, b: 80, l: 50, r: 120 },
-        height: 400,
-        legend: { x: 1, y: 1, xanchor: 'left' }
-    };
-    Plotly.newPlot(graphId, data, layout);
+        var data = [{
+            x: statuses,
+            y: y,
+            name: curr,
+            type: 'bar',
+            marker: { color: [CHART_COLORS.light, CHART_COLORS.dark] }
+        }];
+
+        var layout = {
+            title: 'Средняя зарплата · ' + curr,
+            xaxis: { title: 'Статус' },
+            yaxis: { title: 'Средняя зарплата' },
+            margin: { t: 40, b: 50, l: 50, r: 20 },
+            height: 300,
+            showlegend: false
+        };
+        Plotly.newPlot(graphElId, data, layout);
+    }
 }
 
 function escapeHtml(value) {

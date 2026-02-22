@@ -32,6 +32,27 @@ body {
     scrollbar-color: rgba(140, 160, 180, 0.35) transparent;
 }
 
+/* Современные ссылки */
+a {
+    color: var(--primary);
+    text-decoration: none;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 2px;
+    transition: color 0.2s, opacity 0.2s;
+}
+a:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+a:active {
+    opacity: 0.85;
+}
+a:focus-visible {
+    outline: 2px solid var(--primary-light);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
 h1 {
     font-size: 1.8rem;
     font-weight: 400;
@@ -231,13 +252,16 @@ h1 {
     background: var(--tab-hover-bg);
 }
 .vacancy-modal-context {
-    padding: 10px 16px;
+    padding: 16px 16px;
     border-bottom: 1px solid var(--border-light);
     background: var(--surface-variant);
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex: 0 0 auto;
 }
 .context-table-wrap {
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 .context-table {
     width: max-content;
@@ -279,6 +303,8 @@ h1 {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+    min-height: 38px;
+    align-items: center;
 }
 .vacancy-filter-btn {
     background: var(--surface);
@@ -364,6 +390,15 @@ tr:hover { background-color: #f0f4f9; }
 .salary-table-container, .salary-graph-container {
     flex: 1 1 300px;
     min-width: 0;
+}
+.salary-graphs-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+.salary-graphs-3 .plotly-graph {
+    height: 300px;
 }
 .salary-view-toggle {
     display: flex;
