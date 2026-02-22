@@ -228,7 +228,7 @@
                             <div class="salary-main-content">
                                 <div class="salary-table-container">
                                     <div style="overflow-x: auto;">
-                                        <table>
+                                        <table id="salary-table-{{ role_index }}-{{ month_index }}-{{ exp_index }}">
                                             <thead>
                                                 <tr>
                                                     <th>Статус</th>
@@ -241,13 +241,13 @@
                                                     <th>Модальная</th>
                                                     <th>Мин</th>
                                                     <th>Макс</th>
-                                                    <th>Размах</th>
+                                                    <!-- столбец "Размах" удалён -->
                                                     <th>Топ-10 навыков</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {% for entry in exp.entries %}
-                                                <tr>
+                                                <tr class="salary-row" data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'>
                                                     <td>{{ entry.status }}</td>
                                                     <td>{{ entry.currency }}</td>
                                                     <td>{{ entry.total_vacancies }}</td>
@@ -258,8 +258,14 @@
                                                     <td>{% if entry.mode_salary is not none %}{{ "{:,.0f}".format(entry.mode_salary) }}{% else %}—{% endif %}</td>
                                                     <td>{{ "{:,.0f}".format(entry.min_salary) }}</td>
                                                     <td>{{ "{:,.0f}".format(entry.max_salary) }}</td>
-                                                    <td>{{ "{:,.0f}".format(entry.salary_range) }}</td>
                                                     <td>{{ entry.top_skills }}</td>
+                                                </tr>
+                                                <tr class="vacancy-details" style="display: none;">
+                                                    <td colspan="11">
+                                                        <div class="vacancy-list">
+                                                            Загрузка...
+                                                        </div>
+                                                    </td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>

@@ -570,6 +570,31 @@ function buildSalaryBarChart(graphId, entries) {
     };
     Plotly.newPlot(graphId, data, layout);
 }
+document.addEventListener('click', function(e) {
+    var row = e.target.closest('.salary-row');
+    if (!row) return;
+
+    e.preventDefault();
+    var detailsRow = row.nextElementSibling;
+    if (!detailsRow || !detailsRow.classList.contains('vacancy-details')) return;
+
+    if (detailsRow.style.display === 'none' || detailsRow.style.display === '') {
+        // Получаем список id
+        var vacancyIds = row.dataset.vacancyIds;
+        if (vacancyIds) {
+            try {
+                var ids = JSON.parse(vacancyIds);
+                var listHtml = '<strong>ID вакансий:</strong> ' + ids.join(', ');
+                detailsRow.querySelector('.vacancy-list').innerHTML = listHtml;
+            } catch (e) {
+                detailsRow.querySelector('.vacancy-list').innerHTML = 'Ошибка загрузки данных';
+            }
+        }
+        detailsRow.style.display = 'table-row';
+    } else {
+        detailsRow.style.display = 'none';
+    }
+});
 
 // ---------- Обработчик кликов по иконкам режимов ----------
 document.addEventListener('click', function(e) {

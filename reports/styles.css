@@ -169,6 +169,27 @@ h1 {
     margin: 0 auto;
 }
 
+/* Стили для раскрывающейся строки с вакансиями */
+.vacancy-details {
+    background-color: var(--surface-variant);
+}
+.vacancy-details td {
+    padding: 10px;
+}
+.vacancy-list {
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+.salary-row {
+    cursor: pointer;
+}
+.salary-row:hover {
+    background-color: var(--tab-hover-bg);
+}
+
 /* Таблицы */
 table {
     width: 100%;

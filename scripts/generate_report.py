@@ -527,7 +527,7 @@ def fetch_salary_data(mapping):
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Основной запрос для помесячной статистики
+    # Основной запрос для помесячной статистики (добавлен id и vacancy_ids)
     query_monthly = """
         WITH 
         currency_rates AS (
@@ -542,6 +542,7 @@ def fetch_salary_data(mapping):
         ),
         base_data AS (
             SELECT 
+                id,
                 professional_role,
                 experience,
                 DATE_TRUNC('month', published_at) as month_start,
@@ -561,6 +562,7 @@ def fetch_salary_data(mapping):
         ),
         converted_data AS (
             SELECT 
+                bd.id,
                 bd.professional_role,
                 bd.experience,
                 bd.month_start,
@@ -583,6 +585,7 @@ def fetch_salary_data(mapping):
         ),
         skills_split AS (
             SELECT 
+                cd.id,
                 cd.professional_role,
                 cd.experience,
                 cd.month_start,
@@ -601,7 +604,8 @@ def fetch_salary_data(mapping):
                 display_currency,
                 archived,
                 skill,
-                COUNT(*) as skill_count
+                COUNT(*) as skill_count,
+                array_agg(DISTINCT id) as skill_vacancy_ids  -- ids вакансий для навыка
             FROM skills_split
             GROUP BY professional_role, experience, month_start, display_currency, archived, skill
         ),
@@ -612,7 +616,8 @@ def fetch_salary_data(mapping):
                 month_start,
                 display_currency,
                 archived,
-                STRING_AGG(skill || ' (' || skill_count || ')', ', ' ORDER BY skill_count DESC, skill) as top_skills_list
+                STRING_AGG(skill || ' (' || skill_count || ')', ', ' ORDER BY skill_count DESC, skill) as top_skills_list,
+                array_agg(skill_vacancy_ids) as top_skills_vacancy_ids  -- массив массивов id для топ-10 навыков
             FROM (
                 SELECT 
                     *,
@@ -636,7 +641,8 @@ def fetch_salary_data(mapping):
                 AVG(cd.converted_salary) as avg_salary,
                 MIN(cd.converted_salary) as min_salary,
                 MAX(cd.converted_salary) as max_salary,
-                array_agg(cd.converted_salary ORDER BY cd.converted_salary) as salary_values
+                array_agg(cd.converted_salary ORDER BY cd.converted_salary) as salary_values,
+                array_agg(DISTINCT cd.id) as vacancy_ids  -- список id вакансий в группе
             FROM converted_data cd
             GROUP BY cd.professional_role, cd.experience, cd.month_start, cd.display_currency, cd.archived
         )
@@ -710,8 +716,9 @@ def fetch_salary_data(mapping):
             ) as mode_salary,
             ROUND(a.min_salary::numeric, 2) as min_salary,
             ROUND(a.max_salary::numeric, 2) as max_salary,
-            ROUND((a.max_salary - a.min_salary)::numeric, 2) as salary_range,
-            COALESCE(ts.top_skills_list, 'Нет данных о навыках') as top_skills
+            -- Убрано salary_range
+            COALESCE(ts.top_skills_list, 'Нет данных о навыках') as top_skills,
+            a.vacancy_ids  -- добавляем список id вакансий
         FROM aggregated a
         LEFT JOIN top_skills ts ON 
             ts.professional_role = a.professional_role
@@ -724,7 +731,7 @@ def fetch_salary_data(mapping):
     cur.execute(query_monthly)
     rows_monthly = cur.fetchall()
 
-    # Запрос для общих данных по всем месяцам (для сводного месяца)
+    # Запрос для общих данных по всем месяцам (для сводного месяца) – аналогичные изменения
     query_total = """
         WITH 
         currency_rates AS (
@@ -739,6 +746,7 @@ def fetch_salary_data(mapping):
         ),
         base_data AS (
             SELECT 
+                id,
                 professional_role,
                 experience,
                 currency,
@@ -757,6 +765,7 @@ def fetch_salary_data(mapping):
         ),
         converted_data AS (
             SELECT 
+                bd.id,
                 bd.professional_role,
                 bd.experience,
                 bd.currency,
@@ -778,6 +787,7 @@ def fetch_salary_data(mapping):
         ),
         skills_split AS (
             SELECT 
+                cd.id,
                 cd.professional_role,
                 cd.experience,
                 cd.display_currency,
@@ -794,7 +804,8 @@ def fetch_salary_data(mapping):
                 display_currency,
                 archived,
                 skill,
-                COUNT(*) as skill_count
+                COUNT(*) as skill_count,
+                array_agg(DISTINCT id) as skill_vacancy_ids
             FROM skills_split
             GROUP BY professional_role, experience, display_currency, archived, skill
         ),
@@ -804,7 +815,8 @@ def fetch_salary_data(mapping):
                 experience,
                 display_currency,
                 archived,
-                STRING_AGG(skill || ' (' || skill_count || ')', ', ' ORDER BY skill_count DESC, skill) as top_skills_list
+                STRING_AGG(skill || ' (' || skill_count || ')', ', ' ORDER BY skill_count DESC, skill) as top_skills_list,
+                array_agg(skill_vacancy_ids) as top_skills_vacancy_ids
             FROM (
                 SELECT 
                     *,
@@ -827,7 +839,8 @@ def fetch_salary_data(mapping):
                 AVG(cd.converted_salary) as avg_salary,
                 MIN(cd.converted_salary) as min_salary,
                 MAX(cd.converted_salary) as max_salary,
-                array_agg(cd.converted_salary ORDER BY cd.converted_salary) as salary_values
+                array_agg(cd.converted_salary ORDER BY cd.converted_salary) as salary_values,
+                array_agg(DISTINCT cd.id) as vacancy_ids
             FROM converted_data cd
             GROUP BY cd.professional_role, cd.experience, cd.display_currency, cd.archived
         )
@@ -894,8 +907,9 @@ def fetch_salary_data(mapping):
             ) as mode_salary,
             ROUND(a.min_salary::numeric, 2) as min_salary,
             ROUND(a.max_salary::numeric, 2) as max_salary,
-            ROUND((a.max_salary - a.min_salary)::numeric, 2) as salary_range,
-            COALESCE(ts.top_skills_list, 'Нет данных о навыках') as top_skills
+            -- Убрано salary_range
+            COALESCE(ts.top_skills_list, 'Нет данных о навыках') as top_skills,
+            a.vacancy_ids
         FROM aggregated a
         LEFT JOIN top_skills ts ON 
             ts.professional_role = a.professional_role
@@ -914,7 +928,7 @@ def fetch_salary_data(mapping):
     for row in rows_monthly:
         (role_id, experience, month, currency, status, total_vacancies,
          vacancies_with_salary, salary_percentage, avg_salary, median_salary,
-         mode_salary, min_salary, max_salary, salary_range, top_skills) = row
+         mode_salary, min_salary, max_salary, top_skills, vacancy_ids) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -938,7 +952,9 @@ def fetch_salary_data(mapping):
                 'entries': []
             }
 
-        # Добавляем запись
+        # Преобразуем массив id в список Python
+        vacancy_ids_list = list(vacancy_ids) if vacancy_ids else []
+
         entry = {
             'status': status,
             'currency': currency,
@@ -950,17 +966,17 @@ def fetch_salary_data(mapping):
             'mode_salary': float(mode_salary) if mode_salary else 0,
             'min_salary': float(min_salary) if min_salary else 0,
             'max_salary': float(max_salary) if max_salary else 0,
-            'salary_range': float(salary_range) if salary_range else 0,
-            'top_skills': top_skills
+            'top_skills': top_skills,
+            'vacancy_ids': vacancy_ids_list  # добавляем список id
         }
         salary_by_role[role_key]['months'][month][experience]['entries'].append(entry)
 
-    # Обработка общих данных (для сводного месяца)
+    # Обработка общих данных (для сводного месяца) – аналогично
     total_data = {}
     for row in rows_total:
         (role_id, experience, currency, status, total_vacancies,
          vacancies_with_salary, salary_percentage, avg_salary, median_salary,
-         mode_salary, min_salary, max_salary, salary_range, top_skills) = row
+         mode_salary, min_salary, max_salary, top_skills, vacancy_ids) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -980,11 +996,11 @@ def fetch_salary_data(mapping):
             'mode_salary': float(mode_salary) if mode_salary else 0,
             'min_salary': float(min_salary) if min_salary else 0,
             'max_salary': float(max_salary) if max_salary else 0,
-            'salary_range': float(salary_range) if salary_range else 0,
-            'top_skills': top_skills
+            'top_skills': top_skills,
+            'vacancy_ids': list(vacancy_ids) if vacancy_ids else []
         }
 
-    # Формирование итоговой структуры для каждой роли
+    # Формирование итоговой структуры для каждой роли (как ранее, но без salary_range)
     exp_order = {"Нет опыта": 1, "От 1 года до 3 лет": 2, "От 3 до 6 лет": 3, "Более 6 лет": 4}
     result = []
 
@@ -1001,8 +1017,6 @@ def fetch_salary_data(mapping):
 
         # Добавляем сводный месяц
         total_for_role = total_data.get(role_key, {})
-        # Группируем по опыту
-        # Группируем по опыту
         exp_dict_all = {}
         for (exp, currency, status), vals in total_for_role.items():
             if exp not in exp_dict_all:
@@ -1021,8 +1035,8 @@ def fetch_salary_data(mapping):
                 'mode_salary': vals['mode_salary'],
                 'min_salary': vals['min_salary'],
                 'max_salary': vals['max_salary'],
-                'salary_range': vals['salary_range'],
-                'top_skills': vals['top_skills']
+                'top_skills': vals['top_skills'],
+                'vacancy_ids': vals['vacancy_ids']
             }
             exp_dict_all[exp]['entries'].append(entry)
 
