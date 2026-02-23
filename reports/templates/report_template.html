@@ -18,6 +18,7 @@
                     <input type="checkbox" id="multi-role-toggle">
                     Мультивыбор
                 </label>
+                <button id="all-roles-toggle" class="role-selector-toggle" type="button" aria-pressed="false" title="Сводно по всем ролям">Σ</button>
                 <button id="role-selector-toggle" class="role-selector-toggle" type="button" aria-expanded="true" aria-controls="role-selector-panel">
                     ▼
                 </button>
@@ -313,6 +314,7 @@
     {% endfor %}
 
     <div id="role-combined" class="role-content" style="display: none;"></div>
+    <div id="role-all" class="role-content" style="display: none;"></div>
 
     <div id="vacancy-modal-backdrop" class="vacancy-modal-backdrop" style="display: none;">
         <div class="vacancy-modal" role="dialog" aria-modal="true" aria-labelledby="vacancy-modal-title">
