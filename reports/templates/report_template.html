@@ -94,7 +94,7 @@
                                 <td>{{ entry.total }}</td>
                                 <td>{{ entry.archived }}</td>
                                 <td>{{ entry.active }}</td>
-                                <td>{{ "%.1f"|format(entry.avg_age) }}</td>
+                                <td>{% if entry.avg_age is not none %}{{ "%.1f"|format(entry.avg_age) }}{% else %}—{% endif %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

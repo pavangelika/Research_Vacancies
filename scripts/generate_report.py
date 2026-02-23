@@ -59,7 +59,12 @@ def fetch_data(mapping):
                 archived,
                 experience,
                 professional_role,
-                EXTRACT(DAY FROM NOW() - published_at) AS age_days
+                published_at,
+                archived_at,
+                CASE
+                    WHEN archived = true THEN EXTRACT(EPOCH FROM (COALESCE(archived_at, NOW()) - published_at)) / 86400.0
+                    ELSE NULL
+                END AS age_days
             FROM get_vacancies
             WHERE published_at IS NOT NULL
         )
@@ -106,7 +111,7 @@ def fetch_data(mapping):
             'total': total,
             'archived': archived,
             'active': active,
-            'avg_age': float(avg_age) if avg_age is not None else 0
+            'avg_age': float(avg_age) if avg_age is not None else None
         })
 
         trends[role_key]['months'].append(month_str)
@@ -124,10 +129,11 @@ def fetch_data(mapping):
             entries = role_info['months_data'][month]
             total_active = sum(e['active'] for e in entries)
             total_archived = sum(e['archived'] for e in entries)
-            avg_age_month = sum(e['avg_age'] for e in entries) / len(entries) if entries else 0
+            age_vals = [e['avg_age'] for e in entries if e['avg_age'] is not None]
+            avg_age_month = sum(age_vals) / len(age_vals) if age_vals else None
             trend_data['active'].append(total_active)
             trend_data['archived'].append(total_archived)
-            trend_data['avg_age'].append(round(avg_age_month, 1))
+            trend_data['avg_age'].append(round(avg_age_month, 1) if avg_age_month is not None else None)
         role_info['trend'] = trend_data
 
     # Порядок опыта для сортировки
@@ -147,10 +153,11 @@ def fetch_data(mapping):
             entries = role_info['months_data'][month]
             entries.sort(key=lambda e: experience_order.get(e['experience'], default_order))
             max_archived = max(e['archived'] for e in entries) if entries else 0
-            max_age = max(e['avg_age'] for e in entries) if entries else 0
+            age_vals = [e['avg_age'] for e in entries if e['avg_age'] is not None]
+            max_age = max(age_vals) if age_vals else None
             for e in entries:
                 e['is_max_archived'] = (e['archived'] == max_archived)
-                e['is_max_age'] = (e['avg_age'] == max_age)
+                e['is_max_age'] = (max_age is not None and e['avg_age'] == max_age)
 
             # Добавляем итоговую строку "Всего" для текущего месяца
             total_entry = {
@@ -158,7 +165,7 @@ def fetch_data(mapping):
                 'total': sum(e['total'] for e in entries),
                 'archived': sum(e['archived'] for e in entries),
                 'active': sum(e['active'] for e in entries),
-                'avg_age': sum(e['avg_age'] for e in entries) / len(entries) if entries else 0,
+                'avg_age': (sum(age_vals) / len(age_vals) if age_vals else None),
                 'is_max_archived': False,
                 'is_max_age': False
             }
@@ -188,13 +195,14 @@ def fetch_data(mapping):
                 agg_exp[exp]['total'] += entry['total']
                 agg_exp[exp]['archived'] += entry['archived']
                 agg_exp[exp]['active'] += entry['active']
-                agg_exp[exp]['avg_age_sum'] += entry['avg_age']
-                agg_exp[exp]['count'] += 1
+                if entry['avg_age'] is not None:
+                    agg_exp[exp]['avg_age_sum'] += entry['avg_age']
+                    agg_exp[exp]['count'] += 1
 
         # Формируем записи для сводного месяца
         all_entries = []
         for exp, vals in agg_exp.items():
-            avg_age = vals['avg_age_sum'] / vals['count'] if vals['count'] > 0 else 0
+            avg_age = vals['avg_age_sum'] / vals['count'] if vals['count'] > 0 else None
             all_entries.append({
                 'experience': exp,
                 'total': vals['total'],
@@ -209,10 +217,11 @@ def fetch_data(mapping):
         # Вычисляем максимумы для сводного месяца
         if all_entries:
             max_archived = max(e['archived'] for e in all_entries)
-            max_age = max(e['avg_age'] for e in all_entries)
+            age_vals = [e['avg_age'] for e in all_entries if e['avg_age'] is not None]
+            max_age = max(age_vals) if age_vals else None
             for e in all_entries:
                 e['is_max_archived'] = (e['archived'] == max_archived)
-                e['is_max_age'] = (e['avg_age'] == max_age)
+                e['is_max_age'] = (max_age is not None and e['avg_age'] == max_age)
 
         # Добавляем итоговую строку "Всего" для сводного месяца
         total_all = {
@@ -220,10 +229,13 @@ def fetch_data(mapping):
             'total': sum(e['total'] for e in all_entries),
             'archived': sum(e['archived'] for e in all_entries),
             'active': sum(e['active'] for e in all_entries),
-            'avg_age': sum(e['avg_age'] for e in all_entries) / len(all_entries) if all_entries else 0,
+            'avg_age': None,
             'is_max_archived': False,
             'is_max_age': False
         }
+        total_age_vals = [e['avg_age'] for e in all_entries if e['avg_age'] is not None]
+        if total_age_vals:
+            total_all['avg_age'] = sum(total_age_vals) / len(total_age_vals)
         all_entries.append(total_all)
 
         # Определяем количество месяцев для этой роли
@@ -946,6 +958,7 @@ def fetch_salary_data(mapping):
             professional_role,
             experience,
             archived,
+            archived_at,
             published_at
         FROM get_vacancies
         WHERE published_at IS NOT NULL
@@ -1067,7 +1080,7 @@ def fetch_salary_data(mapping):
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
          skills, requirement, responsibility, apply_alternate_url, role_id,
-         experience, archived, published_at) = row
+         experience, archived, archived_at, published_at) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -1094,6 +1107,7 @@ def fetch_salary_data(mapping):
             converted_salary = calculated_salary if currency in ('RUR', 'USD') else calculated_salary * rate
 
         published_iso = published_at.isoformat() if published_at else None
+        archived_iso = archived_at.isoformat() if archived_at else None
         vacancy_obj = {
             'id': vac_id,
             'name': name,
@@ -1105,6 +1119,7 @@ def fetch_salary_data(mapping):
             'calculated_salary': calculated_salary,
             'converted_salary': converted_salary,
             'published_at': published_iso,
+            'archived_at': archived_iso,
             'role_id': role_key,
             'role_name': role_name,
             'skills': skills,

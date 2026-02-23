@@ -744,6 +744,97 @@ function computePublicationPeriod(vacancies) {
     return fmt(min) + ' - ' + fmt(max);
 }
 
+function computeAvgLifetimeDays(vacancies) {
+    var totalDays = 0;
+    var count = 0;
+    (vacancies || []).forEach(v => {
+        if (!v || !v.published_at || !v.archived_at) return;
+        var pub = new Date(v.published_at);
+        var arch = new Date(v.archived_at);
+        if (isNaN(pub) || isNaN(arch)) return;
+        var diffMs = arch - pub;
+        if (diffMs < 0) return;
+        totalDays += diffMs / (1000 * 60 * 60 * 24);
+        count += 1;
+    });
+    return count ? (totalDays / count) : null;
+}
+
+function buildLifetimeMapsFromSalaryMonths(salaryMonths) {
+    var byMonth = {};
+    var byMonthTotal = {};
+    var overallByExp = {};
+    var overallTotal = null;
+
+    (salaryMonths || []).forEach(m => {
+        if (!m || !m.month || isSummaryMonth(m.month)) return;
+        byMonth[m.month] = byMonth[m.month] || {};
+        var monthAll = [];
+        (m.experiences || []).forEach(exp => {
+            var expAll = [];
+            (exp.entries || []).forEach(entry => {
+                expAll = expAll.concat(entry.vacancies_with_salary_list || []);
+                expAll = expAll.concat(entry.vacancies_without_salary_list || []);
+            });
+            if (expAll.length) {
+                byMonth[m.month][exp.experience] = computeAvgLifetimeDays(expAll);
+                monthAll = monthAll.concat(expAll);
+            }
+            if (expAll.length) {
+                overallByExp[exp.experience] = overallByExp[exp.experience] || [];
+                overallByExp[exp.experience] = overallByExp[exp.experience].concat(expAll);
+            }
+        });
+        if (monthAll.length) {
+            byMonthTotal[m.month] = computeAvgLifetimeDays(monthAll);
+        }
+    });
+
+    var allVacs = [];
+    Object.keys(overallByExp).forEach(exp => {
+        allVacs = allVacs.concat(overallByExp[exp]);
+        overallByExp[exp] = computeAvgLifetimeDays(overallByExp[exp]);
+    });
+    if (allVacs.length) overallTotal = computeAvgLifetimeDays(allVacs);
+
+    return { byMonth: byMonth, byMonthTotal: byMonthTotal, overallByExp: overallByExp, overallTotal: overallTotal };
+}
+
+function applyLifetimeToActivityMonths(activityMonths, lifetimeMaps) {
+    if (!activityMonths || !activityMonths.length) return;
+    activityMonths.forEach(m => {
+        if (isSummaryMonth(m.month)) {
+            (m.entries || []).forEach(e => {
+                if (e.experience === 'Всего') {
+                    e.avg_age = lifetimeMaps.overallTotal;
+                } else {
+                    e.avg_age = lifetimeMaps.overallByExp[e.experience];
+                }
+            });
+        } else {
+            var monthMap = lifetimeMaps.byMonth[m.month] || {};
+            (m.entries || []).forEach(e => {
+                if (e.experience === 'Всего') {
+                    e.avg_age = lifetimeMaps.byMonthTotal[m.month];
+                } else {
+                    e.avg_age = monthMap[e.experience];
+                }
+            });
+        }
+
+        // пересчитать максимум возраста
+        var maxAge = null;
+        (m.entries || []).forEach(e => {
+            if (e.experience === 'Всего') return;
+            if (e.avg_age === null || e.avg_age === undefined) return;
+            if (maxAge === null || e.avg_age > maxAge) maxAge = e.avg_age;
+        });
+        (m.entries || []).forEach(e => {
+            e.is_max_age = (maxAge !== null && e.avg_age === maxAge);
+        });
+    });
+}
+
 function collectVacanciesFromSalaryMonths(salaryMonths) {
     var all = [];
     (salaryMonths || []).forEach(m => {
@@ -1181,11 +1272,11 @@ function aggregateSalary(roleContents) {
 
 function computeRoleActivitySummary(roleContent) {
     var months = getRoleActivityMonths(roleContent);
+    var salaryMonths = getRoleSalaryData(roleContent);
+    var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
     var total = 0;
     var archived = 0;
     var active = 0;
-    var ageSum = 0;
-    var ageCount = 0;
     var expMap = {};
     months.forEach(m => {
         if (isSummaryMonth(m.month)) return;
@@ -1194,16 +1285,12 @@ function computeRoleActivitySummary(roleContent) {
             total += summary.total || 0;
             archived += summary.archived || 0;
             active += summary.active || 0;
-            ageSum += (summary.avg_age || 0);
-            ageCount += 1;
         } else {
             (m.entries || []).forEach(e => {
                 if (e.experience === 'Всего') return;
                 total += e.total || 0;
                 archived += e.archived || 0;
                 active += e.active || 0;
-                ageSum += (e.avg_age || 0);
-                ageCount += 1;
                 var bucket = expMap[e.experience] || { experience: e.experience, total: 0, archived: 0, active: 0 };
                 bucket.total += e.total || 0;
                 bucket.archived += e.archived || 0;
@@ -1212,7 +1299,7 @@ function computeRoleActivitySummary(roleContent) {
             });
         }
     });
-    var avgAge = ageCount ? (ageSum / ageCount) : 0;
+    var avgAge = computeAvgLifetimeDays(allVacancies);
     var expOrder = getExperienceOrder();
     var expBreakdown = Object.values(expMap).sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
     return { total: total, archived: archived, active: active, avg_age: avgAge, exp_breakdown: expBreakdown };
@@ -1340,7 +1427,7 @@ function renderAllRolesContainer(container, roleContents) {
                                     '<td' + leadActive + '>' + r.active + '</td>' +
                                     '<td>' + r.archived + '</td>' +
                                     '<td>' + r.total + '</td>' +
-                                    '<td>' + (r.avg_age ? r.avg_age.toFixed(1) : '—') + '</td>' +
+                                    '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '—') + '</td>' +
                                     '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '—') + '</td>' +
                                 '</tr>' + details;
                             }).join('') +
@@ -1422,7 +1509,7 @@ function buildAllRolesActivityChart(rows) {
     var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
     var activeVals = rows.map(r => r.active || 0);
     var archivedVals = rows.map(r => r.archived || 0);
-    var ageVals = rows.map(r => r.avg_age || 0);
+    var ageVals = rows.map(r => (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : null));
     var traceActive = {
         x: labels,
         y: activeVals,
@@ -1749,6 +1836,9 @@ function renderCombinedContainer(container, roleContents) {
     var skillsMonthly = aggregateSkillsMonthly(roleContents);
     var salaryMonths = aggregateSalary(roleContents);
 
+    var lifetimeMaps = buildLifetimeMapsFromSalaryMonths(salaryMonths);
+    applyLifetimeToActivityMonths(activityMonths, lifetimeMaps);
+
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
     var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
     var period = computePublicationPeriod(allVacancies) || '—';
@@ -1776,7 +1866,7 @@ function renderCombinedContainer(container, roleContents) {
                                     '<td>' + e.total + '</td>' +
                                     '<td>' + e.archived + '</td>' +
                                     '<td>' + e.active + '</td>' +
-                                    '<td>' + (Number(e.avg_age).toFixed(1)) + '</td>' +
+                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td>' +
                                 '</tr>'
                             )).join('') +
                         '</tbody>' +
