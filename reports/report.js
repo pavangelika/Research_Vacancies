@@ -43,7 +43,7 @@ function openRoleTab(evt, roleId) {
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
 
-    var savedType = uiState[getAnalysisStateKey(roleId)] || uiState.global_analysis_type;
+    var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(roleId)];
     if (savedType) {
         var targetId = savedType + '-' + roleId.split('-')[1];
         var targetButton = document.querySelector("#" + roleId + " .analysis-button[data-analysis-id='" + targetId + "']");
@@ -104,51 +104,6 @@ function switchAnalysis(evt, analysisId) {
 }
 
 // ---------- Анализ активности ----------
-function openActivityAllTab(evt, tabId) {
-    var wrapper = evt.currentTarget.closest('.activity-all-wrapper');
-    if (!wrapper) return;
-    var contents = wrapper.querySelectorAll('.activity-all-content');
-    contents.forEach(c => c.style.display = 'none');
-    var buttons = wrapper.querySelectorAll('.month-button');
-    buttons.forEach(b => b.classList.remove('active'));
-    var target = document.getElementById(tabId);
-    if (target) target.style.display = 'block';
-    evt.currentTarget.classList.add('active');
-    var entries = [];
-    try {
-        var raw = target ? (target.getAttribute('data-entries') || '[]') : '[]';
-        try { raw = decodeURIComponent(raw); } catch (_e) {}
-        entries = JSON.parse(raw);
-    } catch (_e2) {}
-    if (target) {
-        var mainId = target.querySelector('.plotly-graph-main') ? target.querySelector('.plotly-graph-main').id : 'activity-graph-all';
-        var ageId = target.querySelector('.plotly-graph-age') ? target.querySelector('.plotly-graph-age').id : 'activity-age-graph-all';
-        buildAllRolesActivityChart(entries, mainId, ageId);
-    }
-}
-
-function openWeekdayAllTab(evt, tabId) {
-    var wrapper = evt.currentTarget.closest('.weekday-all-wrapper');
-    if (!wrapper) return;
-    var contents = wrapper.querySelectorAll('.weekday-all-content');
-    contents.forEach(c => c.style.display = 'none');
-    var buttons = wrapper.querySelectorAll('.month-button');
-    buttons.forEach(b => b.classList.remove('active'));
-    var target = document.getElementById(tabId);
-    if (target) target.style.display = 'block';
-    evt.currentTarget.classList.add('active');
-    var entries = [];
-    try {
-        var raw = target ? (target.getAttribute('data-entries') || '[]') : '[]';
-        try { raw = decodeURIComponent(raw); } catch (_e) {}
-        entries = JSON.parse(raw);
-    } catch (_e2) {}
-    if (target) {
-        var graphId = target.querySelector('.plotly-graph') ? target.querySelector('.plotly-graph').id : 'weekday-graph-all';
-        buildAllRolesWeekdayChart(entries, graphId);
-    }
-}
-
 function openMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -185,19 +140,19 @@ function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'activity');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_activity_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_activity_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_activity_month) {
+    var stateKey = getStateKey(roleId, 'activity');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_activity_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -276,19 +231,19 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_skills_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_skills_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_skills_month) {
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -330,19 +285,19 @@ function restoreExpInMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
-    if (saved && saved.experience) {
+    if (uiState.global_skills_experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === saved.experience) {
+            if (btn.textContent.trim() === uiState.global_skills_experience) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_skills_experience) {
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    if (saved && saved.experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_experience) {
+            if (btn.textContent.trim() === saved.experience) {
                 btn.click();
                 return;
             }
@@ -423,19 +378,19 @@ function restoreSalaryState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.salary-month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'salary');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_salary_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_salary_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_salary_month) {
+    var stateKey = getStateKey(roleId, 'salary');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_salary_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -477,19 +432,19 @@ function restoreExpInSalaryMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.salary-exp-button');
     if (expButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'salary');
-    var saved = uiState[stateKey];
-    if (saved && saved.experience) {
+    if (uiState.global_salary_experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === saved.experience) {
+            if (btn.textContent.trim() === uiState.global_salary_experience) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_salary_experience) {
+    var stateKey = getStateKey(roleId, 'salary');
+    var saved = uiState[stateKey];
+    if (saved && saved.experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_salary_experience) {
+            if (btn.textContent.trim() === saved.experience) {
                 btn.click();
                 return;
             }
@@ -738,14 +693,14 @@ function normalizeExperience(exp) {
     if (e === labels.threeToSix) return labels.threeToSix;
     if (e === labels.sixPlus) return labels.sixPlus;
     // mojibake or mixed encodings
-    if (e.indexOf('\u041d\u0435\u0442 \u043e\u043f\u044b\u0442\u0430') >= 0) return labels.none;
+    if (e.indexOf('??? ?????') >= 0) return labels.none;
     if (e.indexOf('?? 1') >= 0 && e.indexOf('3') >= 0) return labels.oneToThree;
     if (e.indexOf('?? 3') >= 0 && e.indexOf('6') >= 0) return labels.threeToSix;
-    if (e.indexOf('\u0411\u043e\u043b\u0435\u0435 6') >= 0) return labels.sixPlus;
+    if (e.indexOf('????? 6') >= 0) return labels.sixPlus;
     // digit-based fallback
     if (e.indexOf('1') >= 0 && e.indexOf('3') >= 0) return labels.oneToThree;
     if (e.indexOf('3') >= 0 && e.indexOf('6') >= 0) return labels.threeToSix;
-    if (e.indexOf('6') >= 0 && (e.indexOf('\u0411\u043e\u043b\u0435\u0435') >= 0 || e.indexOf('+') >= 0)) return labels.sixPlus;
+    if (e.indexOf('6') >= 0 && (e.indexOf('?????') >= 0 || e.indexOf('+') >= 0)) return labels.sixPlus;
     return e;
 }
 
@@ -757,17 +712,6 @@ function getExperienceOrder() {
         [labels.threeToSix]: 3,
         [labels.sixPlus]: 4
     };
-}
-
-function formatMonthLabel(monthStr) {
-    if (!monthStr) return monthStr;
-    var parts = String(monthStr).split('-');
-    if (parts.length < 2) return monthStr;
-    var year = parts[0];
-    var month = parseInt(parts[1], 10);
-    var names = ['\u0411\u043e\u043b\u0435\u0435?','\u0411\u043e\u043b\u0435\u0435??','\u0420\u043e\u043b\u044c','\u0411\u043e\u043b\u0435\u0435?','???','\u0420\u043e\u043b\u044c','\u0420\u043e\u043b\u044c','\u0411\u043e\u043b\u0435\u0435?','\u0411\u043e\u043b\u0435\u0435???','\u0411\u043e\u043b\u0435\u0435??','\u0411\u043e\u043b\u0435\u0435?','\u0411\u043e\u043b\u0435\u0435??'];
-    if (!month || month < 1 || month > 12) return monthStr;
-    return names[month - 1] + ' ' + year;
 }
 
 function formatMonthTitle(numMonths) {
@@ -963,12 +907,6 @@ function getRoleSkillsMonthlyData(roleContent) {
     if (!block) return [];
     return parseJsonDataset(block, 'skillsMonthly', []);
 }
-function getRoleWeekdayMonthlyData(roleContent) {
-    var weekdayBlock = roleContent.querySelector('.weekday-content');
-    if (!weekdayBlock) return [];
-    return parseJsonDataset(weekdayBlock, 'weekdaysMonthly', []);
-}
-
 
 function getRoleActivityMonths(roleContent) {
     var monthBlocks = roleContent.querySelectorAll('.month-content');
@@ -981,27 +919,6 @@ function getRoleActivityMonths(roleContent) {
     return months;
 }
 
-
-function aggregateWeekdayMonths(roleContents) {
-    var byMonth = {};
-    roleContents.forEach(rc => {
-        var name = rc.dataset.roleName || '';
-        var id = rc.dataset.roleId || '';
-        var months = getRoleWeekdayMonthlyData(rc);
-        (months || []).forEach(m => {
-            if (!m.month) return;
-            var key = m.month;
-            byMonth[key] = byMonth[key] || [];
-            var s = computeWeekdaySummary(m.weekdays || []);
-            byMonth[key].push({ name: name, id: id, avg_pub: s.avg_pub, avg_arch: s.avg_arch });
-        });
-    });
-    return Object.keys(byMonth).sort().map(month => {
-        var entries = byMonth[month];
-        entries.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
-        return { month: month, label: formatMonthLabel(month), entries: entries };
-    });
-}
 function aggregateActivity(roleContents) {
     var expOrder = getExperienceOrder();
     var byMonth = {};
@@ -1009,7 +926,6 @@ function aggregateActivity(roleContents) {
         var months = getRoleActivityMonths(roleContent);
         months.forEach(m => {
             if (isSummaryMonth(m.month)) return;
-        if (monthFilter && m.month !== monthFilter) return;
             byMonth[m.month] = byMonth[m.month] || {};
             m.entries.forEach(e => {
                 if (e.experience === 'Всего') return;
@@ -1142,7 +1058,6 @@ function aggregateSkillsMonthly(roleContents) {
         var months = getRoleSkillsMonthlyData(roleContent);
         months.forEach(m => {
             if (isSummaryMonth(m.month)) return;
-        if (monthFilter && m.month !== monthFilter) return;
             byMonth[m.month] = byMonth[m.month] || {};
             (m.experiences || []).forEach(exp => {
                 var bucket = byMonth[m.month][exp.experience] || { total: 0, skills: new Map() };
@@ -1263,7 +1178,6 @@ function aggregateSalary(roleContents) {
         var months = getRoleSalaryData(roleContent);
         months.forEach(m => {
             if (isSummaryMonth(m.month)) return;
-        if (monthFilter && m.month !== monthFilter) return;
             allMonths.add(m.month);
             byMonth[m.month] = byMonth[m.month] || {};
             expSetByMonth[m.month] = expSetByMonth[m.month] || new Set();
@@ -1388,7 +1302,7 @@ function aggregateSalary(roleContents) {
     return monthsList;
 }
 
-function computeRoleActivitySummary(roleContent, monthFilter) {
+function computeRoleActivitySummary(roleContent) {
     var months = getRoleActivityMonths(roleContent);
     var salaryMonths = getRoleSalaryData(roleContent);
     var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
@@ -1398,7 +1312,6 @@ function computeRoleActivitySummary(roleContent, monthFilter) {
     var expMap = {};
     months.forEach(m => {
         if (isSummaryMonth(m.month)) return;
-        if (monthFilter && m.month !== monthFilter) return;
         var labels = getExperienceLabels();
         var summary = (m.entries || []).find(e => normalizeExperience(e.experience) === labels.total);
         if (summary) {
@@ -1471,15 +1384,7 @@ function computeRoleWeekdaySummary(roleContent) {
     var totalPub = days.reduce((s, d) => s + (d.publications || 0), 0);
     var totalArch = days.reduce((s, d) => s + (d.archives || 0), 0);
     var count = days.length || 1;
-    return { avg_pub: totalPub / count, avg_arch: totalArch / count }
-function computeWeekdaySummary(weekdays) {
-    if (!weekdays || !weekdays.length) return { avg_pub: 0, avg_arch: 0 };
-    var totalPub = weekdays.reduce((s, d) => s + (d.publications || 0), 0);
-    var totalArch = weekdays.reduce((s, d) => s + (d.archives || 0), 0);
-    var count = weekdays.length || 1;
     return { avg_pub: totalPub / count, avg_arch: totalArch / count };
-}
-;
 }
 
 function computeRoleSkillsSummary(roleContent) {
@@ -1488,7 +1393,6 @@ function computeRoleSkillsSummary(roleContent) {
     var totalVac = 0;
     months.forEach(m => {
         if (isSummaryMonth(m.month)) return;
-        if (monthFilter && m.month !== monthFilter) return;
         (m.experiences || []).forEach(exp => {
             totalVac += exp.total_vacancies || 0;
             (exp.skills || []).forEach(s => {
@@ -1525,143 +1429,11 @@ function computeRoleSalarySkills(roleContent) {
     return list.slice(0, 10);
 }
 
-function buildActivityAllTable(activityRows) {
-    var maxActive = Math.max(...activityRows.map(r => r.active || 0), 0);
-    var maxRatio = Math.max(...activityRows.map(r => (r.active ? (r.archived / r.active) : 0)), 0);
-    activityRows.sort((a, b) => {
-        var ra = a.active ? (a.archived / a.active) : 0;
-        var rb = b.active ? (b.archived / b.active) : 0;
-        return rb - ra;
-    });
-    return '<div class=\"analysis-flex view-mode-container\" data-analysis=\"activity\">' +
-        '<div class=\"table-container activity-all-table-container\">' +
-            '<table class=\"activity-all-table\">' +
-                '<colgroup><col><col><col><col><col><col></colgroup>' +
-                '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>\u0411\u043e\u043b\u0435\u0435???</th><th>\u0411\u043e\u043b\u0435\u0435???</th><th>\u0411\u043e\u043b\u0435\u0435</th><th>??. \u0411\u043e\u043b\u0435\u0435??</th><th>???/\u0420\u043e\u043b\u044c</th></tr></thead>' +
-                '<tbody>' +
-                    activityRows.map(r => {
-                        var ratio = r.active ? (r.archived / r.active) : 0;
-                        var leadActive = r.active === maxActive && maxActive > 0 ? ' class=\"leader\"' : '';
-                        var leadRatio = ratio === maxRatio && maxRatio > 0 ? ' class=\"leader\"' : '';
-                        var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
-                            '<tr class=\"activity-all-details\" style=\"display: none;\">' +
-                                '<td colspan=\"6\">' +
-                                    '<div class=\"table-container activity-all-table-container\">' +
-                                        '<table class=\"details-table align-activity\">' +
-                                            '<colgroup><col><col><col><col><col><col></colgroup>' +
-                                            '<tbody>' +
-                                                r.exp_breakdown.map(e => (
-                                                    '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '\u2014') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '\u2014') + '</td></tr>'
-                                                )).join('') +
-                                            '</tbody>' +
-                                        '</table>' +
-                                    '</div>' +
-                                '</td>' +
-                            '</tr>'
-                        ) : '';
-                        return '<tr class=\"activity-all-row\">' +
-                            '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
-                            '<td' + leadActive + '>' + r.active + '</td>' +
-                            '<td>' + r.archived + '</td>' +
-                            '<td>' + r.total + '</td>' +
-                            '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '\u2014') + '</td>' +
-                            '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '\u2014') + '</td>' +
-                        '</tr>' + details;
-                    }).join('') +
-                '</tbody>' +
-            '</table>' +
-        '</div>' +
-    '</div>';
-}
-
 function renderAllRolesContainer(container, roleContents) {
     var activityRows = roleContents.map(rc => {
         var s = computeRoleActivitySummary(rc);
         return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
     });
-    var activityMonths = [];
-    var activityMonthSet = new Set();
-    roleContents.forEach(rc => {
-        getRoleActivityMonths(rc).forEach(m => {
-            if (m && m.month && !isSummaryMonth(m.month)) activityMonthSet.add(m.month);
-        });
-    });
-    activityMonths = Array.from(activityMonthSet).sort();
-    var activityAllHtml = '';
-    var activitySummaryId = 'activity-all-summary';
-    var activityTabs = '<div class=\"tabs month-tabs\">' +
-        '<button class=\"tab-button month-button\" onclick=\"openActivityAllTab(event, \\"' + activitySummaryId + '\\")\">\u0417\u0430 \u0432\u0435\u0441\u044c \u043f\u0435\u0440\u0438\u043e\u0434</button>' +
-        activityMonths.map((m, i) => '<button class=\"tab-button month-button\" onclick=\"openActivityAllTab(event, \\"activity-all-' + (i + 1) + '\\")\">' + formatMonthLabel(m) + '</button>').join('') +
-    '</div>';
-    var summaryRows = activityRows;
-    var summaryTable = buildActivityAllTable(summaryRows);
-    var summaryContent = '<div id=\"' + activitySummaryId + '\" class=\"activity-all-content\" data-entries=\"' + encodeURIComponent(JSON.stringify(summaryRows)) + '\" style=\"display: none;\">' +
-        summaryTable +
-        '<div class=\"plotly-graph activity-graph-wrap\">' +
-            '<div class=\"activity-graph-item\"><div class=\"plotly-graph-main\" id=\"activity-graph-all\"></div></div>' +
-            '<div class=\"activity-graph-item\"><div class=\"plotly-graph-age\" id=\"activity-age-graph-all\"></div></div>' +
-        '</div>' +
-    '</div>';
-    var monthContents = activityMonths.map((m, i) => {
-        var rows = roleContents.map(rc => {
-            var s = computeRoleActivitySummary(rc, m);
-            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
-        });
-        var table = buildActivityAllTable(rows);
-        return '<div id=\"activity-all-' + (i + 1) + '\" class=\"activity-all-content\" data-entries=\"' + encodeURIComponent(JSON.stringify(rows)) + '\" style=\"display: none;\">' +
-            table +
-            '<div class=\"plotly-graph activity-graph-wrap\">' +
-                '<div class=\"activity-graph-item\"><div class=\"plotly-graph-main\" id=\"activity-graph-all-' + (i + 1) + '\"></div></div>' +
-                '<div class=\"activity-graph-item\"><div class=\"plotly-graph-age\" id=\"activity-age-graph-all-' + (i + 1) + '\"></div></div>' +
-            '</div>' +
-        '</div>';
-    }).join('');
-    activityAllHtml = '<div class=\"activity-all-wrapper\">' + activityTabs + summaryContent + monthContents + '</div>';
-
-    var weekdayMonths = aggregateWeekdayMonths(roleContents);
-    var weekdayAllHtml = '';
-    var summaryId = 'weekday-all-summary';
-    var tabs = '<div class=\"tabs month-tabs\">' +
-        '<button class=\"tab-button month-button\" onclick=\"openWeekdayAllTab(event, \\"' + summaryId + '\\")\">\u0417\u0430 \u0432\u0435\u0441\u044c \u043f\u0435\u0440\u0438\u043e\u0434</button>' +
-        weekdayMonths.map((m, i) => '<button class=\"tab-button month-button\" onclick=\"openWeekdayAllTab(event, \\"weekday-all-' + (i + 1) + '\\")\">' + m.label + '</button>').join('') +
-    '</div>';
-    var summaryTable = '<div id=\"' + summaryId + '\" class=\"weekday-all-content\" data-entries=\"' + encodeURIComponent(JSON.stringify(weekdayRows)) + '\" style=\"display: none;\">' +
-        '<div class=\"view-toggle-horizontal\">' +
-            '<button class=\"view-mode-btn table-btn active\" data-view=\"table\" title=\"\u0411\u043e\u043b\u0435\u0435??\">\u0411\u043e\u043b\u0435\u0435??</button>' +
-            '<button class=\"view-mode-btn graph-btn\" data-view=\"graph\" title=\"\u0411\u043e\u043b\u0435\u0435?\">\u0411\u043e\u043b\u0435\u0435?</button>' +
-        '</div>' +
-        '<div class=\"analysis-flex view-mode-container\" data-analysis=\"weekday\">' +
-            '<div class=\"table-container\">' +
-                '<table>' +
-                    '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>??. \u0411\u043e\u043b\u0435\u0435\u0411\u043e\u043b\u0435\u0435/\u0420\u043e\u043b\u044c</th><th>??. \u0411\u043e\u043b\u0435\u0435??/\u0420\u043e\u043b\u044c</th></tr></thead>' +
-                    '<tbody>' +
-                        weekdayRows.map(r => ('<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>')).join('') +
-                    '</tbody>' +
-                '</table>' +
-            '</div>' +
-            '<div class=\"plotly-graph\" id=\"weekday-graph-all-summary\"></div>' +
-        '</div>' +
-    '</div>';
-    var monthTables = weekdayMonths.map((m, i) => (
-        '<div id=\"weekday-all-' + (i + 1) + '\" class=\"weekday-all-content\" data-entries=\"' + encodeURIComponent(JSON.stringify(m.entries)) + '\" style=\"display: none;\">' +
-            '<div class=\"view-toggle-horizontal\">' +
-                '<button class=\"view-mode-btn table-btn active\" data-view=\"table\" title=\"\u0411\u043e\u043b\u0435\u0435??\">\u0411\u043e\u043b\u0435\u0435??</button>' +
-                '<button class=\"view-mode-btn graph-btn\" data-view=\"graph\" title=\"\u0411\u043e\u043b\u0435\u0435?\">\u0411\u043e\u043b\u0435\u0435?</button>' +
-            '</div>' +
-            '<div class=\"analysis-flex view-mode-container\" data-analysis=\"weekday\">' +
-                '<div class=\"table-container\">' +
-                    '<table>' +
-                        '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>??. \u0411\u043e\u043b\u0435\u0435\u0411\u043e\u043b\u0435\u0435/\u0420\u043e\u043b\u044c</th><th>??. \u0411\u043e\u043b\u0435\u0435??/\u0420\u043e\u043b\u044c</th></tr></thead>' +
-                        '<tbody>' +
-                            m.entries.map(r => ('<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>')).join('') +
-                        '</tbody>' +
-                    '</table>' +
-                '</div>' +
-                '<div class=\"plotly-graph\" id=\"weekday-graph-all-' + (i + 1) + '\"></div>' +
-            '</div>' +
-        '</div>'
-    )).join('');
-    weekdayAllHtml = '<div class=\"weekday-all-wrapper\">' + tabs + summaryTable + monthTables + '</div>';
     var maxActive = Math.max(...activityRows.map(r => r.active || 0), 0);
     var maxRatio = Math.max(...activityRows.map(r => (r.active ? (r.archived / r.active) : 0)), 0);
     activityRows.sort((a, b) => {
@@ -1694,13 +1466,72 @@ function renderAllRolesContainer(container, roleContents) {
             '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
         '</div>' +
-        '<div class=\"month-content activity-only\" data-analysis=\"activity-all\">' +
-            activityAllHtml +
+        '<div class="month-content activity-only" data-analysis="activity-all">' +
+            '<div class="view-toggle-horizontal">' +
+                '<button class="view-mode-btn together-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '</div>' +
+            '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
+                '<div class="table-container activity-all-table-container">' +
+                    '<table class="activity-all-table">' +
+                        '<colgroup>' +
+                            '<col><col><col><col><col><col>' +
+                        '</colgroup>' +
+                        '<thead><tr><th>Роль</th><th>Открытых</th><th>Архивных</th><th>Всего</th><th>Ср. возраст</th><th>Арх/Откр</th></tr></thead>' +
+                        '<tbody>' +
+                            activityRows.map(r => {
+                                var ratio = r.active ? (r.archived / r.active) : 0;
+                                var leadActive = r.active === maxActive && maxActive > 0 ? ' class="leader"' : '';
+                                var leadRatio = ratio === maxRatio && maxRatio > 0 ? ' class="leader"' : '';
+                                var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
+                                    '<tr class="activity-all-details" style="display: none;">' +
+                                        '<td colspan="6">' +
+                                            '<div class="table-container activity-all-table-container">' +
+                                                '<table class="details-table align-activity">' +
+                                                    '<colgroup>' +
+                                                        '<col><col><col><col><col><col>' +
+                                                    '</colgroup>' +
+                                                    '<thead><tr><th>Опыт</th><th>Открытых</th><th>Архивных</th><th>Всего</th></tr></thead>' +
+                                                    '<tbody>' +
+                                                        r.exp_breakdown.map(e => (
+                                                            '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '\u2014') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '\u2014') + '</td></tr>'
+                                                        )).join('') +
+                                                    '</tbody>' +
+                                                '</table>' +
+                                            '</div>' +
+                                        '</td>' +
+                                    '</tr>'
+                                ) : '';
+                                return '<tr class="activity-all-row">' +
+                                    '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
+                                    '<td' + leadActive + '>' + r.active + '</td>' +
+                                    '<td>' + r.archived + '</td>' +
+                                    '<td>' + r.total + '</td>' +
+                                    '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '—') + '</td>' +
+                                    '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '—') + '</td>' +
+                                '</tr>' + details;
+                            }).join('') +
+                        '</tbody>' +
+                    '</table>' +
+                '</div>' +
+                '<div class="plotly-graph activity-graph-wrap"><div class="activity-graph-item"><div id="activity-graph-all"></div></div><div class="activity-graph-item"><div id="activity-age-graph-all"></div></div></div>' +
+            '</div>' +
         '</div>' +
-<div class=\"weekday-content\" data-analysis=\"weekday-all\" style=\"display: none;\">' +
-            weekdayAllHtml +
+        '<div class="weekday-content" data-analysis="weekday-all" style="display: none;">' +
+            '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архивов/день</th></tr></thead>' +
+                        '<tbody>' +
+                            weekdayRows.map(r => (
+                                '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
+                            )).join('') +
+                        '</tbody>' +
+                    '</table>' +
+                '</div>' +
+            '</div>' +
         '</div>' +
-<div class="skills-monthly-content" data-analysis="skills-monthly-all" style="display: none;">' +
+        '<div class="skills-monthly-content" data-analysis="skills-monthly-all" style="display: none;">' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container">' +
                     '<table>' +
@@ -1746,23 +1577,11 @@ function renderAllRolesContainer(container, roleContents) {
 
     var activityAll = container.querySelector('[data-analysis="activity-all"]');
     if (activityAll) {
-        var actWrap = container.querySelector('.activity-all-wrapper');
-        if (actWrap) {
-            var firstAct = actWrap.querySelector('.month-button');
-            if (firstAct) firstAct.click();
-        } else {
-            activityAll._data = { entries: activityRows };
-            buildAllRolesActivityChart(activityRows);
-            var viewBtns = activityAll.querySelectorAll('.view-mode-btn');
-            setActiveViewButton(viewBtns, 'table');
-            applyViewMode(activityAll.querySelector('.view-mode-container'), 'table');
-        }
-    }
-
-    var weekdayAllWrapper = container.querySelector('.weekday-all-wrapper');
-    if (weekdayAllWrapper) {
-        var firstBtn = weekdayAllWrapper.querySelector('.month-button');
-        if (firstBtn) firstBtn.click();
+        activityAll._data = { entries: activityRows };
+        buildAllRolesActivityChart(activityRows);
+        var viewBtns = activityAll.querySelectorAll('.view-mode-btn');
+        setActiveViewButton(viewBtns, 'table');
+        applyViewMode(activityAll.querySelector('.view-mode-container'), 'table');
     }
 }
 
@@ -1812,37 +1631,6 @@ function buildAllRolesActivityChart(rows) {
     Plotly.newPlot('activity-age-graph-all', [traceAge], layoutAge);
 }
 
-function buildAllRolesWeekdayChart(rows, graphId) {
-    var containerId = graphId || 'weekday-graph-all';
-    var labels = rows.map(r => (r.name || '\u0420\u043e\u043b\u044c') + ' [' + (r.id || '') + ']');
-    var pubVals = rows.map(r => r.avg_pub || 0);
-    var archVals = rows.map(r => r.avg_arch || 0);
-    var tracePub = {
-        x: labels,
-        y: pubVals,
-        type: 'bar',
-        name: '??. \u0411\u043e\u043b\u0435\u0435\u0411\u043e\u043b\u0435\u0435/\u0420\u043e\u043b\u044c',
-        marker: { color: CHART_COLORS.light }
-    };
-    var traceArch = {
-        x: labels,
-        y: archVals,
-        type: 'bar',
-        name: '??. \u0411\u043e\u043b\u0435\u0435??/\u0420\u043e\u043b\u044c',
-        marker: { color: CHART_COLORS.dark }
-    };
-    var layout = {
-        title: '\u0411\u043e\u043b\u0435\u0435\u0411\u043e\u043b\u0435\u0435 ? \u0411\u043e\u043b\u0435\u0435? ?? \u0411\u043e\u043b\u0435\u0435',
-        barmode: 'group',
-        xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: '\u0411\u043e\u043b\u0435\u0435?? ? \u0420\u043e\u043b\u044c' },
-        margin: { t: 50, b: 120, l: 50, r: 30 },
-        height: 420
-    };
-    Plotly.newPlot(containerId, [tracePub, traceArch], layout);
-}
-
-
 
 function aggregateSalarySum(roleContents) {
     var expOrder = getExperienceOrder();
@@ -1853,7 +1641,6 @@ function aggregateSalarySum(roleContents) {
         var months = getRoleSalaryData(roleContent);
         months.forEach(m => {
             if (isSummaryMonth(m.month)) return;
-        if (monthFilter && m.month !== monthFilter) return;
             allMonths.add(m.month);
             byMonth[m.month] = byMonth[m.month] || {};
             (m.experiences || []).forEach(exp => {
@@ -2604,38 +2391,10 @@ document.addEventListener('click', function(e) {
         var mode = btn.dataset.view;
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
-        if (mode === 'graph') {
-            var activeTab = container.querySelector('.activity-all-content[style*="display: block"], .activity-all-content[style*="display:block"]');
-            if (activeTab) {
-                var entries = [];
-                try {
-                    var raw = activeTab.getAttribute('data-entries') || '[]';
-                    try { raw = decodeURIComponent(raw); } catch (_e2) {}
-                    entries = JSON.parse(raw);
-                } catch (_e) {}
-                var mainId = activeTab.querySelector('.plotly-graph-main') ? activeTab.querySelector('.plotly-graph-main').id : 'activity-graph-all';
-                var ageId = activeTab.querySelector('.plotly-graph-age') ? activeTab.querySelector('.plotly-graph-age').id : 'activity-age-graph-all';
-                buildAllRolesActivityChart(entries, mainId, ageId);
-            } else {
-                buildAllRolesActivityChart(container._data ? container._data.entries : []);
-            }
-        }
+        if (mode === 'graph') buildAllRolesActivityChart(container._data ? container._data.entries : []);
     } else {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
-        if (analysisType === 'weekday' && container.dataset.analysis === 'weekday-all' && mode === 'graph') {
-            var activeTab = container.querySelector('.weekday-all-content[style*="display: block"], .weekday-all-content[style*="display:block"]');
-            if (activeTab) {
-                var entries = [];
-                try {
-                    var raw = activeTab.getAttribute('data-entries') || '[]';
-                    try { raw = decodeURIComponent(raw); } catch (_e2) {}
-                    entries = JSON.parse(raw);
-                } catch (_e) {}
-                var graphId = activeTab.querySelector('.plotly-graph') ? activeTab.querySelector('.plotly-graph').id : 'weekday-graph-all';
-                buildAllRolesWeekdayChart(entries, graphId);
-            }
-        }
     }
 });
 
