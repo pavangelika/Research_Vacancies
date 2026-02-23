@@ -21,15 +21,6 @@ let uiState = {
     salary_view_mode: 'table'           // по умолчанию таблица
 };
 
-function plotIfChangedById(graphId, signature, data, layout) {
-    var el = document.getElementById(graphId);
-    if (!el) return;
-    if (el.dataset.plotSignature === signature && el.dataset.plotReady === '1') return;
-    el.dataset.plotSignature = signature;
-    el.dataset.plotReady = '1';
-    Plotly.newPlot(graphId, data, layout);
-}
-
 function getAnalysisStateKey(roleId) {
     return roleId + '_analysis';
 }
@@ -175,7 +166,6 @@ function buildActivityBarChart(graphId, entries) {
     var experiences = filteredEntries.map(e => e.experience);
     var activeData = filteredEntries.map(e => e.active);
     var archivedData = filteredEntries.map(e => e.archived);
-    var signature = filteredEntries.map(e => e.experience + ':' + e.active + ':' + e.archived).join('|');
 
     var traceActive = {
         x: experiences,
@@ -199,7 +189,7 @@ function buildActivityBarChart(graphId, entries) {
         height: 340,
         legend: { x: 1, y: 1, xanchor: 'left' }
     };
-    plotIfChangedById(graphId, signature, [traceActive, traceArchived], layout);
+    Plotly.newPlot(graphId, [traceActive, traceArchived], layout);
 }
 
 // ---------- Анализ по дням недели ----------
@@ -210,7 +200,6 @@ function buildWeekdayBarChart(roleId, weekdayBlock) {
     var days = weekdaysData.map(d => d.weekday);
     var pubs = weekdaysData.map(d => d.publications);
     var archs = weekdaysData.map(d => d.archives);
-    var signature = weekdaysData.map(d => d.weekday + ':' + d.publications + ':' + d.archives).join('|');
 
     var tracePubs = {
         x: days,
@@ -234,7 +223,7 @@ function buildWeekdayBarChart(roleId, weekdayBlock) {
         height: 400,
         legend: { x: 1, y: 1, xanchor: 'left' }
     };
-    plotIfChangedById('weekday-graph-' + roleId, signature, [tracePubs, traceArchs], layout);
+    Plotly.newPlot('weekday-graph-' + roleId, [tracePubs, traceArchs], layout);
 }
 
 // ---------- Навыки по месяцам ----------
@@ -357,7 +346,6 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     var counts = skills.map(s => s.count).reverse();
     var coverages = skills.map(s => s.coverage).reverse();
     var text = skills.map(s => s.count + ' (' + s.coverage + '%)').reverse();
-    var signature = experience + '|' + skills.map(s => s.skill + ':' + s.count + ':' + s.coverage).join('|');
 
     var trace = {
         x: counts,
@@ -379,7 +367,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
         bargap: 0.15,
         legend: { x: 1, y: 1, xanchor: 'left' }
     };
-    plotIfChangedById(graphId, signature, [trace], layout);
+    Plotly.newPlot(graphId, [trace], layout);
 }
 
 // ---------- Анализ зарплат ----------
@@ -562,10 +550,6 @@ function applySalaryViewMode(expDiv, entries) {
 function buildSalaryBarChart(graphId, entries) {
     var container = document.getElementById(graphId);
     if (!container) return;
-    var signature = entries.map(e => [e.status, e.currency, e.avg_salary, e.median_salary, e.mode_salary, e.min_salary, e.max_salary].join(':')).sort().join('|');
-    if (container.dataset.plotSignature === signature && container.dataset.plotReady === '1') return;
-    container.dataset.plotSignature = signature;
-    container.dataset.plotReady = '1';
 
     var currencies = ['RUR', 'USD', '%USD'];
     container.innerHTML = '<div class="salary-graphs-3">' +
@@ -597,8 +581,7 @@ function buildSalaryBarChart(graphId, entries) {
             height: 300,
             showlegend: false
         };
-        var plotSignature = curr + '|' + y.join(',');
-        plotIfChangedById(graphElId, plotSignature, data, layout);
+        Plotly.newPlot(graphElId, data, layout);
     }
 }
 
@@ -1607,8 +1590,6 @@ function buildAllRolesActivityChart(rows) {
     var activeVals = rows.map(r => r.active || 0);
     var archivedVals = rows.map(r => r.archived || 0);
     var ageVals = rows.map(r => (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : null));
-    var signatureMain = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.active || 0) + ':' + (r.archived || 0)).join('|');
-    var signatureAge = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : '')).join('|');
     var traceActive = {
         x: labels,
         y: activeVals,
@@ -1646,8 +1627,8 @@ function buildAllRolesActivityChart(rows) {
         margin: { t: 50, b: 120, l: 50, r: 30 },
         height: 420
     };
-    plotIfChangedById('activity-graph-all', signatureMain, [traceActive, traceArchived], layoutMain);
-    plotIfChangedById('activity-age-graph-all', signatureAge, [traceAge], layoutAge);
+    Plotly.newPlot('activity-graph-all', [traceActive, traceArchived], layoutMain);
+    Plotly.newPlot('activity-age-graph-all', [traceAge], layoutAge);
 }
 
 

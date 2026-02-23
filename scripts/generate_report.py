@@ -1300,10 +1300,20 @@ def copy_styles():
     logging.info(f"Styles copied to {dst}")
 
 def copy_js():
-    src = 'static/report.js'
-    dst = os.path.join('/reports', 'report.js')
-    shutil.copy2(src, dst)
-    logging.info(f"Styles copied to {dst}")
+    js_files = [
+        'report.state.js',
+        'report.utils.js',
+        'report.data.js',
+        'report.charts.js',
+        'report.render.js',
+        'report.ui.js',
+        'report.events.js'
+    ]
+    for filename in js_files:
+        src = os.path.join('static', filename)
+        dst = os.path.join('/reports', filename)
+        shutil.copy2(src, dst)
+        logging.info(f"JS copied to {dst}")
 
 def main():
     json_path = os.environ.get('ROLES_JSON_PATH', '/app/data/professional_roles.json')
