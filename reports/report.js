@@ -673,12 +673,44 @@ function renderVacancyDetails(container, withList, withoutList) {
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
 
-function getExperienceOrder() {
+function getExperienceLabels() {
     return {
-        'Нет опыта': 1,
-        'От 1 года до 3 лет': 2,
-        'От 3 до 6 лет': 3,
-        'Более 6 лет': 4
+        none: '\u041d\u0435\u0442 \u043e\u043f\u044b\u0442\u0430',
+        oneToThree: '\u041e\u0442 1 \u0433\u043e\u0434\u0430 \u0434\u043e 3 \u043b\u0435\u0442',
+        threeToSix: '\u041e\u0442 3 \u0434\u043e 6 \u043b\u0435\u0442',
+        sixPlus: '\u0411\u043e\u043b\u0435\u0435 6 \u043b\u0435\u0442',
+        total: '\u0412\u0441\u0435\u0433\u043e'
+    };
+}
+
+function normalizeExperience(exp) {
+    if (!exp) return null;
+    var e = String(exp).trim();
+    var labels = getExperienceLabels();
+    if (e === labels.total) return labels.total;
+    if (e === labels.none) return labels.none;
+    if (e === labels.oneToThree) return labels.oneToThree;
+    if (e === labels.threeToSix) return labels.threeToSix;
+    if (e === labels.sixPlus) return labels.sixPlus;
+    // mojibake or mixed encodings
+    if (e.indexOf('??? ?????') >= 0) return labels.none;
+    if (e.indexOf('?? 1') >= 0 && e.indexOf('3') >= 0) return labels.oneToThree;
+    if (e.indexOf('?? 3') >= 0 && e.indexOf('6') >= 0) return labels.threeToSix;
+    if (e.indexOf('????? 6') >= 0) return labels.sixPlus;
+    // digit-based fallback
+    if (e.indexOf('1') >= 0 && e.indexOf('3') >= 0) return labels.oneToThree;
+    if (e.indexOf('3') >= 0 && e.indexOf('6') >= 0) return labels.threeToSix;
+    if (e.indexOf('6') >= 0 && (e.indexOf('?????') >= 0 || e.indexOf('+') >= 0)) return labels.sixPlus;
+    return e;
+}
+
+function getExperienceOrder() {
+    var labels = getExperienceLabels();
+    return {
+        [labels.none]: 1,
+        [labels.oneToThree]: 2,
+        [labels.threeToSix]: 3,
+        [labels.sixPlus]: 4
     };
 }
 
@@ -1280,30 +1312,71 @@ function computeRoleActivitySummary(roleContent) {
     var expMap = {};
     months.forEach(m => {
         if (isSummaryMonth(m.month)) return;
-        var summary = (m.entries || []).find(e => e.experience === 'Всего');
+        var labels = getExperienceLabels();
+        var summary = (m.entries || []).find(e => normalizeExperience(e.experience) === labels.total);
         if (summary) {
             total += summary.total || 0;
             archived += summary.archived || 0;
             active += summary.active || 0;
         } else {
             (m.entries || []).forEach(e => {
-                if (e.experience === 'Всего') return;
+                var expNorm = normalizeExperience(e.experience);
+                if (!expNorm || expNorm === labels.total) return;
                 total += e.total || 0;
                 archived += e.archived || 0;
                 active += e.active || 0;
-                var bucket = expMap[e.experience] || { experience: e.experience, total: 0, archived: 0, active: 0 };
-                bucket.total += e.total || 0;
-                bucket.archived += e.archived || 0;
-                bucket.active += e.active || 0;
-                expMap[e.experience] = bucket;
             });
         }
+        (m.entries || []).forEach(e => {
+            var expNorm = normalizeExperience(e.experience);
+            if (!expNorm || expNorm === labels.total) return;
+            var bucket = expMap[expNorm] || {
+                experience: expNorm,
+                total: 0,
+                archived: 0,
+                active: 0,
+                avg_age_sum: 0,
+                avg_age_count: 0
+            };
+            bucket.total += e.total || 0;
+            bucket.archived += e.archived || 0;
+            bucket.active += e.active || 0;
+            if (e.avg_age !== null && e.avg_age !== undefined) {
+                bucket.avg_age_sum += Number(e.avg_age);
+                bucket.avg_age_count += 1;
+            }
+            expMap[expNorm] = bucket;
+        });
     });
     var avgAge = computeAvgLifetimeDays(allVacancies);
     var expOrder = getExperienceOrder();
-    var expBreakdown = Object.values(expMap).sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+    var expBreakdown = [];
+    var labels = getExperienceLabels();
+    [labels.none, labels.oneToThree, labels.threeToSix, labels.sixPlus].forEach(expName => {
+        if (!expMap[expName]) {
+            expMap[expName] = {
+                experience: expName,
+                total: 0,
+                archived: 0,
+                active: 0,
+                avg_age_sum: 0,
+                avg_age_count: 0
+            };
+        }
+        var b = expMap[expName];
+        var avg = b.avg_age_count ? (b.avg_age_sum / b.avg_age_count) : null;
+        expBreakdown.push({
+            experience: b.experience,
+            total: b.total,
+            archived: b.archived,
+            active: b.active,
+            avg_age: avg
+        });
+    });
+    expBreakdown.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
     return { total: total, archived: archived, active: active, avg_age: avgAge, exp_breakdown: expBreakdown };
 }
+
 
 function computeRoleWeekdaySummary(roleContent) {
     var days = getRoleWeekdayData(roleContent);
@@ -1398,8 +1471,11 @@ function renderAllRolesContainer(container, roleContents) {
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
-                '<div class="table-container">' +
-                    '<table>' +
+                '<div class="table-container activity-all-table-container">' +
+                    '<table class="activity-all-table">' +
+                        '<colgroup>' +
+                            '<col><col><col><col><col><col>' +
+                        '</colgroup>' +
                         '<thead><tr><th>Роль</th><th>Открытых</th><th>Архивных</th><th>Всего</th><th>Ср. возраст</th><th>Арх/Откр</th></tr></thead>' +
                         '<tbody>' +
                             activityRows.map(r => {
@@ -1409,12 +1485,15 @@ function renderAllRolesContainer(container, roleContents) {
                                 var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
                                     '<tr class="activity-all-details" style="display: none;">' +
                                         '<td colspan="6">' +
-                                            '<div class="table-container">' +
-                                                '<table>' +
+                                            '<div class="table-container activity-all-table-container">' +
+                                                '<table class="details-table align-activity">' +
+                                                    '<colgroup>' +
+                                                        '<col><col><col><col><col><col>' +
+                                                    '</colgroup>' +
                                                     '<thead><tr><th>Опыт</th><th>Открытых</th><th>Архивных</th><th>Всего</th></tr></thead>' +
                                                     '<tbody>' +
                                                         r.exp_breakdown.map(e => (
-                                                            '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td></tr>'
+                                                            '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '\u2014') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '\u2014') + '</td></tr>'
                                                         )).join('') +
                                                     '</tbody>' +
                                                 '</table>' +

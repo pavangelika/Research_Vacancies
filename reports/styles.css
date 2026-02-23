@@ -256,6 +256,35 @@ h1 {
     max-width: 60%;
     min-width: 0;
 }
+.activity-all-table-container {
+    width: 100%;
+    max-width: 100%;
+}
+.activity-all-details .table-container {
+    width: 100%;
+    max-width: 100%;
+}
+.activity-all-table,
+.details-table.align-activity {
+    width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
+}
+.activity-all-table col:first-child,
+.details-table.align-activity col:first-child { width: 32%; }
+.activity-all-table col:nth-child(2),
+.activity-all-table col:nth-child(3),
+.activity-all-table col:nth-child(4),
+.activity-all-table col:nth-child(5),
+.activity-all-table col:nth-child(6),
+.details-table.align-activity col:nth-child(2),
+.details-table.align-activity col:nth-child(3),
+.details-table.align-activity col:nth-child(4),
+.details-table.align-activity col:nth-child(5),
+.details-table.align-activity col:nth-child(6) { width: 13.6%; }
+.activity-all-details thead {
+    display: none;
+}
 
 .plotly-graph {
     flex: 1 1 auto;
