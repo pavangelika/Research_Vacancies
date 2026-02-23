@@ -87,6 +87,21 @@ document.addEventListener('click', function(e) {
     details.style.display = (details.style.display === 'none' || details.style.display === '') ? 'table-row' : 'none';
 });
 
+document.addEventListener('click', function(e) {
+    var chip = e.target.closest('.role-filter-chip');
+    if (!chip) return;
+
+    var allRoles = document.getElementById('role-all');
+    if (!allRoles) return;
+
+    chip.classList.toggle('active');
+    var chips = Array.from(allRoles.querySelectorAll('.role-filter-chip'));
+    var excluded = chips.filter(c => !c.classList.contains('active')).map(c => c.dataset.role);
+    uiState.all_roles_excluded = excluded;
+
+    renderAllRolesContainer(allRoles, getAllRoleContents());
+});
+
 // ---------- Обработчик кликов по иконкам режимов ----------
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('.view-mode-btn, .view-mode-button');
@@ -278,3 +293,4 @@ document.addEventListener("DOMContentLoaded", function() {
 
     addSummaryTabs(document);
 });
+

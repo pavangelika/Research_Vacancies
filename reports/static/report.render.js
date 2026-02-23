@@ -69,7 +69,33 @@ function renderVacancyDetails(container, withList, withoutList) {
     var initialList = defaultTab === 'with' ? withList : withoutList;
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
+function buildAllRolesSkillsTableHtml(rows) {
+    return '<table class="skills-all-table">' +
+        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th><th>Медианная зп</th><th>Роли</th></tr></thead>' +
+        '<tbody>' +
+            (rows.length ? rows.map(r => (
+                '<tr>' +
+                    '<td>' + escapeHtml(r.skill) + '</td>' +
+                    '<td>' + r.mention_count + '</td>' +
+                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
+                '</tr>'
+            )).join('') : '<tr><td colspan="5">—</td></tr>') +
+        '</tbody>' +
+    '</table>';
+}
 function renderAllRolesContainer(container, roleContents) {
+    var excludedRoles = uiState.all_roles_excluded || [];
+    var excludedSet = new Set(excludedRoles.map(r => String(r)));
+    var allRoleNames = roleContents.map(rc => rc.dataset.roleName || rc.dataset.roleId || '')
+        .filter(Boolean)
+        .filter((v, i, arr) => arr.indexOf(v) === i)
+        .sort((a, b) => a.localeCompare(b));
+    var filteredRoleContents = roleContents.filter(rc => {
+        var name = rc.dataset.roleName || rc.dataset.roleId || '';
+        return name && !excludedSet.has(String(name));
+    });
     var periods = getAllRolesPeriods(roleContents);
     var periodItems = [{ key: 'all', label: 'За все время', month: null }].concat(
         periods.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
@@ -131,7 +157,7 @@ function renderAllRolesContainer(container, roleContents) {
     }
 
     function buildActivityRows(period) {
-        var rows = roleContents.map(rc => {
+        var rows = filteredRoleContents.map(rc => {
             var s = computeRoleActivitySummaryForMonth(rc, period);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
         });
@@ -168,7 +194,7 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var weekdayPeriodBlocks = periodItems.map((p, i) => {
-        var rows = roleContents.map(rc => {
+        var rows = filteredRoleContents.map(rc => {
             var s = computeRoleWeekdaySummaryForMonth(rc, p.month);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
         });
@@ -203,7 +229,8 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var skillsPeriodBlocks = periodItems.map((p, i) => {
-        var rows = computeAllRolesSkillCostSummaryForMonth(roleContents, p.month);
+        var summary = computeAllRolesSkillCostSummaryForMonth(roleContents, p.month, excludedRoles);
+        var rows = summary.rows || [];
         var graphId = 'skills-graph-all-' + i;
         return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.month || 'all') + '" ' +
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
@@ -214,20 +241,9 @@ function renderAllRolesContainer(container, roleContents) {
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container full-width-table">' +
-                    '<table>' +
-                        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th><th>Медианная зп</th><th>Роли</th></tr></thead>' +
-                        '<tbody>' +
-                            (rows.length ? rows.map(r => (
-                                '<tr>' +
-                                    '<td>' + escapeHtml(r.skill) + '</td>' +
-                                    '<td>' + r.mention_count + '</td>' +
-                                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
-                                '</tr>'
-                            )).join('') : '<tr><td colspan="5">—</td></tr>') +
-                        '</tbody>' +
-                    '</table>' +
+                    '<div class="skills-all-table-wrap">' +
+                        buildAllRolesSkillsTableHtml(rows) +
+                    '</div>' +
                 '</div>' +
                 '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
@@ -240,7 +256,7 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var salaryPeriodBlocks = periodItems.map((p, i) => {
-        var rows = roleContents.map(rc => {
+        var rows = filteredRoleContents.map(rc => {
             var s = computeRoleSalarySkillsForMonth(rc, p.month);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
         });
@@ -283,8 +299,19 @@ function renderAllRolesContainer(container, roleContents) {
         salaryPeriodBlocks +
     '</div>';
 
+    var roleFilterHtml = '<div class="all-roles-role-filter">' +
+        '<div class="all-roles-role-filter-list">' +
+            (allRoleNames.length ? allRoleNames.map(r => (
+                '<button type="button" class="role-chip role-filter-chip' + (excludedSet.has(String(r)) ? '' : ' active') + '" data-role="' + escapeHtml(r) + '">' +
+                    escapeHtml(r) +
+                '</button>'
+            )).join('') : '<span>—</span>') +
+        '</div>' +
+    '</div>';
+
     container.innerHTML =
         '<h2>Сводно по всем ролям</h2>' +
+        roleFilterHtml +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
@@ -296,8 +323,13 @@ function renderAllRolesContainer(container, roleContents) {
         skillsHtml +
         salaryHtml;
 
-    var analysisButton = container.querySelector('.analysis-button');
-    if (analysisButton) analysisButton.click();
+    var preferred = uiState.global_analysis_type || 'activity';
+    var preferredButton = container.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
+    if (preferredButton) preferredButton.click();
+    else {
+        var analysisButton = container.querySelector('.analysis-button');
+        if (analysisButton) analysisButton.click();
+    }
 }
 function addSummaryTabs(root) {
     var skillsMonths = root.querySelectorAll('.monthly-skills-month-content');

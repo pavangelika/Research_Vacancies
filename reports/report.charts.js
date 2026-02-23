@@ -227,22 +227,24 @@ function buildAllRolesWeekdayChart(rows, graphId) {
 }
 
 function buildAllRolesSkillsChart(rows, graphId) {
-    var labels = rows.map(r => (r.name || 'Р РѕР»СЊ') + ' [' + (r.id || '') + ']');
-    var vals = rows.map(r => r.total_vacancies || 0);
-    var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.total_vacancies || 0)).join('|');
+    var sorted = (rows || []).slice().sort((a, b) => (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || '')));
+    var top = sorted.slice(0, 15);
+    var labels = top.map(r => r.skill || '—');
+    var vals = top.map(r => r.mention_count || 0);
+    var signature = top.map(r => (r.skill || '') + ':' + (r.mention_count || 0)).join('|');
     var trace = {
         x: labels,
         y: vals,
         type: 'bar',
-        name: 'Р’Р°РєР°РЅСЃРёРё',
+        name: 'Упоминания',
         marker: { color: CHART_COLORS.medium }
     };
     var layout = {
-        title: 'РљРѕР»РёС‡РµСЃС‚РІРѕ РІР°РєР°РЅСЃРёР№ СЃ РЅР°РІС‹РєР°РјРё РїРѕ СЂРѕР»СЏРј',
-        xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Р’Р°РєР°РЅСЃРёРё' },
-        margin: { t: 50, b: 120, l: 50, r: 60 },
-        height: 420
+        title: 'Топ навыков по упоминаниям',
+        xaxis: { tickangle: -35, title: '', automargin: true },
+        yaxis: { title: 'Упоминаний', automargin: true },
+        margin: { t: 50, b: 180, l: 60, r: 40 },
+        height: 480
     };
     plotIfChangedById(graphId, signature, [trace], layout);
 }
@@ -267,4 +269,6 @@ function buildAllRolesSalaryChart(rows, graphId) {
     };
     plotIfChangedById(graphId, signature, [trace], layout);
 }
+
+
 

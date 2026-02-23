@@ -766,7 +766,7 @@ function computeRoleSkillsSummaryForMonth(roleContent, month) {
     var skills = Array.from(skillCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     return { total_vacancies: totalVac, skills: skills.slice(0, 10) };
 }
-function computeAllRolesSkillCostSummaryForMonth(roleContents, month) {
+function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRoles) {
     var roleMap = {};
     (roleContents || []).forEach(rc => {
         if (!rc) return;
@@ -812,6 +812,8 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month) {
 
     var totals = new Map();
     var roleCounts = new Map();
+    var roleSet = new Set();
+    var excludedSet = new Set((excludedRoles || []).map(r => String(r)));
     (roleContents || []).forEach(rc => {
         var months = getRoleSalaryData(rc);
         var vacancies = collectVacanciesFromSalaryMonthsByMonth(months, month);
@@ -820,6 +822,9 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month) {
             if (avg === null) return;
             if (!v || !v.skills) return;
             var roleName = getRoleName(v);
+            if (!roleName) roleName = 'UNKNOWN_ROLE';
+            roleSet.add(roleName);
+            if (excludedSet.has(roleName)) return;
             String(v.skills).split(',').map(normalizeSkillName).filter(Boolean).forEach(skill => {
                 var entry = totals.get(skill) || { count: 0, sum: 0, values: [] };
                 entry.count += 1;
@@ -863,7 +868,7 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month) {
         }).join(', ');
         row.roles = rolesText;
     });
-    return rows;
+    return { rows: rows, roles: Array.from(roleSet).sort((a, b) => a.localeCompare(b)) };
 }
 function computeSalarySkillsFromVacancies(vacancies) {
     if (!vacancies.length) return [];
