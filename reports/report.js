@@ -2466,6 +2466,15 @@ document.addEventListener("DOMContentLoaded", function() {
         allRolesToggle.addEventListener('click', function() {
             uiState.all_roles_active = !uiState.all_roles_active;
             allRolesToggle.setAttribute('aria-pressed', uiState.all_roles_active ? 'true' : 'false');
+            if (selector) {
+                if (uiState.all_roles_active) {
+                    selector.classList.add('collapsed');
+                    if (selectorToggle) selectorToggle.setAttribute('aria-expanded', 'false');
+                } else {
+                    selector.classList.remove('collapsed');
+                    if (selectorToggle) selectorToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
             updateRoleView(selected);
         });
     }
