@@ -14,6 +14,7 @@ let uiState = {
     global_salary_month: null,
     global_salary_experience: null,
     all_roles_active: false,
+    all_roles_periods: { activity: null, weekday: null, skills: null, salary: null },
     // Режимы отображения для разных типов анализа
     activity_view_mode: 'together',    // по умолчанию вместе
     weekday_view_mode: 'together',

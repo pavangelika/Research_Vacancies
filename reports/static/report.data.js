@@ -118,6 +118,25 @@ function collectVacanciesFromSalaryMonths(salaryMonths) {
     });
     return all;
 }
+function collectVacanciesFromSalaryMonthsByMonth(salaryMonths, month) {
+    var all = [];
+    (salaryMonths || []).forEach(m => {
+        if (!m || !m.month) return;
+        if (month) {
+            if (m.month !== month) return;
+        } else {
+            if (isSummaryMonth(m.month)) return;
+        }
+        if (!m.experiences) return;
+        m.experiences.forEach(exp => {
+            (exp.entries || []).forEach(entry => {
+                all = all.concat(entry.vacancies_with_salary_list || []);
+                all = all.concat(entry.vacancies_without_salary_list || []);
+            });
+        });
+    });
+    return all;
+}
 function getRoleContentByIndex(idx) {
     return document.getElementById('role-' + idx);
 }
@@ -526,6 +545,102 @@ function aggregateSalary(roleContents) {
 
     return monthsList;
 }
+function getAllRolesPeriods(roleContents) {
+    var months = new Set();
+    roleContents.forEach(roleContent => {
+        var list = getRoleActivityMonths(roleContent);
+        list.forEach(m => {
+            if (!m || !m.month) return;
+            if (isSummaryMonth(m.month)) return;
+            months.add(m.month);
+        });
+    });
+    return Array.from(months).sort();
+}
+function computeActivitySummaryFromEntries(entries) {
+    var expOrder = getExperienceOrder();
+    var labels = getExperienceLabels();
+    var expMap = {};
+    (entries || []).forEach(e => {
+        var expNorm = normalizeExperience(e.experience);
+        if (!expNorm || expNorm === labels.total) return;
+        var bucket = expMap[expNorm] || { experience: expNorm, total: 0, archived: 0, active: 0, ageSum: 0, ageWeight: 0 };
+        bucket.total += e.total || 0;
+        bucket.archived += e.archived || 0;
+        bucket.active += e.active || 0;
+        if (e.avg_age !== null && e.avg_age !== undefined) {
+            var weight = e.total || 0;
+            bucket.ageSum += Number(e.avg_age) * weight;
+            bucket.ageWeight += weight;
+        }
+        expMap[expNorm] = bucket;
+    });
+    var rows = Object.values(expMap).map(b => {
+        return {
+            experience: b.experience,
+            total: b.total,
+            archived: b.archived,
+            active: b.active,
+            avg_age: b.ageWeight ? (b.ageSum / b.ageWeight) : null
+        };
+    });
+    var total = rows.reduce((s, e) => s + (e.total || 0), 0);
+    var archived = rows.reduce((s, e) => s + (e.archived || 0), 0);
+    var active = rows.reduce((s, e) => s + (e.active || 0), 0);
+    var avgAge = rows.length ? rows.reduce((s, e) => s + (e.avg_age || 0), 0) / rows.length : 0;
+    rows.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
+    return { total: total, archived: archived, active: active, avg_age: avgAge, exp_breakdown: rows };
+}
+function computeRoleActivitySummaryForMonth(roleContent, month) {
+    var months = getRoleActivityMonths(roleContent);
+    if (month) {
+        var m = months.find(x => x.month === month);
+        if (!m) return { total: 0, archived: 0, active: 0, avg_age: 0, exp_breakdown: [] };
+        return computeActivitySummaryFromEntries(m.entries || []);
+    }
+    var merged = [];
+    months.forEach(m => {
+        if (!m || !m.month || isSummaryMonth(m.month)) return;
+        merged = merged.concat(m.entries || []);
+    });
+    return computeActivitySummaryFromEntries(merged);
+}
+function computeWeekdayStatsFromVacancies(vacancies) {
+    var weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var map = {};
+    (vacancies || []).forEach(v => {
+        if (!v || !v.published_at) return;
+        var pub = new Date(v.published_at);
+        if (isNaN(pub)) return;
+        var day = weekdays[pub.getDay()];
+        map[day] = map[day] || { weekday: day, publications: 0, archives: 0, pubHourSum: 0, pubHourCount: 0, archHourSum: 0, archHourCount: 0 };
+        map[day].publications += 1;
+        map[day].pubHourSum += pub.getHours();
+        map[day].pubHourCount += 1;
+        if (v.archived_at) {
+            var arch = new Date(v.archived_at);
+            if (!isNaN(arch)) {
+                map[day].archives += 1;
+                map[day].archHourSum += arch.getHours();
+                map[day].archHourCount += 1;
+            }
+        }
+    });
+    var order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    var list = Object.values(map);
+    list.forEach(d => {
+        var pubAvg = d.pubHourCount ? Math.round(d.pubHourSum / d.pubHourCount) : 0;
+        var archAvg = d.archHourCount ? Math.round(d.archHourSum / d.archHourCount) : 0;
+        d.avg_pub_hour = d.pubHourCount ? (pubAvg + ':00') : '—';
+        d.avg_arch_hour = d.archHourCount ? (archAvg + ':00') : '—';
+        delete d.pubHourSum;
+        delete d.pubHourCount;
+        delete d.archHourSum;
+        delete d.archHourCount;
+    });
+    list.sort((a, b) => order.indexOf(a.weekday) - order.indexOf(b.weekday));
+    return list;
+}
 function computeRoleActivitySummary(roleContent) {
     var months = getRoleActivityMonths(roleContent);
     var salaryMonths = getRoleSalaryData(roleContent);
@@ -608,6 +723,17 @@ function computeRoleWeekdaySummary(roleContent) {
     var count = days.length || 1;
     return { avg_pub: totalPub / count, avg_arch: totalArch / count };
 }
+function computeRoleWeekdaySummaryForMonth(roleContent, month) {
+    var salaryMonths = getRoleSalaryData(roleContent);
+    var vacancies = collectVacanciesFromSalaryMonthsByMonth(salaryMonths, month);
+    if (!vacancies.length) return { avg_pub: 0, avg_arch: 0 };
+    var days = computeWeekdayStatsFromVacancies(vacancies);
+    if (!days.length) return { avg_pub: 0, avg_arch: 0 };
+    var totalPub = days.reduce((s, d) => s + (d.publications || 0), 0);
+    var totalArch = days.reduce((s, d) => s + (d.archives || 0), 0);
+    var count = days.length || 1;
+    return { avg_pub: totalPub / count, avg_arch: totalArch / count };
+}
 function computeRoleSkillsSummary(roleContent) {
     var months = getRoleSkillsMonthlyData(roleContent);
     var skillCounts = new Map();
@@ -624,12 +750,26 @@ function computeRoleSkillsSummary(roleContent) {
     var skills = Array.from(skillCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     return { total_vacancies: totalVac, skills: skills.slice(0, 10) };
 }
-function computeRoleSalarySkills(roleContent) {
-    var months = getRoleSalaryData(roleContent);
-    var allVacancies = collectVacanciesFromSalaryMonths(months);
-    if (!allVacancies.length) return [];
+function computeRoleSkillsSummaryForMonth(roleContent, month) {
+    if (!month) return computeRoleSkillsSummary(roleContent);
+    var months = getRoleSkillsMonthlyData(roleContent);
+    var target = months.find(m => m.month === month);
+    if (!target) return { total_vacancies: 0, skills: [] };
+    var skillCounts = new Map();
+    var totalVac = 0;
+    (target.experiences || []).forEach(exp => {
+        totalVac += exp.total_vacancies || 0;
+        (exp.skills || []).forEach(s => {
+            skillCounts.set(s.skill, (skillCounts.get(s.skill) || 0) + (s.count || 0));
+        });
+    });
+    var skills = Array.from(skillCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    return { total_vacancies: totalVac, skills: skills.slice(0, 10) };
+}
+function computeSalarySkillsFromVacancies(vacancies) {
+    if (!vacancies.length) return [];
     var map = new Map();
-    allVacancies.forEach(v => {
+    vacancies.forEach(v => {
         if (!v || !v.skills) return;
         var val = computeSalaryValue(v, v.currency || null);
         String(v.skills).split(',').map(s => s.trim()).filter(Boolean).forEach(skill => {
@@ -647,6 +787,16 @@ function computeRoleSalarySkills(roleContent) {
     });
     list.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     return list.slice(0, 10);
+}
+function computeRoleSalarySkills(roleContent) {
+    var months = getRoleSalaryData(roleContent);
+    var allVacancies = collectVacanciesFromSalaryMonths(months);
+    return computeSalarySkillsFromVacancies(allVacancies);
+}
+function computeRoleSalarySkillsForMonth(roleContent, month) {
+    var months = getRoleSalaryData(roleContent);
+    var vacancies = collectVacanciesFromSalaryMonthsByMonth(months, month);
+    return computeSalarySkillsFromVacancies(vacancies);
 }
 function aggregateSalarySum(roleContents) {
     var expOrder = getExperienceOrder();

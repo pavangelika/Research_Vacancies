@@ -131,7 +131,7 @@ h1 {
 }
 .role-selector-toggle:hover { background: var(--tab-hover-bg); }
 .role-selector.collapsed #role-selector-panel { display: none; }
-.role-selector.collapsed .role-selector-toggle { transform: rotate(180deg); }
+.role-selector.collapsed #role-selector-toggle { transform: rotate(180deg); }
 .role-selector-toggle[aria-pressed="true"] {
     background: var(--primary);
     color: #fff;

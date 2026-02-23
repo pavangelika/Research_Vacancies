@@ -29,15 +29,10 @@ function normalizeExperience(exp) {
     if (e === labels.oneToThree) return labels.oneToThree;
     if (e === labels.threeToSix) return labels.threeToSix;
     if (e === labels.sixPlus) return labels.sixPlus;
-    // mojibake or mixed encodings
-    if (e.indexOf('??? ?????') >= 0) return labels.none;
-    if (e.indexOf('?? 1') >= 0 && e.indexOf('3') >= 0) return labels.oneToThree;
-    if (e.indexOf('?? 3') >= 0 && e.indexOf('6') >= 0) return labels.threeToSix;
-    if (e.indexOf('????? 6') >= 0) return labels.sixPlus;
     // digit-based fallback
     if (e.indexOf('1') >= 0 && e.indexOf('3') >= 0) return labels.oneToThree;
     if (e.indexOf('3') >= 0 && e.indexOf('6') >= 0) return labels.threeToSix;
-    if (e.indexOf('6') >= 0 && (e.indexOf('?????') >= 0 || e.indexOf('+') >= 0)) return labels.sixPlus;
+    if (e.indexOf('6') >= 0 && (e.indexOf('лет') >= 0 || e.indexOf('+') >= 0)) return labels.sixPlus;
     return e;
 }
 function getExperienceOrder() {
@@ -62,7 +57,11 @@ function parseJsonDataset(el, key, fallback) {
     try {
         return JSON.parse(el.dataset[key] || JSON.stringify(fallback));
     } catch (_e) {
-        return fallback;
+        try {
+            return JSON.parse(decodeURIComponent(el.dataset[key] || ''));
+        } catch (_e2) {
+            return fallback;
+        }
     }
 }
 function computeMedian(values) {

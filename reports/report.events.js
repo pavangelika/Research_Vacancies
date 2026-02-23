@@ -92,7 +92,7 @@ document.addEventListener('click', function(e) {
     var btn = e.target.closest('.view-mode-btn, .view-mode-button');
     if (!btn) return;
 
-    var container = btn.closest('.month-content, .weekday-content, .monthly-skills-exp-content, .salary-exp-content');
+    var container = btn.closest('.month-content, .weekday-content, .monthly-skills-exp-content, .salary-exp-content, .all-roles-period-content');
     if (!container) return;
 
     var analysisType = null;
@@ -100,6 +100,9 @@ document.addEventListener('click', function(e) {
     else if (container.classList.contains('weekday-content')) analysisType = 'weekday';
     else if (container.classList.contains('monthly-skills-exp-content')) analysisType = 'skills-monthly';
     else if (container.classList.contains('salary-exp-content')) analysisType = 'salary';
+    else if (container.classList.contains('all-roles-period-content')) {
+        if ((container.dataset.analysis || '').indexOf('activity') === 0) analysisType = 'activity';
+    }
 
     if (!analysisType) return;
 
@@ -123,7 +126,12 @@ document.addEventListener('click', function(e) {
         var mode = btn.dataset.view;
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
-        if (mode === 'graph') buildAllRolesActivityChart(container._data ? container._data.entries : []);
+        if (mode === 'graph') {
+            var rows = parseJsonDataset(container, 'entries', []);
+            var mainId = container.dataset.graphMain;
+            var ageId = container.dataset.graphAge;
+            if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
+        }
     } else {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);

@@ -55,20 +55,72 @@ function switchAnalysis(evt, analysisId) {
 
     if (analysisType === 'activity') {
         activityBlocks.forEach(block => block.style.display = 'block');
-        restoreActivityState(parentRole, roleId);
+        if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'activity');
+        else restoreActivityState(parentRole, roleId);
     } else if (analysisType === 'weekday') {
         weekdayBlock.style.display = 'block';
-        var viewBtns = weekdayBlock.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, uiState.weekday_view_mode);
-        applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
-        buildWeekdayBarChart(analysisId.split('-')[1], weekdayBlock);
+        if (roleId === 'role-all') {
+            restoreAllRolesPeriodState(parentRole, 'weekday');
+        } else {
+            var viewBtns = weekdayBlock.querySelectorAll('.view-mode-btn');
+            setActiveViewButton(viewBtns, uiState.weekday_view_mode);
+            applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
+            buildWeekdayBarChart(analysisId.split('-')[1], weekdayBlock);
+        }
     } else if (analysisType === 'skills-monthly') {
         skillsMonthlyBlock.style.display = 'block';
-        restoreSkillsMonthlyState(parentRole, roleId);
+        if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'skills');
+        else restoreSkillsMonthlyState(parentRole, roleId);
     } else if (analysisType === 'salary') {
         salaryBlock.style.display = 'block';
-        restoreSalaryState(parentRole, roleId);
+        if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'salary');
+        else restoreSalaryState(parentRole, roleId);
     }
+}
+
+function openAllRolesPeriodTab(evt, contentId, analysisType) {
+    var wrapper = evt.currentTarget.closest('.all-roles-period-wrapper');
+    if (!wrapper) return;
+    var contents = wrapper.querySelectorAll('.all-roles-period-content');
+    contents.forEach(c => c.style.display = 'none');
+    var buttons = wrapper.querySelectorAll('.all-roles-period-button');
+    buttons.forEach(b => b.classList.remove('active'));
+    var target = document.getElementById(contentId);
+    if (target) target.style.display = 'block';
+    evt.currentTarget.classList.add('active');
+    if (uiState.all_roles_periods) {
+        uiState.all_roles_periods[analysisType] = evt.currentTarget.dataset.period || null;
+    }
+
+    if (analysisType === 'activity' && target) {
+        var mode = uiState.activity_view_mode === 'together' ? 'table' : uiState.activity_view_mode;
+        var viewBtns = target.querySelectorAll('.view-mode-btn');
+        setActiveViewButton(viewBtns, mode);
+        var viewContainer = target.querySelector('.view-mode-container');
+        applyViewMode(viewContainer, mode);
+        var rows = parseJsonDataset(target, 'entries', []);
+        var mainId = target.dataset.graphMain;
+        var ageId = target.dataset.graphAge;
+        if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
+    }
+}
+
+function restoreAllRolesPeriodState(parentRole, analysisType) {
+    var analysisId = analysisType + '-all';
+    var wrapper = parentRole.querySelector('.all-roles-period-wrapper[data-analysis="' + analysisId + '"]');
+    if (!wrapper) return;
+    var buttons = wrapper.querySelectorAll('.all-roles-period-button');
+    if (!buttons.length) return;
+    var saved = uiState.all_roles_periods ? uiState.all_roles_periods[analysisType] : null;
+    if (saved) {
+        for (var btn of buttons) {
+            if (btn.dataset.period === saved) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    buttons[0].click();
 }
 
 // ---------- Анализ активности ----------

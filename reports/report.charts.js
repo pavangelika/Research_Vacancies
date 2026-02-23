@@ -147,7 +147,7 @@ function buildSalaryBarChart(graphId, entries) {
         plotIfChangedById(graphElId, plotSignature, data, layout);
     }
 }
-function buildAllRolesActivityChart(rows) {
+function buildAllRolesActivityChart(rows, graphIdMain = 'activity-graph-all', graphIdAge = 'activity-age-graph-all') {
     var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
     var activeVals = rows.map(r => r.active || 0);
     var archivedVals = rows.map(r => r.archived || 0);
@@ -191,6 +191,6 @@ function buildAllRolesActivityChart(rows) {
         margin: { t: 50, b: 120, l: 50, r: 30 },
         height: 420
     };
-    plotIfChangedById('activity-graph-all', signatureMain, [traceActive, traceArchived], layoutMain);
-    plotIfChangedById('activity-age-graph-all', signatureAge, [traceAge], layoutAge);
+    plotIfChangedById(graphIdMain, signatureMain, [traceActive, traceArchived], layoutMain);
+    plotIfChangedById(graphIdAge, signatureAge, [traceAge], layoutAge);
 }

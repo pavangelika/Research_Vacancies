@@ -70,114 +70,142 @@ function renderVacancyDetails(container, withList, withoutList) {
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
 function renderAllRolesContainer(container, roleContents) {
-    var activityRows = roleContents.map(rc => {
-        var s = computeRoleActivitySummary(rc);
-        return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
-    });
-    var maxActive = Math.max(...activityRows.map(r => r.active || 0), 0);
-    var maxRatio = Math.max(...activityRows.map(r => (r.active ? (r.archived / r.active) : 0)), 0);
-    activityRows.sort((a, b) => {
-        var ra = a.active ? (a.archived / a.active) : 0;
-        var rb = b.active ? (b.archived / b.active) : 0;
-        return rb - ra;
-    });
+    var periods = getAllRolesPeriods(roleContents);
+    var periodItems = [{ key: 'all', label: 'За весь период', month: null }].concat(
+        periods.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
+    );
 
-    var weekdayRows = roleContents.map(rc => {
-        var s = computeRoleWeekdaySummary(rc);
-        return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
-    });
-    weekdayRows.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
+    function buildPeriodTabs(prefix, analysisType) {
+        return '<div class="tabs month-tabs all-roles-period-tabs">' +
+            periodItems.map((p, i) => (
+                '<button class="tab-button month-button all-roles-period-button' + (i === 0 ? ' active' : '') + '" ' +
+                        'data-period="' + (p.month || 'all') + '" ' +
+                        'onclick="openAllRolesPeriodTab(event, \'' + prefix + '-' + i + '\', \'' + analysisType + '\')">' +
+                    p.label +
+                '</button>'
+            )).join('') +
+        '</div>';
+    }
 
-    var skillsRows = roleContents.map(rc => {
-        var s = computeRoleSkillsSummary(rc);
-        return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
-    });
+    function buildActivityAllTable(rows) {
+        var maxActive = Math.max(...rows.map(r => r.active || 0), 0);
+        var maxRatio = Math.max(...rows.map(r => (r.active ? (r.archived / r.active) : 0)), 0);
+        return '<div class="table-container activity-all-table-container">' +
+            '<table class="activity-all-table">' +
+                '<colgroup><col><col><col><col><col><col></colgroup>' +
+                '<thead><tr><th>Роль</th><th>Открытых</th><th>Архивных</th><th>Всего</th><th>Ср. возраст</th><th>Арх/Откр</th></tr></thead>' +
+                '<tbody>' +
+                    rows.map(r => {
+                        var ratio = r.active ? (r.archived / r.active) : 0;
+                        var leadActive = r.active === maxActive && maxActive > 0 ? ' class="leader"' : '';
+                        var leadRatio = ratio === maxRatio && maxRatio > 0 ? ' class="leader"' : '';
+                        var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
+                            '<tr class="activity-all-details" style="display: none;">' +
+                                '<td colspan="6">' +
+                                    '<div class="table-container activity-all-table-container">' +
+                                        '<table class="details-table align-activity">' +
+                                            '<colgroup><col><col><col><col><col><col></colgroup>' +
+                                            '<thead><tr><th>Опыт</th><th>Открытых</th><th>Архивных</th><th>Всего</th></tr></thead>' +
+                                            '<tbody>' +
+                                                r.exp_breakdown.map(e => (
+                                                    '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '—') + '</td></tr>'
+                                                )).join('') +
+                                            '</tbody>' +
+                                        '</table>' +
+                                    '</div>' +
+                                '</td>' +
+                            '</tr>'
+                        ) : '';
+                        return '<tr class="activity-all-row">' +
+                            '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
+                            '<td' + leadActive + '>' + r.active + '</td>' +
+                            '<td>' + r.archived + '</td>' +
+                            '<td>' + r.total + '</td>' +
+                            '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '—') + '</td>' +
+                            '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '—') + '</td>' +
+                        '</tr>' + details;
+                    }).join('') +
+                '</tbody>' +
+            '</table>' +
+        '</div>';
+    }
 
-    var salaryRows = roleContents.map(rc => {
-        var s = computeRoleSalarySkills(rc);
-        return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
-    });
+    function buildActivityRows(period) {
+        var rows = roleContents.map(rc => {
+            var s = computeRoleActivitySummaryForMonth(rc, period);
+            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
+        });
+        rows.sort((a, b) => {
+            var ra = a.active ? (a.archived / a.active) : 0;
+            var rb = b.active ? (b.archived / b.active) : 0;
+            return rb - ra;
+        });
+        return rows;
+    }
 
-    container.innerHTML =
-        '<h2>Сводно по всем ролям</h2>' +
-        '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
-        '</div>' +
-        '<div class="month-content activity-only" data-analysis="activity-all">' +
-            '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
-            '</div>' +
-            '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
-                '<div class="table-container activity-all-table-container">' +
-                    '<table class="activity-all-table">' +
-                        '<colgroup>' +
-                            '<col><col><col><col><col><col>' +
-                        '</colgroup>' +
-                        '<thead><tr><th>Роль</th><th>Открытых</th><th>Архивных</th><th>Всего</th><th>Ср. возраст</th><th>Арх/Откр</th></tr></thead>' +
-                        '<tbody>' +
-                            activityRows.map(r => {
-                                var ratio = r.active ? (r.archived / r.active) : 0;
-                                var leadActive = r.active === maxActive && maxActive > 0 ? ' class="leader"' : '';
-                                var leadRatio = ratio === maxRatio && maxRatio > 0 ? ' class="leader"' : '';
-                                var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
-                                    '<tr class="activity-all-details" style="display: none;">' +
-                                        '<td colspan="6">' +
-                                            '<div class="table-container activity-all-table-container">' +
-                                                '<table class="details-table align-activity">' +
-                                                    '<colgroup>' +
-                                                        '<col><col><col><col><col><col>' +
-                                                    '</colgroup>' +
-                                                    '<thead><tr><th>Опыт</th><th>Открытых</th><th>Архивных</th><th>Всего</th></tr></thead>' +
-                                                    '<tbody>' +
-                                                        r.exp_breakdown.map(e => (
-                                                            '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '\u2014') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '\u2014') + '</td></tr>'
-                                                        )).join('') +
-                                                    '</tbody>' +
-                                                '</table>' +
-                                            '</div>' +
-                                        '</td>' +
-                                    '</tr>'
-                                ) : '';
-                                return '<tr class="activity-all-row">' +
-                                    '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
-                                    '<td' + leadActive + '>' + r.active + '</td>' +
-                                    '<td>' + r.archived + '</td>' +
-                                    '<td>' + r.total + '</td>' +
-                                    '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '—') + '</td>' +
-                                    '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '—') + '</td>' +
-                                '</tr>' + details;
-                            }).join('') +
-                        '</tbody>' +
-                    '</table>' +
+    var activityPeriodBlocks = periodItems.map((p, i) => {
+        var rows = buildActivityRows(p.month);
+        var graphMainId = 'activity-graph-all-' + i;
+        var graphAgeId = 'activity-age-graph-all-' + i;
+        return '<div id="activity-all-period-' + i + '" class="all-roles-period-content" data-analysis="activity-all" data-period="' + (p.month || 'all') + '" ' +
+                    'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" ' +
+                    'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
+                    'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+                '<div class="view-toggle-horizontal">' +
+                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
                 '</div>' +
-                '<div class="plotly-graph activity-graph-wrap"><div class="activity-graph-item"><div id="activity-graph-all"></div></div><div class="activity-graph-item"><div id="activity-age-graph-all"></div></div></div>' +
-            '</div>' +
-        '</div>' +
-        '<div class="weekday-content" data-analysis="weekday-all" style="display: none;">' +
+                '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
+                    buildActivityAllTable(rows) +
+                    '<div class="plotly-graph activity-graph-wrap"><div class="activity-graph-item"><div id="' + graphMainId + '"></div></div><div class="activity-graph-item"><div id="' + graphAgeId + '"></div></div></div>' +
+                '</div>' +
+            '</div>';
+    }).join('');
+
+    var activityHtml = '<div class="month-content activity-only all-roles-period-wrapper" data-analysis="activity-all">' +
+        buildPeriodTabs('activity-all-period', 'activity') +
+        activityPeriodBlocks +
+    '</div>';
+
+    var weekdayPeriodBlocks = periodItems.map((p, i) => {
+        var rows = roleContents.map(rc => {
+            var s = computeRoleWeekdaySummaryForMonth(rc, p.month);
+            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
+        });
+        rows.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
+        return '<div id="weekday-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
                     '<table>' +
                         '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архивов/день</th></tr></thead>' +
                         '<tbody>' +
-                            weekdayRows.map(r => (
+                            rows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
                             )).join('') +
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
             '</div>' +
-        '</div>' +
-        '<div class="skills-monthly-content" data-analysis="skills-monthly-all" style="display: none;">' +
+        '</div>';
+    }).join('');
+
+    var weekdayHtml = '<div class="weekday-content all-roles-period-wrapper" data-analysis="weekday-all" style="display: none;">' +
+        buildPeriodTabs('weekday-all-period', 'weekday') +
+        weekdayPeriodBlocks +
+    '</div>';
+
+    var skillsPeriodBlocks = periodItems.map((p, i) => {
+        var rows = roleContents.map(rc => {
+            var s = computeRoleSkillsSummaryForMonth(rc, p.month);
+            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
+        });
+        return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container">' +
                     '<table>' +
                         '<thead><tr><th>Роль</th><th>Топ навыков (частота)</th></tr></thead>' +
                         '<tbody>' +
-                            skillsRows.map(r => (
+                            rows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' +
                                     (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : '—') +
                                 '</td></tr>'
@@ -186,14 +214,26 @@ function renderAllRolesContainer(container, roleContents) {
                     '</table>' +
                 '</div>' +
             '</div>' +
-        '</div>' +
-        '<div class="salary-content" data-analysis="salary-all" style="display: none;">' +
+        '</div>';
+    }).join('');
+
+    var skillsHtml = '<div class="skills-monthly-content all-roles-period-wrapper" data-analysis="skills-monthly-all" style="display: none;">' +
+        buildPeriodTabs('skills-all-period', 'skills') +
+        skillsPeriodBlocks +
+    '</div>';
+
+    var salaryPeriodBlocks = periodItems.map((p, i) => {
+        var rows = roleContents.map(rc => {
+            var s = computeRoleSalarySkillsForMonth(rc, p.month);
+            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
+        });
+        return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     '<table>' +
                         '<thead><tr><th>Роль</th><th>Навык</th><th>Частота</th><th>Средняя ЗП</th></tr></thead>' +
                         '<tbody>' +
-                            salaryRows.map(r => {
+                            rows.map(r => {
                                 if (!r.skills.length) {
                                     return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">—</td></tr>';
                                 }
@@ -211,18 +251,28 @@ function renderAllRolesContainer(container, roleContents) {
                 '</div>' +
             '</div>' +
         '</div>';
+    }).join('');
+
+    var salaryHtml = '<div class="salary-content all-roles-period-wrapper" data-analysis="salary-all" style="display: none;">' +
+        buildPeriodTabs('salary-all-period', 'salary') +
+        salaryPeriodBlocks +
+    '</div>';
+
+    container.innerHTML =
+        '<h2>Сводно по всем ролям</h2>' +
+        '<div class="tabs analysis-tabs">' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
+        '</div>' +
+        activityHtml +
+        weekdayHtml +
+        skillsHtml +
+        salaryHtml;
 
     var analysisButton = container.querySelector('.analysis-button');
     if (analysisButton) analysisButton.click();
-
-    var activityAll = container.querySelector('[data-analysis="activity-all"]');
-    if (activityAll) {
-        activityAll._data = { entries: activityRows };
-        buildAllRolesActivityChart(activityRows);
-        var viewBtns = activityAll.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, 'table');
-        applyViewMode(activityAll.querySelector('.view-mode-container'), 'table');
-    }
 }
 function addSummaryTabs(root) {
     var skillsMonths = root.querySelectorAll('.monthly-skills-month-content');
