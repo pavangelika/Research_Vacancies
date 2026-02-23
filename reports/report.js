@@ -1446,6 +1446,7 @@ function renderAllRolesContainer(container, roleContents) {
         var s = computeRoleWeekdaySummary(rc);
         return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
     });
+    weekdayRows.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
 
     var skillsRows = roleContents.map(rc => {
         var s = computeRoleSkillsSummary(rc);
