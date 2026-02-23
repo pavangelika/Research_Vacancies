@@ -43,7 +43,7 @@ function openRoleTab(evt, roleId) {
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
 
-    var savedType = uiState[getAnalysisStateKey(roleId)] || uiState.global_analysis_type;
+    var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(roleId)];
     if (savedType) {
         var targetId = savedType + '-' + roleId.split('-')[1];
         var targetButton = document.querySelector("#" + roleId + " .analysis-button[data-analysis-id='" + targetId + "']");
@@ -140,19 +140,19 @@ function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'activity');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_activity_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_activity_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_activity_month) {
+    var stateKey = getStateKey(roleId, 'activity');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_activity_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -231,19 +231,19 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_skills_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_skills_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_skills_month) {
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -285,19 +285,19 @@ function restoreExpInMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
-    if (saved && saved.experience) {
+    if (uiState.global_skills_experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === saved.experience) {
+            if (btn.textContent.trim() === uiState.global_skills_experience) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_skills_experience) {
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    if (saved && saved.experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_experience) {
+            if (btn.textContent.trim() === saved.experience) {
                 btn.click();
                 return;
             }
@@ -378,19 +378,19 @@ function restoreSalaryState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.salary-month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'salary');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_salary_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_salary_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_salary_month) {
+    var stateKey = getStateKey(roleId, 'salary');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_salary_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -432,19 +432,19 @@ function restoreExpInSalaryMonth(parentRole, roleId) {
     var expButtons = visibleMonth.querySelectorAll('.salary-exp-button');
     if (expButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'salary');
-    var saved = uiState[stateKey];
-    if (saved && saved.experience) {
+    if (uiState.global_salary_experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === saved.experience) {
+            if (btn.textContent.trim() === uiState.global_salary_experience) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_salary_experience) {
+    var stateKey = getStateKey(roleId, 'salary');
+    var saved = uiState[stateKey];
+    if (saved && saved.experience) {
         for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_salary_experience) {
+            if (btn.textContent.trim() === saved.experience) {
                 btn.click();
                 return;
             }
