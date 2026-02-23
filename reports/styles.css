@@ -287,6 +287,20 @@ h1 {
 .activity-all-details thead {
     display: none;
 }
+.activity-graph-wrap {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+    align-items: stretch;
+}
+.activity-graph-item {
+    flex: 1 1 0;
+    min-width: 260px;
+}
+.activity-graph-item > div {
+    width: 100%;
+    height: 420px;
+}
 
 .plotly-graph {
     flex: 1 1 auto;

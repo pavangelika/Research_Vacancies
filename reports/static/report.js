@@ -1513,7 +1513,7 @@ function renderAllRolesContainer(container, roleContents) {
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
-                '<div class="plotly-graph" id="activity-graph-all"></div>' +
+                '<div class="plotly-graph activity-graph-wrap"><div class="activity-graph-item"><div id="activity-graph-all"></div></div><div class="activity-graph-item"><div id="activity-age-graph-all"></div></div></div>' +
             '</div>' +
         '</div>' +
         '<div class="weekday-content" data-analysis="weekday-all" style="display: none;">' +
@@ -1608,21 +1608,26 @@ function buildAllRolesActivityChart(rows) {
     var traceAge = {
         x: labels,
         y: ageVals,
-        type: 'scatter',
-        mode: 'lines+markers',
+        type: 'bar',
         name: 'Ср. возраст (дни)',
-        yaxis: 'y2',
-        line: { color: CHART_COLORS.medium }
+        marker: { color: CHART_COLORS.medium }
     };
-    var layout = {
+    var layoutMain = {
         title: 'Открытые и архивные вакансии по ролям',
         xaxis: { tickangle: -35, title: '' },
         yaxis: { title: 'Количество вакансий' },
-        yaxis2: { title: 'Ср. возраст (дни)', overlaying: 'y', side: 'right' },
         margin: { t: 50, b: 120, l: 50, r: 60 },
         height: 420
     };
-    Plotly.newPlot('activity-graph-all', [traceActive, traceArchived, traceAge], layout);
+    var layoutAge = {
+        title: 'Ср. возраст (дни) по ролям',
+        xaxis: { tickangle: -35, title: '' },
+        yaxis: { title: 'Ср. возраст (дни)' },
+        margin: { t: 50, b: 120, l: 50, r: 30 },
+        height: 420
+    };
+    Plotly.newPlot('activity-graph-all', [traceActive, traceArchived], layoutMain);
+    Plotly.newPlot('activity-age-graph-all', [traceAge], layoutAge);
 }
 
 
