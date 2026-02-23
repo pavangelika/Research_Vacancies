@@ -71,7 +71,7 @@ function renderVacancyDetails(container, withList, withoutList) {
 }
 function renderAllRolesContainer(container, roleContents) {
     var periods = getAllRolesPeriods(roleContents);
-    var periodItems = [{ key: 'all', label: 'За весь период', month: null }].concat(
+    var periodItems = [{ key: 'all', label: 'За все время', month: null }].concat(
         periods.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
     );
 
@@ -93,7 +93,7 @@ function renderAllRolesContainer(container, roleContents) {
         return '<div class="table-container activity-all-table-container">' +
             '<table class="activity-all-table">' +
                 '<colgroup><col><col><col><col><col><col></colgroup>' +
-                '<thead><tr><th>Роль</th><th>Открытых</th><th>Архивных</th><th>Всего</th><th>Ср. возраст</th><th>Арх/Откр</th></tr></thead>' +
+                '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
                 '<tbody>' +
                     rows.map(r => {
                         var ratio = r.active ? (r.archived / r.active) : 0;
@@ -105,10 +105,10 @@ function renderAllRolesContainer(container, roleContents) {
                                     '<div class="table-container activity-all-table-container">' +
                                         '<table class="details-table align-activity">' +
                                             '<colgroup><col><col><col><col><col><col></colgroup>' +
-                                            '<thead><tr><th>Опыт</th><th>Открытых</th><th>Архивных</th><th>Всего</th></tr></thead>' +
+                                            '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
                                             '<tbody>' +
                                                 r.exp_breakdown.map(e => (
-                                                    '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '—') + '</td></tr>'
+                                                    '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '?') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '?') + '</td></tr>'
                                                 )).join('') +
                                             '</tbody>' +
                                         '</table>' +
@@ -121,13 +121,13 @@ function renderAllRolesContainer(container, roleContents) {
                             '<td' + leadActive + '>' + r.active + '</td>' +
                             '<td>' + r.archived + '</td>' +
                             '<td>' + r.total + '</td>' +
-                            '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '—') + '</td>' +
-                            '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '—') + '</td>' +
+                            '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '?') + '</td>' +
+                            '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '?') + '</td>' +
                         '</tr>' + details;
                     }).join('') +
                 '</tbody>' +
             '</table>' +
-        '</div>';
+                '</div>';
     }
 
     function buildActivityRows(period) {
@@ -157,7 +157,7 @@ function renderAllRolesContainer(container, roleContents) {
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                     buildActivityAllTable(rows) +
-                    '<div class="plotly-graph activity-graph-wrap"><div class="activity-graph-item"><div id="' + graphMainId + '"></div></div><div class="activity-graph-item"><div id="' + graphAgeId + '"></div></div></div>' +
+                    '<div class="plotly-graph activity-graph-wrap all-roles-graph all-roles-graph-stack"><div class="activity-graph-item"><div id="' + graphMainId + '"></div></div><div class="activity-graph-item"><div id="' + graphAgeId + '"></div></div></div>' +
                 '</div>' +
             '</div>';
     }).join('');
@@ -173,11 +173,18 @@ function renderAllRolesContainer(container, roleContents) {
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
         });
         rows.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
-        return '<div id="weekday-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+        var graphId = 'weekday-graph-all-' + i;
+        return '<div id="weekday-all-period-' + i + '" class="all-roles-period-content" data-analysis="weekday-all" data-period="' + (p.month || 'all') + '" ' +
+                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
+                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+            '<div class="view-toggle-horizontal">' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архивов/день</th></tr></thead>' +
+                        '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архив/день</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
@@ -185,6 +192,7 @@ function renderAllRolesContainer(container, roleContents) {
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
+                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -199,20 +207,28 @@ function renderAllRolesContainer(container, roleContents) {
             var s = computeRoleSkillsSummaryForMonth(rc, p.month);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
         });
-        return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+        var graphId = 'skills-graph-all-' + i;
+        return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.month || 'all') + '" ' +
+                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
+                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+            '<div class="view-toggle-horizontal">' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Топ навыков (частота)</th></tr></thead>' +
+                        '<thead><tr><th>Роль</th><th>Топ навыков (месяц)</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' +
-                                    (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : '—') +
+                                    (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : '?') +
                                 '</td></tr>'
                             )).join('') +
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
+                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -227,28 +243,36 @@ function renderAllRolesContainer(container, roleContents) {
             var s = computeRoleSalarySkillsForMonth(rc, p.month);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
         });
-        return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+        var graphId = 'salary-graph-all-' + i;
+        return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-analysis="salary-all" data-period="' + (p.month || 'all') + '" ' +
+                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
+                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+            '<div class="view-toggle-horizontal">' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Навык</th><th>Частота</th><th>Средняя ЗП</th></tr></thead>' +
+                        '<thead><tr><th>Роль</th><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => {
                                 if (!r.skills.length) {
-                                    return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">—</td></tr>';
+                                    return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">?</td></tr>';
                                 }
                                 return r.skills.map((s, i) => (
                                     '<tr>' +
                                         (i === 0 ? '<td rowspan="' + r.skills.length + '">' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' : '') +
                                         '<td>' + escapeHtml(s.skill) + '</td>' +
                                         '<td>' + s.count + '</td>' +
-                                        '<td>' + (s.avg ? Math.round(s.avg) : '—') + '</td>' +
+                                        '<td>' + (s.avg ? Math.round(s.avg) : '?') + '</td>' +
                                     '</tr>'
                                 )).join('');
                             }).join('') +
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
+                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
         '</div>';
     }).join('');

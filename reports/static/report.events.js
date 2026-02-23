@@ -101,29 +101,31 @@ document.addEventListener('click', function(e) {
     else if (container.classList.contains('monthly-skills-exp-content')) analysisType = 'skills-monthly';
     else if (container.classList.contains('salary-exp-content')) analysisType = 'salary';
     else if (container.classList.contains('all-roles-period-content')) {
-        if ((container.dataset.analysis || '').indexOf('activity') === 0) analysisType = 'activity';
+        var a = container.dataset.analysis || '';
+        if (a.indexOf('activity') === 0) analysisType = 'activity';
+        else if (a.indexOf('weekday') === 0) analysisType = 'weekday';
+        else if (a.indexOf('skills') === 0) analysisType = 'skills-monthly';
+        else if (a.indexOf('salary') === 0) analysisType = 'salary';
     }
 
     if (!analysisType) return;
 
     var mode = btn.dataset.view;
-    // Сохраняем режим в uiState
     if (analysisType === 'activity') uiState.activity_view_mode = mode;
     else if (analysisType === 'weekday') uiState.weekday_view_mode = mode;
     else if (analysisType === 'skills-monthly') uiState.skills_monthly_view_mode = mode;
     else if (analysisType === 'salary') uiState.salary_view_mode = mode;
 
-    // Обновляем активный класс у всех кнопок в этом контейнере
     var allBtns = container.querySelectorAll('.view-mode-btn, .view-mode-button');
     setActiveViewButton(allBtns, mode);
 
-    // Применяем режим
     if (analysisType === 'salary') {
-        // Для зарплат данные берутся из dataset.exp
         var expData = (container._data && container._data.exp) ? container._data.exp : parseJsonDataset(container, 'exp', {});
         applySalaryViewMode(container, expData.entries);
-    } else if (container.dataset.analysis === 'activity-all') {
-        var mode = btn.dataset.view;
+        return;
+    }
+
+    if (container.dataset.analysis === 'activity-all') {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
         if (mode === 'graph') {
@@ -132,10 +134,44 @@ document.addEventListener('click', function(e) {
             var ageId = container.dataset.graphAge;
             if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
         }
-    } else {
+        return;
+    }
+
+    if (container.dataset.analysis === 'weekday-all') {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
+        if (mode === 'graph') {
+            var rows = parseJsonDataset(container, 'entries', []);
+            var graphId = container.dataset.graphId;
+            if (graphId) buildAllRolesWeekdayChart(rows, graphId);
+        }
+        return;
     }
+
+    if (container.dataset.analysis === 'skills-monthly-all') {
+        var viewContainer = container.querySelector('.view-mode-container');
+        applyViewMode(viewContainer, mode);
+        if (mode === 'graph') {
+            var rows = parseJsonDataset(container, 'entries', []);
+            var graphId = container.dataset.graphId;
+            if (graphId) buildAllRolesSkillsChart(rows, graphId);
+        }
+        return;
+    }
+
+    if (container.dataset.analysis === 'salary-all') {
+        var viewContainer = container.querySelector('.view-mode-container');
+        applyViewMode(viewContainer, mode);
+        if (mode === 'graph') {
+            var rows = parseJsonDataset(container, 'entries', []);
+            var graphId = container.dataset.graphId;
+            if (graphId) buildAllRolesSalaryChart(rows, graphId);
+        }
+        return;
+    }
+
+    var viewContainer = container.querySelector('.view-mode-container');
+    applyViewMode(viewContainer, mode);
 });
 
 // ---------- Инициализация ----------

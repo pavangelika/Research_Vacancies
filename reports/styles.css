@@ -567,3 +567,26 @@ tr:hover { background-color: #f0f4f9; }
     }
     .view-mode-button { width: auto; padding: 4px 12px; }
 }
+
+.all-roles-graph {
+    width: 100%;
+    min-width: 100%;
+}
+.all-roles-graph-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+}
+.all-roles-graph-stack .activity-graph-item,
+.all-roles-graph-stack .plotly-graph {
+    width: 100%;
+}
+.all-roles-graph-stack .activity-graph-item {
+    min-width: 0;
+}
+.all-roles-period-content .analysis-flex:has(.table-container[style*="display: none"]) .all-roles-graph {
+    flex: 1 1 100%;
+    max-width: 100%;
+    width: 100%;
+}
