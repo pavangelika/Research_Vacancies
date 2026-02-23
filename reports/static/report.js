@@ -402,7 +402,7 @@ function openSalaryMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
     var monthDiv = document.getElementById(monthId);
-    var monthData = JSON.parse(monthDiv.dataset.month);
+    var monthData = (monthDiv._data && monthDiv._data.month) ? monthDiv._data.month : parseJsonDataset(monthDiv, 'month', {});
     var monthStr = monthData.month;
 
     uiState.global_salary_month = monthStr;
@@ -1044,13 +1044,16 @@ function aggregateSalary(roleContents) {
     var expOrder = getExperienceOrder();
     var byMonth = {};
     var allMonths = new Set();
+    var expSetByMonth = {};
     roleContents.forEach(roleContent => {
         var months = getRoleSalaryData(roleContent);
         months.forEach(m => {
             if (isSummaryMonth(m.month)) return;
             allMonths.add(m.month);
             byMonth[m.month] = byMonth[m.month] || {};
+            expSetByMonth[m.month] = expSetByMonth[m.month] || new Set();
             (m.experiences || []).forEach(exp => {
+                expSetByMonth[m.month].add(exp.experience);
                 byMonth[m.month][exp.experience] = byMonth[m.month][exp.experience] || {};
                 (exp.entries || []).forEach(entry => {
                     var key = entry.status + '|' + entry.currency;
@@ -1116,8 +1119,9 @@ function aggregateSalary(roleContents) {
 
     var monthsList = Array.from(allMonths).sort().map(month => {
         var expMap = byMonth[month] || {};
-        var experiences = Object.keys(expMap).map(expName => {
-            return { experience: expName, entries: buildEntryList(expMap[expName]) };
+        var expNames = expSetByMonth[month] ? Array.from(expSetByMonth[month]) : Object.keys(expMap);
+        var experiences = expNames.map(expName => {
+            return { experience: expName, entries: buildEntryList(expMap[expName] || {}) };
         });
         experiences.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
         return { month: month, experiences: experiences };
