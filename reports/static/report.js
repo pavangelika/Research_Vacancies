@@ -1919,11 +1919,13 @@ document.addEventListener("DOMContentLoaded", function() {
     if (buttons.length === 0) return;
 
     var selected = new Set([buttons[0].dataset.roleIndex]);
+    var selectionOrder = [buttons[0].dataset.roleIndex];
     updateRoleSelectionUI(selected);
     updateRoleView(selected);
 
     function enforceSingle(idx) {
         selected = new Set([idx]);
+        selectionOrder = [idx];
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
     }
@@ -1938,6 +1940,11 @@ document.addEventListener("DOMContentLoaded", function() {
                 else next.add(idx);
                 if (next.size === 0) next.add(idx);
                 selected = next;
+                if (next.has(idx) && !selectionOrder.includes(idx)) {
+                    selectionOrder.push(idx);
+                } else if (!next.has(idx)) {
+                    selectionOrder = selectionOrder.filter(x => x !== idx);
+                }
                 updateRoleSelectionUI(selected);
                 updateRoleView(selected);
             } else {
@@ -1967,7 +1974,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (clearBtn) {
         clearBtn.addEventListener('click', function() {
-            selected = new Set([buttons[0].dataset.roleIndex]);
+            var firstSelected = selectionOrder[0] || buttons[0].dataset.roleIndex;
+            selected = new Set([firstSelected]);
+            selectionOrder = [firstSelected];
             updateRoleSelectionUI(selected);
             updateRoleView(selected);
         });
