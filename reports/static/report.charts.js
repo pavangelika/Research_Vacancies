@@ -267,3 +267,4 @@ function buildAllRolesSalaryChart(rows, graphId) {
     };
     plotIfChangedById(graphId, signature, [trace], layout);
 }
+

@@ -203,10 +203,7 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var skillsPeriodBlocks = periodItems.map((p, i) => {
-        var rows = roleContents.map(rc => {
-            var s = computeRoleSkillsSummaryForMonth(rc, p.month);
-            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
-        });
+        var rows = computeAllRolesSkillCostSummaryForMonth(roleContents, p.month);
         var graphId = 'skills-graph-all-' + i;
         return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.month || 'all') + '" ' +
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
@@ -216,15 +213,19 @@ function renderAllRolesContainer(container, roleContents) {
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
-                '<div class="table-container">' +
+                '<div class="table-container full-width-table">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Топ навыков (месяц)</th></tr></thead>' +
+                        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th><th>Медианная зп</th><th>Роли</th></tr></thead>' +
                         '<tbody>' +
-                            rows.map(r => (
-                                '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' +
-                                    (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : '?') +
-                                '</td></tr>'
-                            )).join('') +
+                            (rows.length ? rows.map(r => (
+                                '<tr>' +
+                                    '<td>' + escapeHtml(r.skill) + '</td>' +
+                                    '<td>' + r.mention_count + '</td>' +
+                                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
+                                '</tr>'
+                            )).join('') : '<tr><td colspan="5">—</td></tr>') +
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
@@ -233,7 +234,7 @@ function renderAllRolesContainer(container, roleContents) {
         '</div>';
     }).join('');
 
-    var skillsHtml = '<div class="skills-monthly-content all-roles-period-wrapper" data-analysis="skills-monthly-all" style="display: none;">' +
+    var skillsHtml = '<div class="skills-monthly-content all-roles-period-wrapper skills-all-summary" data-analysis="skills-monthly-all" style="display: none;">' +
         buildPeriodTabs('skills-all-period', 'skills') +
         skillsPeriodBlocks +
     '</div>';

@@ -480,6 +480,7 @@ table {
     border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--shadow-light);
+    table-layout: auto;
 }
 th {
     background-color: var(--surface-variant);
@@ -589,4 +590,15 @@ tr:hover { background-color: #f0f4f9; }
     flex: 1 1 100%;
     max-width: 100%;
     width: 100%;
+}
+.skills-all-summary .analysis-flex {
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+}
+.skills-all-summary .table-container,
+.skills-all-summary .plotly-graph {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
 }
