@@ -602,26 +602,6 @@ tr:hover { background-color: #f0f4f9; }
     border-radius: var(--border-radius-card);
     box-shadow: var(--shadow-light);
 }
-.all-roles-role-filter-header {
-    display: flex;
-    justify-content: flex-end;
-}
-.all-roles-role-filter-toggle {
-    background: var(--surface);
-    border: 1px solid var(--border-light);
-    border-radius: 8px;
-    width: 28px;
-    height: 24px;
-    cursor: pointer;
-    color: var(--text-secondary);
-    transition: all 0.2s;
-}
-.all-roles-role-filter-toggle:hover {
-    background: var(--tab-hover-bg);
-}
-.all-roles-role-filter.collapsed .all-roles-role-filter-list {
-    display: none;
-}
 .all-roles-role-filter-title {
     font-size: 0.85rem;
     color: var(--text-secondary);

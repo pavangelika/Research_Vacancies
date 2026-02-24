@@ -250,23 +250,25 @@ function buildAllRolesSkillsChart(rows, graphId) {
 }
 
 function buildAllRolesSalaryChart(rows, graphId) {
-    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
-    var vals = rows.map(r => r.median_salary || 0);
-    var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.median_salary || 0)).join('|');
+    var labels = rows.map(r => (r.name || 'Р РѕР»СЊ') + ' [' + (r.id || '') + ']');
+    var vals = rows.map(r => (r.skills || []).reduce((s, x) => s + (x.count || 0), 0));
+    var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.skills || []).length + ':' + (r.skills || []).reduce((s, x) => s + (x.count || 0), 0)).join('|');
     var trace = {
         x: labels,
         y: vals,
         type: 'bar',
-        name: 'Медианная зп',
+        name: 'Р§Р°СЃС‚РѕС‚Р° РЅР°РІС‹РєРѕРІ',
         marker: { color: CHART_COLORS.dark }
     };
     var layout = {
-        title: 'Медианная зарплата по ролям',
+        title: 'РЎСѓРјРјР°СЂРЅР°СЏ С‡Р°СЃС‚РѕС‚Р° РЅР°РІС‹РєРѕРІ РїРѕ СЂРѕР»СЏРј',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Медианная зп' },
+        yaxis: { title: 'Р§Р°СЃС‚РѕС‚Р°' },
         margin: { t: 50, b: 120, l: 50, r: 60 },
         height: 420
     };
     plotIfChangedById(graphId, signature, [trace], layout);
 }
+
+
 

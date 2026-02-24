@@ -1285,40 +1285,6 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data):
                            report_data_json=report_data_json)
 
 
-def build_vacancy_maps_and_index(salary_data):
-    role_maps = {}
-    index_map = {}
-
-    for role in salary_data or []:
-        role_id = role.get('id')
-        role_key = str(role_id) if role_id is not None else "UNKNOWN"
-        role_maps.setdefault(role_key, {})
-
-        for month in role.get('months_list', []) or []:
-            for exp in month.get('experiences', []) or []:
-                for entry in exp.get('entries', []) or []:
-                    with_list = entry.get('vacancies_with_salary_list') or []
-                    without_list = entry.get('vacancies_without_salary_list') or []
-
-                    for v in with_list:
-                        if not v or 'id' not in v:
-                            continue
-                        vid = str(v['id'])
-                        role_maps[role_key][vid] = v
-                        index_map[vid] = role_key
-                    for v in without_list:
-                        if not v or 'id' not in v:
-                            continue
-                        vid = str(v['id'])
-                        role_maps[role_key][vid] = v
-                        index_map[vid] = role_key
-
-                    entry['vacancies_with_salary_list'] = [v.get('id') for v in with_list if v and v.get('id')]
-                    entry['vacancies_without_salary_list'] = [v.get('id') for v in without_list if v and v.get('id')]
-
-    return role_maps, index_map
-
-
 def save_report(html_content):
     output_dir = '/reports'
     os.makedirs(output_dir, exist_ok=True)
@@ -1326,25 +1292,6 @@ def save_report(html_content):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     logging.info(f"Report saved to {output_file}")
-
-
-def save_vacancies_js(role_maps, index_map):
-    output_dir = '/reports'
-    os.makedirs(output_dir, exist_ok=True)
-    index_file = os.path.join(output_dir, 'report.vacancy_index.js')
-    index_payload = json_lib.dumps(index_map or {}, ensure_ascii=False)
-    with open(index_file, 'w', encoding='utf-8') as f:
-        f.write(f"window.REPORT_VACANCY_INDEX = {index_payload};\n")
-    logging.info(f"Vacancy index saved to {index_file}")
-
-    for role_key, vac_map in (role_maps or {}).items():
-        output_file = os.path.join(output_dir, f'report.vacancies.role-{role_key}.js')
-        payload = json_lib.dumps(vac_map or {}, ensure_ascii=False)
-        content = f"window.REPORT_VACANCIES = window.REPORT_VACANCIES || {{}};\n"
-        content += f"Object.assign(window.REPORT_VACANCIES, {payload});\n"
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(content)
-        logging.info(f"Vacancies map saved to {output_file}")
 
 def copy_styles():
     src = 'static/styles.css'
@@ -1387,11 +1334,9 @@ def main():
 
     logging.info("Fetching salary data...")
     salary_data = fetch_salary_data(mapping)
-    role_maps, index_map = build_vacancy_maps_and_index(salary_data)
 
     html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data)
     save_report(html)
-    save_vacancies_js(role_maps, index_map)
     copy_styles()
     copy_js()
 

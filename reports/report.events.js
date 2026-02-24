@@ -4,28 +4,28 @@ document.addEventListener('click', function(e) {
 
     e.preventDefault();
     var contextHtml = buildRowContext(row);
-    var withIds = [];
-    var withoutIds = [];
-    if (row._data && row._data.withIds) {
-        withIds = row._data.withIds;
+    var withList = [];
+    var withoutList = [];
+    if (row._data && row._data.withList) {
+        withList = row._data.withList;
     } else {
         try {
-            withIds = JSON.parse(row.dataset.vacanciesWithIds || '[]');
+            withList = JSON.parse(row.dataset.vacanciesWith || '[]');
         } catch (_e) {
-            withIds = [];
+            withList = [];
         }
     }
-    if (row._data && row._data.withoutIds) {
-        withoutIds = row._data.withoutIds;
+    if (row._data && row._data.withoutList) {
+        withoutList = row._data.withoutList;
     } else {
         try {
-            withoutIds = JSON.parse(row.dataset.vacanciesWithoutIds || '[]');
+            withoutList = JSON.parse(row.dataset.vacanciesWithout || '[]');
         } catch (_e) {
-            withoutIds = [];
+            withoutList = [];
         }
     }
 
-    openVacancyModal(withIds, withoutIds, contextHtml);
+    openVacancyModal(withList, withoutList, contextHtml);
 });
 
 document.addEventListener('click', function(e) {
@@ -47,36 +47,30 @@ document.addEventListener('click', function(e) {
     if (!container) return;
 
     var filter = btn.dataset.filter;
-    var withIds = [];
-    var withoutIds = [];
+    var withList = [];
+    var withoutList = [];
     try {
-        withIds = JSON.parse(container.dataset.withIds || '[]');
+        withList = JSON.parse(container.dataset.with || '[]');
     } catch (_e) {
-        withIds = [];
+        withList = [];
     }
     try {
-        withoutIds = JSON.parse(container.dataset.withoutIds || '[]');
+        withoutList = JSON.parse(container.dataset.without || '[]');
     } catch (_e) {
-        withoutIds = [];
+        withoutList = [];
     }
 
     var allBtns = container.querySelectorAll('.vacancy-filter-btn');
     allBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    var ids = filter === 'with' ? withIds : withoutIds;
+    var list = filter === 'with' ? withList : withoutList;
     var replaceTarget = container.querySelector('.vacancy-table-wrap, .vacancy-empty');
     if (replaceTarget) {
-        replaceTarget.outerHTML = '<div class="vacancy-empty">Загрузка...</div>';
+        replaceTarget.outerHTML = buildVacancyTableHtml(list);
+    } else {
+        container.innerHTML = container.innerHTML + buildVacancyTableHtml(list);
     }
-    resolveVacancyListAsync(ids).then(list => {
-        var target = container.querySelector('.vacancy-table-wrap, .vacancy-empty');
-        if (target) {
-            target.outerHTML = buildVacancyTableHtml(list);
-        } else {
-            container.innerHTML = container.innerHTML + buildVacancyTableHtml(list);
-        }
-    });
 });
 
 document.addEventListener('keydown', function(e) {
@@ -232,6 +226,7 @@ document.addEventListener("DOMContentLoaded", function() {
         selectionOrder = [idx];
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
+        collapseRoleSelector();
     }
 
     buttons.forEach(btn => {
@@ -309,4 +304,5 @@ document.addEventListener("DOMContentLoaded", function() {
 
     addSummaryTabs(document);
 });
+
 
