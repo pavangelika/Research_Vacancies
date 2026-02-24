@@ -709,6 +709,38 @@ tr:hover { background-color: #f0f4f9; }
     align-items: center;
     justify-content: center;
 }
+.weekday-content .view-toggle-horizontal,
+.all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal {
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+.weekday-content .view-toggle-horizontal .view-mode-btn,
+.all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.weekday-control-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    margin: 4px 0 8px;
+}
+.weekday-mode-toggle-inline {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
 .activity-control-row {
     position: relative;
     display: flex;

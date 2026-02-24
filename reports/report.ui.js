@@ -63,6 +63,7 @@ function switchAnalysis(evt, analysisId) {
         else restoreActivityState(parentRole, roleId);
     } else if (analysisType === 'weekday') {
         weekdayBlock.style.display = 'block';
+        normalizeWeekdayControls(parentRole);
         if (roleId === 'role-all') {
             restoreAllRolesPeriodState(parentRole, 'weekday');
         } else {
@@ -70,6 +71,7 @@ function switchAnalysis(evt, analysisId) {
             setActiveViewButton(viewBtns, uiState.weekday_view_mode);
             applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
             buildWeekdayBarChart(analysisId.split('-')[1], weekdayBlock);
+            applyWeekdayModeSizing(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
         }
     } else if (analysisType === 'skills-monthly') {
         skillsMonthlyBlock.style.display = 'block';
@@ -130,6 +132,7 @@ function normalizeActivityControls(parentRole) {
             var graphId = 'activity-graph-' + monthId.replace('month-', '');
             var entries = parseJsonDataset(visibleMonth, 'entries', []);
             buildActivityBarChart(graphId, entries);
+            applyActivityModeSizing(container, view);
         });
         inlineToggle.dataset.bound = '1';
     }
@@ -154,6 +157,39 @@ function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
     });
     buttons.forEach(function(btn) { monthTabs.appendChild(btn); });
     monthTabs.dataset.sorted = '1';
+}
+
+function normalizeWeekdayControls(parentRole) {
+    if (!parentRole) return;
+    var sections = parentRole.querySelectorAll(
+        '.weekday-content, .all-roles-period-content[data-analysis="weekday-all"]'
+    );
+    sections.forEach(function(section) {
+        var toggle = section.querySelector('.view-toggle-horizontal');
+        if (!toggle) return;
+        var row = section.querySelector('.weekday-control-row');
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'weekday-control-row';
+            section.insertBefore(row, toggle);
+        }
+        if (toggle.parentElement !== row) row.appendChild(toggle);
+        toggle.classList.add('weekday-mode-toggle-inline');
+
+        var graphBtn = toggle.querySelector('.graph-btn');
+        if (graphBtn) {
+            graphBtn.textContent = '📈';
+            graphBtn.title = 'График';
+        }
+    });
+    var noneCells = parentRole.querySelectorAll(
+        '.weekday-content td, .all-roles-period-content[data-analysis="weekday-all"] td'
+    );
+    noneCells.forEach(function(cell) {
+        if ((cell.textContent || '').trim() === 'None') {
+            cell.textContent = 'нет архивных';
+        }
+    });
 }
 
 function applyEmployerAnalysisMonthFilter(block, month) {
@@ -683,7 +719,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
     }
 
     if (analysisType === 'activity' && target) {
-        var mode = uiState.activity_view_mode === 'together' ? 'table' : uiState.activity_view_mode;
+        var mode = uiState.activity_view_mode || 'together';
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
@@ -692,15 +728,18 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         var mainId = target.dataset.graphMain;
         var ageId = target.dataset.graphAge;
         if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
+        applyActivityModeSizing(viewContainer, mode);
     } else if (analysisType === 'weekday' && target) {
-        var mode = uiState.weekday_view_mode === 'together' ? 'table' : uiState.weekday_view_mode;
+        normalizeWeekdayControls(target.closest('.role-content'));
+        var mode = uiState.weekday_view_mode || 'together';
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesWeekdayChart(rows, graphId);
+        if (mode !== 'table' && graphId) buildAllRolesWeekdayChart(rows, graphId);
+        applyWeekdayModeSizing(viewContainer, mode);
     } else if (analysisType === 'skills' && target) {
         var mode = uiState.skills_monthly_view_mode === 'together' ? 'table' : uiState.skills_monthly_view_mode;
         var viewBtns = target.querySelectorAll('.view-mode-btn');
@@ -771,6 +810,7 @@ function openMonthTab(evt, monthId) {
     var entries = parseJsonDataset(monthDiv, 'entries', []);
     var graphId = 'activity-graph-' + monthId.replace('month-', '');
     buildActivityBarChart(graphId, entries);
+    applyActivityModeSizing(container, uiState.activity_view_mode);
     normalizeActivityControls(parentRole);
 }
 function restoreActivityState(parentRole, roleId) {
@@ -1039,6 +1079,8 @@ function applyViewMode(container, mode) {
     }
     if ((container.dataset.analysis || '') === 'activity') {
         applyActivityModeSizing(container, mode);
+    } else if ((container.dataset.analysis || '') === 'weekday') {
+        applyWeekdayModeSizing(container, mode);
     }
 }
 
@@ -1048,27 +1090,39 @@ function applyActivityModeSizing(container, mode) {
     if (!table || !graph) return;
 
     container.style.justifyContent = 'center';
+    container.style.alignItems = 'stretch';
+    container.style.minHeight = '';
 
     table.style.flex = '';
     table.style.width = '';
     table.style.maxWidth = '';
     table.style.margin = '';
+    table.style.height = '';
+    table.style.maxHeight = '';
+    table.style.overflow = '';
 
     graph.style.flex = '';
     graph.style.width = '';
     graph.style.maxWidth = '';
     graph.style.margin = '';
+    graph.style.height = '';
 
     if (mode === 'table') {
+        container.style.alignItems = 'center';
         table.style.flex = '0 0 50%';
         table.style.width = '50%';
         table.style.maxWidth = '50%';
         table.style.margin = '0 auto';
     } else if (mode === 'graph') {
+        container.style.alignItems = 'center';
         graph.style.flex = '0 0 80%';
         graph.style.width = '80%';
         graph.style.maxWidth = '80%';
         graph.style.margin = '0 auto';
+        requestAnimationFrame(function() {
+            var gh = Math.round(graph.getBoundingClientRect().height || 0);
+            if (gh > 0) container.style.minHeight = gh + 'px';
+        });
     } else {
         table.style.flex = '0 0 50%';
         table.style.width = '50%';
@@ -1076,7 +1130,93 @@ function applyActivityModeSizing(container, mode) {
         graph.style.flex = '0 0 50%';
         graph.style.width = '50%';
         graph.style.maxWidth = '50%';
+        requestAnimationFrame(function() {
+            var gh = Math.round(graph.getBoundingClientRect().height || 0);
+            if (gh > 0) {
+                table.style.height = gh + 'px';
+                table.style.maxHeight = gh + 'px';
+                table.style.overflow = 'auto';
+                container.style.minHeight = gh + 'px';
+            }
+        });
     }
+}
+
+function applyWeekdayModeSizing(container, mode) {
+    var table = container.querySelector('.table-container');
+    var graph = container.querySelector('.plotly-graph');
+    if (!table || !graph) return;
+
+    container.style.justifyContent = 'center';
+    container.style.alignItems = 'stretch';
+    container.style.height = 'auto';
+    container.style.minHeight = '0';
+    container.style.overflow = 'visible';
+
+    table.style.flex = '';
+    table.style.width = '';
+    table.style.maxWidth = '';
+    table.style.margin = '';
+    table.style.height = '';
+    table.style.maxHeight = '';
+    table.style.overflow = '';
+
+    graph.style.flex = '';
+    graph.style.width = '';
+    graph.style.maxWidth = '';
+    graph.style.margin = '';
+    graph.style.height = '';
+
+    if (mode === 'table') {
+        container.style.alignItems = 'center';
+        container.style.height = 'auto';
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        table.style.margin = '0 auto';
+    } else if (mode === 'graph') {
+        container.style.alignItems = 'center';
+        graph.style.flex = '0 0 80%';
+        graph.style.width = '80%';
+        graph.style.maxWidth = '80%';
+        graph.style.margin = '0 auto';
+        syncContainerToGraphHeight(container, graph);
+    } else {
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        graph.style.flex = '0 0 50%';
+        graph.style.width = '50%';
+        graph.style.maxWidth = '50%';
+        requestAnimationFrame(function() {
+            var gh = Math.max(
+                Math.round(graph.getBoundingClientRect().height || 0),
+                Math.round(graph.scrollHeight || 0)
+            );
+            if (gh > 0) {
+                table.style.height = gh + 'px';
+                table.style.maxHeight = gh + 'px';
+                table.style.overflow = 'auto';
+            }
+            syncContainerToGraphHeight(container, graph);
+        });
+    }
+}
+
+function syncContainerToGraphHeight(container, graph) {
+    if (!container || !graph) return;
+    var apply = function() {
+        var gh = Math.max(
+            Math.round(graph.getBoundingClientRect().height || 0),
+            Math.round(graph.scrollHeight || 0)
+        );
+        if (gh > 0) {
+            container.style.height = gh + 'px';
+            container.style.minHeight = gh + 'px';
+        }
+    };
+    requestAnimationFrame(apply);
+    setTimeout(apply, 120);
 }
 function applySalaryViewMode(expDiv, entries) {
     var mode = uiState.salary_view_mode;
