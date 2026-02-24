@@ -324,8 +324,8 @@
         <div class="employer-analysis-content" data-analysis="employer-analysis-{{ role_index }}" style="display: none;">
             {% if employer_analysis_role and employer_analysis_role.rows %}
             <div class="employer-topbar">
-                <div class="employer-period-chips" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 8px 0;">
-                    <button type="button" class="role-filter-chip employer-period-chip active" data-month="all">За период</button>
+                <div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">
+                    <button type="button" class="tab-button month-button employer-period-chip active" data-month="all">За период</button>
                 </div>
                 <div class="employer-view-toggle employer-side-toggle">
                     <button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">☷</button>

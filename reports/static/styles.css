@@ -668,6 +668,11 @@ tr:hover { background-color: #f0f4f9; }
     flex: 1 1 auto;
     justify-content: center;
 }
+.employer-period-chips .employer-period-chip {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+}
 .employer-analysis-main {
     display: flex;
     flex-direction: column;

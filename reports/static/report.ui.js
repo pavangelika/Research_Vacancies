@@ -89,10 +89,16 @@ function switchAnalysis(evt, analysisId) {
 function applyEmployerAnalysisMonthFilter(block, month) {
     if (!block) return;
     if (!block.__employerData || !block.__employerData.length) return;
+    if (block.dataset.employerActiveMonth === month) return;
     var periodLabel = block.dataset.employerAllLabel || '';
-    var rows = (month === 'all')
-        ? aggregateEmployerAnalysisRows(block.__employerData)
-        : block.__employerData.filter(function(row) { return row.month === month; });
+    var rows = [];
+    if (month === 'all') {
+        rows = block.__employerAllRows || aggregateEmployerAnalysisRows(block.__employerData);
+    } else {
+        rows = (block.__employerRowsByMonth && block.__employerRowsByMonth[month])
+            ? block.__employerRowsByMonth[month]
+            : block.__employerData.filter(function(row) { return row.month === month; });
+    }
     renderEmployerAnalysisTable(block, rows, month === 'all' ? periodLabel : null);
     var chips = block.querySelectorAll('.employer-period-chip');
     chips.forEach(function(chip) {
@@ -478,6 +484,11 @@ function toggleEmployerMonthColumn(block, showColumn) {
 
 function initEmployerAnalysisFilter(block) {
     if (!block) return;
+    if (block.dataset.employerInited === '1') {
+        applyEmployerAnalysisMonthFilter(block, block.dataset.employerActiveMonth || 'all');
+        applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+        return;
+    }
     var tableContainer = block.querySelector('.table-container');
     if (!tableContainer) return;
     tableContainer.classList.add('employer-analysis-table-container');
@@ -530,15 +541,18 @@ function initEmployerAnalysisFilter(block) {
     var parsedRows = parseEmployerAnalysisData(block);
     if (!parsedRows.length) return;
     block.__employerData = parsedRows;
+    block.__employerRowsByMonth = parsedRows.reduce(function(acc, row) {
+        if (!acc[row.month]) acc[row.month] = [];
+        acc[row.month].push(row);
+        return acc;
+    }, {});
+    block.__employerAllRows = aggregateEmployerAnalysisRows(parsedRows);
 
     var chipsWrap = block.querySelector('.employer-period-chips');
     if (!chipsWrap) {
         chipsWrap = document.createElement('div');
-        chipsWrap.className = 'employer-period-chips';
-        chipsWrap.style.display = 'flex';
-        chipsWrap.style.flexWrap = 'wrap';
+        chipsWrap.className = 'tabs month-tabs employer-period-chips';
         chipsWrap.style.justifyContent = 'center';
-        chipsWrap.style.gap = '8px 12px';
         chipsWrap.style.margin = '8px 0';
         block.insertBefore(chipsWrap, analysisView || tableContainer);
     }
@@ -556,9 +570,9 @@ function initEmployerAnalysisFilter(block) {
     var allLabel = 'За ' + months.length + ' ' + getMonthWordForm(months.length);
     block.dataset.employerAllLabel = allLabel;
 
-    chipsWrap.innerHTML = '<button type="button" class="role-filter-chip employer-period-chip active" data-month="all">' + allLabel + '</button>' +
+    chipsWrap.innerHTML = '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + allLabel + '</button>' +
         months.map(function(m) {
-            return '<button type="button" class="role-filter-chip employer-period-chip" data-month="' + m + '">' + m + '</button>';
+            return '<button type="button" class="tab-button month-button employer-period-chip" data-month="' + m + '">' + m + '</button>';
         }).join('');
 
     if (!chipsWrap.dataset.bound) {
@@ -572,6 +586,7 @@ function initEmployerAnalysisFilter(block) {
 
     applyEmployerAnalysisMonthFilter(block, 'all');
     applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+    block.dataset.employerInited = '1';
 }
 
 function getMonthWordForm(count) {
