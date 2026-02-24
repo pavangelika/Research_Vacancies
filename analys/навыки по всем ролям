@@ -1,0 +1,59 @@
+WITH vacancy_skills AS (
+    SELECT
+        v.id,
+        COALESCE(NULLIF(v.professional_role, ''), 'UNKNOWN_ROLE') AS role,
+        regexp_replace(btrim(s.skill), E'\\s+', ' ', 'g') AS skill,
+        (COALESCE(v.salary_from, v.salary_to) + COALESCE(v.salary_to, v.salary_from)) / 2.0 AS skill_cost_rur
+    FROM public.get_vacancies v
+    CROSS JOIN LATERAL regexp_split_to_table(
+        replace(COALESCE(v.skills, ''), chr(8206), ''),
+        E'\\s*,\\s*'
+    ) AS s(skill)
+    WHERE v.skills IS NOT NULL
+      AND btrim(v.skills) <> ''
+      AND btrim(s.skill) <> ''
+      AND v.currency = 'RUR'
+      AND (v.salary_from IS NOT NULL OR v.salary_to IS NOT NULL)
+),
+skill_totals AS (
+    SELECT
+        skill,
+        COUNT(*) AS mention_count,
+        ROUND(AVG(skill_cost_rur)::numeric, 2) AS avg_skill_cost_rur,
+        ROUND(
+            percentile_cont(0.5) WITHIN GROUP (ORDER BY skill_cost_rur)::numeric,
+            2
+        ) AS median_skill_cost_rur
+    FROM vacancy_skills
+    GROUP BY skill
+),
+skill_role_counts AS (
+    SELECT
+        skill,
+        role,
+        COUNT(*) AS role_mentions
+    FROM vacancy_skills
+    GROUP BY skill, role
+),
+role_breakdown AS (
+    SELECT
+        src.skill,
+        string_agg(
+            src.role || ' (' ||
+            to_char(ROUND(src.role_mentions * 100.0 / st.mention_count, 2), 'FM999990.00') ||
+            '%)',
+            ', ' ORDER BY src.role_mentions DESC, src.role
+        ) AS roles
+    FROM skill_role_counts src
+    JOIN skill_totals st ON st.skill = src.skill
+    GROUP BY src.skill
+)
+SELECT
+    st.skill,
+    st.mention_count,
+    st.avg_skill_cost_rur,
+    st.median_skill_cost_rur,
+    rb.roles
+FROM skill_totals st
+JOIN role_breakdown rb ON rb.skill = st.skill
+ORDER BY st.mention_count DESC, st.skill;
