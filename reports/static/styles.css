@@ -678,7 +678,25 @@ tr:hover { background-color: #f0f4f9; }
     width: auto;
     white-space: nowrap;
 }
+.monthly-skills-month-tabs .monthly-skills-month-button,
+.monthly-skills-exp-tabs .monthly-skills-exp-button {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+}
 .activity-only.month-tabs {
+    justify-content: center;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+}
+.monthly-skills-month-tabs,
+.monthly-skills-exp-tabs {
     justify-content: center;
     width: 100%;
     margin-left: auto;
@@ -725,6 +743,39 @@ tr:hover { background-color: #f0f4f9; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+.skills-monthly-content .view-toggle-horizontal .view-mode-btn,
+.all-roles-period-content[data-analysis="skills-monthly-all"] .view-toggle-horizontal .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.skills-control-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    margin: 4px 0 8px;
+}
+.skills-control-row .monthly-skills-month-tabs {
+    margin: 0 auto !important;
+}
+.skills-mode-toggle-inline {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+}
+.monthly-skills-exp-content .view-toggle-horizontal {
+    display: none;
 }
 .weekday-control-row {
     position: relative;

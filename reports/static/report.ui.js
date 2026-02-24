@@ -1,4 +1,4 @@
-function openRoleTab(evt, roleId) {
+﻿function openRoleTab(evt, roleId) {
     var i, roleContent, roleButtons;
     roleContent = document.getElementsByClassName("role-content");
     for (i = 0; i < roleContent.length; i++) {
@@ -24,7 +24,7 @@ function openRoleTab(evt, roleId) {
     if (firstButton) firstButton.click();
 }
 
-// ---------- Переключение типов анализа ----------
+// ---------- РџРµСЂРµРєР»СЋС‡РµРЅРёРµ С‚РёРїРѕРІ Р°РЅР°Р»РёР·Р° ----------
 function switchAnalysis(evt, analysisId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -75,6 +75,7 @@ function switchAnalysis(evt, analysisId) {
         }
     } else if (analysisType === 'skills-monthly') {
         skillsMonthlyBlock.style.display = 'block';
+        normalizeSkillsControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'skills');
         else restoreSkillsMonthlyState(parentRole, roleId);
     } else if (analysisType === 'salary') {
@@ -109,9 +110,9 @@ function normalizeActivityControls(parentRole) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal activity-mode-toggle-inline';
         inlineToggle.innerHTML =
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">☷</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📈</button>';
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉћ</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в·</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“€</button>';
         controlRow.appendChild(inlineToggle);
     }
     if (!inlineToggle.dataset.bound) {
@@ -141,8 +142,8 @@ function normalizeActivityControls(parentRole) {
 
     var graphBtns = parentRole.querySelectorAll('.activity-only .view-toggle-horizontal .graph-btn, .month-content.activity-only .graph-btn');
     graphBtns.forEach(function(btn) {
-        btn.textContent = '📈';
-        btn.title = 'График';
+        btn.textContent = 'рџ“€';
+        btn.title = 'Р“СЂР°С„РёРє';
     });
 }
 
@@ -178,8 +179,8 @@ function normalizeWeekdayControls(parentRole) {
 
         var graphBtn = toggle.querySelector('.graph-btn');
         if (graphBtn) {
-            graphBtn.textContent = '📈';
-            graphBtn.title = 'График';
+            graphBtn.textContent = 'рџ“€';
+            graphBtn.title = 'Р“СЂР°С„РёРє';
         }
     });
     var noneCells = parentRole.querySelectorAll(
@@ -187,11 +188,68 @@ function normalizeWeekdayControls(parentRole) {
     );
     noneCells.forEach(function(cell) {
         if ((cell.textContent || '').trim() === 'None') {
-            cell.textContent = 'нет архивных';
+            cell.textContent = 'РЅРµС‚ Р°СЂС…РёРІРЅС‹С…';
         }
     });
 }
 
+function normalizeSkillsControls(parentRole) {
+    if (!parentRole) return;
+    var skillsBlocks = parentRole.querySelectorAll('.skills-monthly-content[data-analysis^="skills-monthly-"]');
+    if (!skillsBlocks.length) return;
+
+    skillsBlocks.forEach(function(skillsBlock) {
+        var monthTabs = skillsBlock.querySelector('.monthly-skills-month-tabs');
+        if (!monthTabs) return;
+
+        monthTabs.style.marginTop = '0';
+
+        var controlRow = skillsBlock.querySelector('.skills-control-row');
+        if (!controlRow) {
+            controlRow = document.createElement('div');
+            controlRow.className = 'skills-control-row';
+            monthTabs.parentElement.insertBefore(controlRow, monthTabs);
+        }
+        if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
+
+        var inlineToggle = controlRow.querySelector('.skills-mode-toggle-inline');
+        if (!inlineToggle) {
+            inlineToggle = document.createElement('div');
+            inlineToggle.className = 'view-toggle-horizontal skills-mode-toggle-inline';
+            inlineToggle.innerHTML =
+                '<button class="view-mode-btn skills-inline-mode-btn" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉћ</button>' +
+                '<button class="view-mode-btn skills-inline-mode-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в·</button>' +
+                '<button class="view-mode-btn skills-inline-mode-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“€</button>';
+            controlRow.appendChild(inlineToggle);
+        }
+        if (!inlineToggle.dataset.bound) {
+            inlineToggle.addEventListener('click', function(e) {
+                var btn = e.target.closest('.skills-inline-mode-btn');
+                if (!btn) return;
+                var view = btn.dataset.view || 'together';
+                uiState.skills_monthly_view_mode = view;
+                setActiveViewButton(inlineToggle.querySelectorAll('.skills-inline-mode-btn'), view);
+
+                var visibleMonth = skillsBlock.querySelector('.monthly-skills-month-content[style*="display: block"]');
+                if (!visibleMonth) return;
+                var visibleExp = visibleMonth.querySelector('.monthly-skills-exp-content[style*="display: block"]');
+                if (!visibleExp) return;
+
+                var expViewBtns = visibleExp.querySelectorAll('.view-mode-btn');
+                setActiveViewButton(expViewBtns, view);
+                var container = visibleExp.querySelector('.view-mode-container');
+                applyViewMode(container, view);
+                var expData = (visibleExp._data && visibleExp._data.experience) ? visibleExp._data : parseJsonDataset(visibleExp, 'exp', {});
+                var graphId = 'skills-monthly-graph-' + visibleExp.id.replace('ms-exp-', '');
+                if (expData && expData.skills && graphId) {
+                    buildHorizontalBarChart(graphId, expData.skills, expData.experience || '');
+                }
+            });
+            inlineToggle.dataset.bound = '1';
+        }
+        setActiveViewButton(inlineToggle.querySelectorAll('.skills-inline-mode-btn'), uiState.skills_monthly_view_mode || 'together');
+    });
+}
 function applyEmployerAnalysisMonthFilter(block, month) {
     if (!block) return;
     if (!block.__employerData || !block.__employerData.length) return;
@@ -252,22 +310,22 @@ function renderEmployerAnalysisChart(block) {
         if (graph.__avgChartEl) Plotly.purge(graph.__avgChartEl);
         graph.__medianChartEl = null;
         graph.__avgChartEl = null;
-        graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
+        graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">РќРµС‚ РґР°РЅРЅС‹С… РґР»СЏ РІС‹Р±СЂР°РЅРЅРѕРіРѕ РїРµСЂРёРѕРґР°</div>';
         return;
     }
 
     var categories = [
-        { key: 'accr_false', label: 'ИТ-аккредитация false' },
-        { key: 'accr_true', label: 'ИТ-аккредитация true' },
-        { key: 'test_false', label: 'Тестовое задание false' },
-        { key: 'test_true', label: 'Тестовое задание true' },
-        { key: 'cover_false', label: 'Сопроводительное письмо false' },
-        { key: 'cover_true', label: 'Сопроводительное письмо true' },
-        { key: 'rating_unknown', label: 'без рейтинга' },
-        { key: 'rating_lt_35', label: 'рейтинг <3.5' },
-        { key: 'rating_35_399', label: 'рейтинг 3.5-3.99' },
-        { key: 'rating_40_449', label: 'рейтинг 4.0-4.49' },
-        { key: 'rating_ge_45', label: 'рейтинг >=4.5' }
+        { key: 'accr_false', label: 'РРў-Р°РєРєСЂРµРґРёС‚Р°С†РёСЏ false' },
+        { key: 'accr_true', label: 'РРў-Р°РєРєСЂРµРґРёС‚Р°С†РёСЏ true' },
+        { key: 'test_false', label: 'РўРµСЃС‚РѕРІРѕРµ Р·Р°РґР°РЅРёРµ false' },
+        { key: 'test_true', label: 'РўРµСЃС‚РѕРІРѕРµ Р·Р°РґР°РЅРёРµ true' },
+        { key: 'cover_false', label: 'РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ false' },
+        { key: 'cover_true', label: 'РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ true' },
+        { key: 'rating_unknown', label: 'Р±РµР· СЂРµР№С‚РёРЅРіР°' },
+        { key: 'rating_lt_35', label: 'СЂРµР№С‚РёРЅРі <3.5' },
+        { key: 'rating_35_399', label: 'СЂРµР№С‚РёРЅРі 3.5-3.99' },
+        { key: 'rating_40_449', label: 'СЂРµР№С‚РёРЅРі 4.0-4.49' },
+        { key: 'rating_ge_45', label: 'СЂРµР№С‚РёРЅРі >=4.5' }
     ];
     var buckets = {};
     categories.forEach(function(c) {
@@ -287,7 +345,7 @@ function renderEmployerAnalysisChart(block) {
     }
     function resolveBucket(factorKey, valueKey) {
         if (factorKey === 'rating_bucket') {
-            if (valueKey === 'unknown' || valueKey === 'нет рейтинга') return 'rating_unknown';
+            if (valueKey === 'unknown' || valueKey === 'РЅРµС‚ СЂРµР№С‚РёРЅРіР°') return 'rating_unknown';
             if (valueKey === '<3.5') return 'rating_lt_35';
             if (valueKey === '3.5-3.99') return 'rating_35_399';
             if (valueKey === '4.0-4.49') return 'rating_40_449';
@@ -370,28 +428,28 @@ function renderEmployerAnalysisChart(block) {
 
     Plotly.newPlot(graph.__medianChartEl, [{
         type: 'bar',
-        name: 'Медианная',
+        name: 'РњРµРґРёР°РЅРЅР°СЏ',
         x: labels,
         y: median,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Медианная зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        title: { text: 'РњРµРґРёР°РЅРЅР°СЏ Р·Р°СЂРїР»Р°С‚Р° РїРѕ РїР°СЂР°РјРµС‚СЂР°Рј', x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, RUR' },
+        yaxis: { title: 'Р—Р°СЂРїР»Р°С‚Р°, RUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
     }, { responsive: true, displayModeBar: false });
 
     Plotly.newPlot(graph.__avgChartEl, [{
         type: 'bar',
-        name: 'Средняя',
+        name: 'РЎСЂРµРґРЅСЏСЏ',
         x: labels,
         y: avg,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Средняя зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        title: { text: 'РЎСЂРµРґРЅСЏСЏ Р·Р°СЂРїР»Р°С‚Р° РїРѕ РїР°СЂР°РјРµС‚СЂР°Рј', x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, RUR' },
+        yaxis: { title: 'Р—Р°СЂРїР»Р°С‚Р°, RUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
     }, { responsive: true, displayModeBar: false });
@@ -410,7 +468,7 @@ function getEmployerFactorOrder(factorKey) {
 function getEmployerRatingOrder(valueKey) {
     var order = {
         'unknown': 0,
-        'нет рейтинга': 0,
+        'РЅРµС‚ СЂРµР№С‚РёРЅРіР°': 0,
         '<3.5': 1,
         '3.5-3.99': 2,
         '4.0-4.49': 3,
@@ -422,26 +480,26 @@ function getEmployerRatingOrder(valueKey) {
 function normalizeEmployerFactor(rawFactor) {
     var factor = (rawFactor || '').trim().toLowerCase();
     if (!factor) return 'accreditation';
-    if (factor === 'accreditation' || factor === 'ит-аккредитация') return 'accreditation';
-    if (factor === 'cover_letter_required' || factor === 'сопроводительное письмо') return 'cover_letter_required';
-    if (factor === 'has_test' || factor === 'тестовое задание') return 'has_test';
-    if (factor === 'rating_bucket' || factor === 'рейтинг фирмы') return 'rating_bucket';
+    if (factor === 'accreditation' || factor === 'РёС‚-Р°РєРєСЂРµРґРёС‚Р°С†РёСЏ') return 'accreditation';
+    if (factor === 'cover_letter_required' || factor === 'СЃРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ') return 'cover_letter_required';
+    if (factor === 'has_test' || factor === 'С‚РµСЃС‚РѕРІРѕРµ Р·Р°РґР°РЅРёРµ') return 'has_test';
+    if (factor === 'rating_bucket' || factor === 'СЂРµР№С‚РёРЅРі С„РёСЂРјС‹') return 'rating_bucket';
     return factor;
 }
 
 function getEmployerFactorLabel(factorKey) {
-    if (factorKey === 'accreditation') return 'ИТ-аккредитация';
-    if (factorKey === 'cover_letter_required') return 'Сопроводительное письмо';
-    if (factorKey === 'has_test') return 'Тестовое задание';
-    if (factorKey === 'rating_bucket') return 'Рейтинг фирмы';
+    if (factorKey === 'accreditation') return 'РРў-Р°РєРєСЂРµРґРёС‚Р°С†РёСЏ';
+    if (factorKey === 'cover_letter_required') return 'РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ';
+    if (factorKey === 'has_test') return 'РўРµСЃС‚РѕРІРѕРµ Р·Р°РґР°РЅРёРµ';
+    if (factorKey === 'rating_bucket') return 'Р РµР№С‚РёРЅРі С„РёСЂРјС‹';
     return factorKey;
 }
 
 function normalizeEmployerValueKey(rawValue) {
     var value = (rawValue || '').trim().toLowerCase();
-    if (value === 'true' || value === 'да') return 'true';
-    if (value === 'false' || value === 'нет') return 'false';
-    if (value === 'unknown' || value === 'нет рейтинга') return 'unknown';
+    if (value === 'true' || value === 'РґР°') return 'true';
+    if (value === 'false' || value === 'РЅРµС‚') return 'false';
+    if (value === 'unknown' || value === 'РЅРµС‚ СЂРµР№С‚РёРЅРіР°') return 'unknown';
     return value;
 }
 
@@ -451,8 +509,8 @@ function getEmployerValueLabel(factorKey, valueKey) {
 }
 
 function getEmployerValueHtml(valueKey) {
-    if (valueKey === 'true') return '<span class="bool-check bool-true" aria-label="Да"></span>';
-    if (valueKey === 'false') return '<span class="bool-check bool-false" aria-label="Нет"></span>';
+    if (valueKey === 'true') return '<span class="bool-check bool-true" aria-label="Р”Р°"></span>';
+    if (valueKey === 'false') return '<span class="bool-check bool-false" aria-label="РќРµС‚"></span>';
     return valueKey;
 }
 
@@ -541,7 +599,7 @@ function sortEmployerAnalysisData(rows) {
 }
 
 function formatEmployerNumber(value) {
-    if (value === null || value === undefined || !isFinite(value)) return '—';
+    if (value === null || value === undefined || !isFinite(value)) return 'вЂ”';
     return Number(value).toLocaleString('ru-RU', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -621,8 +679,8 @@ function initEmployerAnalysisFilter(block) {
     if (!viewToggle) {
         viewToggle = document.createElement('div');
         viewToggle.className = 'employer-view-toggle employer-side-toggle';
-        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">☷</button>' +
-            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">📈</button>';
+        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="РўР°Р±Р»РёС†Р°">в·</button>' +
+            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“€</button>';
     }
 
     var graph = block.querySelector('.employer-analysis-graph');
@@ -673,7 +731,7 @@ function initEmployerAnalysisFilter(block) {
 
     var months = Array.from(new Set(parsedRows.map(function(row) { return row.month; }).filter(Boolean))).sort();
     months.reverse();
-    var allLabel = 'За ' + months.length + ' ' + getMonthWordForm(months.length);
+    var allLabel = 'Р—Р° ' + months.length + ' ' + getMonthWordForm(months.length);
     block.dataset.employerAllLabel = allLabel;
 
     chipsWrap.innerHTML = '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + allLabel + '</button>' +
@@ -698,10 +756,10 @@ function initEmployerAnalysisFilter(block) {
 function getMonthWordForm(count) {
     var n = Math.abs(count) % 100;
     var n1 = n % 10;
-    if (n > 10 && n < 20) return 'месяцев';
-    if (n1 > 1 && n1 < 5) return 'месяца';
-    if (n1 === 1) return 'месяц';
-    return 'месяцев';
+    if (n > 10 && n < 20) return 'РјРµСЃСЏС†РµРІ';
+    if (n1 > 1 && n1 < 5) return 'РјРµСЃСЏС†Р°';
+    if (n1 === 1) return 'РјРµСЃСЏС†';
+    return 'РјРµСЃСЏС†РµРІ';
 }
 
 function openAllRolesPeriodTab(evt, contentId, analysisType) {
@@ -741,6 +799,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         if (mode !== 'table' && graphId) buildAllRolesWeekdayChart(rows, graphId);
         applyWeekdayModeSizing(viewContainer, mode);
     } else if (analysisType === 'skills' && target) {
+        normalizeSkillsControls(target.closest('.role-content'));
         var mode = uiState.skills_monthly_view_mode === 'together' ? 'table' : uiState.skills_monthly_view_mode;
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
@@ -779,7 +838,7 @@ function restoreAllRolesPeriodState(parentRole, analysisType) {
     buttons[0].click();
 }
 
-// ---------- Анализ активности ----------
+// ---------- РђРЅР°Р»РёР· Р°РєС‚РёРІРЅРѕСЃС‚Рё ----------
 function openMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -801,7 +860,7 @@ function openMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем режим для этого месяца
+    // Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЂРµР¶РёРј РґР»СЏ СЌС‚РѕРіРѕ РјРµСЃСЏС†Р°
     var viewBtns = monthDiv.querySelectorAll('.view-mode-btn');
     setActiveViewButton(viewBtns, uiState.activity_view_mode);
     var container = monthDiv.querySelector('.view-mode-container');
@@ -885,6 +944,7 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
+    normalizeSkillsControls(parentRole);
     restoreExpInMonth(parentRole, roleId);
 }
 function restoreExpInMonth(parentRole, roleId) {
@@ -938,7 +998,7 @@ function openMonthlySkillsExpTab(evt, expId) {
     expDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем режим для навыков
+    // Р’РѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµРј СЂРµР¶РёРј РґР»СЏ РЅР°РІС‹РєРѕРІ
     var viewBtns = expDiv.querySelectorAll('.view-mode-btn');
     setActiveViewButton(viewBtns, uiState.skills_monthly_view_mode);
     var container = expDiv.querySelector('.view-mode-container');
@@ -946,6 +1006,7 @@ function openMonthlySkillsExpTab(evt, expId) {
 
     var graphId = 'skills-monthly-graph-' + expId.replace('ms-exp-', '');
     buildHorizontalBarChart(graphId, expData.skills, expData.experience);
+    normalizeSkillsControls(parentRole);
 }
 function restoreSalaryState(parentRole, roleId) {
     var viewBtns = parentRole.querySelectorAll('.view-mode-btn');
@@ -1054,7 +1115,7 @@ function openSalaryExpTab(evt, expId) {
     applySalaryViewMode(expDiv, expData.entries);
 }
 
-// ---------- Общие функции для переключения режимов ----------
+// ---------- РћР±С‰РёРµ С„СѓРЅРєС†РёРё РґР»СЏ РїРµСЂРµРєР»СЋС‡РµРЅРёСЏ СЂРµР¶РёРјРѕРІ ----------
 function setActiveViewButton(buttons, mode) {
     for (var btn of buttons) {
         if (btn.dataset.view === mode) btn.classList.add('active');
@@ -1225,7 +1286,7 @@ function applySalaryViewMode(expDiv, entries) {
     var graphContainer = expDiv.querySelector('.salary-graph-container');
     var graphId = expDiv.querySelector('.plotly-graph').id;
 
-    // Сброс стилей
+    // РЎР±СЂРѕСЃ СЃС‚РёР»РµР№
     mainContent.style.display = 'flex';
     mainContent.style.flexDirection = 'row';
     mainContent.style.flexWrap = 'wrap';
@@ -1257,3 +1318,4 @@ function applySalaryViewMode(expDiv, entries) {
         buildSalaryBarChart(graphId, entries);
     }
 }
+
