@@ -102,6 +102,17 @@ document.addEventListener('click', function(e) {
     renderAllRolesContainer(allRoles, getAllRoleContents());
 });
 
+document.addEventListener('click', function(e) {
+    var toggle = e.target.closest('.all-roles-role-filter-toggle');
+    if (!toggle) return;
+    var container = toggle.closest('.all-roles-role-filter');
+    if (!container) return;
+    container.classList.toggle('collapsed');
+    var expanded = !container.classList.contains('collapsed');
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggle.textContent = expanded ? '▴' : '▾';
+});
+
 // ---------- Обработчик кликов по иконкам режимов ----------
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('.view-mode-btn, .view-mode-button');
