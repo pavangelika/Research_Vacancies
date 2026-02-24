@@ -793,3 +793,4 @@ function closeVacancyModal() {
     backdrop.style.display = 'none';
     document.body.style.overflow = '';
 }
+

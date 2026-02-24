@@ -766,6 +766,110 @@ function computeRoleSkillsSummaryForMonth(roleContent, month) {
     var skills = Array.from(skillCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     return { total_vacancies: totalVac, skills: skills.slice(0, 10) };
 }
+function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRoles) {
+    var roleMap = {};
+    (roleContents || []).forEach(rc => {
+        if (!rc) return;
+        var roleId = rc.dataset.roleId || '';
+        var roleName = rc.dataset.roleName || '';
+        if (roleId) roleMap[roleId] = roleName || roleId;
+    });
+
+    function normalizeSkillName(raw) {
+        return String(raw || '')
+            .replace(/\u200e/g, '')
+            .trim()
+            .replace(/\s+/g, ' ');
+    }
+    function getRoleName(vacancy) {
+        if (!vacancy) return 'UNKNOWN_ROLE';
+        return vacancy.role_name ||
+            vacancy.professional_role ||
+            roleMap[vacancy.role_id] ||
+            roleMap[vacancy.role] ||
+            vacancy.role ||
+            'UNKNOWN_ROLE';
+    }
+    function computeSalaryAvgRur(vacancy) {
+        if (!vacancy || vacancy.currency !== 'RUR') return null;
+        var from = vacancy.salary_from;
+        var to = vacancy.salary_to;
+        if (from === null || from === undefined) from = null;
+        if (to === null || to === undefined) to = null;
+        if (from === null && to === null) return null;
+        var a = from !== null ? Number(from) : Number(to);
+        var b = to !== null ? Number(to) : Number(from);
+        if (isNaN(a) || isNaN(b)) return null;
+        return (a + b) / 2.0;
+    }
+    function computeMedian(values) {
+        if (!values.length) return 0;
+        var sorted = values.slice().sort((a, b) => a - b);
+        var mid = Math.floor(sorted.length / 2);
+        if (sorted.length % 2) return sorted[mid];
+        return (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    var totals = new Map();
+    var roleCounts = new Map();
+    var roleSet = new Set();
+    var excludedSet = new Set((excludedRoles || []).map(r => String(r)));
+    (roleContents || []).forEach(rc => {
+        var months = getRoleSalaryData(rc);
+        var vacancies = collectVacanciesFromSalaryMonthsByMonth(months, month);
+        vacancies.forEach(v => {
+            var avg = computeSalaryAvgRur(v);
+            if (avg === null) return;
+            if (!v || !v.skills) return;
+            var roleName = getRoleName(v);
+            if (!roleName) roleName = 'UNKNOWN_ROLE';
+            roleSet.add(roleName);
+            if (excludedSet.has(roleName)) return;
+            String(v.skills).split(',').map(normalizeSkillName).filter(Boolean).forEach(skill => {
+                var entry = totals.get(skill) || { count: 0, sum: 0, values: [] };
+                entry.count += 1;
+                entry.sum += avg;
+                entry.values.push(avg);
+                totals.set(skill, entry);
+
+                var roleKey = skill + '||' + roleName;
+                roleCounts.set(roleKey, (roleCounts.get(roleKey) || 0) + 1);
+            });
+        });
+    });
+
+    var rows = Array.from(totals.entries()).map(([skill, entry]) => {
+        var avg = entry.count ? (entry.sum / entry.count) : 0;
+        var median = computeMedian(entry.values);
+        return {
+            skill: skill,
+            mention_count: entry.count,
+            avg_skill_cost_rur: Math.round(avg * 100) / 100,
+            median_skill_cost_rur: Math.round(median * 100) / 100
+        };
+    });
+    rows.sort((a, b) => b.mention_count - a.mention_count || a.skill.localeCompare(b.skill));
+
+    var roleMapBySkill = new Map();
+    roleCounts.forEach((count, key) => {
+        var parts = key.split('||');
+        var skill = parts[0];
+        var role = parts[1];
+        var list = roleMapBySkill.get(skill) || [];
+        list.push({ role: role, count: count });
+        roleMapBySkill.set(skill, list);
+    });
+    rows.forEach(row => {
+        var list = roleMapBySkill.get(row.skill) || [];
+        list.sort((a, b) => b.count - a.count || a.role.localeCompare(b.role));
+        var rolesText = list.map(r => {
+            var pct = row.mention_count ? (r.count * 100.0 / row.mention_count) : 0;
+            return r.role + ' (' + pct.toFixed(2) + '%)';
+        }).join(', ');
+        row.roles = rolesText;
+    });
+    return { rows: rows, roles: Array.from(roleSet).sort((a, b) => a.localeCompare(b)) };
+}
 function computeSalarySkillsFromVacancies(vacancies) {
     if (!vacancies.length) return [];
     var map = new Map();

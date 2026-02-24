@@ -194,3 +194,81 @@ function buildAllRolesActivityChart(rows, graphIdMain = 'activity-graph-all', gr
     plotIfChangedById(graphIdMain, signatureMain, [traceActive, traceArchived], layoutMain);
     plotIfChangedById(graphIdAge, signatureAge, [traceAge], layoutAge);
 }
+
+function buildAllRolesWeekdayChart(rows, graphId) {
+    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
+    var pubVals = rows.map(r => r.avg_pub || 0);
+    var archVals = rows.map(r => r.avg_arch || 0);
+    var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_pub || 0) + ':' + (r.avg_arch || 0)).join('|');
+
+    var tracePub = {
+        x: labels,
+        y: pubVals,
+        type: 'bar',
+        name: 'Публикации/день',
+        marker: { color: CHART_COLORS.light }
+    };
+    var traceArch = {
+        x: labels,
+        y: archVals,
+        type: 'bar',
+        name: 'Архивы/день',
+        marker: { color: CHART_COLORS.dark }
+    };
+    var layout = {
+        barmode: 'group',
+        title: 'Публикации и архивы по ролям',
+        xaxis: { tickangle: -35, title: '' },
+        yaxis: { title: 'Среднее в день' },
+        margin: { t: 50, b: 120, l: 50, r: 60 },
+        height: 420
+    };
+    plotIfChangedById(graphId, signature, [tracePub, traceArch], layout);
+}
+
+function buildAllRolesSkillsChart(rows, graphId) {
+    var sorted = (rows || []).slice().sort((a, b) => (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || '')));
+    var top = sorted.slice(0, 15);
+    var labels = top.map(r => r.skill || '�');
+    var vals = top.map(r => r.mention_count || 0);
+    var signature = top.map(r => (r.skill || '') + ':' + (r.mention_count || 0)).join('|');
+    var trace = {
+        x: labels,
+        y: vals,
+        type: 'bar',
+        name: '����������',
+        marker: { color: CHART_COLORS.medium }
+    };
+    var layout = {
+        title: '��� ������� �� �����������',
+        xaxis: { tickangle: -35, title: '', automargin: true },
+        yaxis: { title: '����������', automargin: true },
+        margin: { t: 50, b: 180, l: 60, r: 40 },
+        height: 480
+    };
+    plotIfChangedById(graphId, signature, [trace], layout);
+}
+
+function buildAllRolesSalaryChart(rows, graphId) {
+    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
+    var vals = rows.map(r => (r.skills || []).reduce((s, x) => s + (x.count || 0), 0));
+    var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.skills || []).length + ':' + (r.skills || []).reduce((s, x) => s + (x.count || 0), 0)).join('|');
+    var trace = {
+        x: labels,
+        y: vals,
+        type: 'bar',
+        name: 'Частота навыков',
+        marker: { color: CHART_COLORS.dark }
+    };
+    var layout = {
+        title: 'Суммарная частота навыков по ролям',
+        xaxis: { tickangle: -35, title: '' },
+        yaxis: { title: 'Частота' },
+        margin: { t: 50, b: 120, l: 50, r: 60 },
+        height: 420
+    };
+    plotIfChangedById(graphId, signature, [trace], layout);
+}
+
+
+
