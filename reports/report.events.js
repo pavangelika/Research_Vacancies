@@ -305,4 +305,3 @@ document.addEventListener("DOMContentLoaded", function() {
     addSummaryTabs(document);
 });
 
-

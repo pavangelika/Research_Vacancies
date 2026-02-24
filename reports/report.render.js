@@ -153,7 +153,7 @@ function renderAllRolesContainer(container, roleContents) {
                     }).join('') +
                 '</tbody>' +
             '</table>' +
-                '</div>';
+        '</div>';
     }
 
     function buildActivityRows(period) {
