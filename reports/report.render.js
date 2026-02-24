@@ -732,6 +732,15 @@ function updateRoleView(selectedIndices) {
     var combined = document.getElementById('role-combined');
     var allRoles = document.getElementById('role-all');
     var roleContents = Array.from(document.querySelectorAll('.role-content')).filter(c => c.id !== 'role-combined');
+    function updateRoleHeader(roleContent) {
+        if (!roleContent) return;
+        var salaryMonths = getRoleSalaryData(roleContent);
+        var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+        var period = computePublicationPeriod(allVacancies) || '—';
+        var id = roleContent.dataset.roleId || '';
+        var h2 = roleContent.querySelector('h2');
+        if (h2) h2.textContent = '[ID: ' + id + '] период публикации ' + period;
+    }
     if (uiState.all_roles_active) {
         roleContents.forEach(c => c.style.display = 'none');
         if (combined) combined.style.display = 'none';
@@ -746,15 +755,7 @@ function updateRoleView(selectedIndices) {
         if (combined) combined.style.display = 'none';
         var idx = selectedIndices.size === 1 ? Array.from(selectedIndices)[0] : '1';
         var roleContent = getRoleContentByIndex(idx);
-        if (roleContent) {
-            var salaryMonths = getRoleSalaryData(roleContent);
-            var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-            var period = computePublicationPeriod(allVacancies) || '—';
-            var id = roleContent.dataset.roleId || '';
-            var title = '[ID: ' + id + '] период публикации ' + period;
-            var h2 = roleContent.querySelector('h2');
-            if (h2) h2.textContent = title;
-        }
+        updateRoleHeader(roleContent);
         showSingleRole(idx);
         return;
     }
@@ -764,6 +765,7 @@ function updateRoleView(selectedIndices) {
         var selectedContents = Array.from(selectedIndices).map(i => getRoleContentByIndex(i)).filter(Boolean);
         combined.style.display = 'block';
         renderCombinedContainer(combined, selectedContents);
+        selectedContents.forEach(updateRoleHeader);
     }
 }
 function buildRowContext(row) {
