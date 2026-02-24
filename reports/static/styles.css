@@ -673,6 +673,94 @@ tr:hover { background-color: #f0f4f9; }
     width: auto;
     white-space: nowrap;
 }
+.activity-only.month-tabs .month-button {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+}
+.activity-only.month-tabs {
+    justify-content: center;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+}
+.all-roles-period-tabs,
+.employer-period-chips {
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+.activity-only .view-toggle-horizontal {
+    justify-content: flex-end;
+    gap: 8px;
+}
+.activity-only .view-toggle-horizontal .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.activity-control-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    margin: 4px 0 8px;
+}
+.activity-control-row .month-tabs.activity-only {
+    margin: 0 auto;
+}
+.activity-mode-toggle-inline {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+}
+.month-content.activity-only .view-toggle-horizontal {
+    display: none;
+}
+.month-content.activity-only .plotly-graph {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+}
+.month-content.activity-only .analysis-flex:has(.table-container:not([style*="display: none"])):has(.plotly-graph:not([style*="display: none"])) .table-container,
+.month-content.activity-only .analysis-flex:has(.table-container:not([style*="display: none"])):has(.plotly-graph:not([style*="display: none"])) .plotly-graph {
+    flex: 0 0 50%;
+    width: 50%;
+    max-width: 50%;
+}
+.month-content.activity-only .analysis-flex:has(.table-container[style*="display: none"]) {
+    justify-content: center;
+}
+.month-content.activity-only .analysis-flex:has(.table-container[style*="display: none"]) .plotly-graph {
+    flex: 0 0 80%;
+    width: 80%;
+    max-width: 80%;
+    margin: 0 auto;
+}
+.month-content.activity-only .analysis-flex:has(.plotly-graph[style*="display: none"]) {
+    justify-content: center;
+}
+.month-content.activity-only .analysis-flex:has(.plotly-graph[style*="display: none"]) .table-container {
+    flex: 0 0 50%;
+    width: 50%;
+    max-width: 50%;
+    margin: 0 auto;
+}
 .employer-analysis-main {
     display: flex;
     flex-direction: column;

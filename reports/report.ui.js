@@ -58,6 +58,7 @@ function switchAnalysis(evt, analysisId) {
 
     if (analysisType === 'activity') {
         activityBlocks.forEach(block => block.style.display = 'block');
+        normalizeActivityControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'activity');
         else restoreActivityState(parentRole, roleId);
     } else if (analysisType === 'weekday') {
@@ -84,6 +85,75 @@ function switchAnalysis(evt, analysisId) {
             initEmployerAnalysisFilter(employerAnalysisBlock);
         }
     }
+}
+
+function normalizeActivityControls(parentRole) {
+    if (!parentRole) return;
+    var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
+    if (!monthTabs) return;
+
+    sortActivityMonthsNewestFirst(parentRole, monthTabs);
+
+    var controlRow = parentRole.querySelector('.activity-control-row');
+    if (!controlRow) {
+        controlRow = document.createElement('div');
+        controlRow.className = 'activity-control-row activity-only';
+        monthTabs.parentElement.insertBefore(controlRow, monthTabs);
+    }
+    if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
+
+    var inlineToggle = controlRow.querySelector('.activity-mode-toggle-inline');
+    if (!inlineToggle) {
+        inlineToggle = document.createElement('div');
+        inlineToggle.className = 'view-toggle-horizontal activity-mode-toggle-inline';
+        inlineToggle.innerHTML =
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">☷</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📈</button>';
+        controlRow.appendChild(inlineToggle);
+    }
+    if (!inlineToggle.dataset.bound) {
+        inlineToggle.addEventListener('click', function(e) {
+            var btn = e.target.closest('.activity-inline-mode-btn');
+            if (!btn) return;
+            var view = btn.dataset.view || 'together';
+            uiState.activity_view_mode = view;
+            setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), view);
+
+            var visibleMonth = parentRole.querySelector('.month-content.activity-only[style*="display: block"]');
+            if (!visibleMonth) return;
+            var monthBtns = visibleMonth.querySelectorAll('.view-mode-btn');
+            setActiveViewButton(monthBtns, view);
+            var container = visibleMonth.querySelector('.view-mode-container');
+            applyViewMode(container, view);
+            var monthId = visibleMonth.id || '';
+            var graphId = 'activity-graph-' + monthId.replace('month-', '');
+            var entries = parseJsonDataset(visibleMonth, 'entries', []);
+            buildActivityBarChart(graphId, entries);
+        });
+        inlineToggle.dataset.bound = '1';
+    }
+
+    setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), uiState.activity_view_mode || 'together');
+
+    var graphBtns = parentRole.querySelectorAll('.activity-only .view-toggle-horizontal .graph-btn, .month-content.activity-only .graph-btn');
+    graphBtns.forEach(function(btn) {
+        btn.textContent = '📈';
+        btn.title = 'График';
+    });
+}
+
+function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
+    if (!parentRole || !monthTabs || monthTabs.dataset.sorted === '1') return;
+    var buttons = Array.from(monthTabs.querySelectorAll('.month-button'));
+    if (!buttons.length) return;
+    buttons.sort(function(a, b) {
+        var am = (a.textContent || '').trim();
+        var bm = (b.textContent || '').trim();
+        return bm.localeCompare(am);
+    });
+    buttons.forEach(function(btn) { monthTabs.appendChild(btn); });
+    monthTabs.dataset.sorted = '1';
 }
 
 function applyEmployerAnalysisMonthFilter(block, month) {
@@ -701,6 +771,7 @@ function openMonthTab(evt, monthId) {
     var entries = parseJsonDataset(monthDiv, 'entries', []);
     var graphId = 'activity-graph-' + monthId.replace('month-', '');
     buildActivityBarChart(graphId, entries);
+    normalizeActivityControls(parentRole);
 }
 function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
@@ -965,6 +1036,46 @@ function applyViewMode(container, mode) {
     } else { // together
         table.style.display = 'block';
         graph.style.display = 'block';
+    }
+    if ((container.dataset.analysis || '') === 'activity') {
+        applyActivityModeSizing(container, mode);
+    }
+}
+
+function applyActivityModeSizing(container, mode) {
+    var table = container.querySelector('.table-container');
+    var graph = container.querySelector('.plotly-graph');
+    if (!table || !graph) return;
+
+    container.style.justifyContent = 'center';
+
+    table.style.flex = '';
+    table.style.width = '';
+    table.style.maxWidth = '';
+    table.style.margin = '';
+
+    graph.style.flex = '';
+    graph.style.width = '';
+    graph.style.maxWidth = '';
+    graph.style.margin = '';
+
+    if (mode === 'table') {
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        table.style.margin = '0 auto';
+    } else if (mode === 'graph') {
+        graph.style.flex = '0 0 80%';
+        graph.style.width = '80%';
+        graph.style.maxWidth = '80%';
+        graph.style.margin = '0 auto';
+    } else {
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        graph.style.flex = '0 0 50%';
+        graph.style.width = '50%';
+        graph.style.maxWidth = '50%';
     }
 }
 function applySalaryViewMode(expDiv, entries) {
