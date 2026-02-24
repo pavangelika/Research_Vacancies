@@ -215,18 +215,11 @@ document.addEventListener("DOMContentLoaded", function() {
     updateRoleSelectionUI(selected);
     updateRoleView(selected);
 
-    function collapseRoleSelector() {
-        if (!selector) return;
-        selector.classList.add('collapsed');
-        if (selectorToggle) selectorToggle.setAttribute('aria-expanded', 'false');
-    }
-
     function enforceSingle(idx) {
         selected = new Set([idx]);
         selectionOrder = [idx];
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
-        collapseRoleSelector();
     }
 
     buttons.forEach(btn => {
