@@ -126,7 +126,6 @@ document.addEventListener('click', function(e) {
     else if (container.classList.contains('weekday-content')) analysisType = 'weekday';
     else if (container.classList.contains('monthly-skills-exp-content')) analysisType = 'skills-monthly';
     else if (container.classList.contains('salary-exp-content')) analysisType = 'salary';
-    else if (container.classList.contains('influence-factor-content')) analysisType = 'influence';
     else if (container.classList.contains('all-roles-period-content')) {
         var a = container.dataset.analysis || '';
         if (a.indexOf('activity') === 0) analysisType = 'activity';
@@ -142,7 +141,6 @@ document.addEventListener('click', function(e) {
     else if (analysisType === 'weekday') uiState.weekday_view_mode = mode;
     else if (analysisType === 'skills-monthly') uiState.skills_monthly_view_mode = mode;
     else if (analysisType === 'salary') uiState.salary_view_mode = mode;
-    else if (analysisType === 'influence') uiState.influence_view_mode = mode;
 
     var allBtns = container.querySelectorAll('.view-mode-btn, .view-mode-button');
     setActiveViewButton(allBtns, mode);
@@ -150,15 +148,6 @@ document.addEventListener('click', function(e) {
     if (analysisType === 'salary') {
         var expData = (container._data && container._data.exp) ? container._data.exp : parseJsonDataset(container, 'exp', {});
         applySalaryViewMode(container, expData.entries);
-        return;
-    }
-    if (analysisType === 'influence') {
-        var factorData = (container._data && container._data.factor) ? container._data.factor : parseJsonDataset(container, 'factor', {});
-        renderInfluenceTable(container.querySelector('.table-container'), factorData);
-        if (mode === 'graph' || mode === 'together') {
-            var graph = container.querySelector('.plotly-graph');
-            if (graph && graph.id) buildInfluenceChart(graph.id, factorData);
-        }
         return;
     }
 

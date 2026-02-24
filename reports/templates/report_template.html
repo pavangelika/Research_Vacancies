@@ -56,13 +56,10 @@
                     onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="skills-monthly-{{ role_index }}"
-                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Топ-навыки</button>
+                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="salary-{{ role_index }}"
                     onclick="switchAnalysis(event, 'salary-{{ role_index }}')">Анализ зарплат</button>
-            <button class="tab-button analysis-button"
-                    data-analysis-id="influence-{{ role_index }}"
-                    onclick="switchAnalysis(event, 'influence-{{ role_index }}')">Влияние</button>
         </div>
 
         <!-- Вкладки по месяцам (только для анализа активности) -->
@@ -317,59 +314,6 @@
                 {% endfor %}
             {% else %}
                 <p>Нет данных по зарплатам для этой роли</p>
-            {% endif %}
-        </div>
-
-        <!-- Блок для анализа влияния факторов работодателя -->
-        {% set influence_role = influence_roles | selectattr('id', 'equalto', role.id) | first %}
-        <div class="influence-content" data-analysis="influence-{{ role_index }}" style="display: none;">
-            {% if influence_role and influence_role.months %}
-                <div class="tabs influence-month-tabs" style="justify-content: center; margin-top: 10px;">
-                    {% for month_data in influence_role.months %}
-                    <button class="tab-button influence-month-button" onclick="openInfluenceMonthTab(event, 'infl-month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
-                    {% endfor %}
-                </div>
-
-                {% for month_data in influence_role.months %}
-                {% set month_index = loop.index %}
-                <div id="infl-month-{{ role_index }}-{{ month_index }}" class="influence-month-content" data-month-key="{{ month_data.month }}" style="display: none;">
-                    <div class="tabs influence-factor-tabs" style="justify-content: center; margin-top: 5px;">
-                        {% for factor in month_data.factors %}
-                        <button class="tab-button influence-factor-button" onclick="openInfluenceFactorTab(event, 'infl-factor-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ factor.factor }}</button>
-                        {% endfor %}
-                    </div>
-
-                    {% for factor in month_data.factors %}
-                    {% set factor_index = loop.index %}
-                    <div id="infl-factor-{{ role_index }}-{{ month_index }}-{{ factor_index }}" class="influence-factor-content" data-factor="{{ factor.factor }}" style="display: none;">
-                        <div class="view-toggle-horizontal">
-                            <button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>
-                            <button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>
-                            <button class="view-mode-btn graph-btn" data-view="graph" title="График">📉</button>
-                        </div>
-                        <div class="analysis-flex view-mode-container" data-analysis="influence">
-                            <div class="table-container">
-                                <table class="influence-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Фактор</th>
-                                            <th>Группа</th>
-                                            <th>N</th>
-                                            <th>Средняя</th>
-                                            <th>Медиана</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                            <div class="plotly-graph" id="influence-graph-{{ role_index }}-{{ month_index }}-{{ factor_index }}"></div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>Нет данных по влиянию факторов</p>
             {% endif %}
         </div>
     </div>

@@ -153,7 +153,7 @@ function renderAllRolesContainer(container, roleContents) {
                     }).join('') +
                 '</tbody>' +
             '</table>' +
-        '</div>';
+                '</div>';
     }
 
     function buildActivityRows(period) {
@@ -795,76 +795,4 @@ function closeVacancyModal() {
     if (!backdrop) return;
     backdrop.style.display = 'none';
     document.body.style.overflow = '';
-}
-
-function getInfluenceValueLabel(factor, value) {
-    if (factor === 'rating_bucket') return value || 'unknown';
-    if (value === 'true') return 'Да';
-    if (value === 'false') return 'Нет';
-    return value || '—';
-}
-function sortInfluenceValues(factor, values) {
-    var ratingOrder = { 'unknown': 0, '<3.5': 1, '3.5-3.99': 2, '4.0-4.49': 3, '>=4.5': 4 };
-    var boolOrder = { 'false': 0, 'true': 1 };
-    return (values || []).slice().sort(function(a, b) {
-        var av = (a && a.factor_value) ? a.factor_value : '';
-        var bv = (b && b.factor_value) ? b.factor_value : '';
-        if (factor === 'rating_bucket') return (ratingOrder[av] || 99) - (ratingOrder[bv] || 99);
-        return (boolOrder[av] || 99) - (boolOrder[bv] || 99);
-    });
-}
-function buildInfluenceTableHtml(factorData) {
-    var factor = factorData ? factorData.factor : '';
-    var values = sortInfluenceValues(factor, (factorData && factorData.values) ? factorData.values : []);
-    if (!values.length) return '<tr><td colspan="5">—</td></tr>';
-    return values.map(function(v) {
-        return '<tr>' +
-            '<td>' + escapeHtml(getInfluenceFactorLabel(factor)) + '</td>' +
-            '<td>' + escapeHtml(getInfluenceValueLabel(factor, v.factor_value)) + '</td>' +
-            '<td>' + (v.group_n || 0) + '</td>' +
-            '<td>' + formatNumber(v.avg_salary_rur, 0) + '</td>' +
-            '<td>' + formatNumber(v.median_salary_rur, 0) + '</td>' +
-        '</tr>';
-    }).join('');
-}
-function renderInfluenceTable(container, factorData) {
-    if (!container) return;
-    var tbody = container.querySelector('tbody');
-    if (!tbody) return;
-    tbody.innerHTML = buildInfluenceTableHtml(factorData);
-}
-function buildInfluenceChart(graphId, factorData) {
-    if (!factorData || !factorData.values) return;
-    var factor = factorData.factor || '';
-    var values = sortInfluenceValues(factor, factorData.values || []);
-    var labels = values.map(function(v) { return getInfluenceValueLabel(factor, v.factor_value); });
-    var avgVals = values.map(function(v) { return v.avg_salary_rur || 0; });
-    var medVals = values.map(function(v) { return v.median_salary_rur || 0; });
-    var signature = factor + '|' + values.map(function(v) {
-        return (v.factor_value || '') + ':' + (v.avg_salary_rur || 0) + ':' + (v.median_salary_rur || 0);
-    }).join('|');
-
-    var traceAvg = {
-        x: labels,
-        y: avgVals,
-        name: 'Средняя',
-        type: 'bar',
-        marker: { color: CHART_COLORS.light }
-    };
-    var traceMed = {
-        x: labels,
-        y: medVals,
-        name: 'Медиана',
-        type: 'bar',
-        marker: { color: CHART_COLORS.dark }
-    };
-    var layout = {
-        barmode: 'group',
-        title: 'Влияние: ' + getInfluenceFactorLabel(factor),
-        margin: { t: 50, b: 80, l: 60, r: 20 },
-        height: 360,
-        legend: { x: 1, y: 1, xanchor: 'left' },
-        yaxis: { title: 'Зарплата, RUR' }
-    };
-    plotIfChangedById(graphId, signature, [traceAvg, traceMed], layout);
 }
