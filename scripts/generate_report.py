@@ -1305,7 +1305,7 @@ def fetch_employer_analysis_data(mapping):
             CASE
                 WHEN factor = 'rating_bucket' THEN
                     CASE
-                        WHEN factor_value = 'unknown' THEN 0
+                        WHEN factor_value = 'нет рейтинга' THEN 0
                         WHEN factor_value = '<3.5' THEN 1
                         WHEN factor_value = '3.5-3.99' THEN 2
                         WHEN factor_value = '4.0-4.49' THEN 3

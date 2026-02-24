@@ -136,70 +136,152 @@ function renderEmployerAnalysisChart(block) {
         return row.style.display !== 'none';
     });
     if (!rows.length) {
-        Plotly.purge(graph);
+        if (graph.__medianChartEl) Plotly.purge(graph.__medianChartEl);
+        if (graph.__avgChartEl) Plotly.purge(graph.__avgChartEl);
+        graph.__medianChartEl = null;
+        graph.__avgChartEl = null;
         graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
         return;
     }
 
-    var labels = [];
-    var avg = [];
-    var median = [];
-    rows.forEach(function(row) {
-        var factor = row.dataset.factorLabel || ((row.cells && row.cells[1]) ? row.cells[1].textContent.trim() : '');
-        var value = row.dataset.valueLabel || ((row.cells && row.cells[2]) ? row.cells[2].textContent.trim() : '');
-        labels.push(factor + ' · ' + value);
-        avg.push(parseFloat(row.dataset.avg || '0') || 0);
-        median.push(parseFloat(row.dataset.median || '0') || 0);
+    var categories = [
+        { key: 'accr_false', label: 'ИТ-аккредитация false' },
+        { key: 'accr_true', label: 'ИТ-аккредитация true' },
+        { key: 'test_false', label: 'Тестовое задание false' },
+        { key: 'test_true', label: 'Тестовое задание true' },
+        { key: 'cover_false', label: 'Сопроводительное письмо false' },
+        { key: 'cover_true', label: 'Сопроводительное письмо true' },
+        { key: 'rating_unknown', label: 'без рейтинга' },
+        { key: 'rating_lt_35', label: 'рейтинг <3.5' },
+        { key: 'rating_35_399', label: 'рейтинг 3.5-3.99' },
+        { key: 'rating_40_449', label: 'рейтинг 4.0-4.49' },
+        { key: 'rating_ge_45', label: 'рейтинг >=4.5' }
+    ];
+    var buckets = {};
+    categories.forEach(function(c) {
+        buckets[c.key] = { n: 0, avgWeighted: 0, medianPairs: [] };
     });
 
-    var chartWidth = Math.max(760, Math.min(2200, labels.length * 120));
-    var chartHeight = 520;
-    graph.style.margin = '0 auto';
-    graph.style.width = chartWidth + 'px';
-    graph.style.maxWidth = '100%';
-    graph.style.display = 'block';
-    Plotly.newPlot(graph, [
-        {
-            type: 'bar',
-            name: 'Средняя',
-            x: labels,
-            y: avg,
-            marker: { color: '#3a6b92', line: { color: '#2a4b6a', width: 1 } },
-            hovertemplate: '%{x}<br>Средняя: %{y:,.0f} RUR<extra></extra>'
-        },
-        {
-            type: 'bar',
-            name: 'Медианная',
-            x: labels,
-            y: median,
-            marker: { color: '#86a9c4', line: { color: '#5f8db0', width: 1 } },
-            hovertemplate: '%{x}<br>Медианная: %{y:,.0f} RUR<extra></extra>'
+    function normalizeVal(v) {
+        return String(v || '').trim().toLowerCase();
+    }
+    function toNum(v) {
+        var n = parseFloat(String(v || '0').replace(/\s/g, '').replace(',', '.'));
+        return isFinite(n) ? n : 0;
+    }
+    function toInt(v) {
+        var n = parseInt(String(v || '0').replace(/\s/g, ''), 10);
+        return isFinite(n) ? n : 0;
+    }
+    function resolveBucket(factorKey, valueKey) {
+        if (factorKey === 'rating_bucket') {
+            if (valueKey === 'unknown' || valueKey === 'нет рейтинга') return 'rating_unknown';
+            if (valueKey === '<3.5') return 'rating_lt_35';
+            if (valueKey === '3.5-3.99') return 'rating_35_399';
+            if (valueKey === '4.0-4.49') return 'rating_40_449';
+            if (valueKey === '>=4.5') return 'rating_ge_45';
+            return null;
         }
-    ], {
-        barmode: 'group',
-        title: { text: 'Анализ работодателей', x: 0.01, xanchor: 'left' },
-        template: 'plotly_white',
-        legend: { orientation: 'h', y: 1.1, x: 0, xanchor: 'left' },
-        xaxis: {
-            automargin: true,
-            tickangle: -25,
-            showgrid: false,
-            categoryorder: 'array',
-            categoryarray: labels
-        },
-        yaxis: {
-            title: 'Зарплата, RUR',
-            separatethousands: true,
-            showgrid: true,
-            gridcolor: 'rgba(46, 70, 94, 0.12)',
-            zeroline: false
-        },
-        margin: { t: 70, r: 20, b: 130, l: 90 },
-        width: chartWidth,
-        height: chartHeight,
-        hovermode: 'closest',
-        paper_bgcolor: '#ffffff',
-        plot_bgcolor: '#ffffff'
+        if (factorKey === 'accreditation') {
+            if (valueKey === 'true') return 'accr_true';
+            if (valueKey === 'false') return 'accr_false';
+            return null;
+        }
+        if (factorKey === 'has_test') {
+            if (valueKey === 'true') return 'test_true';
+            if (valueKey === 'false') return 'test_false';
+            return null;
+        }
+        if (factorKey === 'cover_letter_required') {
+            if (valueKey === 'true') return 'cover_true';
+            if (valueKey === 'false') return 'cover_false';
+        }
+        return null;
+    }
+    function weightedMedian(pairs) {
+        if (!pairs.length) return null;
+        var sorted = pairs.slice().sort(function(a, b) { return a.value - b.value; });
+        var total = sorted.reduce(function(sum, p) { return sum + p.w; }, 0);
+        if (!total) return null;
+        var threshold = total / 2;
+        var acc = 0;
+        for (var i = 0; i < sorted.length; i += 1) {
+            acc += sorted[i].w;
+            if (acc >= threshold) return sorted[i].value;
+        }
+        return sorted[sorted.length - 1].value;
+    }
+
+    rows.forEach(function(row) {
+        var factorKey = normalizeVal(row.dataset.factor);
+        var valueKey = normalizeVal(row.dataset.valueKey || row.dataset.valueLabel || (row.cells && row.cells[2] ? row.cells[2].textContent : ''));
+        var bucketKey = resolveBucket(factorKey, valueKey);
+        if (!bucketKey) return;
+        var n = toInt(row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
+        var avgVal = toNum(row.dataset.avg || (row.cells && row.cells[4] ? row.cells[4].textContent : '0'));
+        var medianVal = toNum(row.dataset.median || (row.cells && row.cells[5] ? row.cells[5].textContent : '0'));
+        buckets[bucketKey].n += n;
+        buckets[bucketKey].avgWeighted += avgVal * n;
+        buckets[bucketKey].medianPairs.push({ value: medianVal, w: n });
+    });
+
+    var labels = categories.map(function(c) { return c.label; });
+    var avg = categories.map(function(c) {
+        var b = buckets[c.key];
+        return b.n ? (b.avgWeighted / b.n) : null;
+    });
+    var median = categories.map(function(c) {
+        return weightedMedian(buckets[c.key].medianPairs);
+    });
+
+    var palette = (typeof CHART_COLORS !== 'undefined')
+        ? CHART_COLORS
+        : { light: '#B0BEC5', medium: '#90A4AE', dark: '#607D8B' };
+    var colorByCategory = categories.map(function(c) {
+        if (c.key.indexOf('_true') !== -1) return palette.light;
+        if (c.key.indexOf('_false') !== -1) return palette.dark;
+        return palette.medium;
+    });
+    var borderByCategory = categories.map(function() { return palette.dark; });
+
+    graph.style.width = '100%';
+    graph.style.maxWidth = '100%';
+    graph.style.height = 'auto';
+    graph.style.display = 'block';
+    graph.style.overflow = 'visible';
+    if (!graph.__medianChartEl || !graph.__avgChartEl) {
+        graph.innerHTML = '<div class="employer-analysis-subgraph employer-analysis-median-graph"></div>' +
+            '<div class="employer-analysis-subgraph employer-analysis-avg-graph"></div>';
+        graph.__medianChartEl = graph.querySelector('.employer-analysis-median-graph');
+        graph.__avgChartEl = graph.querySelector('.employer-analysis-avg-graph');
+    }
+
+    Plotly.newPlot(graph.__medianChartEl, [{
+        type: 'bar',
+        name: 'Медианная',
+        x: labels,
+        y: median,
+        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+    }], {
+        title: { text: 'Медианная зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        xaxis: { automargin: true, tickangle: -25 },
+        yaxis: { title: 'Зарплата, RUR' },
+        margin: { t: 60, r: 20, b: 120, l: 80 },
+        height: 420
+    }, { responsive: true, displayModeBar: false });
+
+    Plotly.newPlot(graph.__avgChartEl, [{
+        type: 'bar',
+        name: 'Средняя',
+        x: labels,
+        y: avg,
+        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+    }], {
+        title: { text: 'Средняя зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        xaxis: { automargin: true, tickangle: -25 },
+        yaxis: { title: 'Зарплата, RUR' },
+        margin: { t: 60, r: 20, b: 120, l: 80 },
+        height: 420
     }, { responsive: true, displayModeBar: false });
 }
 
@@ -253,7 +335,6 @@ function normalizeEmployerValueKey(rawValue) {
 
 function getEmployerValueLabel(factorKey, valueKey) {
     if (valueKey === 'true' || valueKey === 'false') return valueKey;
-    if (valueKey === 'unknown') return 'нет рейтинга';
     return valueKey;
 }
 

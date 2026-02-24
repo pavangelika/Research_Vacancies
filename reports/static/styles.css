@@ -673,6 +673,7 @@ tr:hover { background-color: #f0f4f9; }
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: 100%;
     min-width: 0;
 }
 .employer-analysis-table-container {
@@ -714,7 +715,7 @@ tr:hover { background-color: #f0f4f9; }
     border: 2px solid var(--border-light);
     background: var(--surface);
     box-shadow: var(--shadow-light);
-    transform: scale(0.8);
+    transform: scale(0.7);
     transform-origin: center;
 }
 .bool-check::after {
@@ -730,6 +731,18 @@ tr:hover { background-color: #f0f4f9; }
     content: '✓';
     color: var(--primary-dark);
     font-weight: 700;
+}
+.employer-analysis-graph {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+}
+.employer-analysis-subgraph {
+    width: 100%;
+    min-width: 0;
+    min-height: 420px;
+    margin-bottom: 14px;
 }
 
 .employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container table {
