@@ -548,11 +548,29 @@ function aggregateSalary(roleContents) {
 function getAllRolesPeriods(roleContents) {
     var months = new Set();
     roleContents.forEach(roleContent => {
-        var list = getRoleActivityMonths(roleContent);
-        list.forEach(m => {
-            if (!m || !m.month) return;
-            if (isSummaryMonth(m.month)) return;
-            months.add(m.month);
+        var activityMonths = getRoleActivityMonths(roleContent);
+        activityMonths.forEach(m => {
+            if (!m || !m.month || typeof m.month !== 'string') return;
+            var month = m.month.replace(/NaN/g, '').trim();
+            if (!month) return;
+            if (isSummaryMonth(month)) return;
+            months.add(month);
+        });
+        var salaryMonths = getRoleSalaryData(roleContent);
+        salaryMonths.forEach(m => {
+            if (!m || !m.month || typeof m.month !== 'string') return;
+            var month = m.month.replace(/NaN/g, '').trim();
+            if (!month) return;
+            if (isSummaryMonth(month)) return;
+            months.add(month);
+        });
+        var skillsMonths = getRoleSkillsMonthlyData(roleContent);
+        skillsMonths.forEach(m => {
+            if (!m || !m.month || typeof m.month !== 'string') return;
+            var month = m.month.replace(/NaN/g, '').trim();
+            if (!month) return;
+            if (isSummaryMonth(month)) return;
+            months.add(month);
         });
     });
     return Array.from(months).sort();
@@ -901,6 +919,26 @@ function computeRoleSalarySkillsForMonth(roleContent, month) {
     var months = getRoleSalaryData(roleContent);
     var vacancies = collectVacanciesFromSalaryMonthsByMonth(months, month);
     return computeSalarySkillsFromVacancies(vacancies);
+}
+function computeRoleSalaryStatsFromVacancies(vacancies) {
+    var values = [];
+    (vacancies || []).forEach(v => {
+        var val = computeSalaryValue(v, v ? (v.currency || null) : null);
+        if (val !== null && !isNaN(val)) values.push(val);
+    });
+    if (!values.length) {
+        return { min_salary: null, max_salary: null, median_salary: null, mode_salary: null };
+    }
+    var min = Math.min(...values);
+    var max = Math.max(...values);
+    var median = computeMedian(values);
+    var mode = computeMode(values);
+    return { min_salary: min, max_salary: max, median_salary: median, mode_salary: mode };
+}
+function computeRoleSalaryStatsForMonth(roleContent, month) {
+    var months = getRoleSalaryData(roleContent);
+    var vacancies = collectVacanciesFromSalaryMonthsByMonth(months, month);
+    return computeRoleSalaryStatsFromVacancies(vacancies);
 }
 function aggregateSalarySum(roleContents) {
     var expOrder = getExperienceOrder();

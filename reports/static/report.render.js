@@ -71,20 +71,21 @@ function renderVacancyDetails(container, withList, withoutList) {
 }
 function buildAllRolesSkillsTableHtml(rows) {
     return '<table class="skills-all-table">' +
-        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th><th>Медианная зп</th><th>Роли</th></tr></thead>' +
+        '<thead><tr><th>\u041d\u0430\u0432\u044b\u043a</th><th>\u0423\u043f\u043e\u043c\u0438\u043d\u0430\u043d\u0438\u0439</th><th>\u0421\u0440\u0435\u0434\u043d\u044f\u044f \u0437\u043f</th><th>\u041c\u0435\u0434\u0438\u0430\u043d\u043d\u0430\u044f \u0437\u043f</th><th>\u0420\u043e\u043b\u0438</th></tr></thead>' +
         '<tbody>' +
             (rows.length ? rows.map(r => (
                 '<tr>' +
                     '<td>' + escapeHtml(r.skill) + '</td>' +
                     '<td>' + r.mention_count + '</td>' +
-                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
+                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '\u2014') + '</td>' +
+                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '\u2014') + '</td>' +
+                    '<td>' + (r.roles ? escapeHtml(r.roles) : '\u2014') + '</td>' +
                 '</tr>'
-            )).join('') : '<tr><td colspan="5">—</td></tr>') +
+            )).join('') : '<tr><td colspan="5">\u2014</td></tr>') +
         '</tbody>' +
     '</table>';
 }
+
 function renderAllRolesContainer(container, roleContents) {
     var excludedRoles = uiState.all_roles_excluded || [];
     var excludedSet = new Set(excludedRoles.map(r => String(r)));
@@ -97,19 +98,25 @@ function renderAllRolesContainer(container, roleContents) {
         return name && !excludedSet.has(String(name));
     });
     var periods = getAllRolesPeriods(roleContents);
-    var periodItems = [{ key: 'all', label: 'За все время', month: null }].concat(
+    periods = (periods || []).map(m => String(m).replace(/NaN/g, '').trim()).filter(Boolean);
+    periods = (periods || []).filter(m => typeof m === "string" && m && m !== "NaN");
+    var periodItems = [{ key: 'all', label: '\u0417\u0430 \u0432\u0441\u0435 \u0432\u0440\u0435\u043c\u044f', month: null }].concat(
         periods.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
     );
 
     function buildPeriodTabs(prefix, analysisType) {
         return '<div class="tabs month-tabs all-roles-period-tabs">' +
-            periodItems.map((p, i) => (
-                '<button class="tab-button month-button all-roles-period-button' + (i === 0 ? ' active' : '') + '" ' +
+            periodItems.map((p, i) => {
+                var label = (p && p.label !== undefined && p.label !== null && p.label === p.label) ? String(p.label) : '';
+                if (label && label.indexOf("NaN") >= 0) label = label.replace(/NaN/g, '');
+                if (!label && p && p.month) label = String(p.month);
+                if (label && label.indexOf("NaN") >= 0) label = label.replace(/NaN/g, '');
+                return '<button class="tab-button month-button all-roles-period-button' + (i === 0 ? ' active' : '') + '" ' +
                         'data-period="' + (p.month || 'all') + '" ' +
-                        'onclick="openAllRolesPeriodTab(event, \'' + prefix + '-' + i + '\', \'' + analysisType + '\')">' +
-                    p.label +
-                '</button>'
-            )).join('') +
+                        'onclick="openAllRolesPeriodTab(event, \'" + prefix + '-' + i + "\', \'" + analysisType + "\')">' +
+                    label +
+                '</button>';
+            }).join('') +
         '</div>';
     }
 
@@ -119,7 +126,7 @@ function renderAllRolesContainer(container, roleContents) {
         return '<div class="table-container activity-all-table-container">' +
             '<table class="activity-all-table">' +
                 '<colgroup><col><col><col><col><col><col></colgroup>' +
-                '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
+                '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0435</th><th>\u0410\u0440\u0445\u0438\u0432</th><th>\u0412\u0441\u0435\u0433\u043e</th><th>\u0421\u0440. \u0432\u043e\u0437\u0440\u0430\u0441\u0442</th><th>\u0410\u0440\u0445/\u0430\u043a\u0442</th></tr></thead>' +
                 '<tbody>' +
                     rows.map(r => {
                         var ratio = r.active ? (r.archived / r.active) : 0;
@@ -131,10 +138,10 @@ function renderAllRolesContainer(container, roleContents) {
                                     '<div class="table-container activity-all-table-container">' +
                                         '<table class="details-table align-activity">' +
                                             '<colgroup><col><col><col><col><col><col></colgroup>' +
-                                            '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
+                                            '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0435</th><th>\u0410\u0440\u0445\u0438\u0432</th><th>\u0412\u0441\u0435\u0433\u043e</th><th>\u0421\u0440. \u0432\u043e\u0437\u0440\u0430\u0441\u0442</th><th>\u0410\u0440\u0445/\u0430\u043a\u0442</th></tr></thead>' +
                                             '<tbody>' +
                                                 r.exp_breakdown.map(e => (
-                                                    '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '?') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '?') + '</td></tr>'
+                                                    '<tr><td>' + escapeHtml(e.experience) + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '\u2014') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '\u2014') + '</td></tr>'
                                                 )).join('') +
                                             '</tbody>' +
                                         '</table>' +
@@ -143,12 +150,12 @@ function renderAllRolesContainer(container, roleContents) {
                             '</tr>'
                         ) : '';
                         return '<tr class="activity-all-row">' +
-                            '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
+                            '<td>' + escapeHtml(r.name) + '</td>' +
                             '<td' + leadActive + '>' + r.active + '</td>' +
                             '<td>' + r.archived + '</td>' +
                             '<td>' + r.total + '</td>' +
-                            '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '?') + '</td>' +
-                            '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '?') + '</td>' +
+                            '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '\u2014') + '</td>' +
+                            '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '\u2014') + '</td>' +
                         '</tr>' + details;
                     }).join('') +
                 '</tbody>' +
@@ -159,7 +166,7 @@ function renderAllRolesContainer(container, roleContents) {
     function buildActivityRows(period) {
         var rows = filteredRoleContents.map(rc => {
             var s = computeRoleActivitySummaryForMonth(rc, period);
-            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
+            return { name: rc.dataset.roleName || rc.dataset.roleId || '', id: rc.dataset.roleId || '', ...s };
         });
         rows.sort((a, b) => {
             var ra = a.active ? (a.archived / a.active) : 0;
@@ -178,8 +185,8 @@ function renderAllRolesContainer(container, roleContents) {
                     'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
                     'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn table-btn active" data-view="table" title="\u0422\u0430\u0431\u043b\u0438\u0446\u0430">\u2630</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="\u0413\u0440\u0430\u0444\u0438\u043a">\ud83d\udcca</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                     buildActivityAllTable(rows) +
@@ -196,7 +203,7 @@ function renderAllRolesContainer(container, roleContents) {
     var weekdayPeriodBlocks = periodItems.map((p, i) => {
         var rows = filteredRoleContents.map(rc => {
             var s = computeRoleWeekdaySummaryForMonth(rc, p.month);
-            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
+            return { name: rc.dataset.roleName || rc.dataset.roleId || '', id: rc.dataset.roleId || '', ...s };
         });
         rows.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
         var graphId = 'weekday-graph-all-' + i;
@@ -204,16 +211,16 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="\u0422\u0430\u0431\u043b\u0438\u0446\u0430">\u2630</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="\u0413\u0440\u0430\u0444\u0438\u043a">\ud83d\udcca</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архив/день</th></tr></thead>' +
+                        '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>\u0421\u0440. \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0439/\u0434\u0435\u043d\u044c</th><th>\u0421\u0440. \u0430\u0440\u0445\u0438\u0432/\u0434\u0435\u043d\u044c</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => (
-                                '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
+                                '<tr><td>' + escapeHtml(r.name) + '</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
                             )).join('') +
                         '</tbody>' +
                     '</table>' +
@@ -236,8 +243,8 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="\u0422\u0430\u0431\u043b\u0438\u0446\u0430">\u2630</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="\u0413\u0440\u0430\u0444\u0438\u043a">\ud83d\udcca</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container full-width-table">' +
@@ -255,37 +262,32 @@ function renderAllRolesContainer(container, roleContents) {
         skillsPeriodBlocks +
     '</div>';
 
+    function formatSalary(val) {
+        if (val === null || val === undefined || isNaN(val)) return '\u2014';
+        return Math.round(val).toString();
+    }
+
     var salaryPeriodBlocks = periodItems.map((p, i) => {
         var rows = filteredRoleContents.map(rc => {
-            var s = computeRoleSalarySkillsForMonth(rc, p.month);
-            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
+            var s = computeRoleSalaryStatsForMonth(rc, p.month);
+            return { name: rc.dataset.roleName || rc.dataset.roleId || '', id: rc.dataset.roleId || '', stats: s };
         });
         var graphId = 'salary-graph-all-' + i;
         return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-analysis="salary-all" data-period="' + (p.month || 'all') + '" ' +
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="\u0422\u0430\u0431\u043b\u0438\u0446\u0430">\u2630</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="\u0413\u0440\u0430\u0444\u0438\u043a">\ud83d\udcca</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th></tr></thead>' +
+                        '<thead><tr><th>\u0420\u043e\u043b\u044c</th><th>\u041c\u0438\u043d</th><th>\u041c\u0430\u043a\u0441</th><th>\u041c\u0435\u0434\u0438\u0430\u043d\u0430</th><th>\u041c\u043e\u0434\u0430</th></tr></thead>' +
                         '<tbody>' +
-                            rows.map(r => {
-                                if (!r.skills.length) {
-                                    return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">?</td></tr>';
-                                }
-                                return r.skills.map((s, i) => (
-                                    '<tr>' +
-                                        (i === 0 ? '<td rowspan="' + r.skills.length + '">' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' : '') +
-                                        '<td>' + escapeHtml(s.skill) + '</td>' +
-                                        '<td>' + s.count + '</td>' +
-                                        '<td>' + (s.avg ? Math.round(s.avg) : '?') + '</td>' +
-                                    '</tr>'
-                                )).join('');
-                            }).join('') +
+                            rows.map(r => (
+                                '<tr><td>' + escapeHtml(r.name) + '</td><td>' + formatSalary(r.stats.min_salary) + '</td><td>' + formatSalary(r.stats.max_salary) + '</td><td>' + formatSalary(r.stats.median_salary) + '</td><td>' + formatSalary(r.stats.mode_salary) + '</td></tr>'
+                            )).join('') +
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
@@ -300,23 +302,24 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var roleFilterHtml = '<div class="all-roles-role-filter">' +
+        '<button type="button" class="all-roles-role-filter-toggle" aria-expanded="true">\u25be</button>' +
         '<div class="all-roles-role-filter-list">' +
             (allRoleNames.length ? allRoleNames.map(r => (
                 '<button type="button" class="role-chip role-filter-chip' + (excludedSet.has(String(r)) ? '' : ' active') + '" data-role="' + escapeHtml(r) + '">' +
                     escapeHtml(r) +
                 '</button>'
-            )).join('') : '<span>—</span>') +
+            )).join('') : '<span>\u2014</span>') +
         '</div>' +
     '</div>';
 
     container.innerHTML =
-        '<h2>Сводно по всем ролям</h2>' +
+        '<h2>\u0421\u0432\u043e\u0434\u043d\u043e \u043f\u043e \u0432\u0441\u0435\u043c \u0440\u043e\u043b\u044f\u043c</h2>' +
         roleFilterHtml +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">\u0410\u043d\u0430\u043b\u0438\u0437 \u0430\u043a\u0442\u0438\u0432\u043d\u043e\u0441\u0442\u0438</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">\u0410\u043d\u0430\u043b\u0438\u0437 \u043f\u043e \u0434\u043d\u044f\u043c \u043d\u0435\u0434\u0435\u043b\u0438</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">\u041d\u0430\u0432\u044b\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">\u0410\u043d\u0430\u043b\u0438\u0437 \u0437\u0430\u0440\u043f\u043b\u0430\u0442</button>' +
         '</div>' +
         activityHtml +
         weekdayHtml +
@@ -331,6 +334,7 @@ function renderAllRolesContainer(container, roleContents) {
         if (analysisButton) analysisButton.click();
     }
 }
+
 function addSummaryTabs(root) {
     var skillsMonths = root.querySelectorAll('.monthly-skills-month-content');
     skillsMonths.forEach(monthDiv => {
