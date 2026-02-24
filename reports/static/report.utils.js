@@ -52,6 +52,53 @@ function formatMonthTitle(numMonths) {
 function isSummaryMonth(monthStr) {
     return monthStr && monthStr.startsWith('За ');
 }
+function getVacancyById(id) {
+    if (id === null || id === undefined) return null;
+    var key = String(id);
+    if (window.REPORT_VACANCIES && window.REPORT_VACANCIES[key]) return window.REPORT_VACANCIES[key];
+    return null;
+}
+function loadRoleVacancies(roleId) {
+    if (!roleId) return Promise.resolve();
+    var key = String(roleId);
+    window.REPORT_VACANCY_CHUNKS = window.REPORT_VACANCY_CHUNKS || {};
+    if (window.REPORT_VACANCY_CHUNKS[key]) return window.REPORT_VACANCY_CHUNKS[key];
+    var p = new Promise((resolve, reject) => {
+        var script = document.createElement('script');
+        script.src = 'report.vacancies.role-' + encodeURIComponent(key) + '.js';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('Failed to load vacancies chunk: ' + key));
+        document.head.appendChild(script);
+    });
+    window.REPORT_VACANCY_CHUNKS[key] = p;
+    return p;
+}
+function ensureVacanciesLoadedByIds(ids) {
+    var index = window.REPORT_VACANCY_INDEX || {};
+    var roleSet = new Set();
+    (ids || []).forEach(id => {
+        var key = String(id);
+        var roleId = index[key];
+        if (roleId) roleSet.add(String(roleId));
+    });
+    var loaders = Array.from(roleSet).map(loadRoleVacancies);
+    return Promise.all(loaders);
+}
+function resolveVacancyList(list) {
+    if (!Array.isArray(list) || list.length === 0) return [];
+    if (typeof list[0] === 'object') return list;
+    var out = [];
+    list.forEach(id => {
+        var v = getVacancyById(id);
+        if (v) out.push(v);
+    });
+    return out;
+}
+function resolveVacancyListAsync(list) {
+    if (!Array.isArray(list) || list.length === 0) return Promise.resolve([]);
+    if (typeof list[0] === 'object') return Promise.resolve(list);
+    return ensureVacanciesLoadedByIds(list).then(() => resolveVacancyList(list));
+}
 function parseJsonDataset(el, key, fallback) {
     if (el && el._data && el._data[key] !== undefined) return el._data[key];
     try {

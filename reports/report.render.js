@@ -1,4 +1,5 @@
 function buildVacancyTableHtml(vacancies) {
+    vacancies = resolveVacancyList(vacancies);
     if (!vacancies || vacancies.length === 0) {
         return '<div class="vacancy-empty">Нет вакансий</div>';
     }
@@ -50,12 +51,14 @@ function buildVacancyTableHtml(vacancies) {
     '</div>';
 }
 function renderVacancyDetails(container, withList, withoutList) {
-    var withCount = (withList || []).length;
-    var withoutCount = (withoutList || []).length;
+    var withIds = withList || [];
+    var withoutIds = withoutList || [];
+    var withCount = (withIds || []).length;
+    var withoutCount = (withoutIds || []).length;
     var defaultTab = withCount > 0 ? 'with' : 'without';
 
-    container.dataset.with = JSON.stringify(withList || []);
-    container.dataset.without = JSON.stringify(withoutList || []);
+    container.dataset.withIds = JSON.stringify(withIds || []);
+    container.dataset.withoutIds = JSON.stringify(withoutIds || []);
 
     var filterHtml = '<div class="vacancy-filter">' +
         '<button class="vacancy-filter-btn' + (defaultTab === 'with' ? ' active' : '') + '" data-filter="with">' +
@@ -66,7 +69,8 @@ function renderVacancyDetails(container, withList, withoutList) {
         '</button>' +
     '</div>';
 
-    var initialList = defaultTab === 'with' ? withList : withoutList;
+    var initialIds = defaultTab === 'with' ? withIds : withoutIds;
+    var initialList = resolveVacancyList(initialIds);
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
 function buildAllRolesSkillsTableHtml(rows) {
@@ -447,8 +451,8 @@ function addSummaryTabs(root) {
         rows.forEach((row, k) => {
             var entry = (summaryExp.entries || [])[k] || {};
             row._data = {
-                withList: entry.vacancies_with_salary_list || [],
-                withoutList: entry.vacancies_without_salary_list || []
+                withIds: (entry.vacancies_with_salary_list || []).map(v => (v && v.id) ? v.id : v).filter(Boolean),
+                withoutIds: (entry.vacancies_without_salary_list || []).map(v => (v && v.id) ? v.id : v).filter(Boolean)
             };
         });
     });
@@ -684,8 +688,8 @@ function renderCombinedContainer(container, roleContents) {
             rows.forEach((row, k) => {
                 var entry = (expData.entries || [])[k] || {};
                 row._data = {
-                    withList: entry.vacancies_with_salary_list || [],
-                    withoutList: entry.vacancies_without_salary_list || []
+                    withIds: (entry.vacancies_with_salary_list || []).map(v => (v && v.id) ? v.id : v).filter(Boolean),
+                    withoutIds: (entry.vacancies_without_salary_list || []).map(v => (v && v.id) ? v.id : v).filter(Boolean)
                 };
             });
         });
@@ -784,9 +788,16 @@ function openVacancyModal(withList, withoutList, contextHtml) {
     if (!backdrop || !body || !context) return;
 
     context.innerHTML = contextHtml || '';
-    body.innerHTML = '<div class="vacancy-details-container"></div>';
+    body.innerHTML = '<div class="vacancy-details-container"><div class="vacancy-empty">Загрузка...</div></div>';
     var container = body.querySelector('.vacancy-details-container');
-    renderVacancyDetails(container, withList, withoutList);
+    Promise.all([
+        resolveVacancyListAsync(withList || []),
+        resolveVacancyListAsync(withoutList || [])
+    ]).then(([withResolved, withoutResolved]) => {
+        renderVacancyDetails(container, withResolved, withoutResolved);
+    }).catch((_e) => {
+        container.innerHTML = '<div class="vacancy-empty">Не удалось загрузить вакансии</div>';
+    });
 
     backdrop.style.display = 'flex';
     document.body.style.overflow = 'hidden';

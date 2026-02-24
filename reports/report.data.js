@@ -45,8 +45,8 @@ function buildLifetimeMapsFromSalaryMonths(salaryMonths) {
         (m.experiences || []).forEach(exp => {
             var expAll = [];
             (exp.entries || []).forEach(entry => {
-                expAll = expAll.concat(entry.vacancies_with_salary_list || []);
-                expAll = expAll.concat(entry.vacancies_without_salary_list || []);
+                expAll = expAll.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                expAll = expAll.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
             });
             if (expAll.length) {
                 byMonth[m.month][exp.experience] = computeAvgLifetimeDays(expAll);
@@ -111,8 +111,8 @@ function collectVacanciesFromSalaryMonths(salaryMonths) {
         if (!m.experiences) return;
         m.experiences.forEach(exp => {
             (exp.entries || []).forEach(entry => {
-                all = all.concat(entry.vacancies_with_salary_list || []);
-                all = all.concat(entry.vacancies_without_salary_list || []);
+                all = all.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                all = all.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
             });
         });
     });
@@ -130,8 +130,8 @@ function collectVacanciesFromSalaryMonthsByMonth(salaryMonths, month) {
         if (!m.experiences) return;
         m.experiences.forEach(exp => {
             (exp.entries || []).forEach(entry => {
-                all = all.concat(entry.vacancies_with_salary_list || []);
-                all = all.concat(entry.vacancies_without_salary_list || []);
+                all = all.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                all = all.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
             });
         });
     });
@@ -444,8 +444,8 @@ function aggregateSalary(roleContents) {
                         raw_max: 0
                     };
                     if (entry.vacancies_with_salary_list || entry.vacancies_without_salary_list) {
-                        bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-                        bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                        bucket.with = bucket.with.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                        bucket.without = bucket.without.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
                     } else {
                         bucket.raw_total += entry.total_vacancies || 0;
                         bucket.raw_with += entry.vacancies_with_salary || 0;
@@ -521,8 +521,8 @@ function aggregateSalary(roleContents) {
                         raw_max: 0
                     };
                     if (entry.vacancies_with_salary_list || entry.vacancies_without_salary_list) {
-                        bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-                        bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                        bucket.with = bucket.with.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                        bucket.without = bucket.without.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
                     } else {
                         bucket.raw_total += entry.total_vacancies || 0;
                         bucket.raw_with += entry.vacancies_with_salary || 0;
@@ -976,8 +976,8 @@ function aggregateSalarySum(roleContents) {
                     bucket.mode_salary += entry.mode_salary || 0;
                     bucket.min_salary += entry.min_salary || 0;
                     bucket.max_salary += entry.max_salary || 0;
-                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    bucket.with = bucket.with.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                    bucket.without = bucket.without.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
                     byMonth[m.month][exp.experience][key] = bucket;
                 });
             });
@@ -1001,8 +1001,8 @@ function aggregateSalarySum(roleContents) {
                 max_salary: b.max_salary || 0,
                 top_skills: b.top_skills || '—',
                 vacancy_ids: [],
-                vacancies_with_salary_list: b.with || [],
-                vacancies_without_salary_list: b.without || []
+                vacancies_with_salary_list: resolveVacancyList(b.with || []),
+                vacancies_without_salary_list: resolveVacancyList(b.without || [])
             };
         });
         entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
@@ -1046,8 +1046,8 @@ function aggregateSalarySum(roleContents) {
                     bucket.mode_salary += entry.mode_salary || 0;
                     bucket.min_salary += entry.min_salary || 0;
                     bucket.max_salary += entry.max_salary || 0;
-                    bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-                    bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+                    bucket.with = bucket.with.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+                    bucket.without = bucket.without.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
                     agg[exp.experience][key] = bucket;
                 });
             });
@@ -1091,8 +1091,8 @@ function buildSalarySummaryExp(monthData) {
         (exp.entries || []).forEach(entry => {
             var key = entry.status + '|' + entry.currency;
             var bucket = buckets[key] || { status: entry.status, currency: entry.currency, with: [], without: [] };
-            bucket.with = bucket.with.concat(entry.vacancies_with_salary_list || []);
-            bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
+            bucket.with = bucket.with.concat(resolveVacancyList(entry.vacancies_with_salary_list || []));
+            bucket.without = bucket.without.concat(resolveVacancyList(entry.vacancies_without_salary_list || []));
             buckets[key] = bucket;
         });
     });

@@ -7,6 +7,7 @@
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
     <script src="report.state.js"></script>
     <script src="report.utils.js"></script>
+    <script src="report.vacancy_index.js"></script>
     <script src="report.data.js"></script>
     <script src="report.charts.js"></script>
     <script src="report.render.js"></script>
@@ -273,8 +274,8 @@
                                                 {% for entry in exp.entries %}
                                                 <tr class="salary-row"
                                                     data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'
-                                                    data-vacancies-with='{{ entry.vacancies_with_salary_list | tojson }}'
-                                                    data-vacancies-without='{{ entry.vacancies_without_salary_list | tojson }}'>
+                                                    data-vacancies-with-ids='{{ entry.vacancies_with_salary_list | tojson }}'
+                                                    data-vacancies-without-ids='{{ entry.vacancies_without_salary_list | tojson }}'>
                                                     <td>{{ entry.status }}</td>
                                                     <td>{{ entry.currency }}</td>
                                                     <td>{{ entry.total_vacancies }}</td>
