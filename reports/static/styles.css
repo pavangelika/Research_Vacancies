@@ -649,3 +649,110 @@ tr:hover { background-color: #f0f4f9; }
     width: 100%;
     max-width: 100%;
 }
+
+.employer-analysis-view {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
+}
+.employer-topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+.employer-topbar .employer-period-chips {
+    flex: 1 1 auto;
+    justify-content: center;
+}
+.employer-analysis-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+.employer-analysis-table-container {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 100%;
+}
+.employer-analysis-table-container table {
+    margin-left: auto;
+    margin-right: auto;
+}
+.employer-side-toggle {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-self: flex-start;
+}
+.employer-side-toggle .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.employer-factor-value-cell {
+    text-align: center;
+}
+.bool-check {
+    --bool-check-base-size: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--bool-check-base-size);
+    height: var(--bool-check-base-size);
+    border-radius: 8px;
+    border: 2px solid var(--border-light);
+    background: var(--surface);
+    box-shadow: var(--shadow-light);
+    transform: scale(0.8);
+    transform-origin: center;
+}
+.bool-check::after {
+    content: '';
+    font-size: 16px;
+    line-height: 1;
+}
+.bool-check.bool-true {
+    border-color: var(--primary);
+    background: #e8f2fb;
+}
+.bool-check.bool-true::after {
+    content: '✓';
+    color: var(--primary-dark);
+    font-weight: 700;
+}
+
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container table {
+    margin-top: 2px;
+}
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th,
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td {
+    padding: 10px 14px;
+    vertical-align: middle;
+}
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(2),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(2) {
+    text-align: left;
+}
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(3),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(3),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(4),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(4) {
+    text-align: center;
+}
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(5),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(5),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(6),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(6) {
+    text-align: right;
+}

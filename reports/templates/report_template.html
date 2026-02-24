@@ -56,10 +56,13 @@
                     onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="skills-monthly-{{ role_index }}"
-                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
+                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Топ-навыки</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="salary-{{ role_index }}"
                     onclick="switchAnalysis(event, 'salary-{{ role_index }}')">Анализ зарплат</button>
+            <button class="tab-button analysis-button"
+                    data-analysis-id="employer-analysis-{{ role_index }}"
+                    onclick="switchAnalysis(event, 'employer-analysis-{{ role_index }}')">Анализ работодателей</button>
         </div>
 
         <!-- Вкладки по месяцам (только для анализа активности) -->
@@ -314,6 +317,71 @@
                 {% endfor %}
             {% else %}
                 <p>Нет данных по зарплатам для этой роли</p>
+            {% endif %}
+        </div>
+
+        {% set employer_analysis_role = employer_analysis_roles | selectattr('id', 'equalto', role.id) | first %}
+        <div class="employer-analysis-content" data-analysis="employer-analysis-{{ role_index }}" style="display: none;">
+            {% if employer_analysis_role and employer_analysis_role.rows %}
+            <div class="employer-topbar">
+                <div class="employer-period-chips" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 8px 0;">
+                    <button type="button" class="role-filter-chip employer-period-chip active" data-month="all">За период</button>
+                </div>
+                <div class="employer-view-toggle employer-side-toggle">
+                    <button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">☷</button>
+                    <button class="view-mode-btn employer-view-btn" data-view="graph" title="График">📈</button>
+                </div>
+            </div>
+            <div class="analysis-flex employer-analysis-view" style="justify-content: center; align-items: flex-start;">
+                <div class="employer-analysis-main">
+                    <div class="table-container employer-analysis-table-container" style="margin: 0 auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Месяц</th>
+                                    <th>Фактор</th>
+                                    <th>Значение фактора</th>
+                                    <th>Количество</th>
+                                    <th>Средняя зарплата, RUR</th>
+                                    <th>Медианная зарплата, RUR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in employer_analysis_role.rows %}
+                                <tr class="employer-analysis-row"
+                                    data-month="{{ row.month }}"
+                                    data-factor="{{ row.factor }}"
+                                    data-factor-value="{{ row.factor_value }}"
+                                    data-group-n="{{ row.group_n }}"
+                                    data-avg="{{ row.avg_salary_rur if row.avg_salary_rur is not none else '' }}"
+                                    data-median="{{ row.median_salary_rur if row.median_salary_rur is not none else '' }}">
+                                    <td>{{ row.month }}</td>
+                                    <td>
+                                        {% if row.factor == 'accreditation' or row.factor == '' %}ИТ-аккредитация
+                                        {% elif row.factor == 'cover_letter_required' %}Сопроводительное письмо
+                                        {% elif row.factor == 'has_test' %}Тестовое задание
+                                        {% elif row.factor == 'rating_bucket' %}Рейтинг фирмы
+                                        {% else %}{{ row.factor }}{% endif %}
+                                    </td>
+                                    <td class="employer-factor-value-cell" data-raw-value="{{ row.factor_value }}">
+                                        {% if row.factor_value == 'true' %}<span class="bool-check bool-true" aria-label="Да"></span>
+                                        {% elif row.factor_value == 'false' %}<span class="bool-check bool-false" aria-label="Нет"></span>
+                                        {% elif row.factor == 'rating_bucket' and row.factor_value == 'unknown' %}нет рейтинга
+                                        {% else %}{{ row.factor_value }}{% endif %}
+                                    </td>
+                                    <td>{{ row.group_n }}</td>
+                                    <td>{{ "{:,.2f}".format(row.avg_salary_rur) if row.avg_salary_rur is not none else "—" }}</td>
+                                    <td>{{ "{:,.2f}".format(row.median_salary_rur) if row.median_salary_rur is not none else "—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="plotly-graph employer-analysis-graph" id="employer-analysis-graph-{{ role_index }}" style="display: none;"></div>
+                </div>
+            </div>
+            {% else %}
+            <p>Нет данных анализа работодателей для этой роли</p>
             {% endif %}
         </div>
     </div>
