@@ -237,6 +237,7 @@ document.addEventListener("DOMContentLoaded", function() {
         selectionOrder = [idx];
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
+        collapseRoleSelector();
     }
 
     buttons.forEach(btn => {

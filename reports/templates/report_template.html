@@ -5,7 +5,6 @@
     <title>Анализ вакансий по ролям - {{ current_date }} {{ current_time }}</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
-    <script src="report.payload.js"></script>
     <script src="report.state.js"></script>
     <script src="report.utils.js"></script>
     <script src="report.data.js"></script>
@@ -57,7 +56,7 @@
                     onclick="switchAnalysis(event, 'weekday-{{ role_index }}')">Анализ по дням недели</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="skills-monthly-{{ role_index }}"
-                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Навыки по месяцам</button>
+                    onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Топ-навыки</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="salary-{{ role_index }}"
                     onclick="switchAnalysis(event, 'salary-{{ role_index }}')">Анализ зарплат</button>
@@ -77,6 +76,7 @@
         {% for month_data in role.months %}
         {% set month_index = loop.index %}
         <div id="month-{{ role_index }}-{{ month_index }}" class="month-content activity-only"
+             data-entries='{{ month_data.entries | tojson }}'
              data-month="{{ month_data.month }}">
             <!-- Горизонтальный переключатель режимов для активности -->
             <div class="view-toggle-horizontal">
@@ -116,7 +116,8 @@
 
         <!-- Блок для анализа по дням недели -->
         {% set weekday_role = weekday_roles | selectattr('id', 'equalto', role.id) | first %}
-        <div class="weekday-content" data-analysis="weekday-{{ role_index }}" style="display: none;">
+        <div class="weekday-content" data-analysis="weekday-{{ role_index }}" style="display: none;"
+             data-weekdays='{{ weekday_role.weekdays | tojson if weekday_role else "[]" }}'>
             {% if weekday_role %}
             <!-- Горизонтальный переключатель режимов для дней недели -->
             <div class="view-toggle-horizontal">
@@ -158,7 +159,8 @@
 
         <!-- Блок для анализа навыков по месяцам -->
         {% set skills_monthly_role = skills_monthly_roles | selectattr('id', 'equalto', role.id) | first %}
-        <div class="skills-monthly-content" data-analysis="skills-monthly-{{ role_index }}" style="display: none;">
+        <div class="skills-monthly-content" data-analysis="skills-monthly-{{ role_index }}" style="display: none;"
+             data-skills-monthly='{{ skills_monthly_role.months_list | tojson if skills_monthly_role else "[]" }}'>
             {% if skills_monthly_role and skills_monthly_role.months_list %}
                 <!-- Вкладки для выбора месяца -->
                 <div class="tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">
@@ -170,7 +172,7 @@
                 <!-- Контейнеры для каждого месяца -->
                 {% for month_data in skills_monthly_role.months_list %}
                 {% set month_index = loop.index %}
-                <div id="ms-month-{{ role_index }}-{{ month_index }}" class="monthly-skills-month-content" data-month-key="{{ month_data.month }}" style="display: none;">
+                <div id="ms-month-{{ role_index }}-{{ month_index }}" class="monthly-skills-month-content" data-month='{{ month_data | tojson }}' style="display: none;">
                     <!-- Внутри месяца - вкладки для выбора опыта -->
                     <div class="tabs monthly-skills-exp-tabs" style="justify-content: center; margin-top: 5px;">
                         {% for exp in month_data.experiences %}
@@ -181,7 +183,7 @@
                     <!-- Контейнеры для каждого опыта внутри месяца -->
                     {% for exp in month_data.experiences %}
                     {% set exp_index = loop.index %}
-                    <div id="ms-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="monthly-skills-exp-content" data-exp-name="{{ exp.experience }}" style="display: none;">
+                    <div id="ms-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="monthly-skills-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
                         <!-- Горизонтальный переключатель режимов для навыков -->
                         <div class="view-toggle-horizontal">
                             <button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>
@@ -223,7 +225,8 @@
 
         <!-- Блок для анализа зарплат (с вертикальным переключателем, по умолчанию таблица) -->
         {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
-        <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;">
+        <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
+             data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
             {% if salary_role and salary_role.months_list %}
                 <!-- Вкладки для выбора месяца -->
                 <div class="tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">
@@ -235,7 +238,7 @@
                 <!-- Контейнеры для каждого месяца -->
                 {% for month_data in salary_role.months_list %}
                 {% set month_index = loop.index %}
-                <div id="sal-month-{{ role_index }}-{{ month_index }}" class="salary-month-content" data-month-key="{{ month_data.month }}" style="display: none;">
+                <div id="sal-month-{{ role_index }}-{{ month_index }}" class="salary-month-content" data-month='{{ month_data | tojson }}' style="display: none;">
                     <!-- Внутри месяца - вкладки для выбора опыта -->
                     <div class="tabs salary-exp-tabs" style="justify-content: center; margin-top: 5px;">
                         {% for exp in month_data.experiences %}
@@ -246,7 +249,7 @@
                     <!-- Контейнеры для каждого опыта внутри месяца -->
                     {% for exp in month_data.experiences %}
                     {% set exp_index = loop.index %}
-                    <div id="sal-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="salary-exp-content" data-exp-name="{{ exp.experience }}" style="display: none;">
+                    <div id="sal-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="salary-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
                         <div class="salary-display-flex" data-exp-index="{{ exp_index }}">
                             <!-- Основная область: таблица и график -->
                             <div class="salary-main-content">
@@ -271,7 +274,10 @@
                                             </thead>
                                             <tbody>
                                                 {% for entry in exp.entries %}
-                                                <tr class="salary-row" data-status="{{ entry.status }}" data-currency="{{ entry.currency }}">
+                                                <tr class="salary-row"
+                                                    data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'
+                                                    data-vacancies-with='{{ entry.vacancies_with_salary_list | tojson }}'
+                                                    data-vacancies-without='{{ entry.vacancies_without_salary_list | tojson }}'>
                                                     <td>{{ entry.status }}</td>
                                                     <td>{{ entry.currency }}</td>
                                                     <td>{{ entry.total_vacancies }}</td>
