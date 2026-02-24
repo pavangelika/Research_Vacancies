@@ -69,35 +69,9 @@ function renderVacancyDetails(container, withList, withoutList) {
     var initialList = defaultTab === 'with' ? withList : withoutList;
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
-function buildAllRolesSkillsTableHtml(rows) {
-    return '<table class="skills-all-table">' +
-        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th><th>Медианная зп</th><th>Роли</th></tr></thead>' +
-        '<tbody>' +
-            (rows.length ? rows.map(r => (
-                '<tr>' +
-                    '<td>' + escapeHtml(r.skill) + '</td>' +
-                    '<td>' + r.mention_count + '</td>' +
-                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
-                '</tr>'
-            )).join('') : '<tr><td colspan="5">—</td></tr>') +
-        '</tbody>' +
-    '</table>';
-}
 function renderAllRolesContainer(container, roleContents) {
-    var excludedRoles = uiState.all_roles_excluded || [];
-    var excludedSet = new Set(excludedRoles.map(r => String(r)));
-    var allRoleNames = roleContents.map(rc => rc.dataset.roleName || rc.dataset.roleId || '')
-        .filter(Boolean)
-        .filter((v, i, arr) => arr.indexOf(v) === i)
-        .sort((a, b) => a.localeCompare(b));
-    var filteredRoleContents = roleContents.filter(rc => {
-        var name = rc.dataset.roleName || rc.dataset.roleId || '';
-        return name && !excludedSet.has(String(name));
-    });
     var periods = getAllRolesPeriods(roleContents);
-    var periodItems = [{ key: 'all', label: 'За все время', month: null }].concat(
+    var periodItems = [{ key: 'all', label: '?? ???? ??????', month: null }].concat(
         periods.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
     );
 
@@ -106,7 +80,7 @@ function renderAllRolesContainer(container, roleContents) {
             periodItems.map((p, i) => (
                 '<button class="tab-button month-button all-roles-period-button' + (i === 0 ? ' active' : '') + '" ' +
                         'data-period="' + (p.month || 'all') + '" ' +
-                        'onclick="openAllRolesPeriodTab(event, \'' + prefix + '-' + i + '\', \'' + analysisType + '\')">' +
+                        'onclick="openAllRolesPeriodTab(event, \"' + prefix + '-' + i + '\", \"' + analysisType + '\")">' +
                     p.label +
                 '</button>'
             )).join('') +
@@ -119,7 +93,7 @@ function renderAllRolesContainer(container, roleContents) {
         return '<div class="table-container activity-all-table-container">' +
             '<table class="activity-all-table">' +
                 '<colgroup><col><col><col><col><col><col></colgroup>' +
-                '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
+                '<thead><tr><th>????</th><th>????????</th><th>????????</th><th>?????</th><th>??. ???????</th><th>???/????</th></tr></thead>' +
                 '<tbody>' +
                     rows.map(r => {
                         var ratio = r.active ? (r.archived / r.active) : 0;
@@ -131,7 +105,7 @@ function renderAllRolesContainer(container, roleContents) {
                                     '<div class="table-container activity-all-table-container">' +
                                         '<table class="details-table align-activity">' +
                                             '<colgroup><col><col><col><col><col><col></colgroup>' +
-                                            '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
+                                            '<thead><tr><th>????</th><th>????????</th><th>????????</th><th>?????</th></tr></thead>' +
                                             '<tbody>' +
                                                 r.exp_breakdown.map(e => (
                                                     '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '?') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '?') + '</td></tr>'
@@ -153,11 +127,11 @@ function renderAllRolesContainer(container, roleContents) {
                     }).join('') +
                 '</tbody>' +
             '</table>' +
-                '</div>';
+        '</div>';
     }
 
     function buildActivityRows(period) {
-        var rows = filteredRoleContents.map(rc => {
+        var rows = roleContents.map(rc => {
             var s = computeRoleActivitySummaryForMonth(rc, period);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
         });
@@ -178,12 +152,12 @@ function renderAllRolesContainer(container, roleContents) {
                     'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
                     'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn table-btn active" data-view="table" title="???????">?</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="??????">??</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                     buildActivityAllTable(rows) +
-                    '<div class="plotly-graph activity-graph-wrap all-roles-graph all-roles-graph-stack"><div class="activity-graph-item"><div id="' + graphMainId + '"></div></div><div class="activity-graph-item"><div id="' + graphAgeId + '"></div></div></div>' +
+                    '<div class="plotly-graph activity-graph-wrap"><div class="activity-graph-item"><div id="' + graphMainId + '"></div></div><div class="activity-graph-item"><div id="' + graphAgeId + '"></div></div></div>' +
                 '</div>' +
             '</div>';
     }).join('');
@@ -194,23 +168,16 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var weekdayPeriodBlocks = periodItems.map((p, i) => {
-        var rows = filteredRoleContents.map(rc => {
+        var rows = roleContents.map(rc => {
             var s = computeRoleWeekdaySummaryForMonth(rc, p.month);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
         });
         rows.sort((a, b) => (b.avg_pub || 0) - (a.avg_pub || 0));
-        var graphId = 'weekday-graph-all-' + i;
-        return '<div id="weekday-all-period-' + i + '" class="all-roles-period-content" data-analysis="weekday-all" data-period="' + (p.month || 'all') + '" ' +
-                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
-            '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
-            '</div>' +
+        return '<div id="weekday-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архив/день</th></tr></thead>' +
+                        '<thead><tr><th>????</th><th>??. ??????????/????</th><th>??. ???????/????</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
@@ -218,7 +185,6 @@ function renderAllRolesContainer(container, roleContents) {
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
-                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -229,49 +195,43 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var skillsPeriodBlocks = periodItems.map((p, i) => {
-        var summary = computeAllRolesSkillCostSummaryForMonth(roleContents, p.month, excludedRoles);
-        var rows = summary.rows || [];
-        var graphId = 'skills-graph-all-' + i;
-        return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.month || 'all') + '" ' +
-                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
-            '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
-            '</div>' +
+        var rows = roleContents.map(rc => {
+            var s = computeRoleSkillsSummaryForMonth(rc, p.month);
+            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', ...s };
+        });
+        return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
-                '<div class="table-container full-width-table">' +
-                    '<div class="skills-all-table-wrap">' +
-                        buildAllRolesSkillsTableHtml(rows) +
-                    '</div>' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead><tr><th>????</th><th>??? ??????? (???????)</th></tr></thead>' +
+                        '<tbody>' +
+                            rows.map(r => (
+                                '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' +
+                                    (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : '?') +
+                                '</td></tr>'
+                            )).join('') +
+                        '</tbody>' +
+                    '</table>' +
                 '</div>' +
-                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
         '</div>';
     }).join('');
 
-    var skillsHtml = '<div class="skills-monthly-content all-roles-period-wrapper skills-all-summary" data-analysis="skills-monthly-all" style="display: none;">' +
+    var skillsHtml = '<div class="skills-monthly-content all-roles-period-wrapper" data-analysis="skills-monthly-all" style="display: none;">' +
         buildPeriodTabs('skills-all-period', 'skills') +
         skillsPeriodBlocks +
     '</div>';
 
     var salaryPeriodBlocks = periodItems.map((p, i) => {
-        var rows = filteredRoleContents.map(rc => {
+        var rows = roleContents.map(rc => {
             var s = computeRoleSalarySkillsForMonth(rc, p.month);
             return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
         });
-        var graphId = 'salary-graph-all-' + i;
-        return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-analysis="salary-all" data-period="' + (p.month || 'all') + '" ' +
-                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
-            '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
-            '</div>' +
+        return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-period="' + (p.month || 'all') + '" style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th></tr></thead>' +
+                        '<thead><tr><th>????</th><th>?????</th><th>???????</th><th>??????? ??</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => {
                                 if (!r.skills.length) {
@@ -289,7 +249,6 @@ function renderAllRolesContainer(container, roleContents) {
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
-                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -299,37 +258,21 @@ function renderAllRolesContainer(container, roleContents) {
         salaryPeriodBlocks +
     '</div>';
 
-    var roleFilterHtml = '<div class="all-roles-role-filter">' +
-        '<div class="all-roles-role-filter-list">' +
-            (allRoleNames.length ? allRoleNames.map(r => (
-                '<button type="button" class="role-chip role-filter-chip' + (excludedSet.has(String(r)) ? '' : ' active') + '" data-role="' + escapeHtml(r) + '">' +
-                    escapeHtml(r) +
-                '</button>'
-            )).join('') : '<span>—</span>') +
-        '</div>' +
-    '</div>';
-
     container.innerHTML =
-        '<h2>Сводно по всем ролям</h2>' +
-        roleFilterHtml +
+        '<h2>?????? ?? ???? ?????</h2>' +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">?????? ??????????</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">?????? ?? ???? ??????</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">?????? ?? ???????</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">?????? ???????</button>' +
         '</div>' +
         activityHtml +
         weekdayHtml +
         skillsHtml +
         salaryHtml;
 
-    var preferred = uiState.global_analysis_type || 'activity';
-    var preferredButton = container.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
-    if (preferredButton) preferredButton.click();
-    else {
-        var analysisButton = container.querySelector('.analysis-button');
-        if (analysisButton) analysisButton.click();
-    }
+    var analysisButton = container.querySelector('.analysis-button');
+    if (analysisButton) analysisButton.click();
 }
 function addSummaryTabs(root) {
     var skillsMonths = root.querySelectorAll('.monthly-skills-month-content');

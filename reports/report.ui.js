@@ -102,33 +102,6 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         var mainId = target.dataset.graphMain;
         var ageId = target.dataset.graphAge;
         if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
-    } else if (analysisType === 'weekday' && target) {
-        var mode = uiState.weekday_view_mode === 'together' ? 'table' : uiState.weekday_view_mode;
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
-        var rows = parseJsonDataset(target, 'entries', []);
-        var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesWeekdayChart(rows, graphId);
-    } else if (analysisType === 'skills' && target) {
-        var mode = uiState.skills_monthly_view_mode === 'together' ? 'table' : uiState.skills_monthly_view_mode;
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
-        var rows = parseJsonDataset(target, 'entries', []);
-        var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesSkillsChart(rows, graphId);
-    } else if (analysisType === 'salary' && target) {
-        var mode = uiState.salary_view_mode === 'together' ? 'table' : uiState.salary_view_mode;
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
-        var rows = parseJsonDataset(target, 'entries', []);
-        var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesSalaryChart(rows, graphId);
     }
 }
 
