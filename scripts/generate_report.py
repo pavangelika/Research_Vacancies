@@ -1228,8 +1228,8 @@ def fetch_salary_data(mapping):
     result.sort(key=lambda x: x['name'])
     return result
 
-def render_report(roles_data, weekday_data, skills_monthly_data, salary_data):
-    env = Environment(loader=FileSystemLoader('templates'))
+def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, templates_dir):
+    env = Environment(loader=FileSystemLoader(templates_dir))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
     current_time = datetime.now().strftime("%H:%M")
@@ -1277,29 +1277,25 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data):
                 'salary': srole['months_list']
             }
 
-    report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
     return template.render(roles=roles_data, weekday_roles=weekday_data,
                            skills_monthly_roles=skills_monthly_data,
                            salary_roles=salary_data,
-                           current_date=current_date, current_time=current_time,
-                           report_data_json=report_data_json)
+                           current_date=current_date, current_time=current_time)
 
-
-def save_report(html_content):
-    output_dir = '/reports'
+def save_report(html_content, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'report.html')
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     logging.info(f"Report saved to {output_file}")
 
-def copy_styles():
-    src = 'static/styles.css'
-    dst = os.path.join('/reports', 'styles.css')
+def copy_styles(static_dir, output_dir):
+    src = os.path.join(static_dir, 'styles.css')
+    dst = os.path.join(output_dir, 'styles.css')
     shutil.copy2(src, dst)
     logging.info(f"Styles copied to {dst}")
 
-def copy_js():
+def copy_js(static_dir, output_dir):
     js_files = [
         'report.state.js',
         'report.utils.js',
@@ -1310,10 +1306,62 @@ def copy_js():
         'report.events.js'
     ]
     for filename in js_files:
-        src = os.path.join('static', filename)
-        dst = os.path.join('/reports', filename)
+        src = os.path.join(static_dir, filename)
+        dst = os.path.join(output_dir, filename)
         shutil.copy2(src, dst)
         logging.info(f"JS copied to {dst}")
+
+def build_report_payload(roles_data, weekday_data, skills_monthly_data, salary_data):
+    payload = {'roles': {}}
+
+    def ensure_role(role_id, role_name=None):
+        key = str(role_id)
+        role = payload['roles'].setdefault(key, {'id': key, 'name': role_name or ''})
+        if role_name and not role.get('name'):
+            role['name'] = role_name
+        return role
+
+    for role in roles_data:
+        r = ensure_role(role.get('id'), role.get('name'))
+        r['trend'] = role.get('trend')
+        r['activity_months'] = role.get('months', [])
+
+    for wrole in weekday_data:
+        r = ensure_role(wrole.get('id'), wrole.get('name'))
+        r['weekdays'] = wrole.get('weekdays', [])
+
+    for srole in skills_monthly_data:
+        r = ensure_role(srole.get('id'), srole.get('name'))
+        r['skills_monthly'] = srole.get('months_list', [])
+
+    for srole in salary_data:
+        r = ensure_role(srole.get('id'), srole.get('name'))
+        r['salary'] = srole.get('months_list', [])
+
+    for r in payload['roles'].values():
+        r.setdefault('trend', None)
+        r.setdefault('activity_months', [])
+        r.setdefault('weekdays', [])
+        r.setdefault('skills_monthly', [])
+        r.setdefault('salary', [])
+
+    return payload
+
+def save_report_payload(payload, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, 'report.payload.js')
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write('window.REPORT_DATA = ')
+        json.dump(payload, f, ensure_ascii=False)
+        f.write(';')
+    logging.info(f"Report payload saved to {output_file}")
+
+def resolve_assets_dir(primary, fallback):
+    if os.path.isdir(primary):
+        return primary
+    if os.path.isdir(fallback):
+        return fallback
+    return primary
 
 def main():
     json_path = os.environ.get('ROLES_JSON_PATH', '/app/data/professional_roles.json')
@@ -1335,10 +1383,17 @@ def main():
     logging.info("Fetching salary data...")
     salary_data = fetch_salary_data(mapping)
 
-    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data)
-    save_report(html)
-    copy_styles()
-    copy_js()
+    templates_dir = resolve_assets_dir('templates', os.path.join('reports', 'templates'))
+    static_dir = resolve_assets_dir('static', os.path.join('reports', 'static'))
+    output_dir = os.environ.get('REPORT_OUTPUT_DIR', 'reports')
+
+    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, templates_dir)
+    save_report(html, output_dir)
+    copy_styles(static_dir, output_dir)
+    copy_js(static_dir, output_dir)
+
+    payload = build_report_payload(roles_data, weekday_data, skills_monthly_data, salary_data)
+    save_report_payload(payload, output_dir)
 
 if __name__ == '__main__':
     main()
