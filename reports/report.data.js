@@ -144,6 +144,136 @@ function getAllRoleContents() {
     return Array.from(document.querySelectorAll('.role-content'))
         .filter(c => c.id !== 'role-combined' && c.id !== 'role-all');
 }
+function getReportRoleData(roleId) {
+    if (!window.REPORT_DATA || !window.REPORT_DATA.roles) return null;
+    var key = String(roleId || '');
+    return window.REPORT_DATA.roles[key] || null;
+}
+function hydrateReportDataFromPayload() {
+    if (!window.REPORT_DATA || !window.REPORT_DATA.roles) return;
+
+    var roleContents = Array.from(document.querySelectorAll('.role-content'))
+        .filter(c => c.id !== 'role-combined' && c.id !== 'role-all');
+
+    roleContents.forEach(roleContent => {
+        var roleId = roleContent.dataset.roleId || '';
+        var roleData = getReportRoleData(roleId);
+        if (!roleData) return;
+
+        var activityMonths = roleData.activity_months || [];
+        var activityMap = {};
+        activityMonths.forEach(m => {
+            if (m && m.month) activityMap[m.month] = m;
+        });
+        roleContent.querySelectorAll('.month-content').forEach(block => {
+            var key = block.dataset.month || block.dataset.monthKey || '';
+            var m = activityMap[key];
+            block._data = block._data || {};
+            block._data.entries = (m && m.entries) ? m.entries : [];
+            if (m) block._data.month = m;
+        });
+
+        var weekdayBlock = roleContent.querySelector('.weekday-content');
+        if (weekdayBlock) {
+            weekdayBlock._data = weekdayBlock._data || {};
+            weekdayBlock._data.weekdays = roleData.weekdays || [];
+        }
+
+        var skillsRoot = roleContent.querySelector('.skills-monthly-content');
+        if (skillsRoot) {
+            skillsRoot._data = skillsRoot._data || {};
+            skillsRoot._data.skillsMonthly = roleData.skills_monthly || [];
+        }
+
+        var skillsMap = {};
+        (roleData.skills_monthly || []).forEach(m => {
+            if (m && m.month) skillsMap[m.month] = m;
+        });
+        roleContent.querySelectorAll('.monthly-skills-month-content').forEach(block => {
+            var key = block.dataset.monthKey || block.dataset.month || '';
+            var monthData = skillsMap[key] || {};
+            block._data = block._data || {};
+            block._data.month = monthData;
+            var expMap = {};
+            (monthData.experiences || []).forEach(exp => {
+                if (exp && exp.experience) expMap[exp.experience] = exp;
+            });
+            block.querySelectorAll('.monthly-skills-exp-content').forEach(expBlock => {
+                var expName = expBlock.dataset.expName || '';
+                expBlock._data = expBlock._data || {};
+                expBlock._data.exp = expMap[expName] || {};
+            });
+        });
+
+        var salaryRoot = roleContent.querySelector('.salary-content');
+        if (salaryRoot) {
+            salaryRoot._data = salaryRoot._data || {};
+            salaryRoot._data.salary = roleData.salary || [];
+        }
+
+        var salaryMap = {};
+        (roleData.salary || []).forEach(m => {
+            if (m && m.month) salaryMap[m.month] = m;
+        });
+        roleContent.querySelectorAll('.salary-month-content').forEach(block => {
+            var key = block.dataset.monthKey || block.dataset.month || '';
+            var monthData = salaryMap[key] || {};
+            block._data = block._data || {};
+            block._data.month = monthData;
+            var expMap = {};
+            (monthData.experiences || []).forEach(exp => {
+                if (exp && exp.experience) expMap[exp.experience] = exp;
+            });
+            block.querySelectorAll('.salary-exp-content').forEach(expBlock => {
+                var expName = expBlock.dataset.expName || '';
+                var expData = expMap[expName] || {};
+                expBlock._data = expBlock._data || {};
+                expBlock._data.exp = expData;
+                var entryMap = {};
+                (expData.entries || []).forEach(entry => {
+                    if (!entry) return;
+                    var k = (entry.status || '') + '|' + (entry.currency || '');
+                    entryMap[k] = entry;
+                });
+                expBlock.querySelectorAll('.salary-row').forEach(row => {
+                    var status = row.dataset.status || '';
+                    var currency = row.dataset.currency || '';
+                    var entry = entryMap[status + '|' + currency] || null;
+                    row._data = row._data || {};
+                    row._data.withList = entry ? (entry.vacancies_with_salary_list || []) : [];
+                    row._data.withoutList = entry ? (entry.vacancies_without_salary_list || []) : [];
+                });
+            });
+        });
+
+        var influenceRoot = roleContent.querySelector('.influence-content');
+        if (influenceRoot) {
+            influenceRoot._data = influenceRoot._data || {};
+            influenceRoot._data.influence = roleData.influence_months || [];
+        }
+
+        var influenceMap = {};
+        (roleData.influence_months || []).forEach(m => {
+            if (m && m.month) influenceMap[m.month] = m;
+        });
+        roleContent.querySelectorAll('.influence-month-content').forEach(block => {
+            var key = block.dataset.monthKey || block.dataset.month || '';
+            var monthData = influenceMap[key] || {};
+            block._data = block._data || {};
+            block._data.month = monthData;
+            var factorMap = {};
+            (monthData.factors || []).forEach(f => {
+                if (f && f.factor) factorMap[f.factor] = f;
+            });
+            block.querySelectorAll('.influence-factor-content').forEach(factorBlock => {
+                var factorKey = factorBlock.dataset.factor || '';
+                factorBlock._data = factorBlock._data || {};
+                factorBlock._data.factor = factorMap[factorKey] || { factor: factorKey, values: [] };
+            });
+        });
+    });
+}
+document.addEventListener('DOMContentLoaded', hydrateReportDataFromPayload);
 function getRoleSalaryData(roleContent) {
     var salaryBlock = roleContent.querySelector('.salary-content');
     if (!salaryBlock) return [];
@@ -158,6 +288,12 @@ function getRoleSkillsMonthlyData(roleContent) {
     var block = roleContent.querySelector('.skills-monthly-content');
     if (!block) return [];
     return parseJsonDataset(block, 'skillsMonthly', []);
+}
+function getRoleInfluenceData(roleContent) {
+    var block = roleContent.querySelector('.influence-content');
+    if (!block) return [];
+    if (block._data && block._data.influence) return block._data.influence;
+    return parseJsonDataset(block, 'influence', []);
 }
 function getRoleActivityMonths(roleContent) {
     var monthBlocks = roleContent.querySelectorAll('.month-content');

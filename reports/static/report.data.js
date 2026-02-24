@@ -245,6 +245,32 @@ function hydrateReportDataFromPayload() {
                 });
             });
         });
+
+        var influenceRoot = roleContent.querySelector('.influence-content');
+        if (influenceRoot) {
+            influenceRoot._data = influenceRoot._data || {};
+            influenceRoot._data.influence = roleData.influence_months || [];
+        }
+
+        var influenceMap = {};
+        (roleData.influence_months || []).forEach(m => {
+            if (m && m.month) influenceMap[m.month] = m;
+        });
+        roleContent.querySelectorAll('.influence-month-content').forEach(block => {
+            var key = block.dataset.monthKey || block.dataset.month || '';
+            var monthData = influenceMap[key] || {};
+            block._data = block._data || {};
+            block._data.month = monthData;
+            var factorMap = {};
+            (monthData.factors || []).forEach(f => {
+                if (f && f.factor) factorMap[f.factor] = f;
+            });
+            block.querySelectorAll('.influence-factor-content').forEach(factorBlock => {
+                var factorKey = factorBlock.dataset.factor || '';
+                factorBlock._data = factorBlock._data || {};
+                factorBlock._data.factor = factorMap[factorKey] || { factor: factorKey, values: [] };
+            });
+        });
     });
 }
 document.addEventListener('DOMContentLoaded', hydrateReportDataFromPayload);
@@ -262,6 +288,12 @@ function getRoleSkillsMonthlyData(roleContent) {
     var block = roleContent.querySelector('.skills-monthly-content');
     if (!block) return [];
     return parseJsonDataset(block, 'skillsMonthly', []);
+}
+function getRoleInfluenceData(roleContent) {
+    var block = roleContent.querySelector('.influence-content');
+    if (!block) return [];
+    if (block._data && block._data.influence) return block._data.influence;
+    return parseJsonDataset(block, 'influence', []);
 }
 function getRoleActivityMonths(roleContent) {
     var monthBlocks = roleContent.querySelectorAll('.month-content');

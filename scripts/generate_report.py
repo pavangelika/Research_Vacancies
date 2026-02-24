@@ -1228,7 +1228,165 @@ def fetch_salary_data(mapping):
     result.sort(key=lambda x: x['name'])
     return result
 
-def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, templates_dir):
+def _weighted_median(pairs):
+    pairs = [(v, w) for v, w in pairs if v is not None and w is not None and w > 0]
+    if not pairs:
+        return None
+    total = sum(w for _v, w in pairs)
+    if total <= 0:
+        return None
+    pairs.sort(key=lambda x: x[0])
+    acc = 0
+    for value, weight in pairs:
+        acc += weight
+        if acc >= total / 2.0:
+            return value
+    return pairs[-1][0]
+
+def fetch_influence_data(mapping):
+    """
+    Анализ влияния факторов работодателя на зарплату (по дням, затем агрегируем по месяцам).
+    Факторы: rating_bucket, accreditation, has_test, cover_letter_required.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor()
+    query = """
+        WITH base AS (
+            SELECT
+                COALESCE(NULLIF(v.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
+                v.published_at,
+                v.has_test,
+                v.response_letter_required,
+                COALESCE(e.accredited_it_employer, false) AS accredited_it_employer,
+                NULLIF(regexp_replace(COALESCE(e.rating, ''), '[^0-9\\.]', '', 'g'), '')::numeric AS rating_num,
+                (COALESCE(v.salary_from, v.salary_to) + COALESCE(v.salary_to, v.salary_from)) / 2.0 AS salary_mid_rur
+            FROM public.get_vacancies v
+            LEFT JOIN public.employers e ON e.name = v.employer
+            WHERE v.currency = 'RUR'
+              AND (v.salary_from IS NOT NULL OR v.salary_to IS NOT NULL)
+              AND v.published_at IS NOT NULL
+        ),
+        factor_rows AS (
+            SELECT
+                professional_role,
+                published_at,
+                'rating_bucket' AS factor,
+                CASE
+                    WHEN rating_num IS NULL THEN 'unknown'
+                    WHEN rating_num < 3.5 THEN '<3.5'
+                    WHEN rating_num < 4.0 THEN '3.5-3.99'
+                    WHEN rating_num < 4.5 THEN '4.0-4.49'
+                    ELSE '>=4.5'
+                END AS factor_value,
+                salary_mid_rur
+            FROM base
+            UNION ALL
+            SELECT
+                professional_role,
+                published_at,
+                'accreditation' AS factor,
+                CASE WHEN accredited_it_employer THEN 'true' ELSE 'false' END AS factor_value,
+                salary_mid_rur
+            FROM base
+            UNION ALL
+            SELECT
+                professional_role,
+                published_at,
+                'has_test' AS factor,
+                CASE WHEN has_test THEN 'true' ELSE 'false' END AS factor_value,
+                salary_mid_rur
+            FROM base
+            UNION ALL
+            SELECT
+                professional_role,
+                published_at,
+                'cover_letter_required' AS factor,
+                CASE WHEN response_letter_required THEN 'true' ELSE 'false' END AS factor_value,
+                salary_mid_rur
+            FROM base
+        )
+        SELECT
+            professional_role,
+            published_at::date AS published_date,
+            factor,
+            factor_value,
+            COUNT(*) AS group_n,
+            ROUND(AVG(salary_mid_rur)::numeric, 2) AS avg_salary_rur,
+            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary_mid_rur)::numeric, 2) AS median_salary_rur
+        FROM factor_rows
+        GROUP BY professional_role, published_at::date, factor, factor_value
+        HAVING COUNT(*) >= 10
+        ORDER BY professional_role, published_date, factor, group_n DESC;
+    """
+    cur.execute(query)
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    role_map = {}
+    for role_id, published_date, factor, factor_value, group_n, avg_salary, median_salary in rows:
+        role_key = str(role_id) if role_id is not None else "UNKNOWN_ROLE"
+        role_name = mapping.get(role_key, role_key)
+        role_info = role_map.setdefault(role_key, {'id': role_key, 'name': role_name, 'months': {}})
+
+        month_str = published_date.strftime('%Y-%m')
+        month_entry = role_info['months'].setdefault(month_str, {})
+        factor_entry = month_entry.setdefault(factor, {})
+        bucket = factor_entry.setdefault(factor_value, {'group_n': 0, 'avg_sum': 0.0, 'median_pairs': []})
+        bucket['group_n'] += int(group_n) if group_n else 0
+        if avg_salary is not None:
+            bucket['avg_sum'] += float(avg_salary) * (int(group_n) if group_n else 0)
+        if median_salary is not None:
+            bucket['median_pairs'].append((float(median_salary), int(group_n) if group_n else 0))
+
+    factor_order = {
+        'rating_bucket': 1,
+        'accreditation': 2,
+        'has_test': 3,
+        'cover_letter_required': 4
+    }
+    rating_order = {'unknown': 0, '<3.5': 1, '3.5-3.99': 2, '4.0-4.49': 3, '>=4.5': 4}
+    bool_order = {'false': 0, 'true': 1}
+
+    roles_list = []
+    for role_key, role_info in role_map.items():
+        months_list = []
+        for month_str in sorted(role_info['months'].keys()):
+            factors_list = []
+            month_entry = role_info['months'][month_str]
+            for factor in sorted(month_entry.keys(), key=lambda f: factor_order.get(f, 99)):
+                values_list = []
+                factor_entry = month_entry[factor]
+                for factor_value, agg in factor_entry.items():
+                    total_n = agg['group_n']
+                    avg_val = (agg['avg_sum'] / total_n) if total_n else None
+                    median_val = _weighted_median(agg['median_pairs'])
+                    values_list.append({
+                        'factor_value': factor_value,
+                        'group_n': total_n,
+                        'avg_salary_rur': round(avg_val, 2) if avg_val is not None else None,
+                        'median_salary_rur': round(median_val, 2) if median_val is not None else None
+                    })
+                if factor == 'rating_bucket':
+                    values_list.sort(key=lambda v: rating_order.get(v['factor_value'], 99))
+                else:
+                    values_list.sort(key=lambda v: bool_order.get(v['factor_value'], 99))
+                factors_list.append({
+                    'factor': factor,
+                    'values': values_list
+                })
+            months_list.append({
+                'month': month_str,
+                'factors': factors_list
+            })
+
+        role_info['months'] = months_list
+        roles_list.append(role_info)
+
+    roles_list.sort(key=lambda x: x['name'])
+    return roles_list
+
+def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, influence_data, templates_dir):
     env = Environment(loader=FileSystemLoader(templates_dir))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
@@ -1279,7 +1437,7 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, te
 
     return template.render(roles=roles_data, weekday_roles=weekday_data,
                            skills_monthly_roles=skills_monthly_data,
-                           salary_roles=salary_data,
+                           salary_roles=salary_data, influence_roles=influence_data,
                            current_date=current_date, current_time=current_time)
 
 def save_report(html_content, output_dir):
@@ -1338,6 +1496,8 @@ def build_report_payload(roles_data, weekday_data, skills_monthly_data, salary_d
         r = ensure_role(srole.get('id'), srole.get('name'))
         r['salary'] = srole.get('months_list', [])
 
+    # influence data is loaded separately
+
     for r in payload['roles'].values():
         r.setdefault('trend', None)
         r.setdefault('activity_months', [])
@@ -1383,16 +1543,37 @@ def main():
     logging.info("Fetching salary data...")
     salary_data = fetch_salary_data(mapping)
 
+    logging.info("Fetching influence data...")
+    influence_data = fetch_influence_data(mapping)
+
     templates_dir = resolve_assets_dir('templates', os.path.join('reports', 'templates'))
     static_dir = resolve_assets_dir('static', os.path.join('reports', 'static'))
     output_dir = os.environ.get('REPORT_OUTPUT_DIR', 'reports')
 
-    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, templates_dir)
+    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, influence_data, templates_dir)
     save_report(html, output_dir)
     copy_styles(static_dir, output_dir)
     copy_js(static_dir, output_dir)
 
     payload = build_report_payload(roles_data, weekday_data, skills_monthly_data, salary_data)
+    # attach influence data to payload
+    for infl in influence_data:
+        role_key = str(infl.get('id'))
+        if role_key in payload['roles']:
+            payload['roles'][role_key]['influence_months'] = infl.get('months', [])
+        else:
+            payload['roles'][role_key] = {
+                'id': role_key,
+                'name': infl.get('name', role_key),
+                'trend': None,
+                'activity_months': [],
+                'weekdays': [],
+                'skills_monthly': [],
+                'salary': [],
+                'influence_months': infl.get('months', [])
+            }
+    for r in payload['roles'].values():
+        r.setdefault('influence_months', [])
     save_report_payload(payload, output_dir)
 
 if __name__ == '__main__':

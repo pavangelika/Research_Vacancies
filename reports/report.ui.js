@@ -38,12 +38,14 @@ function switchAnalysis(evt, analysisId) {
     var weekdayBlock = parentRole.querySelector('.weekday-content');
     var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
     var salaryBlock = parentRole.querySelector('.salary-content');
+    var influenceBlock = parentRole.querySelector('.influence-content');
 
     var analysisType;
     if (analysisId.includes('activity')) analysisType = 'activity';
     else if (analysisId.includes('weekday')) analysisType = 'weekday';
     else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
     else if (analysisId.includes('salary')) analysisType = 'salary';
+    else if (analysisId.includes('influence')) analysisType = 'influence';
 
     uiState.global_analysis_type = analysisType;
     uiState[getAnalysisStateKey(roleId)] = analysisType;
@@ -52,6 +54,7 @@ function switchAnalysis(evt, analysisId) {
     if (weekdayBlock) weekdayBlock.style.display = 'none';
     if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
     if (salaryBlock) salaryBlock.style.display = 'none';
+    if (influenceBlock) influenceBlock.style.display = 'none';
 
     if (analysisType === 'activity') {
         activityBlocks.forEach(block => block.style.display = 'block');
@@ -75,6 +78,9 @@ function switchAnalysis(evt, analysisId) {
         salaryBlock.style.display = 'block';
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'salary');
         else restoreSalaryState(parentRole, roleId);
+    } else if (analysisType === 'influence') {
+        if (influenceBlock) influenceBlock.style.display = 'block';
+        if (roleId !== 'role-all') restoreInfluenceState(parentRole, roleId);
     }
 }
 
@@ -421,6 +427,119 @@ function openSalaryExpTab(evt, expId) {
     evt.currentTarget.className += " active";
 
     applySalaryViewMode(expDiv, expData.entries);
+}
+
+function restoreInfluenceState(parentRole, roleId) {
+    var monthButtons = parentRole.querySelectorAll('.influence-month-button');
+    if (monthButtons.length === 0) return;
+
+    if (uiState.global_influence_month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === uiState.global_influence_month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    var stateKey = getStateKey(roleId, 'influence');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
+        for (var btn of monthButtons) {
+            if (btn.textContent.trim() === saved.month) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    monthButtons[0].click();
+}
+function openInfluenceMonthTab(evt, monthId) {
+    var parentRole = evt.currentTarget.closest('.role-content');
+    var roleId = parentRole.id;
+    var monthDiv = document.getElementById(monthId);
+    var monthData = (monthDiv._data && monthDiv._data.month) ? monthDiv._data.month : parseJsonDataset(monthDiv, 'month', {});
+    var monthStr = monthData.month;
+
+    uiState.global_influence_month = monthStr;
+    var stateKey = getStateKey(roleId, 'influence');
+    var saved = uiState[stateKey] || {};
+    saved.month = monthStr;
+    uiState[stateKey] = saved;
+
+    var monthContents = parentRole.getElementsByClassName("influence-month-content");
+    for (var i = 0; i < monthContents.length; i++) {
+        monthContents[i].style.display = "none";
+    }
+    var monthButtons = parentRole.getElementsByClassName("influence-month-button");
+    for (var i = 0; i < monthButtons.length; i++) {
+        monthButtons[i].className = monthButtons[i].className.replace(" active", "");
+    }
+    monthDiv.style.display = "block";
+    evt.currentTarget.className += " active";
+
+    restoreInfluenceFactor(parentRole, roleId);
+}
+function restoreInfluenceFactor(parentRole, roleId) {
+    var visibleMonth = parentRole.querySelector('.influence-month-content[style*="display: block"]');
+    if (!visibleMonth) return;
+    var factorButtons = visibleMonth.querySelectorAll('.influence-factor-button');
+    if (factorButtons.length === 0) return;
+
+    if (uiState.global_influence_factor) {
+        for (var btn of factorButtons) {
+            if (btn.textContent.trim() === uiState.global_influence_factor) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    var stateKey = getStateKey(roleId, 'influence');
+    var saved = uiState[stateKey];
+    if (saved && saved.factor) {
+        for (var btn of factorButtons) {
+            if (btn.textContent.trim() === saved.factor) {
+                btn.click();
+                return;
+            }
+        }
+    }
+    factorButtons[0].click();
+}
+function openInfluenceFactorTab(evt, factorId) {
+    var parentMonth = evt.currentTarget.closest('.influence-month-content');
+    var parentRole = parentMonth.closest('.role-content');
+    var roleId = parentRole.id;
+    var factorDiv = document.getElementById(factorId);
+    var factorData = (factorDiv._data && factorDiv._data.factor) ? factorDiv._data.factor : parseJsonDataset(factorDiv, 'factor', {});
+    var factorName = factorData.factor || '';
+
+    uiState.global_influence_factor = factorName;
+    var stateKey = getStateKey(roleId, 'influence');
+    var saved = uiState[stateKey] || {};
+    saved.factor = factorName;
+    uiState[stateKey] = saved;
+
+    var factorContents = parentMonth.getElementsByClassName("influence-factor-content");
+    for (var i = 0; i < factorContents.length; i++) {
+        factorContents[i].style.display = "none";
+    }
+    var factorButtons = parentMonth.getElementsByClassName("influence-factor-button");
+    for (var i = 0; i < factorButtons.length; i++) {
+        factorButtons[i].className = factorButtons[i].className.replace(" active", "");
+    }
+    factorDiv.style.display = "block";
+    evt.currentTarget.className += " active";
+
+    var viewBtns = factorDiv.querySelectorAll('.view-mode-btn');
+    setActiveViewButton(viewBtns, uiState.influence_view_mode);
+    var container = factorDiv.querySelector('.view-mode-container');
+    applyViewMode(container, uiState.influence_view_mode);
+
+    renderInfluenceTable(factorDiv.querySelector('.table-container'), factorData);
+    var graphId = factorDiv.querySelector('.plotly-graph').id;
+    if (uiState.influence_view_mode === 'graph' || uiState.influence_view_mode === 'together') {
+        buildInfluenceChart(graphId, factorData);
+    }
 }
 
 // ---------- Общие функции для переключения режимов ----------

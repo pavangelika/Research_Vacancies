@@ -85,3 +85,18 @@ function computeMode(values) {
     });
     return bestVal;
 }
+function formatNumber(value, digits) {
+    if (value === null || value === undefined || isNaN(Number(value))) return '—';
+    var d = (digits === undefined || digits === null) ? 0 : digits;
+    return Number(value).toLocaleString('ru-RU', {
+        minimumFractionDigits: d,
+        maximumFractionDigits: d
+    });
+}
+function getInfluenceFactorLabel(factor) {
+    if (factor === 'rating_bucket') return 'Рейтинг работодателя';
+    if (factor === 'accreditation') return 'Аккредитация IT';
+    if (factor === 'has_test') return 'Тестовое';
+    if (factor === 'cover_letter_required') return 'Сопроводительное';
+    return factor || 'Фактор';
+}

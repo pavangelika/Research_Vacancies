@@ -13,6 +13,8 @@ let uiState = {
     global_skills_experience: null,
     global_salary_month: null,
     global_salary_experience: null,
+    global_influence_month: null,
+    global_influence_factor: null,
     all_roles_active: false,
     all_roles_periods: { activity: null, weekday: null, skills: null, salary: null },
     all_roles_excluded: [],
@@ -20,7 +22,8 @@ let uiState = {
     activity_view_mode: 'together',    // по умолчанию вместе
     weekday_view_mode: 'together',
     skills_monthly_view_mode: 'together',
-    salary_view_mode: 'table'           // по умолчанию таблица
+    salary_view_mode: 'table',          // по умолчанию таблица
+    influence_view_mode: 'together'
 };
 function getAnalysisStateKey(roleId) {
     return roleId + '_analysis';
