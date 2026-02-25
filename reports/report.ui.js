@@ -58,10 +58,12 @@ function switchAnalysis(evt, analysisId) {
 
     if (analysisType === 'activity') {
         activityBlocks.forEach(block => block.style.display = 'block');
+        normalizeActivityControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'activity');
         else restoreActivityState(parentRole, roleId);
     } else if (analysisType === 'weekday') {
         weekdayBlock.style.display = 'block';
+        normalizeWeekdayControls(parentRole);
         if (roleId === 'role-all') {
             restoreAllRolesPeriodState(parentRole, 'weekday');
         } else {
@@ -69,6 +71,7 @@ function switchAnalysis(evt, analysisId) {
             setActiveViewButton(viewBtns, uiState.weekday_view_mode);
             applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
             buildWeekdayBarChart(analysisId.split('-')[1], weekdayBlock);
+            applyWeekdayModeSizing(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
         }
     } else if (analysisType === 'skills-monthly') {
         skillsMonthlyBlock.style.display = 'block';
@@ -86,13 +89,122 @@ function switchAnalysis(evt, analysisId) {
     }
 }
 
+function normalizeActivityControls(parentRole) {
+    if (!parentRole) return;
+    var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
+    if (!monthTabs) return;
+
+    sortActivityMonthsNewestFirst(parentRole, monthTabs);
+
+    var controlRow = parentRole.querySelector('.activity-control-row');
+    if (!controlRow) {
+        controlRow = document.createElement('div');
+        controlRow.className = 'activity-control-row activity-only';
+        monthTabs.parentElement.insertBefore(controlRow, monthTabs);
+    }
+    if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
+
+    var inlineToggle = controlRow.querySelector('.activity-mode-toggle-inline');
+    if (!inlineToggle) {
+        inlineToggle = document.createElement('div');
+        inlineToggle.className = 'view-toggle-horizontal activity-mode-toggle-inline';
+        inlineToggle.innerHTML =
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">☷</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📈</button>';
+        controlRow.appendChild(inlineToggle);
+    }
+    if (!inlineToggle.dataset.bound) {
+        inlineToggle.addEventListener('click', function(e) {
+            var btn = e.target.closest('.activity-inline-mode-btn');
+            if (!btn) return;
+            var view = btn.dataset.view || 'together';
+            uiState.activity_view_mode = view;
+            setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), view);
+
+            var visibleMonth = parentRole.querySelector('.month-content.activity-only[style*="display: block"]');
+            if (!visibleMonth) return;
+            var monthBtns = visibleMonth.querySelectorAll('.view-mode-btn');
+            setActiveViewButton(monthBtns, view);
+            var container = visibleMonth.querySelector('.view-mode-container');
+            applyViewMode(container, view);
+            var monthId = visibleMonth.id || '';
+            var graphId = 'activity-graph-' + monthId.replace('month-', '');
+            var entries = parseJsonDataset(visibleMonth, 'entries', []);
+            buildActivityBarChart(graphId, entries);
+            applyActivityModeSizing(container, view);
+        });
+        inlineToggle.dataset.bound = '1';
+    }
+
+    setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), uiState.activity_view_mode || 'together');
+
+    var graphBtns = parentRole.querySelectorAll('.activity-only .view-toggle-horizontal .graph-btn, .month-content.activity-only .graph-btn');
+    graphBtns.forEach(function(btn) {
+        btn.textContent = '📈';
+        btn.title = 'График';
+    });
+}
+
+function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
+    if (!parentRole || !monthTabs || monthTabs.dataset.sorted === '1') return;
+    var buttons = Array.from(monthTabs.querySelectorAll('.month-button'));
+    if (!buttons.length) return;
+    buttons.sort(function(a, b) {
+        var am = (a.textContent || '').trim();
+        var bm = (b.textContent || '').trim();
+        return bm.localeCompare(am);
+    });
+    buttons.forEach(function(btn) { monthTabs.appendChild(btn); });
+    monthTabs.dataset.sorted = '1';
+}
+
+function normalizeWeekdayControls(parentRole) {
+    if (!parentRole) return;
+    var sections = parentRole.querySelectorAll(
+        '.weekday-content, .all-roles-period-content[data-analysis="weekday-all"]'
+    );
+    sections.forEach(function(section) {
+        var toggle = section.querySelector('.view-toggle-horizontal');
+        if (!toggle) return;
+        var row = section.querySelector('.weekday-control-row');
+        if (!row) {
+            row = document.createElement('div');
+            row.className = 'weekday-control-row';
+            section.insertBefore(row, toggle);
+        }
+        if (toggle.parentElement !== row) row.appendChild(toggle);
+        toggle.classList.add('weekday-mode-toggle-inline');
+
+        var graphBtn = toggle.querySelector('.graph-btn');
+        if (graphBtn) {
+            graphBtn.textContent = '📈';
+            graphBtn.title = 'График';
+        }
+    });
+    var noneCells = parentRole.querySelectorAll(
+        '.weekday-content td, .all-roles-period-content[data-analysis="weekday-all"] td'
+    );
+    noneCells.forEach(function(cell) {
+        if ((cell.textContent || '').trim() === 'None') {
+            cell.textContent = 'нет архивных';
+        }
+    });
+}
+
 function applyEmployerAnalysisMonthFilter(block, month) {
     if (!block) return;
     if (!block.__employerData || !block.__employerData.length) return;
+    if (block.dataset.employerActiveMonth === month) return;
     var periodLabel = block.dataset.employerAllLabel || '';
-    var rows = (month === 'all')
-        ? aggregateEmployerAnalysisRows(block.__employerData)
-        : block.__employerData.filter(function(row) { return row.month === month; });
+    var rows = [];
+    if (month === 'all') {
+        rows = block.__employerAllRows || aggregateEmployerAnalysisRows(block.__employerData);
+    } else {
+        rows = (block.__employerRowsByMonth && block.__employerRowsByMonth[month])
+            ? block.__employerRowsByMonth[month]
+            : block.__employerData.filter(function(row) { return row.month === month; });
+    }
     renderEmployerAnalysisTable(block, rows, month === 'all' ? periodLabel : null);
     var chips = block.querySelectorAll('.employer-period-chip');
     chips.forEach(function(chip) {
@@ -136,31 +248,152 @@ function renderEmployerAnalysisChart(block) {
         return row.style.display !== 'none';
     });
     if (!rows.length) {
-        Plotly.purge(graph);
+        if (graph.__medianChartEl) Plotly.purge(graph.__medianChartEl);
+        if (graph.__avgChartEl) Plotly.purge(graph.__avgChartEl);
+        graph.__medianChartEl = null;
+        graph.__avgChartEl = null;
         graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
         return;
     }
 
-    var labels = [];
-    var avg = [];
-    var median = [];
-    rows.forEach(function(row) {
-        var factor = row.dataset.factorLabel || ((row.cells && row.cells[1]) ? row.cells[1].textContent.trim() : '');
-        var value = row.dataset.valueLabel || ((row.cells && row.cells[2]) ? row.cells[2].textContent.trim() : '');
-        labels.push(factor + ' · ' + value);
-        avg.push(parseFloat(row.dataset.avg || '0') || 0);
-        median.push(parseFloat(row.dataset.median || '0') || 0);
+    var categories = [
+        { key: 'accr_false', label: 'ИТ-аккредитация false' },
+        { key: 'accr_true', label: 'ИТ-аккредитация true' },
+        { key: 'test_false', label: 'Тестовое задание false' },
+        { key: 'test_true', label: 'Тестовое задание true' },
+        { key: 'cover_false', label: 'Сопроводительное письмо false' },
+        { key: 'cover_true', label: 'Сопроводительное письмо true' },
+        { key: 'rating_unknown', label: 'без рейтинга' },
+        { key: 'rating_lt_35', label: 'рейтинг <3.5' },
+        { key: 'rating_35_399', label: 'рейтинг 3.5-3.99' },
+        { key: 'rating_40_449', label: 'рейтинг 4.0-4.49' },
+        { key: 'rating_ge_45', label: 'рейтинг >=4.5' }
+    ];
+    var buckets = {};
+    categories.forEach(function(c) {
+        buckets[c.key] = { n: 0, avgWeighted: 0, medianPairs: [] };
     });
 
-    Plotly.newPlot(graph, [
-        { type: 'bar', name: 'Средняя', x: labels, y: avg },
-        { type: 'bar', name: 'Медианная', x: labels, y: median }
-    ], {
-        barmode: 'group',
-        title: 'Анализ работодателей',
-        xaxis: { automargin: true },
+    function normalizeVal(v) {
+        return String(v || '').trim().toLowerCase();
+    }
+    function toNum(v) {
+        var n = parseFloat(String(v || '0').replace(/\s/g, '').replace(',', '.'));
+        return isFinite(n) ? n : 0;
+    }
+    function toInt(v) {
+        var n = parseInt(String(v || '0').replace(/\s/g, ''), 10);
+        return isFinite(n) ? n : 0;
+    }
+    function resolveBucket(factorKey, valueKey) {
+        if (factorKey === 'rating_bucket') {
+            if (valueKey === 'unknown' || valueKey === 'нет рейтинга') return 'rating_unknown';
+            if (valueKey === '<3.5') return 'rating_lt_35';
+            if (valueKey === '3.5-3.99') return 'rating_35_399';
+            if (valueKey === '4.0-4.49') return 'rating_40_449';
+            if (valueKey === '>=4.5') return 'rating_ge_45';
+            return null;
+        }
+        if (factorKey === 'accreditation') {
+            if (valueKey === 'true') return 'accr_true';
+            if (valueKey === 'false') return 'accr_false';
+            return null;
+        }
+        if (factorKey === 'has_test') {
+            if (valueKey === 'true') return 'test_true';
+            if (valueKey === 'false') return 'test_false';
+            return null;
+        }
+        if (factorKey === 'cover_letter_required') {
+            if (valueKey === 'true') return 'cover_true';
+            if (valueKey === 'false') return 'cover_false';
+        }
+        return null;
+    }
+    function weightedMedian(pairs) {
+        if (!pairs.length) return null;
+        var sorted = pairs.slice().sort(function(a, b) { return a.value - b.value; });
+        var total = sorted.reduce(function(sum, p) { return sum + p.w; }, 0);
+        if (!total) return null;
+        var threshold = total / 2;
+        var acc = 0;
+        for (var i = 0; i < sorted.length; i += 1) {
+            acc += sorted[i].w;
+            if (acc >= threshold) return sorted[i].value;
+        }
+        return sorted[sorted.length - 1].value;
+    }
+
+    rows.forEach(function(row) {
+        var factorKey = normalizeVal(row.dataset.factor);
+        var valueKey = normalizeVal(row.dataset.valueKey || row.dataset.valueLabel || (row.cells && row.cells[2] ? row.cells[2].textContent : ''));
+        var bucketKey = resolveBucket(factorKey, valueKey);
+        if (!bucketKey) return;
+        var n = toInt(row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
+        var avgVal = toNum(row.dataset.avg || (row.cells && row.cells[4] ? row.cells[4].textContent : '0'));
+        var medianVal = toNum(row.dataset.median || (row.cells && row.cells[5] ? row.cells[5].textContent : '0'));
+        buckets[bucketKey].n += n;
+        buckets[bucketKey].avgWeighted += avgVal * n;
+        buckets[bucketKey].medianPairs.push({ value: medianVal, w: n });
+    });
+
+    var labels = categories.map(function(c) { return c.label; });
+    var avg = categories.map(function(c) {
+        var b = buckets[c.key];
+        return b.n ? (b.avgWeighted / b.n) : null;
+    });
+    var median = categories.map(function(c) {
+        return weightedMedian(buckets[c.key].medianPairs);
+    });
+
+    var palette = (typeof CHART_COLORS !== 'undefined')
+        ? CHART_COLORS
+        : { light: '#B0BEC5', medium: '#90A4AE', dark: '#607D8B' };
+    var colorByCategory = categories.map(function(c) {
+        if (c.key.indexOf('_true') !== -1) return palette.light;
+        if (c.key.indexOf('_false') !== -1) return palette.dark;
+        return palette.medium;
+    });
+    var borderByCategory = categories.map(function() { return palette.dark; });
+
+    graph.style.width = '100%';
+    graph.style.maxWidth = '100%';
+    graph.style.height = 'auto';
+    graph.style.display = 'block';
+    graph.style.overflow = 'visible';
+    if (!graph.__medianChartEl || !graph.__avgChartEl) {
+        graph.innerHTML = '<div class="employer-analysis-subgraph employer-analysis-median-graph"></div>' +
+            '<div class="employer-analysis-subgraph employer-analysis-avg-graph"></div>';
+        graph.__medianChartEl = graph.querySelector('.employer-analysis-median-graph');
+        graph.__avgChartEl = graph.querySelector('.employer-analysis-avg-graph');
+    }
+
+    Plotly.newPlot(graph.__medianChartEl, [{
+        type: 'bar',
+        name: 'Медианная',
+        x: labels,
+        y: median,
+        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+    }], {
+        title: { text: 'Медианная зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        xaxis: { automargin: true, tickangle: -25 },
         yaxis: { title: 'Зарплата, RUR' },
-        margin: { t: 48, r: 20, b: 130, l: 70 }
+        margin: { t: 60, r: 20, b: 120, l: 80 },
+        height: 420
+    }, { responsive: true, displayModeBar: false });
+
+    Plotly.newPlot(graph.__avgChartEl, [{
+        type: 'bar',
+        name: 'Средняя',
+        x: labels,
+        y: avg,
+        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+    }], {
+        title: { text: 'Средняя зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        xaxis: { automargin: true, tickangle: -25 },
+        yaxis: { title: 'Зарплата, RUR' },
+        margin: { t: 60, r: 20, b: 120, l: 80 },
+        height: 420
     }, { responsive: true, displayModeBar: false });
 }
 
@@ -357,6 +590,11 @@ function toggleEmployerMonthColumn(block, showColumn) {
 
 function initEmployerAnalysisFilter(block) {
     if (!block) return;
+    if (block.dataset.employerInited === '1') {
+        applyEmployerAnalysisMonthFilter(block, block.dataset.employerActiveMonth || 'all');
+        applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+        return;
+    }
     var tableContainer = block.querySelector('.table-container');
     if (!tableContainer) return;
     tableContainer.classList.add('employer-analysis-table-container');
@@ -409,15 +647,18 @@ function initEmployerAnalysisFilter(block) {
     var parsedRows = parseEmployerAnalysisData(block);
     if (!parsedRows.length) return;
     block.__employerData = parsedRows;
+    block.__employerRowsByMonth = parsedRows.reduce(function(acc, row) {
+        if (!acc[row.month]) acc[row.month] = [];
+        acc[row.month].push(row);
+        return acc;
+    }, {});
+    block.__employerAllRows = aggregateEmployerAnalysisRows(parsedRows);
 
     var chipsWrap = block.querySelector('.employer-period-chips');
     if (!chipsWrap) {
         chipsWrap = document.createElement('div');
-        chipsWrap.className = 'employer-period-chips';
-        chipsWrap.style.display = 'flex';
-        chipsWrap.style.flexWrap = 'wrap';
+        chipsWrap.className = 'tabs month-tabs employer-period-chips';
         chipsWrap.style.justifyContent = 'center';
-        chipsWrap.style.gap = '8px 12px';
         chipsWrap.style.margin = '8px 0';
         block.insertBefore(chipsWrap, analysisView || tableContainer);
     }
@@ -435,9 +676,9 @@ function initEmployerAnalysisFilter(block) {
     var allLabel = 'За ' + months.length + ' ' + getMonthWordForm(months.length);
     block.dataset.employerAllLabel = allLabel;
 
-    chipsWrap.innerHTML = '<button type="button" class="role-filter-chip employer-period-chip active" data-month="all">' + allLabel + '</button>' +
+    chipsWrap.innerHTML = '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + allLabel + '</button>' +
         months.map(function(m) {
-            return '<button type="button" class="role-filter-chip employer-period-chip" data-month="' + m + '">' + m + '</button>';
+            return '<button type="button" class="tab-button month-button employer-period-chip" data-month="' + m + '">' + m + '</button>';
         }).join('');
 
     if (!chipsWrap.dataset.bound) {
@@ -451,6 +692,7 @@ function initEmployerAnalysisFilter(block) {
 
     applyEmployerAnalysisMonthFilter(block, 'all');
     applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+    block.dataset.employerInited = '1';
 }
 
 function getMonthWordForm(count) {
@@ -477,7 +719,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
     }
 
     if (analysisType === 'activity' && target) {
-        var mode = uiState.activity_view_mode === 'together' ? 'table' : uiState.activity_view_mode;
+        var mode = uiState.activity_view_mode || 'together';
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
@@ -486,15 +728,18 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         var mainId = target.dataset.graphMain;
         var ageId = target.dataset.graphAge;
         if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
+        applyActivityModeSizing(viewContainer, mode);
     } else if (analysisType === 'weekday' && target) {
-        var mode = uiState.weekday_view_mode === 'together' ? 'table' : uiState.weekday_view_mode;
+        normalizeWeekdayControls(target.closest('.role-content'));
+        var mode = uiState.weekday_view_mode || 'together';
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesWeekdayChart(rows, graphId);
+        if (mode !== 'table' && graphId) buildAllRolesWeekdayChart(rows, graphId);
+        applyWeekdayModeSizing(viewContainer, mode);
     } else if (analysisType === 'skills' && target) {
         var mode = uiState.skills_monthly_view_mode === 'together' ? 'table' : uiState.skills_monthly_view_mode;
         var viewBtns = target.querySelectorAll('.view-mode-btn');
@@ -565,6 +810,8 @@ function openMonthTab(evt, monthId) {
     var entries = parseJsonDataset(monthDiv, 'entries', []);
     var graphId = 'activity-graph-' + monthId.replace('month-', '');
     buildActivityBarChart(graphId, entries);
+    applyActivityModeSizing(container, uiState.activity_view_mode);
+    normalizeActivityControls(parentRole);
 }
 function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
@@ -830,6 +1077,146 @@ function applyViewMode(container, mode) {
         table.style.display = 'block';
         graph.style.display = 'block';
     }
+    if ((container.dataset.analysis || '') === 'activity') {
+        applyActivityModeSizing(container, mode);
+    } else if ((container.dataset.analysis || '') === 'weekday') {
+        applyWeekdayModeSizing(container, mode);
+    }
+}
+
+function applyActivityModeSizing(container, mode) {
+    var table = container.querySelector('.table-container');
+    var graph = container.querySelector('.plotly-graph');
+    if (!table || !graph) return;
+
+    container.style.justifyContent = 'center';
+    container.style.alignItems = 'stretch';
+    container.style.minHeight = '';
+
+    table.style.flex = '';
+    table.style.width = '';
+    table.style.maxWidth = '';
+    table.style.margin = '';
+    table.style.height = '';
+    table.style.maxHeight = '';
+    table.style.overflow = '';
+
+    graph.style.flex = '';
+    graph.style.width = '';
+    graph.style.maxWidth = '';
+    graph.style.margin = '';
+    graph.style.height = '';
+
+    if (mode === 'table') {
+        container.style.alignItems = 'center';
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        table.style.margin = '0 auto';
+    } else if (mode === 'graph') {
+        container.style.alignItems = 'center';
+        graph.style.flex = '0 0 80%';
+        graph.style.width = '80%';
+        graph.style.maxWidth = '80%';
+        graph.style.margin = '0 auto';
+        requestAnimationFrame(function() {
+            var gh = Math.round(graph.getBoundingClientRect().height || 0);
+            if (gh > 0) container.style.minHeight = gh + 'px';
+        });
+    } else {
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        graph.style.flex = '0 0 50%';
+        graph.style.width = '50%';
+        graph.style.maxWidth = '50%';
+        requestAnimationFrame(function() {
+            var gh = Math.round(graph.getBoundingClientRect().height || 0);
+            if (gh > 0) {
+                table.style.height = gh + 'px';
+                table.style.maxHeight = gh + 'px';
+                table.style.overflow = 'auto';
+                container.style.minHeight = gh + 'px';
+            }
+        });
+    }
+}
+
+function applyWeekdayModeSizing(container, mode) {
+    var table = container.querySelector('.table-container');
+    var graph = container.querySelector('.plotly-graph');
+    if (!table || !graph) return;
+
+    container.style.justifyContent = 'center';
+    container.style.alignItems = 'stretch';
+    container.style.height = 'auto';
+    container.style.minHeight = '0';
+    container.style.overflow = 'visible';
+
+    table.style.flex = '';
+    table.style.width = '';
+    table.style.maxWidth = '';
+    table.style.margin = '';
+    table.style.height = '';
+    table.style.maxHeight = '';
+    table.style.overflow = '';
+
+    graph.style.flex = '';
+    graph.style.width = '';
+    graph.style.maxWidth = '';
+    graph.style.margin = '';
+    graph.style.height = '';
+
+    if (mode === 'table') {
+        container.style.alignItems = 'center';
+        container.style.height = 'auto';
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        table.style.margin = '0 auto';
+    } else if (mode === 'graph') {
+        container.style.alignItems = 'center';
+        graph.style.flex = '0 0 80%';
+        graph.style.width = '80%';
+        graph.style.maxWidth = '80%';
+        graph.style.margin = '0 auto';
+        syncContainerToGraphHeight(container, graph);
+    } else {
+        table.style.flex = '0 0 50%';
+        table.style.width = '50%';
+        table.style.maxWidth = '50%';
+        graph.style.flex = '0 0 50%';
+        graph.style.width = '50%';
+        graph.style.maxWidth = '50%';
+        requestAnimationFrame(function() {
+            var gh = Math.max(
+                Math.round(graph.getBoundingClientRect().height || 0),
+                Math.round(graph.scrollHeight || 0)
+            );
+            if (gh > 0) {
+                table.style.height = gh + 'px';
+                table.style.maxHeight = gh + 'px';
+                table.style.overflow = 'auto';
+            }
+            syncContainerToGraphHeight(container, graph);
+        });
+    }
+}
+
+function syncContainerToGraphHeight(container, graph) {
+    if (!container || !graph) return;
+    var apply = function() {
+        var gh = Math.max(
+            Math.round(graph.getBoundingClientRect().height || 0),
+            Math.round(graph.scrollHeight || 0)
+        );
+        if (gh > 0) {
+            container.style.height = gh + 'px';
+            container.style.minHeight = gh + 'px';
+        }
+    };
+    requestAnimationFrame(apply);
+    setTimeout(apply, 120);
 }
 function applySalaryViewMode(expDiv, entries) {
     var mode = uiState.salary_view_mode;
