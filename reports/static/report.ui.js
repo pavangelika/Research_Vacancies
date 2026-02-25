@@ -211,6 +211,59 @@ function normalizeSkillsMonthlyControls(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.skills-monthly-content');
     if (!block) return;
+    var monthTabs = block.querySelector('.monthly-skills-month-tabs');
+    if (!monthTabs) {
+        updateViewToggleIcons(block);
+        return;
+    }
+
+    var controlRow = block.querySelector('.skills-control-row');
+    if (!controlRow) {
+        controlRow = document.createElement('div');
+        controlRow.className = 'skills-control-row';
+        block.insertBefore(controlRow, monthTabs);
+    }
+    if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
+
+    var inlineToggle = controlRow.querySelector('.skills-mode-toggle-inline');
+    if (!inlineToggle) {
+        inlineToggle = document.createElement('div');
+        inlineToggle.className = 'view-toggle-horizontal skills-mode-toggle-inline';
+        inlineToggle.innerHTML =
+            '<button class="view-mode-btn skills-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
+            '<button class="view-mode-btn skills-inline-mode-btn" data-view="table" title="Таблица">▦</button>' +
+            '<button class="view-mode-btn skills-inline-mode-btn" data-view="graph" title="График">📊</button>';
+        controlRow.appendChild(inlineToggle);
+    }
+
+    if (!inlineToggle.dataset.bound) {
+        inlineToggle.addEventListener('click', function(e) {
+            var btn = e.target.closest('.skills-inline-mode-btn');
+            if (!btn) return;
+            var view = btn.dataset.view || 'together';
+            uiState.skills_monthly_view_mode = view;
+            setActiveViewButton(inlineToggle.querySelectorAll('.skills-inline-mode-btn'), view);
+
+            var visibleMonth = block.querySelector('.monthly-skills-month-content[style*="display: block"]');
+            if (!visibleMonth) return;
+            var visibleExp = visibleMonth.querySelector('.monthly-skills-exp-content[style*="display: block"]');
+            if (!visibleExp) return;
+
+            var monthBtns = visibleExp.querySelectorAll('.view-mode-btn');
+            setActiveViewButton(monthBtns, view);
+            var container = visibleExp.querySelector('.view-mode-container');
+            applyViewMode(container, view);
+
+            var expData = parseJsonDataset(visibleExp, 'exp', null);
+            if (view !== 'table' && expData) {
+                var graphId = 'skills-monthly-graph-' + visibleExp.id.replace('ms-exp-', '');
+                buildHorizontalBarChart(graphId, expData.skills, expData.experience);
+            }
+        });
+        inlineToggle.dataset.bound = '1';
+    }
+
+    setActiveViewButton(inlineToggle.querySelectorAll('.skills-inline-mode-btn'), uiState.skills_monthly_view_mode || 'together');
     updateViewToggleIcons(block);
 }
 
@@ -909,6 +962,7 @@ function openMonthlySkillsMonthTab(evt, monthId) {
     evt.currentTarget.className += " active";
 
     restoreExpInMonth(parentRole, roleId);
+    normalizeSkillsMonthlyControls(parentRole);
 }
 function restoreExpInMonth(parentRole, roleId) {
     var visibleMonth = parentRole.querySelector('.monthly-skills-month-content[style*="display: block"]');
@@ -969,6 +1023,7 @@ function openMonthlySkillsExpTab(evt, expId) {
 
     var graphId = 'skills-monthly-graph-' + expId.replace('ms-exp-', '');
     buildHorizontalBarChart(graphId, expData.skills, expData.experience);
+    normalizeSkillsMonthlyControls(parentRole);
 }
 function restoreSalaryState(parentRole, roleId) {
     var viewBtns = parentRole.querySelectorAll('.view-mode-btn');
