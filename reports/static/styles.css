@@ -314,7 +314,8 @@ h1 {
 }
 .analysis-flex:has(.table-container[style*="display: none"]) .plotly-graph {
     flex: 0 1 auto;
-    max-width: 100%;
+    max-width: 80vw;
+    width: 80vw;
     margin: 0 auto;
 }
 
@@ -741,6 +742,12 @@ tr:hover { background-color: #f0f4f9; }
     display: inline-flex;
     align-items: center;
     justify-content: center;
+}
+.skills-monthly-content .monthly-skills-exp-content .analysis-flex {
+    align-items: stretch;
+}
+.skills-monthly-content .monthly-skills-exp-content .plotly-graph {
+    min-height: 420px;
 }
 .weekday-content .view-toggle-horizontal,
 .all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal {

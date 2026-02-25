@@ -259,6 +259,7 @@ function normalizeSkillsMonthlyControls(parentRole) {
                 var graphId = 'skills-monthly-graph-' + visibleExp.id.replace('ms-exp-', '');
                 buildHorizontalBarChart(graphId, expData.skills, expData.experience);
             }
+            applySkillsModeSizing(container, view);
         });
         inlineToggle.dataset.bound = '1';
     }
@@ -1023,6 +1024,7 @@ function openMonthlySkillsExpTab(evt, expId) {
 
     var graphId = 'skills-monthly-graph-' + expId.replace('ms-exp-', '');
     buildHorizontalBarChart(graphId, expData.skills, expData.experience);
+    applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
     normalizeSkillsMonthlyControls(parentRole);
 }
 function restoreSalaryState(parentRole, roleId) {
@@ -1159,9 +1161,32 @@ function applyViewMode(container, mode) {
         applyActivityModeSizing(container, mode);
     } else if ((container.dataset.analysis || '') === 'weekday') {
         applyWeekdayModeSizing(container, mode);
+    } else if ((container.dataset.analysis || '') === 'skills-monthly') {
+        applySkillsModeSizing(container, mode);
     }
 }
 
+function applySkillsModeSizing(container, mode) {
+    if (!container) return;
+    var table = container.querySelector('.table-container');
+    var graph = container.querySelector('.plotly-graph');
+    if (!table || !graph) return;
+
+    container.style.minHeight = '';
+    graph.style.height = '';
+
+    if (mode === 'table') return;
+
+    requestAnimationFrame(function() {
+        var th = Math.round(table.getBoundingClientRect().height || 0);
+        var gh = Math.round(graph.getBoundingClientRect().height || 0);
+        var maxh = Math.max(th, gh);
+        if (maxh > 0) {
+            container.style.minHeight = maxh + 'px';
+            if (gh < maxh) graph.style.height = maxh + 'px';
+        }
+    });
+}
 function applyActivityModeSizing(container, mode) {
     var table = container.querySelector('.table-container');
     var graph = container.querySelector('.plotly-graph');
