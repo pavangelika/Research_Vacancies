@@ -1787,7 +1787,7 @@ function buildSkillsSummaryExp(monthData) {
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     skills = skills.slice(0, 15);
     return {
-        experience: 'Суммарно',
+        experience: 'Все',
         total_vacancies: agg.total,
         skills: skills
     };
@@ -1805,7 +1805,7 @@ function buildSalarySummaryExp(monthData) {
         });
     });
     return {
-        experience: 'Суммарно',
+        experience: 'Все',
         entries: buildSalaryEntriesFromBuckets(buckets)
     };
 }
@@ -1823,7 +1823,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button monthly-skills-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Суммарно';
+        btn.textContent = 'Все';
         btn.setAttribute('onclick', "openMonthlySkillsExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 
@@ -1869,7 +1869,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button salary-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Суммарно';
+        btn.textContent = 'Все';
         btn.setAttribute('onclick', "openSalaryExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 

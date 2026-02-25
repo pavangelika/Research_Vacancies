@@ -303,7 +303,7 @@ function renderSkillsSearchFilterButtons(container, items) {
     if (!container) return;
     var buttons = [{ value: 'all', label: 'Все' }].concat(items || []);
     container.innerHTML = buttons.map((item, i) => (
-        '<button class="tab-button skills-search-filter-btn' + (i === 0 ? ' active' : '') + '" data-value="' + escapeHtml(item.value) + '">' +
+        '<button class="tab-button monthly-skills-exp-button skills-search-filter-btn' + (i === 0 ? ' active' : '') + '" data-value="' + escapeHtml(item.value) + '">' +
             escapeHtml(item.label) +
         '</button>'
     )).join('');
