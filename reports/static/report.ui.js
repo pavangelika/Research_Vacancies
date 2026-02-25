@@ -199,6 +199,7 @@ function normalizeActivityControls(parentRole) {
         controlRow.className = 'activity-control-row activity-only';
         monthTabs.parentElement.insertBefore(controlRow, monthTabs);
     }
+    controlRow.classList.add('skills-control-row');
     if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
 
     var inlineToggle = controlRow.querySelector('.activity-mode-toggle-inline');
@@ -211,6 +212,7 @@ function normalizeActivityControls(parentRole) {
             '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📊</button>';
         controlRow.appendChild(inlineToggle);
     }
+    inlineToggle.classList.add('skills-mode-toggle-inline');
     if (!inlineToggle.dataset.bound) {
         inlineToggle.addEventListener('click', function(e) {
             var btn = e.target.closest('.activity-inline-mode-btn');
@@ -807,10 +809,10 @@ function initEmployerAnalysisFilter(block) {
     if (!chipsWrap) {
         chipsWrap = document.createElement('div');
         chipsWrap.className = 'tabs month-tabs employer-period-chips';
-        chipsWrap.style.justifyContent = 'center';
-        chipsWrap.style.margin = '8px 0';
         block.insertBefore(chipsWrap, analysisView || tableContainer);
     }
+    chipsWrap.style.justifyContent = '';
+    chipsWrap.style.margin = '';
     var topBar = block.querySelector('.employer-topbar');
     if (!topBar) {
         topBar = document.createElement('div');

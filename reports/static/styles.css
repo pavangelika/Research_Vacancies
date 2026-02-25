@@ -723,20 +723,50 @@ tr:hover { background-color: #f0f4f9; }
     width: 100%;
 }
 .employer-topbar {
+    position: relative;
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    align-items: center;
+    justify-content: center;
     width: 100%;
+    min-height: 40px;
+    margin: 4px 0 8px;
 }
 .employer-topbar .employer-period-chips {
     flex: 1 1 auto;
     justify-content: center;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    border: none;
 }
 .employer-period-chips .employer-period-chip {
     flex: 0 0 auto;
     width: auto;
     white-space: nowrap;
+}
+.employer-topbar .employer-view-toggle {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+}
+.employer-topbar .employer-side-toggle {
+    align-self: auto;
+}
+.employer-topbar .employer-view-toggle .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .activity-only.month-tabs .month-button {
     flex: 0 0 auto;
@@ -875,6 +905,37 @@ tr:hover { background-color: #f0f4f9; }
     width: 100%;
     min-height: 40px;
     margin: 4px 0 8px;
+}
+.activity-control-row .month-tabs {
+    justify-content: center;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+}
+.activity-control-row .month-button {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+}
+.activity-control-row .view-toggle-horizontal {
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+.activity-control-row .view-toggle-horizontal .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .skills-control-row {
     position: relative;
