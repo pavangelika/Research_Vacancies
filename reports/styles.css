@@ -749,6 +749,28 @@ tr:hover { background-color: #f0f4f9; }
 .skills-monthly-content .monthly-skills-exp-content .plotly-graph {
     min-height: 420px;
 }
+.skills-monthly-content .monthly-skills-exp-content .analysis-flex:has(.table-container:not([style*="display: none"])):has(.plotly-graph:not([style*="display: none"])) .table-container {
+    flex: 0 0 40%;
+    width: 40%;
+    max-width: 40%;
+}
+.skills-monthly-content .monthly-skills-exp-content .analysis-flex:has(.table-container:not([style*="display: none"])):has(.plotly-graph:not([style*="display: none"])) .plotly-graph {
+    flex: 0 0 60%;
+    width: 60%;
+    max-width: 60%;
+}
+.skills-monthly-content .monthly-skills-exp-content .analysis-flex:has(.plotly-graph[style*="display: none"]) .table-container {
+    flex: 0 0 50%;
+    width: 50%;
+    max-width: 50%;
+    margin: 0 auto;
+}
+.skills-monthly-content .monthly-skills-exp-content .analysis-flex:has(.table-container[style*="display: none"]) .plotly-graph {
+    flex: 0 0 80%;
+    width: 80%;
+    max-width: 80%;
+    margin: 0 auto;
+}
 .weekday-content .view-toggle-horizontal,
 .all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal {
     gap: 8px;
