@@ -278,7 +278,16 @@
                                                     data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'
                                                     data-vacancies-with='{{ entry.vacancies_with_salary_list | tojson }}'
                                                     data-vacancies-without='{{ entry.vacancies_without_salary_list | tojson }}'>
-                                                    <td>{{ entry.status }}</td>
+                                                    {% set status_lc = (entry.status|string|lower) %}
+                                                    <td class="status-icon-cell">
+                                                        {% if 'архив' in status_lc or 'archiv' in status_lc %}
+                                                            <span class="status-icon status-icon-archived" title="Архивная" aria-label="Архивная">🗄️</span>
+                                                        {% elif 'откры' in status_lc or 'open' in status_lc or 'active' in status_lc or 'актив' in status_lc %}
+                                                            <span class="status-icon status-icon-open" title="Открытая" aria-label="Открытая">✅</span>
+                                                        {% else %}
+                                                            <span class="status-icon" title="{{ entry.status }}" aria-label="{{ entry.status }}">{{ entry.status }}</span>
+                                                        {% endif %}
+                                                    </td>
                                                     <td>{{ entry.currency }}</td>
                                                     <td>{{ entry.total_vacancies }}</td>
                                                     <td>{{ entry.vacancies_with_salary }}</td>

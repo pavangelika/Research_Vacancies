@@ -214,6 +214,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var selectionOrder = [buttons[0].dataset.roleIndex];
     updateRoleSelectionUI(selected);
     updateRoleView(selected);
+    if (typeof applySalaryStatusIcons === 'function') applySalaryStatusIcons(document);
 
     function enforceSingle(idx) {
         selected = new Set([idx]);

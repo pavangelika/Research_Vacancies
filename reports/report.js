@@ -672,6 +672,20 @@ function renderVacancyDetails(container, withList, withoutList) {
     var initialList = defaultTab === 'with' ? withList : withoutList;
     container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
 }
+function renderStatusIcon(status) {
+    var raw = status === null || status === undefined ? '' : String(status);
+    var normalized = raw.trim().toLowerCase();
+    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('архив') !== -1;
+    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('откры') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('актив') !== -1;
+
+    if (isArchived) {
+        return '<span class="status-icon status-icon-archived" title="Архивная" aria-label="Архивная">🗄️</span>';
+    }
+    if (isOpen) {
+        return '<span class="status-icon status-icon-open" title="Открытая" aria-label="Открытая">✅</span>';
+    }
+    return '<span class="status-icon" title="' + escapeHtml(raw || '—') + '" aria-label="' + escapeHtml(raw || '—') + '">' + escapeHtml(raw || '—') + '</span>';
+}
 
 function getExperienceLabels() {
     return {
@@ -1876,7 +1890,7 @@ function addSummaryTabs(root) {
                                 '<tbody>' +
                                     summaryExp.entries.map(entry => (
                                         '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
-                                            '<td>' + entry.status + '</td>' +
+                                            '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
                                             '<td>' + entry.currency + '</td>' +
                                             '<td>' + entry.total_vacancies + '</td>' +
                                             '<td>' + entry.vacancies_with_salary + '</td>' +
@@ -2057,7 +2071,7 @@ function renderCombinedContainer(container, roleContents) {
                                                     '<tbody>' +
                                                         exp.entries.map(entry => (
                                                             '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
-                                                                '<td>' + entry.status + '</td>' +
+                                                                '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
                                                                 '<td>' + entry.currency + '</td>' +
                                                                 '<td>' + entry.total_vacancies + '</td>' +
                                                                 '<td>' + entry.vacancies_with_salary + '</td>' +

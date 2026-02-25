@@ -45,6 +45,26 @@ function updateViewToggleIcons(root) {
         }
     });
 }
+function applySalaryStatusIcons(root) {
+    var scope = root || document;
+    var rows = scope.querySelectorAll('.salary-content .salary-row');
+    rows.forEach(function(row) {
+        var cell = row.cells && row.cells[0];
+        if (!cell || cell.querySelector('.status-icon')) return;
+
+        var raw = (cell.textContent || '').trim();
+        if (!raw) return;
+        var normalized = raw.toLowerCase();
+        var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('архив') !== -1;
+        var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('откры') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('актив') !== -1;
+
+        var icon = isArchived ? '🗄️' : (isOpen ? '✅' : null);
+        if (!icon) return;
+
+        cell.classList.add('status-icon-cell');
+        cell.innerHTML = '<span class="status-icon" title="' + escapeHtml(raw) + '" aria-label="' + escapeHtml(raw) + '">' + icon + '</span>';
+    });
+}
 
 // ---------- Переключение типов анализа ----------
 function switchAnalysis(evt, analysisId) {
@@ -105,6 +125,7 @@ function switchAnalysis(evt, analysisId) {
         normalizeSalaryControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'salary');
         else restoreSalaryState(parentRole, roleId);
+        applySalaryStatusIcons(parentRole);
     } else if (analysisType === 'employer-analysis') {
         if (employerAnalysisBlock) {
             employerAnalysisBlock.style.display = 'block';

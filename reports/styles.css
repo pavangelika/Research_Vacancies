@@ -472,6 +472,17 @@ h1 {
 .salary-row:hover {
     background-color: var(--tab-hover-bg);
 }
+.status-icon-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+.status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5em;
+    line-height: 1;
+}
 
 /* Таблицы */
 table {
@@ -518,6 +529,14 @@ tr:hover { background-color: #f0f4f9; }
 .salary-table-container, .salary-graph-container {
     flex: 1 1 300px;
     min-width: 0;
+}
+.salary-table-container {
+    width: 100%;
+    max-width: 100%;
+}
+.salary-table-container > div {
+    max-width: 100%;
+    overflow-x: auto;
 }
 .salary-graphs-3 {
     display: grid;
@@ -599,6 +618,14 @@ tr:hover { background-color: #f0f4f9; }
     h1 { font-size: 1.5rem; }
     .analysis-flex { flex-direction: column; }
     .plotly-graph { min-width: 100%; height: 300px; }
+    .salary-display-flex {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .salary-main-content {
+        width: 100%;
+        min-width: 0;
+    }
     .salary-view-toggle {
         flex-direction: row;
         width: 100%;
