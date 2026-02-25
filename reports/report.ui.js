@@ -314,6 +314,13 @@ function renderSkillsSearchDropdown(dropdown, items, label, allLabel) {
         btn.textContent = label ? (label + ': ' + firstLabel) : firstLabel;
     }
     dropdown.dataset.label = label || '';
+    if (dropdown.dataset.multi === '1') {
+        dropdown.dataset.values = '[]';
+        var itemsEls = dropdown.querySelectorAll('.skills-search-dropdown-item');
+        itemsEls.forEach(it => {
+            it.classList.toggle('active', (it.dataset.value || 'all') === 'all');
+        });
+    }
 }
 function getSkillsSearchFilterValue(block, filterName) {
     var dropdown = block.querySelector('.skills-search-dropdown[data-filter="' + filterName + '"]');

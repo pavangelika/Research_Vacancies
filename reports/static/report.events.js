@@ -100,11 +100,50 @@ document.addEventListener('click', function(e) {
     var block = item.closest('.skills-search-content');
     if (!dd || !block) return;
     var value = item.dataset.value || 'all';
+    var textLabel = item.textContent || '';
     var label = dd.dataset.label || '';
     var btn = dd.querySelector('.skills-search-dropdown-btn');
+
+    if (dd.dataset.multi === '1') {
+        var values = [];
+        try {
+            values = JSON.parse(dd.dataset.values || '[]');
+        } catch (_e) {
+            values = [];
+        }
+        if (value === 'all') {
+            values = [];
+        } else {
+            var idx = values.indexOf(value);
+            if (idx >= 0) values.splice(idx, 1);
+            else values.push(value);
+        }
+        dd.dataset.values = JSON.stringify(values);
+        var items = dd.querySelectorAll('.skills-search-dropdown-item');
+        items.forEach(it => {
+            var v = it.dataset.value || 'all';
+            if (v === 'all') it.classList.toggle('active', values.length === 0);
+            else it.classList.toggle('active', values.indexOf(v) >= 0);
+        });
+        if (btn) {
+            if (!values.length) {
+                btn.dataset.value = 'all';
+                btn.textContent = label ? (label + ': Все') : 'Все';
+            } else if (values.length <= 2) {
+                btn.dataset.value = values.join(',');
+                btn.textContent = label ? (label + ': ' + values.join(', ')) : values.join(', ');
+            } else {
+                btn.dataset.value = values.join(',');
+                btn.textContent = label ? (label + ': ' + values.length) : String(values.length);
+            }
+        }
+        updateSkillsSearchData(block);
+        return;
+    }
+
     if (btn) {
         btn.dataset.value = value;
-        btn.textContent = label ? (label + ': ' + item.textContent) : item.textContent;
+        btn.textContent = label ? (label + ': ' + textLabel) : textLabel;
     }
     if (dd.dataset.filter === 'period') {
         block.dataset.period = value;
