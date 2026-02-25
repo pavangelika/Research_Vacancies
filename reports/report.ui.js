@@ -102,6 +102,7 @@ function switchAnalysis(evt, analysisId) {
         else restoreSkillsMonthlyState(parentRole, roleId);
     } else if (analysisType === 'salary') {
         salaryBlock.style.display = 'block';
+        normalizeSalaryControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'salary');
         else restoreSalaryState(parentRole, roleId);
     } else if (analysisType === 'employer-analysis') {
@@ -111,6 +112,57 @@ function switchAnalysis(evt, analysisId) {
         }
     }
     updateViewToggleIcons(parentRole);
+}
+
+function normalizeSalaryControls(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.salary-content');
+    if (!block) return;
+    var monthTabs = block.querySelector('.salary-month-tabs');
+    if (!monthTabs) {
+        updateViewToggleIcons(block);
+        return;
+    }
+
+    var controlRow = block.querySelector('.salary-control-row');
+    if (!controlRow) {
+        controlRow = document.createElement('div');
+        controlRow.className = 'salary-control-row';
+        block.insertBefore(controlRow, monthTabs);
+    }
+    if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
+
+    var inlineToggle = controlRow.querySelector('.salary-mode-toggle-inline');
+    if (!inlineToggle) {
+        inlineToggle = document.createElement('div');
+        inlineToggle.className = 'view-toggle-horizontal salary-mode-toggle-inline';
+        inlineToggle.innerHTML =
+            '<button class="view-mode-btn salary-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
+            '<button class="view-mode-btn salary-inline-mode-btn" data-view="table" title="Таблица">▦</button>' +
+            '<button class="view-mode-btn salary-inline-mode-btn" data-view="graph" title="График">📊</button>';
+        controlRow.appendChild(inlineToggle);
+    }
+
+    if (!inlineToggle.dataset.bound) {
+        inlineToggle.addEventListener('click', function(e) {
+            var btn = e.target.closest('.salary-inline-mode-btn');
+            if (!btn) return;
+            var view = btn.dataset.view || 'together';
+            uiState.salary_view_mode = view;
+            setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), view);
+
+            var visibleMonth = block.querySelector('.salary-month-content[style*="display: block"]');
+            if (!visibleMonth) return;
+            var visibleExp = visibleMonth.querySelector('.salary-exp-content[style*="display: block"]');
+            if (!visibleExp) return;
+            var expData = (visibleExp._data && visibleExp._data.exp) ? visibleExp._data.exp : parseJsonDataset(visibleExp, 'exp', {});
+            applySalaryViewMode(visibleExp, expData.entries || []);
+        });
+        inlineToggle.dataset.bound = '1';
+    }
+
+    setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'together');
+    updateViewToggleIcons(block);
 }
 
 function normalizeActivityControls(parentRole) {
@@ -1079,6 +1131,7 @@ function openSalaryMonthTab(evt, monthId) {
     evt.currentTarget.className += " active";
 
     restoreExpInSalaryMonth(parentRole, roleId);
+    normalizeSalaryControls(parentRole);
 }
 function restoreExpInSalaryMonth(parentRole, roleId) {
     var visibleMonth = parentRole.querySelector('.salary-month-content[style*="display: block"]');
@@ -1132,6 +1185,7 @@ function openSalaryExpTab(evt, expId) {
     evt.currentTarget.className += " active";
 
     applySalaryViewMode(expDiv, expData.entries);
+    normalizeSalaryControls(parentRole);
 }
 
 // ---------- Общие функции для переключения режимов ----------
