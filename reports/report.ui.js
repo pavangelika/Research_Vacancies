@@ -208,9 +208,17 @@ function initSkillsSearch(parentRole) {
         months = Array.from(new Set(months)).sort();
         var totalMonths = months.length;
         var periodAllLabel = totalMonths ? formatMonthTitle(totalMonths) : 'За все время';
-        var periodItems = [{ key: 'all', label: periodAllLabel, month: null }].concat(
-            months.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
-        );
+        var monthsDesc = months.slice().sort().reverse();
+        var lastMonth = monthsDesc.length ? monthsDesc[0] : null;
+        var prevMonths = monthsDesc.length > 1 ? monthsDesc.slice(1) : [];
+        var periodItems = [
+            { key: 'd3', label: 'За 3 дня', month: 'last_3' },
+            { key: 'd7', label: 'За 7 дней', month: 'last_7' },
+            { key: 'd14', label: 'За 14 дней', month: 'last_14' }
+        ];
+        if (lastMonth) periodItems.push({ key: 'm_last', label: lastMonth, month: lastMonth });
+        prevMonths.forEach((m, i) => periodItems.push({ key: 'm_prev_' + (i + 1), label: m, month: m }));
+        periodItems.push({ key: 'all', label: periodAllLabel, month: null });
         block._data = {
             vacancies: vacancies,
             skills: skills,
@@ -223,7 +231,7 @@ function initSkillsSearch(parentRole) {
     if (periodDropdown && !periodDropdown.dataset.ready) {
         var items = (block._data && block._data.periodItems) ? block._data.periodItems : [];
         var monthItems = items.filter(p => p.month).map(p => ({ value: p.month, label: p.label }));
-        renderSkillsSearchDropdown(periodDropdown, monthItems, 'Период', items[0] ? items[0].label : 'Все');
+        renderSkillsSearchDropdown(periodDropdown, monthItems, 'Период', periodAllLabel, true);
         periodDropdown.dataset.ready = '1';
         block.dataset.period = 'all';
     }
@@ -297,9 +305,11 @@ function renderSkillsSearchButtons(block, skillsList) {
         '</button>'
     )).join('');
 }
-function renderSkillsSearchDropdown(dropdown, items, label, allLabel) {
+function renderSkillsSearchDropdown(dropdown, items, label, allLabel, allAtEnd) {
     if (!dropdown) return;
-    var list = [{ value: 'all', label: allLabel || 'Все' }].concat(items || []);
+    var list = (items || []).slice();
+    var allItem = { value: 'all', label: allLabel || 'Все' };
+    list = allAtEnd ? list.concat([allItem]) : [allItem].concat(list);
     var menu = dropdown.querySelector('.skills-search-dropdown-menu');
     if (!menu) return;
     menu.innerHTML = list.map(item => (
@@ -309,7 +319,7 @@ function renderSkillsSearchDropdown(dropdown, items, label, allLabel) {
     )).join('');
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');
     if (btn) {
-        var firstLabel = list[0] ? list[0].label : 'Все';
+        var firstLabel = allLabel || (list[0] ? list[0].label : 'Все');
         btn.dataset.value = 'all';
         btn.textContent = label ? (label + ': ' + firstLabel) : firstLabel;
     }
@@ -347,7 +357,30 @@ function updateSkillsSearchData(block) {
     if (!block || !block._data) return;
     var period = block.dataset.period || 'all';
     var months = block._data.salaryMonths || [];
-    var baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, period === 'all' ? null : period);
+    var baseVacancies;
+    if (period && period.indexOf('last_') === 0) {
+        baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, null);
+        var days = Number(period.replace('last_', '')) || 0;
+        if (days > 0) {
+            var maxDate = null;
+            baseVacancies.forEach(v => {
+                if (!v || !v.published_at) return;
+                var d = new Date(v.published_at);
+                if (isNaN(d)) return;
+                if (!maxDate || d > maxDate) maxDate = d;
+            });
+            if (maxDate) {
+                var cutoff = new Date(maxDate.getTime() - days * 24 * 60 * 60 * 1000);
+                baseVacancies = baseVacancies.filter(v => {
+                    if (!v || !v.published_at) return false;
+                    var d = new Date(v.published_at);
+                    return !isNaN(d) && d >= cutoff;
+                });
+            }
+        }
+    } else {
+        baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, period === 'all' ? null : period);
+    }
     baseVacancies = dedupeVacanciesById(baseVacancies);
 
     var expVal = getSkillsSearchFilterValue(block, 'exp');
