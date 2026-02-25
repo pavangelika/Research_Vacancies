@@ -1227,6 +1227,11 @@ tr:hover { background-color: #f0f4f9; }
     border-color: var(--primary);
     color: #ffffff;
 }
+.skills-search-skill.excluded {
+    background: #fce8e8;
+    border-color: #e08a8a;
+    color: #8c2f2f;
+}
 .skills-search-count {
     margin-left: 6px;
     font-size: 0.75rem;

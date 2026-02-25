@@ -77,6 +77,17 @@ document.addEventListener('click', function(e) {
     var skillBtn = e.target.closest('.skills-search-skill');
     if (!skillBtn) return;
     skillBtn.classList.toggle('active');
+    skillBtn.classList.remove('excluded');
+    var block = skillBtn.closest('.skills-search-content');
+    if (block) updateSkillsSearchResults(block);
+});
+
+document.addEventListener('contextmenu', function(e) {
+    var skillBtn = e.target.closest('.skills-search-skill');
+    if (!skillBtn) return;
+    e.preventDefault();
+    skillBtn.classList.toggle('excluded');
+    skillBtn.classList.remove('active');
     var block = skillBtn.closest('.skills-search-content');
     if (block) updateSkillsSearchResults(block);
 });
@@ -159,6 +170,8 @@ document.addEventListener('click', function(e) {
     if (!block) return;
     var activeButtons = block.querySelectorAll('.skills-search-skill.active');
     activeButtons.forEach(btn => btn.classList.remove('active'));
+    var excludedButtons = block.querySelectorAll('.skills-search-skill.excluded');
+    excludedButtons.forEach(btn => btn.classList.remove('excluded'));
     updateSkillsSearchResults(block);
 });
 

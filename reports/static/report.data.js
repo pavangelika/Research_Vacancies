@@ -922,20 +922,24 @@ function dedupeVacanciesById(vacancies) {
     });
     return out;
 }
-function filterVacanciesBySkills(vacancies, selectedSkills) {
+function filterVacanciesBySkills(vacancies, includeSkills, excludeSkills) {
     if (!vacancies || !vacancies.length) return [];
-    if (!selectedSkills || !selectedSkills.length) return vacancies;
-    var required = selectedSkills.map(normalizeSkillName).filter(Boolean);
-    if (!required.length) return vacancies;
+    var includes = (includeSkills || []).map(normalizeSkillName).filter(Boolean);
+    var excludes = (excludeSkills || []).map(normalizeSkillName).filter(Boolean);
+    if (!includes.length && !excludes.length) return vacancies;
     return vacancies.filter(v => {
         if (!v || !v.skills) return false;
         var skillSet = new Set(
             String(v.skills).split(',').map(normalizeSkillName).filter(Boolean)
         );
-        for (var i = 0; i < required.length; i++) {
-            if (!skillSet.has(required[i])) return false;
+        for (var j = 0; j < excludes.length; j++) {
+            if (skillSet.has(excludes[j])) return false;
         }
-        return true;
+        if (!includes.length) return true;
+        for (var i = 0; i < includes.length; i++) {
+            if (skillSet.has(includes[i])) return true;
+        }
+        return false;
     });
 }
 function computeSalarySkillsFromVacancies(vacancies) {

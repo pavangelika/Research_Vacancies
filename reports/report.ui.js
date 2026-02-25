@@ -411,12 +411,21 @@ function updateSkillsSearchData(block) {
 
     var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
         .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
+    var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
+        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
     renderSkillsSearchButtons(block, skills);
     if (selected.length) {
         var btns = block.querySelectorAll('.skills-search-skill');
         btns.forEach(btn => {
             var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
             if (selected.indexOf(key) >= 0) btn.classList.add('active');
+        });
+    }
+    if (excluded.length) {
+        var btns2 = block.querySelectorAll('.skills-search-skill');
+        btns2.forEach(btn => {
+            var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
+            if (excluded.indexOf(key) >= 0) btn.classList.add('excluded');
         });
     }
 
@@ -430,15 +439,17 @@ function updateSkillsSearchResults(block) {
 
     var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
         .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
+    var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
+        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
 
-    if (!selected.length) {
+    if (!selected.length && !excluded.length) {
         results.innerHTML = '<div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div>';
         return;
     }
 
     var vacancies = (block._data && block._data.currentVacancies) ? block._data.currentVacancies :
         ((block._data && block._data.vacancies) ? block._data.vacancies : []);
-    var filtered = filterVacanciesBySkills(vacancies, selected);
+    var filtered = filterVacanciesBySkills(vacancies, selected, excluded);
     var summary = '<div class="skills-search-summary">Найдено вакансий: ' + filtered.length + '</div>';
     results.innerHTML = summary + buildVacancyTableHtml(filtered);
 }
