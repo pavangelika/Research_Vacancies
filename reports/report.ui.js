@@ -24,6 +24,28 @@ function openRoleTab(evt, roleId) {
     if (firstButton) firstButton.click();
 }
 
+var VIEW_ICON_TABLE = '▦';
+var VIEW_ICON_GRAPH = '📊';
+var VIEW_ICON_TOGETHER = '⊞';
+
+function updateViewToggleIcons(root) {
+    if (!root) return;
+    var buttons = root.querySelectorAll('.view-mode-btn');
+    buttons.forEach(function(btn) {
+        var view = btn.dataset.view || '';
+        if (view === 'table') {
+            btn.textContent = VIEW_ICON_TABLE;
+            btn.title = 'Таблица';
+        } else if (view === 'graph') {
+            btn.textContent = VIEW_ICON_GRAPH;
+            btn.title = 'График';
+        } else if (view === 'together') {
+            btn.textContent = VIEW_ICON_TOGETHER;
+            btn.title = 'Вместе';
+        }
+    });
+}
+
 // ---------- Переключение типов анализа ----------
 function switchAnalysis(evt, analysisId) {
     var parentRole = evt.currentTarget.closest('.role-content');
@@ -75,6 +97,7 @@ function switchAnalysis(evt, analysisId) {
         }
     } else if (analysisType === 'skills-monthly') {
         skillsMonthlyBlock.style.display = 'block';
+        normalizeSkillsMonthlyControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'skills');
         else restoreSkillsMonthlyState(parentRole, roleId);
     } else if (analysisType === 'salary') {
@@ -87,6 +110,7 @@ function switchAnalysis(evt, analysisId) {
             initEmployerAnalysisFilter(employerAnalysisBlock);
         }
     }
+    updateViewToggleIcons(parentRole);
 }
 
 function normalizeActivityControls(parentRole) {
@@ -110,8 +134,8 @@ function normalizeActivityControls(parentRole) {
         inlineToggle.className = 'view-toggle-horizontal activity-mode-toggle-inline';
         inlineToggle.innerHTML =
             '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">☷</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📈</button>';
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">▦</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📊</button>';
         controlRow.appendChild(inlineToggle);
     }
     if (!inlineToggle.dataset.bound) {
@@ -138,12 +162,7 @@ function normalizeActivityControls(parentRole) {
     }
 
     setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), uiState.activity_view_mode || 'together');
-
-    var graphBtns = parentRole.querySelectorAll('.activity-only .view-toggle-horizontal .graph-btn, .month-content.activity-only .graph-btn');
-    graphBtns.forEach(function(btn) {
-        btn.textContent = '📈';
-        btn.title = 'График';
-    });
+    updateViewToggleIcons(parentRole);
 }
 
 function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
@@ -176,11 +195,7 @@ function normalizeWeekdayControls(parentRole) {
         if (toggle.parentElement !== row) row.appendChild(toggle);
         toggle.classList.add('weekday-mode-toggle-inline');
 
-        var graphBtn = toggle.querySelector('.graph-btn');
-        if (graphBtn) {
-            graphBtn.textContent = '📈';
-            graphBtn.title = 'График';
-        }
+        updateViewToggleIcons(section);
     });
     var noneCells = parentRole.querySelectorAll(
         '.weekday-content td, .all-roles-period-content[data-analysis="weekday-all"] td'
@@ -190,6 +205,13 @@ function normalizeWeekdayControls(parentRole) {
             cell.textContent = 'нет архивных';
         }
     });
+}
+
+function normalizeSkillsMonthlyControls(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.skills-monthly-content');
+    if (!block) return;
+    updateViewToggleIcons(block);
 }
 
 function applyEmployerAnalysisMonthFilter(block, month) {
@@ -621,8 +643,8 @@ function initEmployerAnalysisFilter(block) {
     if (!viewToggle) {
         viewToggle = document.createElement('div');
         viewToggle.className = 'employer-view-toggle employer-side-toggle';
-        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">☷</button>' +
-            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">📈</button>';
+        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">▦</button>' +
+            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">📊</button>';
     }
 
     var graph = block.querySelector('.employer-analysis-graph');
@@ -692,6 +714,7 @@ function initEmployerAnalysisFilter(block) {
 
     applyEmployerAnalysisMonthFilter(block, 'all');
     applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+    updateViewToggleIcons(block);
     block.dataset.employerInited = '1';
 }
 

@@ -709,6 +709,39 @@ tr:hover { background-color: #f0f4f9; }
     align-items: center;
     justify-content: center;
 }
+.skills-monthly-content .monthly-skills-month-tabs,
+.skills-monthly-content .monthly-skills-exp-tabs {
+    justify-content: center;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+}
+.skills-monthly-content .monthly-skills-month-button,
+.skills-monthly-content .monthly-skills-exp-button {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+}
+.skills-monthly-content .view-toggle-horizontal {
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+.skills-monthly-content .view-toggle-horizontal .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
 .weekday-content .view-toggle-horizontal,
 .all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal {
     gap: 8px;

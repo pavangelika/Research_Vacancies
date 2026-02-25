@@ -178,7 +178,7 @@ function renderAllRolesContainer(container, roleContents) {
                     'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
                     'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
                     '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
@@ -204,7 +204,7 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
@@ -236,7 +236,7 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
@@ -265,7 +265,7 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
@@ -361,7 +361,7 @@ function addSummaryTabs(root) {
         expDiv.innerHTML =
             '<div class="view-toggle-horizontal">' +
                 '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
@@ -436,7 +436,7 @@ function addSummaryTabs(root) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>' +
+                    '<button class="view-mode-btn active" data-view="table" title="Таблица">▦</button>' +
                     '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
                 '</div>' +
             '</div>';
@@ -474,7 +474,7 @@ function renderCombinedContainer(container, roleContents) {
         '<div id="month-combined-' + (i + 1) + '" class="month-content activity-only" data-entries="" data-month="' + m.month + '">' +
             '<div class="view-toggle-horizontal">' +
                 '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
                 '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
@@ -504,7 +504,7 @@ function renderCombinedContainer(container, roleContents) {
             (weekdays.length ? (
                 '<div class="view-toggle-horizontal">' +
                     '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
                     '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
@@ -543,7 +543,7 @@ function renderCombinedContainer(container, roleContents) {
                             '<div id="ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="monthly-skills-exp-content" data-exp="" style="display: none;">' +
                                 '<div class="view-toggle-horizontal">' +
                                     '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
                                     '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
                                 '</div>' +
                                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
@@ -616,7 +616,7 @@ function renderCombinedContainer(container, roleContents) {
                                         '</div>' +
                                     '</div>' +
                                     '<div class="salary-view-toggle">' +
-                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>' +
+                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">▦</button>' +
                                         '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
                                     '</div>' +
                                 '</div>' +
