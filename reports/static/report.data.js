@@ -137,6 +137,35 @@ function collectVacanciesFromSalaryMonthsByMonth(salaryMonths, month) {
     });
     return all;
 }
+function collectVacanciesWithMetaFromSalaryMonths(salaryMonths, month) {
+    var all = [];
+    (salaryMonths || []).forEach(m => {
+        if (!m || !m.month || isSummaryMonth(m.month)) return;
+        if (month && m.month !== month) return;
+        if (!m.experiences) return;
+        m.experiences.forEach(exp => {
+            (exp.entries || []).forEach(entry => {
+                var status = entry.status || '';
+                var displayCurrency = entry.currency || '';
+                var withList = entry.vacancies_with_salary_list || [];
+                var withoutList = entry.vacancies_without_salary_list || [];
+                function push(list) {
+                    list.forEach(v => {
+                        if (!v) return;
+                        var copy = Object.assign({}, v);
+                        copy._experience = exp.experience;
+                        copy._status = status;
+                        copy._currency = displayCurrency;
+                        all.push(copy);
+                    });
+                }
+                push(withList);
+                push(withoutList);
+            });
+        });
+    });
+    return all;
+}
 function getRoleContentByIndex(idx) {
     return document.getElementById('role-' + idx);
 }
@@ -779,7 +808,8 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRo
         return String(raw || '')
             .replace(/\u200e/g, '')
             .trim()
-            .replace(/\s+/g, ' ');
+            .replace(/\s+/g, ' ')
+            .toLowerCase();
     }
     function getRoleName(vacancy) {
         if (!vacancy) return 'UNKNOWN_ROLE';
@@ -870,27 +900,71 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRo
     });
     return { rows: rows, roles: Array.from(roleSet).sort((a, b) => a.localeCompare(b)) };
 }
+function normalizeSkillName(raw) {
+    return String(raw || '')
+        .replace(/\u200e/g, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+}
+function dedupeVacanciesById(vacancies) {
+    if (!vacancies || !vacancies.length) return [];
+    var seen = new Set();
+    var out = [];
+    vacancies.forEach(v => {
+        if (!v) return;
+        var id = v.id !== undefined && v.id !== null ? String(v.id) : null;
+        if (id) {
+            if (seen.has(id)) return;
+            seen.add(id);
+        }
+        out.push(v);
+    });
+    return out;
+}
+function filterVacanciesBySkills(vacancies, selectedSkills) {
+    if (!vacancies || !vacancies.length) return [];
+    if (!selectedSkills || !selectedSkills.length) return vacancies;
+    var required = selectedSkills.map(normalizeSkillName).filter(Boolean);
+    if (!required.length) return vacancies;
+    return vacancies.filter(v => {
+        if (!v || !v.skills) return false;
+        var skillSet = new Set(
+            String(v.skills).split(',').map(normalizeSkillName).filter(Boolean)
+        );
+        for (var i = 0; i < required.length; i++) {
+            if (!skillSet.has(required[i])) return false;
+        }
+        return true;
+    });
+}
 function computeSalarySkillsFromVacancies(vacancies) {
+    var limit = arguments.length > 1 ? arguments[1] : 10;
     if (!vacancies.length) return [];
     var map = new Map();
+    var nameMap = new Map();
     vacancies.forEach(v => {
         if (!v || !v.skills) return;
         var val = computeSalaryValue(v, v.currency || null);
-        String(v.skills).split(',').map(s => s.trim()).filter(Boolean).forEach(skill => {
-            var entry = map.get(skill) || { count: 0, sum: 0, withSalary: 0 };
+        String(v.skills).split(',').map(s => s.trim()).filter(Boolean).forEach(rawSkill => {
+            var key = normalizeSkillName(rawSkill);
+            if (!key) return;
+            var entry = map.get(key) || { count: 0, sum: 0, withSalary: 0 };
             entry.count += 1;
             if (val !== null && !isNaN(val)) {
                 entry.sum += val;
                 entry.withSalary += 1;
             }
-            map.set(skill, entry);
+            map.set(key, entry);
+            if (!nameMap.has(key)) nameMap.set(key, rawSkill.trim());
         });
     });
-    var list = Array.from(map.entries()).map(([skill, vals]) => {
-        return { skill: skill, count: vals.count, avg: vals.withSalary ? (vals.sum / vals.withSalary) : 0 };
+    var list = Array.from(map.entries()).map(([key, vals]) => {
+        return { skill: nameMap.get(key) || key, count: vals.count, avg: vals.withSalary ? (vals.sum / vals.withSalary) : 0 };
     });
     list.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
-    return list.slice(0, 10);
+    if (!limit || limit <= 0) return list;
+    return list.slice(0, limit);
 }
 function computeRoleSalarySkills(roleContent) {
     var months = getRoleSalaryData(roleContent);

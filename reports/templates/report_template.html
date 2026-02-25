@@ -58,6 +58,9 @@
                     data-analysis-id="skills-monthly-{{ role_index }}"
                     onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Топ-навыки</button>
             <button class="tab-button analysis-button"
+                    data-analysis-id="skills-search-{{ role_index }}"
+                    onclick="switchAnalysis(event, 'skills-search-{{ role_index }}')">&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086; &#1085;&#1072;&#1074;&#1099;&#1082;&#1072;&#1084;</button>
+            <button class="tab-button analysis-button"
                     data-analysis-id="salary-{{ role_index }}"
                     onclick="switchAnalysis(event, 'salary-{{ role_index }}')">Анализ зарплат</button>
             <button class="tab-button analysis-button"
@@ -225,6 +228,35 @@
 
         <!-- Блок для анализа зарплат (с вертикальным переключателем, по умолчанию таблица) -->
         {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
+        <!-- ???? ??? ?????? ???&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086; &#1085;&#1072;&#1074;&#1099;&#1082;&#1072;&#1084; -->
+        <div class="skills-search-content" data-analysis="skills-search-{{ role_index }}" style="display: none;">
+            <div class="tabs month-tabs skills-search-period-tabs"></div>
+            <div class="skills-search-filters">
+                <div class="skills-search-filter-row">
+                    <div class="skills-search-filter-label">&#1054;&#1087;&#1099;&#1090;</div>
+                    <div class="tabs skills-search-exp-tabs skills-search-filter-group"></div>
+                </div>
+                <div class="skills-search-filter-row">
+                    <div class="skills-search-filter-label">&#1057;&#1090;&#1072;&#1090;&#1091;&#1089;</div>
+                    <div class="tabs skills-search-status-tabs skills-search-filter-group"></div>
+                </div>
+                <div class="skills-search-filter-row">
+                    <div class="skills-search-filter-label">&#1042;&#1072;&#1083;&#1102;&#1090;&#1072;</div>
+                    <div class="tabs skills-search-currency-tabs skills-search-filter-group"></div>
+                </div>
+            </div>
+            <div class="tabs month-tabs skills-search-period-tabs"></div>
+            <div class="skills-search-panel">
+                <div class="skills-search-panel-header">
+                    <button class="skills-search-clear" type="button">&#10005;</button>
+                </div>
+                <div class="skills-search-buttons"></div>
+            </div>
+            <div class="skills-search-results">
+                <div class="skills-search-hint">??&#1053;&#1072;&#1074;&#1099;&#1082;&#1080; &#1088;&#1086;&#1083;&#1080;??, ????? ?&#1053;&#1072;&#1074;&#1099;&#1082;&#1080; &#1088;&#1086;&#1083;&#1080;????</div>
+            </div>
+        </div>
+
         <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
              data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
             {% if salary_role and salary_role.months_list %}

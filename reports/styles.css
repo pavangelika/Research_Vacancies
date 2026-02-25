@@ -1112,3 +1112,99 @@ tr:hover { background-color: #f0f4f9; }
 .employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(7) {
     text-align: right;
 }
+
+/* Поиск по навыкам */
+.skills-search-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.skills-search-panel,
+.skills-search-results {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: var(--border-radius-card);
+    padding: 12px;
+    box-shadow: var(--shadow-light);
+}
+.skills-search-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.skills-search-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.skills-search-filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.skills-search-filter-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 60px;
+}
+.skills-search-filter-group {
+    flex: 1 1 auto;
+}
+.skills-search-title {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.skills-search-clear {
+    background: var(--surface-variant);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.skills-search-clear:hover {
+    background: var(--tab-hover-bg);
+    color: var(--text-primary);
+}
+.skills-search-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.skills-search-skill {
+    border: 1px solid var(--border-light);
+    background: var(--surface-variant);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.skills-search-skill:hover {
+    background: var(--tab-hover-bg);
+}
+.skills-search-skill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #ffffff;
+}
+.skills-search-count {
+    margin-left: 6px;
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+.skills-search-hint,
+.skills-search-empty {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.skills-search-summary {
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-primary);
+}

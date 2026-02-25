@@ -79,6 +79,7 @@ function switchAnalysis(evt, analysisId) {
     var activityBlocks = parentRole.querySelectorAll('.activity-only');
     var weekdayBlock = parentRole.querySelector('.weekday-content');
     var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
+    var skillsSearchBlock = parentRole.querySelector('.skills-search-content');
     var salaryBlock = parentRole.querySelector('.salary-content');
     var employerAnalysisBlock = parentRole.querySelector('.employer-analysis-content');
 
@@ -86,6 +87,7 @@ function switchAnalysis(evt, analysisId) {
     if (analysisId.includes('activity')) analysisType = 'activity';
     else if (analysisId.includes('weekday')) analysisType = 'weekday';
     else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
+    else if (analysisId.includes('skills-search')) analysisType = 'skills-search';
     else if (analysisId.includes('salary')) analysisType = 'salary';
     else if (analysisId.includes('employer-analysis')) analysisType = 'employer-analysis';
 
@@ -95,6 +97,7 @@ function switchAnalysis(evt, analysisId) {
     activityBlocks.forEach(block => block.style.display = 'none');
     if (weekdayBlock) weekdayBlock.style.display = 'none';
     if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
+    if (skillsSearchBlock) skillsSearchBlock.style.display = 'none';
     if (salaryBlock) salaryBlock.style.display = 'none';
     if (employerAnalysisBlock) employerAnalysisBlock.style.display = 'none';
 
@@ -120,6 +123,11 @@ function switchAnalysis(evt, analysisId) {
         normalizeSkillsMonthlyControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'skills');
         else restoreSkillsMonthlyState(parentRole, roleId);
+    } else if (analysisType === 'skills-search') {
+        if (skillsSearchBlock) {
+            skillsSearchBlock.style.display = 'block';
+            initSkillsSearch(parentRole);
+        }
     } else if (analysisType === 'salary') {
         salaryBlock.style.display = 'block';
         normalizeSalaryControls(parentRole);
@@ -184,6 +192,206 @@ function normalizeSalaryControls(parentRole) {
 
     setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'table');
     updateViewToggleIcons(block);
+}
+
+function initSkillsSearch(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.skills-search-content');
+    if (!block) return;
+
+    if (!block._data) {
+        var salaryMonths = getRoleSalaryData(parentRole);
+        var vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+        vacancies = dedupeVacanciesById(vacancies);
+        var skills = computeSalarySkillsFromVacancies(vacancies, 30);
+        var months = (salaryMonths || []).map(m => m.month).filter(m => m && !isSummaryMonth(m));
+        months = Array.from(new Set(months)).sort();
+        var periodItems = [{ key: 'all', label: 'За все время', month: null }].concat(
+            months.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
+        );
+        block._data = {
+            vacancies: vacancies,
+            skills: skills,
+            salaryMonths: salaryMonths,
+            periodItems: periodItems
+        };
+    }
+
+    var periodTabs = block.querySelector('.skills-search-period-tabs');
+    if (periodTabs && !periodTabs.dataset.ready) {
+        var items = (block._data && block._data.periodItems) ? block._data.periodItems : [];
+        periodTabs.innerHTML = items.map((p, i) => (
+            '<button class="tab-button month-button skills-search-period-button' + (i === 0 ? ' active' : '') + '" ' +
+                    'data-period="' + (p.month || 'all') + '">' +
+                p.label +
+            '</button>'
+        )).join('');
+        periodTabs.dataset.ready = '1';
+        block.dataset.period = 'all';
+    }
+
+    var expTabs = block.querySelector('.skills-search-exp-tabs');
+    if (expTabs && !expTabs.dataset.ready) {
+        var expSet = new Set();
+        (block._data && block._data.salaryMonths || []).forEach(m => {
+            if (!m || !m.month || isSummaryMonth(m.month)) return;
+            (m.experiences || []).forEach(exp => {
+                if (exp && exp.experience) expSet.add(exp.experience);
+            });
+        });
+        var expOrder = getExperienceOrder();
+        var expList = Array.from(expSet);
+        expList.sort((a, b) => (expOrder[normalizeExperience(a)] || 99) - (expOrder[normalizeExperience(b)] || 99));
+        renderSkillsSearchFilterButtons(expTabs, expList.map(x => ({ value: x, label: x })));
+        expTabs.dataset.ready = '1';
+        block.dataset.exp = 'all';
+    }
+
+    var statusTabs = block.querySelector('.skills-search-status-tabs');
+    if (statusTabs && !statusTabs.dataset.ready) {
+        var statusItems = [
+            { value: 'Открытая', label: 'Открытая' },
+            { value: 'Архивная', label: 'Архивная' }
+        ];
+        renderSkillsSearchFilterButtons(statusTabs, statusItems);
+        statusTabs.dataset.ready = '1';
+        block.dataset.status = 'all';
+    }
+
+    var currencyTabs = block.querySelector('.skills-search-currency-tabs');
+    if (currencyTabs && !currencyTabs.dataset.ready) {
+        var currSet = new Set();
+        (block._data && block._data.salaryMonths || []).forEach(m => {
+            if (!m || !m.month || isSummaryMonth(m.month)) return;
+            (m.experiences || []).forEach(exp => {
+                (exp.entries || []).forEach(entry => {
+                    if (entry && entry.currency) currSet.add(entry.currency);
+                });
+            });
+        });
+        var currList = Array.from(currSet).sort((a, b) => a.localeCompare(b));
+        renderSkillsSearchFilterButtons(currencyTabs, currList.map(x => ({ value: x, label: x })));
+        currencyTabs.dataset.ready = '1';
+        block.dataset.currency = 'all';
+    }
+
+    var buttonsWrap = block.querySelector('.skills-search-buttons');
+    if (buttonsWrap && !buttonsWrap.dataset.ready) {
+        renderSkillsSearchButtons(block, (block._data && block._data.skills) ? block._data.skills : []);
+        buttonsWrap.dataset.ready = '1';
+    }
+
+    var currentPeriod = block.dataset.period || 'all';
+    applySkillsSearchPeriod(block, currentPeriod);
+}
+
+function renderSkillsSearchButtons(block, skillsList) {
+    var buttonsWrap = block.querySelector('.skills-search-buttons');
+    if (!buttonsWrap) return;
+    if (!skillsList.length) {
+        buttonsWrap.innerHTML = '<div class="skills-search-empty">Нет навыков для роли</div>';
+        return;
+    }
+    buttonsWrap.innerHTML = skillsList.map(s => (
+        '<button class="skills-search-skill" type="button" data-skill="' + escapeHtml(s.skill) + '">' +
+            escapeHtml(s.skill) +
+            '<span class="skills-search-count">' + s.count + '</span>' +
+        '</button>'
+    )).join('');
+}
+function renderSkillsSearchFilterButtons(container, items) {
+    if (!container) return;
+    var buttons = [{ value: 'all', label: 'Все' }].concat(items || []);
+    container.innerHTML = buttons.map((item, i) => (
+        '<button class="tab-button skills-search-filter-btn' + (i === 0 ? ' active' : '') + '" data-value="' + escapeHtml(item.value) + '">' +
+            escapeHtml(item.label) +
+        '</button>'
+    )).join('');
+}
+function getSkillsSearchFilterValue(block, selector) {
+    var btn = block.querySelector(selector + ' .skills-search-filter-btn.active');
+    return btn ? (btn.dataset.value || 'all') : 'all';
+}
+
+function applySkillsSearchPeriod(block, period) {
+    if (!block) return;
+    var target = period || 'all';
+    block.dataset.period = target;
+    var periodTabs = block.querySelectorAll('.skills-search-period-button');
+    periodTabs.forEach(btn => {
+        var isActive = (btn.dataset.period || 'all') === target;
+        if (isActive) btn.classList.add('active');
+        else btn.classList.remove('active');
+    });
+
+    updateSkillsSearchData(block);
+}
+
+function updateSkillsSearchData(block) {
+    if (!block || !block._data) return;
+    var period = block.dataset.period || 'all';
+    var months = block._data.salaryMonths || [];
+    var baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, period === 'all' ? null : period);
+    baseVacancies = dedupeVacanciesById(baseVacancies);
+
+    var expVal = getSkillsSearchFilterValue(block, '.skills-search-exp-tabs');
+    var statusVal = getSkillsSearchFilterValue(block, '.skills-search-status-tabs');
+    var currencyVal = getSkillsSearchFilterValue(block, '.skills-search-currency-tabs');
+
+    var filteredBase = baseVacancies.filter(v => {
+        if (!v) return false;
+        if (expVal !== 'all') {
+            var expNorm = normalizeExperience(expVal);
+            var vExp = normalizeExperience(v._experience || '');
+            if (vExp !== expNorm) return false;
+        }
+        if (statusVal !== 'all') {
+            var status = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
+            if (status !== statusVal) return false;
+        }
+        if (currencyVal !== 'all') {
+            var curr = v._currency || v.currency || '';
+            if (curr !== currencyVal) return false;
+        }
+        return true;
+    });
+
+    block._data.currentVacancies = filteredBase;
+    var skills = computeSalarySkillsFromVacancies(filteredBase, 30);
+    block._data.skills = skills;
+
+    var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
+        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
+    renderSkillsSearchButtons(block, skills);
+    if (selected.length) {
+        var btns = block.querySelectorAll('.skills-search-skill');
+        btns.forEach(btn => {
+            var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
+            if (selected.indexOf(key) >= 0) btn.classList.add('active');
+        });
+    }
+
+    updateSkillsSearchResults(block);
+}
+
+function updateSkillsSearchResults(block) {
+    if (!block) return;
+    var results = block.querySelector('.skills-search-results');
+    if (!results) return;
+
+    var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
+        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
+
+    if (!selected.length) {
+        results.innerHTML = '<div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div>';
+        return;
+    }
+
+    var vacancies = (block._data && block._data.currentVacancies) ? block._data.currentVacancies :
+        ((block._data && block._data.vacancies) ? block._data.vacancies : []);
+    var filtered = filterVacanciesBySkills(vacancies, selected);
+    var summary = '<div class="skills-search-summary">Найдено вакансий: ' + filtered.length + '</div>';
+    results.innerHTML = summary + buildVacancyTableHtml(filtered);
 }
 
 function normalizeActivityControls(parentRole) {

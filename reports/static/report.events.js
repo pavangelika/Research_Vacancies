@@ -73,6 +73,45 @@ document.addEventListener('click', function(e) {
     }
 });
 
+document.addEventListener('click', function(e) {
+    var skillBtn = e.target.closest('.skills-search-skill');
+    if (!skillBtn) return;
+    skillBtn.classList.toggle('active');
+    var block = skillBtn.closest('.skills-search-content');
+    if (block) updateSkillsSearchResults(block);
+});
+
+document.addEventListener('click', function(e) {
+    var periodBtn = e.target.closest('.skills-search-period-button');
+    if (!periodBtn) return;
+    var block = periodBtn.closest('.skills-search-content');
+    if (!block) return;
+    var period = periodBtn.dataset.period || 'all';
+    applySkillsSearchPeriod(block, period);
+});
+
+document.addEventListener('click', function(e) {
+    var filterBtn = e.target.closest('.skills-search-filter-btn');
+    if (!filterBtn) return;
+    var group = filterBtn.closest('.skills-search-filter-group');
+    var block = filterBtn.closest('.skills-search-content');
+    if (!block || !group) return;
+    var buttons = group.querySelectorAll('.skills-search-filter-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    filterBtn.classList.add('active');
+    updateSkillsSearchData(block);
+});
+
+document.addEventListener('click', function(e) {
+    var clearBtn = e.target.closest('.skills-search-clear');
+    if (!clearBtn) return;
+    var block = clearBtn.closest('.skills-search-content');
+    if (!block) return;
+    var activeButtons = block.querySelectorAll('.skills-search-skill.active');
+    activeButtons.forEach(btn => btn.classList.remove('active'));
+    updateSkillsSearchResults(block);
+});
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeVacancyModal();
