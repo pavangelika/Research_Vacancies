@@ -573,6 +573,16 @@ tr:hover { background-color: #f0f4f9; }
     transform: translateY(-50%);
     margin: 0;
 }
+.salary-mode-toggle-inline .view-mode-btn {
+    width: 31px;
+    height: 31px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
 .salary-content .salary-month-tabs,
 .salary-content .salary-exp-tabs {
     justify-content: center;
@@ -1097,6 +1107,8 @@ tr:hover { background-color: #f0f4f9; }
 .employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(5),
 .employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(5),
 .employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(6),
-.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(6) {
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(6),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container th:nth-child(7),
+.employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container td:nth-child(7) {
     text-align: right;
 }

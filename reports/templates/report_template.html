@@ -352,7 +352,8 @@
                                     <th>Значение фактора</th>
                                     <th>Количество</th>
                                     <th>Средняя зарплата, RUR</th>
-                                    <th>Медианная зарплата, RUR</th>
+                                    <th>Средняя зарплата, USD</th>
+                                    <th>Средняя зарплата, %USD</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -362,8 +363,9 @@
                                     data-factor="{{ row.factor }}"
                                     data-factor-value="{{ row.factor_value }}"
                                     data-group-n="{{ row.group_n }}"
-                                    data-avg="{{ row.avg_salary_rur if row.avg_salary_rur is not none else '' }}"
-                                    data-median="{{ row.median_salary_rur if row.median_salary_rur is not none else '' }}">
+                                    data-avg-rur="{{ row.avg_salary_rur if row.avg_salary_rur is not none else '' }}"
+                                    data-avg-usd="{{ row.avg_salary_usd if row.avg_salary_usd is not none else '' }}"
+                                    data-avg-usd-other="{{ row.avg_salary_usd_other if row.avg_salary_usd_other is not none else '' }}">
                                     <td>{{ row.month }}</td>
                                     <td>
                                         {% if row.factor == 'accreditation' or row.factor == '' %}ИТ-аккредитация
@@ -380,7 +382,8 @@
                                     </td>
                                     <td>{{ row.group_n }}</td>
                                     <td>{{ "{:,.2f}".format(row.avg_salary_rur) if row.avg_salary_rur is not none else "—" }}</td>
-                                    <td>{{ "{:,.2f}".format(row.median_salary_rur) if row.median_salary_rur is not none else "—" }}</td>
+                                    <td>{{ "{:,.2f}".format(row.avg_salary_usd) if row.avg_salary_usd is not none else "—" }}</td>
+                                    <td>{{ "{:,.2f}".format(row.avg_salary_usd_other) if row.avg_salary_usd_other is not none else "—" }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

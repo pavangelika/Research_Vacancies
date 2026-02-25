@@ -399,10 +399,12 @@ function renderEmployerAnalysisChart(block) {
         return row.style.display !== 'none';
     });
     if (!rows.length) {
-        if (graph.__medianChartEl) Plotly.purge(graph.__medianChartEl);
-        if (graph.__avgChartEl) Plotly.purge(graph.__avgChartEl);
-        graph.__medianChartEl = null;
-        graph.__avgChartEl = null;
+        if (graph.__avgRurChartEl) Plotly.purge(graph.__avgRurChartEl);
+        if (graph.__avgUsdChartEl) Plotly.purge(graph.__avgUsdChartEl);
+        if (graph.__avgUsdOtherChartEl) Plotly.purge(graph.__avgUsdOtherChartEl);
+        graph.__avgRurChartEl = null;
+        graph.__avgUsdChartEl = null;
+        graph.__avgUsdOtherChartEl = null;
         graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
         return;
     }
@@ -422,15 +424,24 @@ function renderEmployerAnalysisChart(block) {
     ];
     var buckets = {};
     categories.forEach(function(c) {
-        buckets[c.key] = { n: 0, avgWeighted: 0, medianPairs: [] };
+        buckets[c.key] = {
+            wRur: 0,
+            sumRur: 0,
+            wUsd: 0,
+            sumUsd: 0,
+            wUsdOther: 0,
+            sumUsdOther: 0
+        };
     });
 
     function normalizeVal(v) {
         return String(v || '').trim().toLowerCase();
     }
     function toNum(v) {
-        var n = parseFloat(String(v || '0').replace(/\s/g, '').replace(',', '.'));
-        return isFinite(n) ? n : 0;
+        var s = String(v || '').trim();
+        if (!s) return NaN;
+        var n = parseFloat(s.replace(/\s/g, '').replace(',', '.'));
+        return isFinite(n) ? n : NaN;
     }
     function toInt(v) {
         var n = parseInt(String(v || '0').replace(/\s/g, ''), 10);
@@ -461,18 +472,10 @@ function renderEmployerAnalysisChart(block) {
         }
         return null;
     }
-    function weightedMedian(pairs) {
-        if (!pairs.length) return null;
-        var sorted = pairs.slice().sort(function(a, b) { return a.value - b.value; });
-        var total = sorted.reduce(function(sum, p) { return sum + p.w; }, 0);
-        if (!total) return null;
-        var threshold = total / 2;
-        var acc = 0;
-        for (var i = 0; i < sorted.length; i += 1) {
-            acc += sorted[i].w;
-            if (acc >= threshold) return sorted[i].value;
-        }
-        return sorted[sorted.length - 1].value;
+    function updateWeighted(bucket, value, weight, sumKey, weightKey) {
+        if (!isFinite(value)) return;
+        bucket[sumKey] += value * weight;
+        bucket[weightKey] += weight;
     }
 
     rows.forEach(function(row) {
@@ -481,20 +484,26 @@ function renderEmployerAnalysisChart(block) {
         var bucketKey = resolveBucket(factorKey, valueKey);
         if (!bucketKey) return;
         var n = toInt(row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
-        var avgVal = toNum(row.dataset.avg || (row.cells && row.cells[4] ? row.cells[4].textContent : '0'));
-        var medianVal = toNum(row.dataset.median || (row.cells && row.cells[5] ? row.cells[5].textContent : '0'));
-        buckets[bucketKey].n += n;
-        buckets[bucketKey].avgWeighted += avgVal * n;
-        buckets[bucketKey].medianPairs.push({ value: medianVal, w: n });
+        var avgRur = toNum(row.dataset.avgRur || (row.cells && row.cells[4] ? row.cells[4].textContent : ''));
+        var avgUsd = toNum(row.dataset.avgUsd || (row.cells && row.cells[5] ? row.cells[5].textContent : ''));
+        var avgUsdOther = toNum(row.dataset.avgUsdOther || (row.cells && row.cells[6] ? row.cells[6].textContent : ''));
+        updateWeighted(buckets[bucketKey], avgRur, n, 'sumRur', 'wRur');
+        updateWeighted(buckets[bucketKey], avgUsd, n, 'sumUsd', 'wUsd');
+        updateWeighted(buckets[bucketKey], avgUsdOther, n, 'sumUsdOther', 'wUsdOther');
     });
 
     var labels = categories.map(function(c) { return c.label; });
-    var avg = categories.map(function(c) {
+    var avgRur = categories.map(function(c) {
         var b = buckets[c.key];
-        return b.n ? (b.avgWeighted / b.n) : null;
+        return b.wRur ? (b.sumRur / b.wRur) : null;
     });
-    var median = categories.map(function(c) {
-        return weightedMedian(buckets[c.key].medianPairs);
+    var avgUsd = categories.map(function(c) {
+        var b = buckets[c.key];
+        return b.wUsd ? (b.sumUsd / b.wUsd) : null;
+    });
+    var avgUsdOther = categories.map(function(c) {
+        var b = buckets[c.key];
+        return b.wUsdOther ? (b.sumUsdOther / b.wUsdOther) : null;
     });
 
     var palette = (typeof CHART_COLORS !== 'undefined')
@@ -512,37 +521,54 @@ function renderEmployerAnalysisChart(block) {
     graph.style.height = 'auto';
     graph.style.display = 'block';
     graph.style.overflow = 'visible';
-    if (!graph.__medianChartEl || !graph.__avgChartEl) {
-        graph.innerHTML = '<div class="employer-analysis-subgraph employer-analysis-median-graph"></div>' +
-            '<div class="employer-analysis-subgraph employer-analysis-avg-graph"></div>';
-        graph.__medianChartEl = graph.querySelector('.employer-analysis-median-graph');
-        graph.__avgChartEl = graph.querySelector('.employer-analysis-avg-graph');
+    if (!graph.__avgRurChartEl || !graph.__avgUsdChartEl || !graph.__avgUsdOtherChartEl) {
+        graph.innerHTML =
+            '<div class="employer-analysis-subgraph employer-analysis-avg-rur-graph"></div>' +
+            '<div class="employer-analysis-subgraph employer-analysis-avg-usd-graph"></div>' +
+            '<div class="employer-analysis-subgraph employer-analysis-avg-usd-other-graph"></div>';
+        graph.__avgRurChartEl = graph.querySelector('.employer-analysis-avg-rur-graph');
+        graph.__avgUsdChartEl = graph.querySelector('.employer-analysis-avg-usd-graph');
+        graph.__avgUsdOtherChartEl = graph.querySelector('.employer-analysis-avg-usd-other-graph');
     }
 
-    Plotly.newPlot(graph.__medianChartEl, [{
+    Plotly.newPlot(graph.__avgRurChartEl, [{
         type: 'bar',
-        name: 'Медианная',
+        name: 'Средняя (RUR)',
         x: labels,
-        y: median,
+        y: avgRur,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Медианная зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        title: { text: 'Средняя зарплата по параметрам (RUR)', x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
         yaxis: { title: 'Зарплата, RUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
     }, { responsive: true, displayModeBar: false });
 
-    Plotly.newPlot(graph.__avgChartEl, [{
+    Plotly.newPlot(graph.__avgUsdChartEl, [{
         type: 'bar',
-        name: 'Средняя',
+        name: 'Средняя (USD)',
         x: labels,
-        y: avg,
+        y: avgUsd,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Средняя зарплата по параметрам', x: 0.5, xanchor: 'center' },
+        title: { text: 'Средняя зарплата по параметрам (USD)', x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, RUR' },
+        yaxis: { title: 'Зарплата, USD' },
+        margin: { t: 60, r: 20, b: 120, l: 80 },
+        height: 420
+    }, { responsive: true, displayModeBar: false });
+
+    Plotly.newPlot(graph.__avgUsdOtherChartEl, [{
+        type: 'bar',
+        name: 'Средняя (%USD)',
+        x: labels,
+        y: avgUsdOther,
+        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+    }], {
+        title: { text: 'Средняя зарплата по параметрам (%USD)', x: 0.5, xanchor: 'center' },
+        xaxis: { automargin: true, tickangle: -25 },
+        yaxis: { title: 'Зарплата, %USD' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
     }, { responsive: true, displayModeBar: false });
@@ -611,15 +637,16 @@ function parseEmployerAnalysisData(block) {
     var parsed = [];
     var rows = Array.from(block.querySelectorAll('.table-container tbody tr'));
     rows.forEach(function(row) {
-        if (!row || !row.cells || row.cells.length < 6) return;
+        if (!row || !row.cells || row.cells.length < 7) return;
         var month = (row.dataset.month || row.cells[0].textContent || '').trim();
         if (!/^\d{4}-\d{2}$/.test(month)) return;
         var factorKey = normalizeEmployerFactor(row.dataset.factor || row.cells[1].textContent);
         var rawValue = (row.dataset.factorValue || row.dataset.rawValue || row.cells[2].dataset.rawValue || row.cells[2].textContent || '').trim();
         var valueKey = normalizeEmployerValueKey(rawValue);
         var groupN = parseInt((row.dataset.groupN || row.cells[3].textContent || '0').replace(/\s/g, ''), 10) || 0;
-        var avg = parseFloat((row.dataset.avg || row.cells[4].textContent || '0').replace(/\s/g, '').replace(',', '.')) || 0;
-        var median = parseFloat((row.dataset.median || row.cells[5].textContent || '0').replace(/\s/g, '').replace(',', '.')) || 0;
+        var avgRur = parseFloat((row.dataset.avgRur || row.cells[4].textContent || '').replace(/\s/g, '').replace(',', '.'));
+        var avgUsd = parseFloat((row.dataset.avgUsd || row.cells[5].textContent || '').replace(/\s/g, '').replace(',', '.'));
+        var avgUsdOther = parseFloat((row.dataset.avgUsdOther || row.cells[6].textContent || '').replace(/\s/g, '').replace(',', '.'));
         parsed.push({
             month: month,
             factorKey: factorKey,
@@ -627,27 +654,12 @@ function parseEmployerAnalysisData(block) {
             valueKey: valueKey,
             valueLabel: getEmployerValueLabel(factorKey, valueKey),
             groupN: groupN,
-            avg: avg,
-            median: median
+            avgRur: isFinite(avgRur) ? avgRur : null,
+            avgUsd: isFinite(avgUsd) ? avgUsd : null,
+            avgUsdOther: isFinite(avgUsdOther) ? avgUsdOther : null
         });
     });
     return parsed;
-}
-
-function weightedMedianByRows(rows) {
-    if (!rows || !rows.length) return 0;
-    var sorted = rows
-        .filter(function(row) { return isFinite(row.median) && row.groupN > 0; })
-        .sort(function(a, b) { return a.median - b.median; });
-    if (!sorted.length) return 0;
-    var total = sorted.reduce(function(sum, row) { return sum + row.groupN; }, 0);
-    var threshold = total / 2;
-    var acc = 0;
-    for (var i = 0; i < sorted.length; i += 1) {
-        acc += sorted[i].groupN;
-        if (acc >= threshold) return sorted[i].median;
-    }
-    return sorted[sorted.length - 1].median;
 }
 
 function aggregateEmployerAnalysisRows(rows) {
@@ -661,7 +673,26 @@ function aggregateEmployerAnalysisRows(rows) {
         var grouped = buckets[key];
         var head = grouped[0];
         var groupN = grouped.reduce(function(sum, row) { return sum + row.groupN; }, 0);
-        var avgNumerator = grouped.reduce(function(sum, row) { return sum + (row.avg * row.groupN); }, 0);
+        var avgRurNumerator = 0;
+        var avgUsdNumerator = 0;
+        var avgUsdOtherNumerator = 0;
+        var avgRurWeight = 0;
+        var avgUsdWeight = 0;
+        var avgUsdOtherWeight = 0;
+        grouped.forEach(function(row) {
+            if (isFinite(row.avgRur)) {
+                avgRurNumerator += row.avgRur * row.groupN;
+                avgRurWeight += row.groupN;
+            }
+            if (isFinite(row.avgUsd)) {
+                avgUsdNumerator += row.avgUsd * row.groupN;
+                avgUsdWeight += row.groupN;
+            }
+            if (isFinite(row.avgUsdOther)) {
+                avgUsdOtherNumerator += row.avgUsdOther * row.groupN;
+                avgUsdOtherWeight += row.groupN;
+            }
+        });
         return {
             month: 'all',
             factorKey: head.factorKey,
@@ -669,8 +700,9 @@ function aggregateEmployerAnalysisRows(rows) {
             valueKey: head.valueKey,
             valueLabel: head.valueLabel,
             groupN: groupN,
-            avg: groupN ? (avgNumerator / groupN) : 0,
-            median: weightedMedianByRows(grouped)
+            avgRur: avgRurWeight ? (avgRurNumerator / avgRurWeight) : null,
+            avgUsd: avgUsdWeight ? (avgUsdNumerator / avgUsdWeight) : null,
+            avgUsdOther: avgUsdOtherWeight ? (avgUsdOtherNumerator / avgUsdOtherWeight) : null
         };
     });
 }
@@ -713,14 +745,16 @@ function renderEmployerAnalysisTable(block, rows, allPeriodLabel) {
             'data-value-key="' + row.valueKey + '" ' +
             'data-value-label="' + row.valueLabel + '" ' +
             'data-group-n="' + row.groupN + '" ' +
-            'data-avg="' + (row.avg || 0) + '" ' +
-            'data-median="' + (row.median || 0) + '">' +
+            'data-avg-rur="' + (row.avgRur || '') + '" ' +
+            'data-avg-usd="' + (row.avgUsd || '') + '" ' +
+            'data-avg-usd-other="' + (row.avgUsdOther || '') + '">' +
             '<td>' + monthLabel + '</td>' +
             '<td>' + row.factorLabel + '</td>' +
             '<td class="employer-factor-value-cell">' + getEmployerValueHtml(row.valueKey) + '</td>' +
             '<td>' + row.groupN + '</td>' +
-            '<td>' + formatEmployerNumber(row.avg) + '</td>' +
-            '<td>' + formatEmployerNumber(row.median) + '</td>' +
+            '<td>' + formatEmployerNumber(row.avgRur) + '</td>' +
+            '<td>' + formatEmployerNumber(row.avgUsd) + '</td>' +
+            '<td>' + formatEmployerNumber(row.avgUsdOther) + '</td>' +
             '</tr>';
     }).join('');
     toggleEmployerMonthColumn(block, !allPeriodLabel);

@@ -1236,55 +1236,58 @@ def fetch_employer_analysis_data(mapping):
             SELECT
                 COALESCE(NULLIF(v.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
                 date_trunc('month', v.published_at)::date AS month_start,
+                v.currency,
                 v.has_test,
                 v.response_letter_required,
                 COALESCE(e.accredited_it_employer, false) AS accredited_it_employer,
                 NULLIF(regexp_replace(COALESCE(e.rating, ''), '[^0-9\\.]', '', 'g'), '')::numeric AS rating_num,
-                (COALESCE(v.salary_from, v.salary_to) + COALESCE(v.salary_to, v.salary_from)) / 2.0 AS salary_mid_rur
+                (COALESCE(v.salary_from, v.salary_to) + COALESCE(v.salary_to, v.salary_from)) / 2.0 AS salary_mid
             FROM public.get_vacancies v
             LEFT JOIN public.employers e ON e.name = v.employer
-            WHERE v.currency = 'RUR'
-              AND (v.salary_from IS NOT NULL OR v.salary_to IS NOT NULL)
+            WHERE (v.salary_from IS NOT NULL OR v.salary_to IS NOT NULL)
               AND v.published_at IS NOT NULL
         ),
         factor_rows AS (
             SELECT
                 professional_role,
                 month_start,
+                currency,
                 'rating_bucket' AS factor,
                 CASE
-                    WHEN rating_num IS NULL THEN 'нет рейтинга'
+                    WHEN rating_num IS NULL THEN 'unknown'
                     WHEN rating_num < 3.5 THEN '<3.5'
                     WHEN rating_num < 4.0 THEN '3.5-3.99'
                     WHEN rating_num < 4.5 THEN '4.0-4.49'
                     ELSE '>=4.5'
                 END AS factor_value,
-                salary_mid_rur
+                salary_mid
             FROM base
             UNION ALL
             SELECT
                 professional_role,
                 month_start,
+                currency,
                 'accreditation' AS factor,
                 CASE WHEN accredited_it_employer THEN 'true' ELSE 'false' END AS factor_value,
-                salary_mid_rur
+                salary_mid
             FROM base
-
             UNION ALL
             SELECT
                 professional_role,
                 month_start,
+                currency,
                 'has_test' AS factor,
                 CASE WHEN has_test THEN 'true' ELSE 'false' END AS factor_value,
-                salary_mid_rur
+                salary_mid
             FROM base
             UNION ALL
             SELECT
                 professional_role,
                 month_start,
+                currency,
                 'cover_letter_required' AS factor,
                 CASE WHEN response_letter_required THEN 'true' ELSE 'false' END AS factor_value,
-                salary_mid_rur
+                salary_mid
             FROM base
         )
         SELECT
@@ -1293,28 +1296,13 @@ def fetch_employer_analysis_data(mapping):
             factor,
             factor_value,
             COUNT(*) AS group_n,
-            ROUND(AVG(salary_mid_rur)::numeric, 2) AS avg_salary_rur,
-            ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary_mid_rur)::numeric, 2) AS median_salary_rur
+            ROUND(AVG(salary_mid) FILTER (WHERE currency = 'RUR')::numeric, 2) AS avg_salary_rur,
+            ROUND(AVG(salary_mid) FILTER (WHERE currency = 'USD')::numeric, 2) AS avg_salary_usd,
+            ROUND(AVG(salary_mid) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD'))::numeric, 2) AS "avg_salary_%usd"
         FROM factor_rows
         GROUP BY professional_role, month_start, factor, factor_value
         HAVING COUNT(*) >= 10
-        ORDER BY
-            professional_role,
-            month_start,
-            factor,
-            CASE
-                WHEN factor = 'rating_bucket' THEN
-                    CASE
-                        WHEN factor_value = 'нет рейтинга' THEN 0
-                        WHEN factor_value = '<3.5' THEN 1
-                        WHEN factor_value = '3.5-3.99' THEN 2
-                        WHEN factor_value = '4.0-4.49' THEN 3
-                        WHEN factor_value = '>=4.5' THEN 4
-                        ELSE 99
-                    END
-                ELSE 99
-            END,
-            group_n DESC;
+        ORDER BY professional_role, month_start, factor, group_n DESC;
     """
     cur.execute(query)
     rows = cur.fetchall()
@@ -1322,7 +1310,7 @@ def fetch_employer_analysis_data(mapping):
     conn.close()
 
     roles = {}
-    for role_id, month, factor, factor_value, group_n, avg_salary_rur, median_salary_rur in rows:
+    for role_id, month, factor, factor_value, group_n, avg_salary_rur, avg_salary_usd, avg_salary_usd_other in rows:
         role_key = str(role_id) if role_id is not None else 'UNKNOWN_ROLE'
         role_name = mapping.get(role_key, role_key)
         bucket = roles.setdefault(role_key, {'id': role_key, 'name': role_name, 'rows': []})
@@ -1332,7 +1320,8 @@ def fetch_employer_analysis_data(mapping):
             'factor_value': factor_value,
             'group_n': int(group_n) if group_n is not None else 0,
             'avg_salary_rur': float(avg_salary_rur) if avg_salary_rur is not None else None,
-            'median_salary_rur': float(median_salary_rur) if median_salary_rur is not None else None
+            'avg_salary_usd': float(avg_salary_usd) if avg_salary_usd is not None else None,
+            'avg_salary_usd_other': float(avg_salary_usd_other) if avg_salary_usd_other is not None else None
         })
 
     result = list(roles.values())
