@@ -82,23 +82,34 @@ document.addEventListener('click', function(e) {
 });
 
 document.addEventListener('click', function(e) {
-    var periodBtn = e.target.closest('.skills-search-period-button');
-    if (!periodBtn) return;
-    var block = periodBtn.closest('.skills-search-content');
-    if (!block) return;
-    var period = periodBtn.dataset.period || 'all';
-    applySkillsSearchPeriod(block, period);
-});
+    var dropdownBtn = e.target.closest('.skills-search-dropdown-btn');
+    if (dropdownBtn) {
+        var dropdown = dropdownBtn.closest('.skills-search-dropdown');
+        if (!dropdown) return;
+        var isOpen = dropdown.classList.contains('open');
+        document.querySelectorAll('.skills-search-dropdown.open').forEach(d => {
+            if (d !== dropdown) d.classList.remove('open');
+        });
+        dropdown.classList.toggle('open', !isOpen);
+        return;
+    }
 
-document.addEventListener('click', function(e) {
-    var filterBtn = e.target.closest('.skills-search-filter-btn');
-    if (!filterBtn) return;
-    var group = filterBtn.closest('.skills-search-filter-group');
-    var block = filterBtn.closest('.skills-search-content');
-    if (!block || !group) return;
-    var buttons = group.querySelectorAll('.skills-search-filter-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    filterBtn.classList.add('active');
+    var item = e.target.closest('.skills-search-dropdown-item');
+    if (!item) return;
+    var dd = item.closest('.skills-search-dropdown');
+    var block = item.closest('.skills-search-content');
+    if (!dd || !block) return;
+    var value = item.dataset.value || 'all';
+    var label = dd.dataset.label || '';
+    var btn = dd.querySelector('.skills-search-dropdown-btn');
+    if (btn) {
+        btn.dataset.value = value;
+        btn.textContent = label ? (label + ': ' + item.textContent) : item.textContent;
+    }
+    if (dd.dataset.filter === 'period') {
+        block.dataset.period = value;
+    }
+    dd.classList.remove('open');
     updateSkillsSearchData(block);
 });
 
@@ -133,6 +144,11 @@ document.addEventListener('click', function(e) {
     var expanded = !panel.classList.contains('collapsed');
     toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     toggleBtn.innerHTML = expanded ? '&#9650;' : '&#9660;';
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.skills-search-dropdown')) return;
+    document.querySelectorAll('.skills-search-dropdown.open').forEach(d => d.classList.remove('open'));
 });
 
 document.addEventListener('keydown', function(e) {

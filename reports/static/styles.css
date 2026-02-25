@@ -1242,20 +1242,58 @@ tr:hover { background-color: #f0f4f9; }
     font-weight: 600;
     color: var(--text-primary);
 }
-.skills-search-period-tabs,
-.skills-search-exp-tabs,
-.skills-search-status-tabs,
-.skills-search-currency-tabs {
-    background: transparent;
-    box-shadow: none;
-    padding: 0;
-    border-radius: 0;
+.skills-search-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     justify-content: center;
 }
-.skills-search-period-tabs .tab-button,
-.skills-search-exp-tabs .tab-button,
-.skills-search-status-tabs .tab-button,
-.skills-search-currency-tabs .tab-button {
-    flex: 0 0 auto;
-    width: auto;
+.skills-search-dropdown {
+    position: relative;
+}
+.skills-search-dropdown-btn {
+    border: 1px solid var(--border-light);
+    background: var(--surface);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+.skills-search-dropdown-btn:hover {
+    background: var(--tab-hover-bg);
+}
+.skills-search-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 220px;
+    max-height: 260px;
+    overflow: auto;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: var(--shadow-medium);
+    padding: 6px;
+    display: none;
+    z-index: 10;
+}
+.skills-search-dropdown.open .skills-search-dropdown-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.skills-search-dropdown-item {
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: 6px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+.skills-search-dropdown-item:hover {
+    background: var(--tab-hover-bg);
 }

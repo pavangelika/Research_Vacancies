@@ -229,7 +229,7 @@
         <!-- Блок для анализа зарплат (с вертикальным переключателем, по умолчанию таблица) -->
         {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
         <!-- ???? ??? ?????? ???&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086; &#1085;&#1072;&#1074;&#1099;&#1082;&#1072;&#1084; -->
-                        <!-- ???? ??? ?????? ???????? ?? ??????? -->
+                                <!-- ???? ??? ?????? ???????? ?? ??????? -->
         <div class="skills-search-content" data-analysis="skills-search-{{ role_index }}" style="display: none;">
             <div class="skills-search-panel">
                 <div class="skills-search-panel-header">
@@ -239,14 +239,29 @@
                 </div>
                 <div class="skills-search-buttons"></div>
             </div>
-            <div class="tabs monthly-skills-month-tabs skills-search-period-tabs"></div>
-            <div class="tabs monthly-skills-exp-tabs skills-search-exp-tabs"></div>
-            <div class="tabs monthly-skills-exp-tabs skills-search-status-tabs"></div>
-            <div class="tabs monthly-skills-exp-tabs skills-search-currency-tabs"></div>
+            <div class="skills-search-filter-bar">
+                <div class="skills-search-dropdown" data-filter="period">
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                    <div class="skills-search-dropdown-menu"></div>
+                </div>
+                <div class="skills-search-dropdown" data-filter="exp">
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">????</button>
+                    <div class="skills-search-dropdown-menu"></div>
+                </div>
+                <div class="skills-search-dropdown" data-filter="status">
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                    <div class="skills-search-dropdown-menu"></div>
+                </div>
+                <div class="skills-search-dropdown" data-filter="currency">
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                    <div class="skills-search-dropdown-menu"></div>
+                </div>
+            </div>
             <div class="skills-search-results">
                 <div class="skills-search-hint">&#1042;&#1099;&#1073;&#1077;&#1088;&#1080;&#1090;&#1077; &#1085;&#1072;&#1074;&#1099;&#1082;&#1080;, &#1095;&#1090;&#1086;&#1073;&#1099; &#1091;&#1074;&#1080;&#1076;&#1077;&#1090;&#1100; &#1074;&#1072;&#1082;&#1072;&#1085;&#1089;&#1080;&#1080;</div>
             </div>
         </div>
+
 <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
              data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
             {% if salary_role and salary_role.months_list %}
