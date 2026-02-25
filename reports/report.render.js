@@ -361,7 +361,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button monthly-skills-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Суммарно';
+        btn.textContent = 'Все';
         btn.setAttribute('onclick', "openMonthlySkillsExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 
@@ -407,7 +407,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button salary-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Суммарно';
+        btn.textContent = 'Все';
         btn.setAttribute('onclick', "openSalaryExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 

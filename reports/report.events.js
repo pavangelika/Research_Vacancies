@@ -112,6 +112,29 @@ document.addEventListener('click', function(e) {
     updateSkillsSearchResults(block);
 });
 
+document.addEventListener('click', function(e) {
+    var selectAllBtn = e.target.closest('.skills-search-select-all');
+    if (!selectAllBtn) return;
+    var block = selectAllBtn.closest('.skills-search-content');
+    if (!block) return;
+    var buttons = block.querySelectorAll('.skills-search-skill');
+    buttons.forEach(btn => btn.classList.add('active'));
+    updateSkillsSearchResults(block);
+});
+
+document.addEventListener('click', function(e) {
+    var toggleBtn = e.target.closest('.skills-search-toggle');
+    if (!toggleBtn) return;
+    var block = toggleBtn.closest('.skills-search-content');
+    if (!block) return;
+    var panel = block.querySelector('.skills-search-panel');
+    if (!panel) return;
+    panel.classList.toggle('collapsed');
+    var expanded = !panel.classList.contains('collapsed');
+    toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    toggleBtn.innerHTML = expanded ? '&#9650;' : '&#9660;';
+});
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeVacancyModal();

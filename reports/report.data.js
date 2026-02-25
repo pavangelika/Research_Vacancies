@@ -1116,7 +1116,7 @@ function buildSkillsSummaryExp(monthData) {
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     skills = skills.slice(0, 15);
     return {
-        experience: 'Суммарно',
+        experience: 'Все',
         total_vacancies: agg.total,
         skills: skills
     };
@@ -1133,7 +1133,7 @@ function buildSalarySummaryExp(monthData) {
         });
     });
     return {
-        experience: 'Суммарно',
+        experience: 'Все',
         entries: buildSalaryEntriesFromBuckets(buckets)
     };
 }

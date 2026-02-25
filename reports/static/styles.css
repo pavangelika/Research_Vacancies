@@ -1134,6 +1134,27 @@ tr:hover { background-color: #f0f4f9; }
     gap: 8px;
     margin-bottom: 8px;
 }
+.skills-search-panel.collapsed .skills-search-buttons {
+    display: none;
+}
+.skills-search-toggle {
+    background: var(--surface-variant);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.skills-search-toggle:hover {
+    background: var(--tab-hover-bg);
+    color: var(--text-primary);
+}
 .skills-search-filters {
     display: flex;
     flex-direction: column;
@@ -1166,7 +1187,20 @@ tr:hover { background-color: #f0f4f9; }
     cursor: pointer;
     transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
+.skills-search-select-all {
+    background: var(--surface-variant);
+    border: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    border-radius: 999px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
 .skills-search-clear:hover {
+    background: var(--tab-hover-bg);
+    color: var(--text-primary);
+}
+.skills-search-select-all:hover {
     background: var(--tab-hover-bg);
     color: var(--text-primary);
 }
@@ -1216,4 +1250,12 @@ tr:hover { background-color: #f0f4f9; }
     box-shadow: none;
     padding: 0;
     border-radius: 0;
+    justify-content: center;
+}
+.skills-search-period-tabs .tab-button,
+.skills-search-exp-tabs .tab-button,
+.skills-search-status-tabs .tab-button,
+.skills-search-currency-tabs .tab-button {
+    flex: 0 0 auto;
+    width: auto;
 }
