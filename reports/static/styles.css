@@ -1287,6 +1287,7 @@ tr:hover { background-color: #f0f4f9; }
 }
 .skills-search-toggle,
 .skills-search-select-all,
+.skills-search-reset-skills,
 .skills-search-clear,
 .skills-search-dropdown-btn {
     background: var(--surface-variant);
@@ -1306,6 +1307,7 @@ tr:hover { background-color: #f0f4f9; }
 }
 .skills-search-toggle:hover,
 .skills-search-select-all:hover,
+.skills-search-reset-skills:hover,
 .skills-search-clear:hover,
 .skills-search-dropdown-btn:hover {
     background: var(--tab-hover-bg);
@@ -1335,7 +1337,8 @@ tr:hover { background-color: #f0f4f9; }
     color: var(--text-primary);
 }
 .skills-search-clear,
-.skills-search-select-all {
+.skills-search-select-all,
+.skills-search-reset-skills {
     padding: 6px 12px;
 }
 .skills-search-buttons {

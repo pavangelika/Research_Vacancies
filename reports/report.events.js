@@ -209,11 +209,23 @@ document.addEventListener('click', function(e) {
     if (!clearBtn) return;
     var block = clearBtn.closest('.skills-search-content');
     if (!block) return;
-    var activeButtons = block.querySelectorAll('.skills-search-skill.active');
-    activeButtons.forEach(btn => btn.classList.remove('active'));
-    var excludedButtons = block.querySelectorAll('.skills-search-skill.excluded');
-    excludedButtons.forEach(btn => btn.classList.remove('excluded'));
-    updateSkillsSearchResults(block);
+    var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
+    if (periodDd) {
+        setSkillsSearchDropdownValue(periodDd, 'all');
+        block.dataset.period = 'all';
+    }
+    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
+    if (expDd && expDd.dataset.multi === '1') setSkillsSearchDropdownMulti(expDd, []);
+    var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
+    if (statusDd) setSkillsSearchDropdownValue(statusDd, 'all');
+    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
+    if (currencyDd && currencyDd.dataset.multi === '1') setSkillsSearchDropdownMulti(currencyDd, []);
+    else if (currencyDd) setSkillsSearchDropdownValue(currencyDd, 'all');
+    var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
+    if (sortDd) setSkillsSearchDropdownValue(sortDd, 'count');
+    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
+    if (logicDd) setSkillsSearchDropdownValue(logicDd, 'or');
+    updateSkillsSearchData(block);
 });
 
 document.addEventListener('click', function(e) {
@@ -224,6 +236,19 @@ document.addEventListener('click', function(e) {
     var buttons = block.querySelectorAll('.skills-search-skill');
     buttons.forEach(btn => {
         btn.classList.add('active');
+        btn.classList.remove('excluded');
+    });
+    updateSkillsSearchResults(block);
+});
+
+document.addEventListener('click', function(e) {
+    var resetSkillsBtn = e.target.closest('.skills-search-reset-skills');
+    if (!resetSkillsBtn) return;
+    var block = resetSkillsBtn.closest('.skills-search-content');
+    if (!block) return;
+    var buttons = block.querySelectorAll('.skills-search-skill.active, .skills-search-skill.excluded');
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
         btn.classList.remove('excluded');
     });
     updateSkillsSearchResults(block);

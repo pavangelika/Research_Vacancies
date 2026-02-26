@@ -1,4 +1,4 @@
-function openRoleTab(evt, roleId) {
+﻿function openRoleTab(evt, roleId) {
     var i, roleContent, roleButtons;
     roleContent = document.getElementsByClassName("role-content");
     for (i = 0; i < roleContent.length; i++) {
@@ -296,24 +296,13 @@ function initSkillsSearch(parentRole) {
 
     var currencyDropdown = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
     if (currencyDropdown && !currencyDropdown.dataset.ready) {
-        var currSet = new Set();
-        if (block._data && block._data.fullVacancies) {
-            (block._data.vacancies || []).forEach(v => {
-                if (v && v.currency) currSet.add(v.currency);
-            });
-        } else {
-            (block._data && block._data.salaryMonths || []).forEach(m => {
-                if (!m || !m.month || isSummaryMonth(m.month)) return;
-                (m.experiences || []).forEach(exp => {
-                    (exp.entries || []).forEach(entry => {
-                        if (entry && entry.currency) currSet.add(entry.currency);
-                    });
-                });
-            });
-        }
-        var currList = Array.from(currSet).sort((a, b) => a.localeCompare(b));
-        var currItems = currList.map(x => ({ value: x, label: x }));
-        currItems.push({ value: 'none', label: 'Не указана' });
+        var currItems = [
+            { value: 'rur', label: 'RUR' },
+            { value: 'usd', label: 'USD' },
+            { value: 'eur', label: 'EUR' },
+            { value: 'other', label: 'Другая' },
+            { value: 'none', label: 'Не заполнена' }
+        ];
         renderSkillsSearchDropdown(currencyDropdown, currItems, 'Валюта', 'Все', false, true);
         currencyDropdown.dataset.ready = '1';
         block.dataset.currency = 'all';
@@ -485,37 +474,66 @@ function updateSkillsSearchData(block) {
     baseVacancies = dedupeVacanciesById(baseVacancies);
 
     var expVal = getSkillsSearchFilterValue(block, 'exp');
+    var expVals = [];
+    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
+    if (expDd && expDd.dataset.multi === '1') {
+        try {
+            expVals = JSON.parse(expDd.dataset.values || '[]');
+        } catch (_e) {
+            expVals = [];
+        }
+    }
     var statusVal = getSkillsSearchFilterValue(block, 'status');
     var currencyVal = getSkillsSearchFilterValue(block, 'currency');
-    var currencyValNorm = String(currencyVal || '').trim().toLowerCase();
+    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
+    var currencyVals = [];
+    if (currencyDd && currencyDd.dataset.multi === '1') {
+        try {
+            currencyVals = JSON.parse(currencyDd.dataset.values || '[]');
+        } catch (_e) {
+            currencyVals = [];
+        }
+    }
     var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
 
     var filteredBase = baseVacancies.filter(v => {
         if (!v) return false;
         if (expVal !== 'all') {
-            var expNorm = normalizeExperience(expVal);
             var vExp = normalizeExperience(v._experience || '');
-            if (vExp !== expNorm) return false;
+            if (expVals && expVals.length) {
+                var expOk = expVals.some(x => normalizeExperience(x) === vExp);
+                if (!expOk) return false;
+            } else {
+                var expNorm = normalizeExperience(expVal);
+                if (vExp !== expNorm) return false;
+            }
         }
         if (statusVal !== 'all') {
             var status = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
             if (status !== statusVal) return false;
         }
-        if (currencyVal !== 'all') {
-            var currRaw = v.currency;
-            var currNorm = String(currRaw || '').trim().toUpperCase();
-            var isCurrencyEmpty = !currNorm || currNorm === '—' || currNorm === '-';
-            if (currencyVal === 'none' || currencyValNorm === 'не указана') {
-                if (!isCurrencyEmpty) return false;
-            } else if (currencyVal === '%USD') {
-                if (!currNorm) return false;
-                if (currNorm === 'RUR' || currNorm === 'RUB' || currNorm === 'USD') return false;
-            } else if (currRaw !== currencyVal) {
-                return false;
-            }
-        }
-        return true;
-    });
+          var selectedCurrencies = (currencyVals && currencyVals.length) ? currencyVals : null;
+          if (selectedCurrencies && selectedCurrencies.length) {
+              var currRaw = v.currency;
+              var currNorm = String(currRaw || '').trim().toUpperCase();
+              var isCurrencyEmpty = !currNorm || currNorm === '—' || currNorm === '-';
+              var match = false;
+              selectedCurrencies.forEach(sel => {
+                  var selNorm = String(sel || '').trim().toLowerCase();
+                  if (selNorm === 'rur' && (currNorm === 'RUR' || currNorm === 'RUB')) match = true;
+                  else if (selNorm === 'usd' && currNorm === 'USD') match = true;
+                  else if (selNorm === 'eur' && currNorm === 'EUR') match = true;
+                  else if (selNorm === 'other') {
+                      if (!isCurrencyEmpty && currNorm !== 'RUR' && currNorm !== 'RUB' && currNorm !== 'USD' && currNorm !== 'EUR') match = true;
+                  } else if (selNorm === 'none' && isCurrencyEmpty) match = true;
+              });
+              if (!match) return false;
+          } else if (currencyVal !== 'all') {
+              var currRaw2 = v.currency;
+              if (currRaw2 !== currencyVal) return false;
+          }
+          return true;
+      });
 
     block._data.currentVacancies = filteredBase;
     var skills = computeSalarySkillsFromVacancies(filteredBase, 50);
@@ -557,8 +575,9 @@ function updateSkillsSearchResults(block) {
         .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
 
     if (!selected.length && !excluded.length) {
-        var summary = '<div class="skills-search-summary">Найдено вакансий: ' + allVacancies.length + '</div>';
-        results.innerHTML = summary + buildVacancyTableHtml(allVacancies);
+        var baseList = (block._data && block._data.currentVacancies) ? block._data.currentVacancies : allVacancies;
+        var summary = '<div class="skills-search-summary">Найдено вакансий: ' + baseList.length + '</div>';
+        results.innerHTML = summary + buildVacancyTableHtml(baseList);
         updateSkillsSearchSummaryLine(block);
         saveSkillsSearchState(block);
         return;
@@ -612,11 +631,20 @@ function saveSkillsSearchState(block) {
     var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
     uiState.skills_search_by_role = uiState.skills_search_by_role || {};
     var expVals = getSkillsSearchFilterValue(block, 'exp');
+    var currencyVals = [];
+    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
+    if (currencyDd && currencyDd.dataset.multi === '1') {
+        try {
+            currencyVals = JSON.parse(currencyDd.dataset.values || '[]');
+        } catch (_e) {
+            currencyVals = [];
+        }
+    }
     var state = {
         period: block.dataset.period || 'all',
         exp: Array.isArray(expVals) ? expVals : (expVals ? [expVals] : []),
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
-        currency: getSkillsSearchFilterValue(block, 'currency') || 'all',
+        currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
         sort: getSkillsSearchFilterValue(block, 'sort') || 'count',
         logic: getSkillsSearchFilterValue(block, 'logic') || 'or',
         includeSkills: Array.from(block.querySelectorAll('.skills-search-skill.active')).map(b => b.dataset.skill || b.textContent.trim()),
@@ -636,7 +664,10 @@ function applySkillsSearchState(block, state) {
 
     if (periodDd) setSkillsSearchDropdownValue(periodDd, state.period || 'all');
     if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || 'all');
-    if (currencyDd) setSkillsSearchDropdownValue(currencyDd, state.currency || 'all');
+    if (currencyDd) {
+        if (Array.isArray(state.currency)) setSkillsSearchDropdownMulti(currencyDd, state.currency);
+        else setSkillsSearchDropdownValue(currencyDd, state.currency || 'all');
+    }
     if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
     if (expDd && Array.isArray(state.exp)) setSkillsSearchDropdownMulti(expDd, state.exp);
