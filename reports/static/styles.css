@@ -1043,6 +1043,15 @@ tr:hover { background-color: #f0f4f9; }
     min-height: 40px;
     margin: 4px 0 8px;
 }
+.skills-multi-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 10px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
 .skills-mode-toggle-inline {
     position: absolute;
     right: 0;

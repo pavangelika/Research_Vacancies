@@ -295,6 +295,18 @@ function restoreExpInMonth(parentRole, roleId) {
     }
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
+    var block = parentRole.querySelector('.skills-monthly-content');
+    var multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
+    if (multiEnabled && saved && saved.exp_list && Array.isArray(saved.exp_list) && saved.exp_list.length) {
+        var clicked = false;
+        for (var btn of expButtons) {
+            if (saved.exp_list.indexOf(btn.textContent.trim()) >= 0) {
+                btn.click();
+                clicked = true;
+            }
+        }
+        if (clicked) return;
+    }
     if (saved && saved.experience) {
         for (var btn of expButtons) {
             if (btn.textContent.trim() === saved.experience) {
@@ -306,10 +318,56 @@ function restoreExpInMonth(parentRole, roleId) {
     expButtons[0].click();
 }
 
+function aggregateSkillsExpData(expDivs, label) {
+    var totalVac = 0;
+    var skillMap = new Map();
+    expDivs.forEach(function(div) {
+        var expData = parseJsonDataset(div, 'exp', null) || (div._data && div._data.exp);
+        if (!expData) return;
+        totalVac += expData.total_vacancies || 0;
+        (expData.skills || []).forEach(function(s) {
+            var key = normalizeSkillName(s.skill);
+            if (!key) return;
+            skillMap.set(key, (skillMap.get(key) || 0) + (s.count || 0));
+        });
+    });
+    var skills = Array.from(skillMap.entries()).map(function(pair) {
+        var count = pair[1] || 0;
+        return {
+            skill: pair[0],
+            count: count,
+            coverage: totalVac ? Math.round((count * 10000) / totalVac) / 100 : 0,
+            rank: 0
+        };
+    });
+    skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
+    skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
+    return { experience: label || 'Выбрано', total_vacancies: totalVac, skills: skills };
+}
+
+function renderSkillsExpContent(expDiv, expData) {
+    if (!expDiv || !expData) return;
+    expDiv.dataset.exp = JSON.stringify(expData);
+    expDiv._data = { exp: expData };
+    var tableWrap = expDiv.querySelector('.table-container');
+    if (tableWrap) {
+        var rows = (expData.skills || []).map(function(s) {
+            return '<tr><td>' + escapeHtml(s.skill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
+        }).join('');
+        tableWrap.innerHTML =
+            '<table>' +
+                '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody>' +
+            '</table>' +
+            '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + expData.total_vacancies + '</p>';
+    }
+}
+
 function openMonthlySkillsExpTab(evt, expId) {
     var parentMonth = evt.currentTarget.closest('.monthly-skills-month-content');
     var parentRole = parentMonth.closest('.role-content');
     var roleId = parentRole.id;
+    var block = parentRole.querySelector('.skills-monthly-content');
     var expDiv = document.getElementById(expId);
     var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
     var experience = expData.experience;
@@ -325,11 +383,57 @@ function openMonthlySkillsExpTab(evt, expId) {
         expContents[i].style.display = "none";
     }
     var expButtons = parentMonth.getElementsByClassName("monthly-skills-exp-button");
-    for (var i = 0; i < expButtons.length; i++) {
-        expButtons[i].className = expButtons[i].className.replace(" active", "");
+    var multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
+    if (!multiEnabled) {
+        for (var i = 0; i < expButtons.length; i++) {
+            expButtons[i].classList.remove('active');
+        }
     }
-    expDiv.style.display = "block";
-    evt.currentTarget.className += " active";
+    if (!evt.currentTarget.dataset.expId) evt.currentTarget.dataset.expId = expId;
+    var wasActive = evt.currentTarget.classList.contains('active');
+    if (wasActive && expButtons.length > 1) {
+        evt.currentTarget.classList.remove('active');
+    } else {
+        evt.currentTarget.classList.add('active');
+    }
+
+    var selectedBtns = Array.from(expButtons).filter(b => b.classList.contains('active'));
+    if (selectedBtns.length === 0) {
+        evt.currentTarget.classList.add('active');
+        selectedBtns = [evt.currentTarget];
+    }
+
+    if (!multiEnabled || selectedBtns.length === 1) {
+        expDiv.style.display = "block";
+    } else {
+        var selectedDivs = selectedBtns.map(b => document.getElementById(b.dataset.expId || '')).filter(Boolean);
+        var label = selectedBtns.map(b => (b.textContent || '').trim()).join(' + ');
+        var agg = aggregateSkillsExpData(selectedDivs, label);
+        var multiId = parentMonth.id + '-exp-multi';
+        var multiDiv = document.getElementById(multiId);
+        if (!multiDiv) {
+            multiDiv = document.createElement('div');
+            multiDiv.id = multiId;
+            multiDiv.className = 'monthly-skills-exp-content';
+            multiDiv.style.display = 'none';
+            multiDiv.innerHTML =
+                '<div class="view-toggle-horizontal">' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '</div>' +
+                '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
+                    '<div class="table-container"></div>' +
+                    '<div class="plotly-graph" id="skills-monthly-graph-' + multiId.replace('ms-exp-', '') + '"></div>' +
+                '</div>';
+            parentMonth.appendChild(multiDiv);
+        }
+        renderSkillsExpContent(multiDiv, agg);
+        multiDiv.style.display = 'block';
+        expDiv = multiDiv;
+        saved.exp_list = selectedBtns.map(b => (b.textContent || '').trim());
+        uiState[stateKey] = saved;
+    }
 
     // Восстанавливаем режим для навыков
     var viewBtns = expDiv.querySelectorAll('.view-mode-btn');
@@ -338,7 +442,12 @@ function openMonthlySkillsExpTab(evt, expId) {
     applyViewMode(container, uiState.skills_monthly_view_mode);
 
     var graphId = 'skills-monthly-graph-' + expId.replace('ms-exp-', '');
-    buildHorizontalBarChart(graphId, expData.skills, expData.experience);
+    var liveExp = parseJsonDataset(expDiv, 'exp', expData) || expData;
+    var finalGraphId = graphId;
+    if (expDiv.id.indexOf('-exp-multi') >= 0) {
+        finalGraphId = 'skills-monthly-graph-' + expDiv.id.replace('ms-exp-', '');
+    }
+    buildHorizontalBarChart(finalGraphId, liveExp.skills || [], liveExp.experience || experience);
 }
 
 function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_COLORS.medium) {
