@@ -217,7 +217,7 @@ document.addEventListener('click', function(e) {
     var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
     if (expDd && expDd.dataset.multi === '1') setSkillsSearchDropdownMulti(expDd, []);
     var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
-    if (statusDd) setSkillsSearchDropdownValue(statusDd, 'all');
+    if (statusDd) setSkillsSearchDropdownValue(statusDd, '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f');
     var countryDd = block.querySelector('.skills-search-dropdown[data-filter="country"]');
     if (countryDd) setSkillsSearchDropdownValue(countryDd, 'all');
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');

@@ -48,6 +48,7 @@ def build_city_country_map(areas):
 
     city_to_countries = defaultdict(set)
     country_names = set()
+    other_regions_cities = set()
 
     def walk(area, country_name):
         if not area:
@@ -80,7 +81,7 @@ def build_city_country_map(areas):
         country_names.add(cname)
         walk(country, cname)
 
-    return city_to_countries, country_names
+    return city_to_countries, country_names, other_regions_cities
 
 def get_db_connection():
     """Устанавливает соединение с PostgreSQL."""
@@ -1142,10 +1143,10 @@ def fetch_salary_data(mapping):
     areas_cache = os.path.join('reports', 'hh_areas.json')
     try:
         areas_data = load_hh_areas(areas_cache)
-        city_country_map, country_names = build_city_country_map(areas_data)
+        city_country_map, country_names, other_regions_cities = build_city_country_map(areas_data)
     except Exception as e:
         logging.warning(f'Failed to load HH areas: {e}')
-        city_country_map, country_names = {}, set()
+        city_country_map, country_names, other_regions_cities = {}, set(), set()
 
     vacancies_by_role = defaultdict(list)
     for row in vacancy_rows:
@@ -1181,10 +1182,13 @@ def fetch_salary_data(mapping):
         country = None
         if city and city_country_map:
             city_norm = city.strip().casefold()
-            countries = city_country_map.get(city_norm)
-            if countries and len(countries) == 1:
+            if city_norm in other_regions_cities:
+                country = city
+            else:
+                countries = city_country_map.get(city_norm)
+            if country is None and countries and len(countries) == 1:
                 country = next(iter(countries))
-            elif city_norm in country_names:
+            elif country is None and city_norm in country_names:
                 country = city
 
         published_iso = published_at.isoformat() if published_at else None

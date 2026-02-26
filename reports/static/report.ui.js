@@ -290,7 +290,7 @@ function initSkillsSearch(parentRole) {
         ];
         renderSkillsSearchDropdown(statusDropdown, statusItems, 'Статус', 'Все', false, true);
         statusDropdown.dataset.ready = '1';
-        block.dataset.status = 'all';
+        block.dataset.status = '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f';
     }
 
     var currencyDropdown = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
@@ -308,15 +308,13 @@ function initSkillsSearch(parentRole) {
         setSkillsSearchDropdownValue(currencyDropdown, 'all');
     }
 
-    var countryDropdown = block.querySelector('.skills-search-dropdown[data-filter=\"country\"]');
+    var countryDropdown = block.querySelector('.skills-search-dropdown[data-filter="country"]');
     if (countryDropdown && !countryDropdown.dataset.ready) {
-        var countrySet = new Set();
-        (block._data && block._data.vacancies || []).forEach(v => {
-            if (v && v.country) countrySet.add(v.country);
-        });
-        var countryList = Array.from(countrySet).sort((a, b) => a.localeCompare(b));
-        var countryItems = countryList.map(x => ({ value: x, label: x }));
-        countryItems.push({ value: 'none', label: '\u041d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430' });
+        var countryItems = [
+            { value: 'none', label: '\u041d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430' },
+            { value: 'ru', label: '\u0420\u043e\u0441\u0441\u0438\u044f' },
+            { value: 'not_ru', label: '\u041d\u0435 \u0420\u043e\u0441\u0441\u0438\u044f' }
+        ];
         renderSkillsSearchDropdown(countryDropdown, countryItems, '\u0421\u0442\u0440\u0430\u043d\u0430', '\u0412\u0441\u0435', false, true);
         countryDropdown.dataset.ready = '1';
         block.dataset.country = 'all';
@@ -528,9 +526,13 @@ function updateSkillsSearchData(block) {
             if (status !== statusVal) return false;
         }
         if (countryVal !== 'all') {
-            var country = v.country || '';
+            var country = (v.country || '').trim();
             if (countryVal === 'none') {
                 if (country) return false;
+            } else if (countryVal === 'ru') {
+                if (country !== '\u0420\u043e\u0441\u0441\u0438\u044f') return false;
+            } else if (countryVal === 'not_ru') {
+                if (!country || country === '\u0420\u043e\u0441\u0441\u0438\u044f') return false;
             } else if (country !== countryVal) {
                 return false;
             }
@@ -688,7 +690,7 @@ function applySkillsSearchState(block, state) {
     var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
 
     if (periodDd) setSkillsSearchDropdownValue(periodDd, state.period || 'all');
-    if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || 'all');
+    if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f');
     if (countryDd) setSkillsSearchDropdownValue(countryDd, state.country || 'all');
     if (currencyDd) {
         if (Array.isArray(state.currency)) setSkillsSearchDropdownMulti(currencyDd, state.currency);
