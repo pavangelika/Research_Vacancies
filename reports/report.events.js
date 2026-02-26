@@ -222,7 +222,34 @@ document.addEventListener('click', function(e) {
     var block = selectAllBtn.closest('.skills-search-content');
     if (!block) return;
     var buttons = block.querySelectorAll('.skills-search-skill');
-    buttons.forEach(btn => btn.classList.add('active'));
+    buttons.forEach(btn => {
+        btn.classList.add('active');
+        btn.classList.remove('excluded');
+    });
+    updateSkillsSearchResults(block);
+});
+
+document.addEventListener('contextmenu', function(e) {
+    var summaryBtn = e.target.closest('.skills-search-summary-skill');
+    if (!summaryBtn) return;
+    e.preventDefault();
+    var block = summaryBtn.closest('.skills-search-content');
+    if (!block) return;
+    var mode = summaryBtn.dataset.mode || 'include';
+    var skill = summaryBtn.dataset.skill || '';
+    var skillNorm = normalizeSkillName(skill);
+    var btns = block.querySelectorAll('.skills-search-skill');
+    btns.forEach(function(btn) {
+        var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
+        if (key !== skillNorm) return;
+        if (mode === 'exclude') {
+            btn.classList.add('active');
+            btn.classList.remove('excluded');
+        } else {
+            btn.classList.add('excluded');
+            btn.classList.remove('active');
+        }
+    });
     updateSkillsSearchResults(block);
 });
 

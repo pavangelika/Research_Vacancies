@@ -310,15 +310,7 @@ function initSkillsSearch(parentRole) {
     }
 
     var saved = getSkillsSearchState(block);
-    if (saved) {
-        applySkillsSearchState(block, saved);
-    } else {
-        var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
-        var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
-        if (periodDd) setSkillsSearchDropdownValue(periodDd, 'last_3');
-        if (statusDd) setSkillsSearchDropdownValue(statusDd, 'Открытая');
-        block.dataset.period = 'last_3';
-    }
+    if (saved) applySkillsSearchState(block, saved);
 
     var currentPeriod = block.dataset.period || 'all';
     applySkillsSearchPeriod(block, currentPeriod);
@@ -531,7 +523,7 @@ function updateSkillsSearchSummaryLine(block) {
 function getSkillsSearchState(block) {
     var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
     uiState.skills_search_by_role = uiState.skills_search_by_role || {};
-    return uiState.skills_search_by_role[roleId] || null;
+    return uiState.skills_search_by_role[roleId] || uiState.skills_search_global || null;
 }
 function saveSkillsSearchState(block) {
     var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
@@ -549,6 +541,7 @@ function saveSkillsSearchState(block) {
         collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
     };
     uiState.skills_search_by_role[roleId] = state;
+    uiState.skills_search_global = state;
 }
 function applySkillsSearchState(block, state) {
     if (!state) return;
@@ -576,8 +569,14 @@ function applySkillsSearchState(block, state) {
         }
     }
 
-        var include = (state.includeSkills || []).map(normalizeSkillName);
-        var exclude = (state.excludeSkills || []).map(normalizeSkillName);
+        var available = new Set();
+        var skillsList = (block._data && block._data.skills) ? block._data.skills : [];
+        skillsList.forEach(s => {
+            if (!s || !s.skill) return;
+            available.add(normalizeSkillName(s.skill));
+        });
+        var include = (state.includeSkills || []).map(normalizeSkillName).filter(k => available.has(k));
+        var exclude = (state.excludeSkills || []).map(normalizeSkillName).filter(k => available.has(k));
         var btns = block.querySelectorAll('.skills-search-skill');
         btns.forEach(btn => {
             var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
