@@ -648,13 +648,9 @@ function updateSkillsSearchSummaryLine(block) {
 }
 
 function getSkillsSearchState(block) {
-    var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
-    uiState.skills_search_by_role = uiState.skills_search_by_role || {};
-    return uiState.skills_search_by_role[roleId] || null;
+    return uiState.skills_search_global || null;
 }
 function saveSkillsSearchState(block) {
-    var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
-    uiState.skills_search_by_role = uiState.skills_search_by_role || {};
     var expVals = getSkillsSearchFilterValue(block, 'exp');
     var currencyVals = [];
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
@@ -677,7 +673,7 @@ function saveSkillsSearchState(block) {
         excludeSkills: Array.from(block.querySelectorAll('.skills-search-skill.excluded')).map(b => b.dataset.skill || b.textContent.trim()),
         collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
     };
-    uiState.skills_search_by_role[roleId] = state;
+    uiState.skills_search_global = state;
 }
 function applySkillsSearchState(block, state) {
     if (!state) return;
