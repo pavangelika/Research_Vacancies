@@ -29,14 +29,36 @@ document.addEventListener('click', function(e) {
 });
 
 document.addEventListener('click', function(e) {
+    var empBtn = e.target.closest('.employer-link');
+    if (empBtn) {
+        e.preventDefault();
+        openEmployerModal({
+            name: empBtn.dataset.employer || '',
+            accredited: empBtn.dataset.accredited || '',
+            rating: empBtn.dataset.rating || '',
+            trusted: empBtn.dataset.trusted || '',
+            url: empBtn.dataset.url || ''
+        });
+        return;
+    }
+
     if (e.target.closest('.vacancy-modal-close')) {
         closeVacancyModal();
+        return;
+    }
+    if (e.target.closest('.employer-modal-close')) {
+        closeEmployerModal();
         return;
     }
 
     var backdrop = e.target.classList.contains('vacancy-modal-backdrop');
     if (backdrop) {
         closeVacancyModal();
+        return;
+    }
+    var empBackdrop = e.target.classList.contains('employer-modal-backdrop');
+    if (empBackdrop) {
+        closeEmployerModal();
         return;
     }
 
@@ -196,6 +218,7 @@ document.addEventListener('click', function(e) {
     var expanded = !panel.classList.contains('collapsed');
     toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     toggleBtn.innerHTML = expanded ? '&#9650;' : '&#9660;';
+    updateSkillsSearchSummaryLine(block);
 });
 
 document.addEventListener('click', function(e) {
@@ -203,9 +226,33 @@ document.addEventListener('click', function(e) {
     document.querySelectorAll('.skills-search-dropdown.open').forEach(d => d.classList.remove('open'));
 });
 
+document.addEventListener('click', function(e) {
+    var resetBtn = e.target.closest('.skills-search-reset-all');
+    if (!resetBtn) return;
+    var block = resetBtn.closest('.skills-search-content');
+    if (!block) return;
+    var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
+    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
+    var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
+    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
+    var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
+    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
+
+    if (periodDd) setSkillsSearchDropdownValue(periodDd, 'all');
+    if (statusDd) setSkillsSearchDropdownValue(statusDd, 'all');
+    if (currencyDd) setSkillsSearchDropdownValue(currencyDd, 'all');
+    if (sortDd) setSkillsSearchDropdownValue(sortDd, 'count');
+    if (logicDd) setSkillsSearchDropdownValue(logicDd, 'or');
+    if (expDd) setSkillsSearchDropdownMulti(expDd, []);
+    block.dataset.period = 'all';
+
+    updateSkillsSearchData(block);
+});
+
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeVacancyModal();
+        closeEmployerModal();
     }
 });
 

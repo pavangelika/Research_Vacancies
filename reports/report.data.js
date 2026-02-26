@@ -922,7 +922,7 @@ function dedupeVacanciesById(vacancies) {
     });
     return out;
 }
-function filterVacanciesBySkills(vacancies, includeSkills, excludeSkills) {
+function filterVacanciesBySkills(vacancies, includeSkills, excludeSkills, matchMode) {
     if (!vacancies || !vacancies.length) return [];
     var includes = (includeSkills || []).map(normalizeSkillName).filter(Boolean);
     var excludes = (excludeSkills || []).map(normalizeSkillName).filter(Boolean);
@@ -936,6 +936,12 @@ function filterVacanciesBySkills(vacancies, includeSkills, excludeSkills) {
             if (skillSet.has(excludes[j])) return false;
         }
         if (!includes.length) return true;
+        if (matchMode === 'and') {
+            for (var k = 0; k < includes.length; k++) {
+                if (!skillSet.has(includes[k])) return false;
+            }
+            return true;
+        }
         for (var i = 0; i < includes.length; i++) {
             if (skillSet.has(includes[i])) return true;
         }

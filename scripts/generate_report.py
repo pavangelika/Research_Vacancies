@@ -944,26 +944,31 @@ def fetch_salary_data(mapping):
 
     query_vacancies = """
         SELECT
-            id,
-            name,
-            employer,
-            city,
-            salary_from,
-            salary_to,
-            currency,
-            skills,
-            requirement,
-            responsibility,
-            apply_alternate_url,
-            professional_role,
-            experience,
-            archived,
-            archived_at,
-            published_at
-        FROM get_vacancies
-        WHERE published_at IS NOT NULL
-          AND professional_role IS NOT NULL
-          AND experience IS NOT NULL;
+            v.id,
+            v.name,
+            v.employer,
+            v.city,
+            v.salary_from,
+            v.salary_to,
+            v.currency,
+            v.skills,
+            v.requirement,
+            v.responsibility,
+            v.apply_alternate_url,
+            v.professional_role,
+            v.experience,
+            v.archived,
+            v.archived_at,
+            v.published_at,
+            e.accredited_it_employer,
+            e.rating,
+            e.trusted,
+            e.employer_url
+        FROM get_vacancies v
+        LEFT JOIN public.employers e ON e.name = v.employer
+        WHERE v.published_at IS NOT NULL
+          AND v.professional_role IS NOT NULL
+          AND v.experience IS NOT NULL;
     """
     cur.execute(query_vacancies)
     vacancy_rows = cur.fetchall()
@@ -1080,7 +1085,8 @@ def fetch_salary_data(mapping):
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
          skills, requirement, responsibility, apply_alternate_url, role_id,
-         experience, archived, archived_at, published_at) = row
+         experience, archived, archived_at, published_at,
+         accredited_it_employer, rating, trusted, employer_url) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -1125,7 +1131,11 @@ def fetch_salary_data(mapping):
             'skills': skills,
             'requirement': requirement,
             'responsibility': responsibility,
-            'apply_alternate_url': apply_alternate_url
+            'apply_alternate_url': apply_alternate_url,
+            'employer_accredited': accredited_it_employer,
+            'employer_rating': rating,
+            'employer_trusted': trusted,
+            'employer_url': employer_url
         }
 
         if has_salary:

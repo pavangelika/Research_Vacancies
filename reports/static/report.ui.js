@@ -231,7 +231,7 @@ function initSkillsSearch(parentRole) {
     if (periodDropdown && !periodDropdown.dataset.ready) {
         var items = (block._data && block._data.periodItems) ? block._data.periodItems : [];
         var monthItems = items.filter(p => p.month).map(p => ({ value: p.month, label: p.label }));
-        renderSkillsSearchDropdown(periodDropdown, monthItems, 'Период', periodAllLabel, true);
+        renderSkillsSearchDropdown(periodDropdown, monthItems, 'Период', periodAllLabel, true, true);
         periodDropdown.dataset.ready = '1';
         block.dataset.period = 'all';
     }
@@ -248,7 +248,7 @@ function initSkillsSearch(parentRole) {
         var expOrder = getExperienceOrder();
         var expList = Array.from(expSet);
         expList.sort((a, b) => (expOrder[normalizeExperience(a)] || 99) - (expOrder[normalizeExperience(b)] || 99));
-        renderSkillsSearchDropdown(expDropdown, expList.map(x => ({ value: x, label: x })), 'Опыт', 'Все');
+        renderSkillsSearchDropdown(expDropdown, expList.map(x => ({ value: x, label: x })), 'Опыт', 'Все', false, true);
         expDropdown.dataset.ready = '1';
         block.dataset.exp = 'all';
     }
@@ -259,7 +259,7 @@ function initSkillsSearch(parentRole) {
             { value: 'Открытая', label: 'Открытая' },
             { value: 'Архивная', label: 'Архивная' }
         ];
-        renderSkillsSearchDropdown(statusDropdown, statusItems, 'Статус', 'Все');
+        renderSkillsSearchDropdown(statusDropdown, statusItems, 'Статус', 'Все', false, true);
         statusDropdown.dataset.ready = '1';
         block.dataset.status = 'all';
     }
@@ -276,9 +276,31 @@ function initSkillsSearch(parentRole) {
             });
         });
         var currList = Array.from(currSet).sort((a, b) => a.localeCompare(b));
-        renderSkillsSearchDropdown(currencyDropdown, currList.map(x => ({ value: x, label: x })), 'Валюта', 'Все');
+        renderSkillsSearchDropdown(currencyDropdown, currList.map(x => ({ value: x, label: x })), 'Валюта', 'Все', false, true);
         currencyDropdown.dataset.ready = '1';
         block.dataset.currency = 'all';
+    }
+
+    var sortDropdown = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
+    if (sortDropdown && !sortDropdown.dataset.ready) {
+        var sortItems = [
+            { value: 'count', label: 'По частоте' },
+            { value: 'alpha', label: 'По алфавиту' }
+        ];
+        renderSkillsSearchDropdown(sortDropdown, sortItems, 'Сортировка', 'По частоте', false, false);
+        sortDropdown.dataset.ready = '1';
+        block.dataset.sort = 'count';
+    }
+
+    var logicDropdown = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
+    if (logicDropdown && !logicDropdown.dataset.ready) {
+        var logicItems = [
+            { value: 'or', label: 'OR' },
+            { value: 'and', label: 'AND' }
+        ];
+        renderSkillsSearchDropdown(logicDropdown, logicItems, 'Логика', 'OR', false, false);
+        logicDropdown.dataset.ready = '1';
+        block.dataset.logic = 'or';
     }
 
     var buttonsWrap = block.querySelector('.skills-search-buttons');
@@ -287,6 +309,9 @@ function initSkillsSearch(parentRole) {
         buttonsWrap.dataset.ready = '1';
     }
 
+    var saved = getSkillsSearchState(block);
+    if (saved) applySkillsSearchState(block, saved);
+
     var currentPeriod = block.dataset.period || 'all';
     applySkillsSearchPeriod(block, currentPeriod);
 }
@@ -294,22 +319,29 @@ function initSkillsSearch(parentRole) {
 function renderSkillsSearchButtons(block, skillsList) {
     var buttonsWrap = block.querySelector('.skills-search-buttons');
     if (!buttonsWrap) return;
-    if (!skillsList.length) {
+    var sortMode = getSkillsSearchFilterValue(block, 'sort');
+    var list = (skillsList || []).slice();
+    if (sortMode === 'alpha') {
+        list.sort((a, b) => a.skill.localeCompare(b.skill));
+    }
+    if (!list.length) {
         buttonsWrap.innerHTML = '<div class="skills-search-empty">Нет навыков для роли</div>';
         return;
     }
-    buttonsWrap.innerHTML = skillsList.map(s => (
+    buttonsWrap.innerHTML = list.map(s => (
         '<button class="skills-search-skill" type="button" data-skill="' + escapeHtml(s.skill) + '">' +
             escapeHtml(s.skill) +
             '<span class="skills-search-count">' + s.count + '</span>' +
         '</button>'
     )).join('');
 }
-function renderSkillsSearchDropdown(dropdown, items, label, allLabel, allAtEnd) {
+function renderSkillsSearchDropdown(dropdown, items, label, allLabel, allAtEnd, includeAll) {
     if (!dropdown) return;
     var list = (items || []).slice();
     var allItem = { value: 'all', label: allLabel || 'Все' };
-    list = allAtEnd ? list.concat([allItem]) : [allItem].concat(list);
+    if (includeAll !== false) {
+        list = allAtEnd ? list.concat([allItem]) : [allItem].concat(list);
+    }
     var menu = dropdown.querySelector('.skills-search-dropdown-menu');
     if (!menu) return;
     menu.innerHTML = list.map(item => (
@@ -320,7 +352,7 @@ function renderSkillsSearchDropdown(dropdown, items, label, allLabel, allAtEnd) 
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');
     if (btn) {
         var firstLabel = allLabel || (list[0] ? list[0].label : 'Все');
-        btn.dataset.value = 'all';
+        btn.dataset.value = includeAll === false ? (list[0] ? list[0].value : '') : 'all';
         btn.textContent = label ? (label + ': ' + firstLabel) : firstLabel;
     }
     dropdown.dataset.label = label || '';
@@ -386,6 +418,7 @@ function updateSkillsSearchData(block) {
     var expVal = getSkillsSearchFilterValue(block, 'exp');
     var statusVal = getSkillsSearchFilterValue(block, 'status');
     var currencyVal = getSkillsSearchFilterValue(block, 'currency');
+    var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
 
     var filteredBase = baseVacancies.filter(v => {
         if (!v) return false;
@@ -449,9 +482,117 @@ function updateSkillsSearchResults(block) {
 
     var vacancies = (block._data && block._data.currentVacancies) ? block._data.currentVacancies :
         ((block._data && block._data.vacancies) ? block._data.vacancies : []);
-    var filtered = filterVacanciesBySkills(vacancies, selected, excluded);
+    var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
+    var filtered = filterVacanciesBySkills(vacancies, selected, excluded, logicVal);
     var summary = '<div class="skills-search-summary">Найдено вакансий: ' + filtered.length + '</div>';
     results.innerHTML = summary + buildVacancyTableHtml(filtered);
+    updateSkillsSearchSummaryLine(block);
+    saveSkillsSearchState(block);
+}
+
+function updateSkillsSearchSummaryLine(block) {
+    var summary = block.querySelector('.skills-search-summary-line');
+    if (!summary) return;
+    var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
+        .map(b => (b.dataset.skill || b.textContent || '').trim());
+    var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
+        .map(b => (b.dataset.skill || b.textContent || '').trim());
+    var parts = [];
+    if (selected.length) parts.push('Включено: ' + selected.join(', '));
+    if (excluded.length) parts.push('Исключено: ' + excluded.join(', '));
+    summary.textContent = parts.length ? parts.join(' · ') : 'Навыки не выбраны';
+}
+
+function getSkillsSearchState(block) {
+    var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
+    uiState.skills_search_by_role = uiState.skills_search_by_role || {};
+    return uiState.skills_search_by_role[roleId] || null;
+}
+function saveSkillsSearchState(block) {
+    var roleId = block.closest('.role-content') ? block.closest('.role-content').id : 'global';
+    uiState.skills_search_by_role = uiState.skills_search_by_role || {};
+    var expVals = getSkillsSearchFilterValue(block, 'exp');
+    var state = {
+        period: block.dataset.period || 'all',
+        exp: Array.isArray(expVals) ? expVals : (expVals ? [expVals] : []),
+        status: getSkillsSearchFilterValue(block, 'status') || 'all',
+        currency: getSkillsSearchFilterValue(block, 'currency') || 'all',
+        sort: getSkillsSearchFilterValue(block, 'sort') || 'count',
+        logic: getSkillsSearchFilterValue(block, 'logic') || 'or',
+        includeSkills: Array.from(block.querySelectorAll('.skills-search-skill.active')).map(b => b.dataset.skill || b.textContent.trim()),
+        excludeSkills: Array.from(block.querySelectorAll('.skills-search-skill.excluded')).map(b => b.dataset.skill || b.textContent.trim()),
+        collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
+    };
+    uiState.skills_search_by_role[roleId] = state;
+}
+function applySkillsSearchState(block, state) {
+    if (!state) return;
+    var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
+    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
+    var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
+    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
+    var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
+    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
+
+    if (periodDd) setSkillsSearchDropdownValue(periodDd, state.period || 'all');
+    if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || 'all');
+    if (currencyDd) setSkillsSearchDropdownValue(currencyDd, state.currency || 'all');
+    if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
+    if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
+    if (expDd && Array.isArray(state.exp)) setSkillsSearchDropdownMulti(expDd, state.exp);
+
+    if (state.collapsed) {
+        var panel = block.querySelector('.skills-search-panel');
+        var toggle = block.querySelector('.skills-search-toggle');
+        if (panel && toggle) {
+            panel.classList.add('collapsed');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.innerHTML = '&#9660;';
+        }
+    }
+
+        var include = (state.includeSkills || []).map(normalizeSkillName);
+        var exclude = (state.excludeSkills || []).map(normalizeSkillName);
+        var btns = block.querySelectorAll('.skills-search-skill');
+        btns.forEach(btn => {
+            var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
+            if (include.indexOf(key) >= 0) btn.classList.add('active');
+            if (exclude.indexOf(key) >= 0) btn.classList.add('excluded');
+        });
+    block.dataset.period = state.period || 'all';
+}
+function setSkillsSearchDropdownValue(dropdown, value) {
+    var btn = dropdown.querySelector('.skills-search-dropdown-btn');
+    if (!btn) return;
+    var label = dropdown.dataset.label || '';
+    var item = dropdown.querySelector('.skills-search-dropdown-item[data-value="' + value + '"]');
+    var text = item ? item.textContent : 'Все';
+    btn.dataset.value = value;
+    btn.textContent = label ? (label + ': ' + text) : text;
+}
+function setSkillsSearchDropdownMulti(dropdown, values) {
+    var vals = (values || []).slice();
+    dropdown.dataset.values = JSON.stringify(vals);
+    var items = dropdown.querySelectorAll('.skills-search-dropdown-item');
+    items.forEach(it => {
+        var v = it.dataset.value || 'all';
+        if (v === 'all') it.classList.toggle('active', vals.length === 0);
+        else it.classList.toggle('active', vals.indexOf(v) >= 0);
+    });
+    var btn = dropdown.querySelector('.skills-search-dropdown-btn');
+    var label = dropdown.dataset.label || '';
+    if (btn) {
+        if (!vals.length) {
+            btn.dataset.value = 'all';
+            btn.textContent = label ? (label + ': Все') : 'Все';
+        } else if (vals.length <= 2) {
+            btn.dataset.value = vals.join(',');
+            btn.textContent = label ? (label + ': ' + vals.join(', ')) : vals.join(', ');
+        } else {
+            btn.dataset.value = vals.join(',');
+            btn.textContent = label ? (label + ': ' + vals.length) : String(vals.length);
+        }
+    }
 }
 
 function normalizeActivityControls(parentRole) {

@@ -13,11 +13,22 @@ function buildVacancyTableHtml(vacancies) {
             ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
             : '—';
         var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
+        var employerCell = formatCell(v.employer);
+        if (v.employer) {
+            employerCell = '<button class="employer-link" type="button" ' +
+                'data-employer="' + escapeHtml(v.employer) + '" ' +
+                'data-accredited="' + escapeHtml(v.employer_accredited) + '" ' +
+                'data-rating="' + escapeHtml(v.employer_rating) + '" ' +
+                'data-trusted="' + escapeHtml(v.employer_trusted) + '" ' +
+                'data-url="' + escapeHtml(v.employer_url) + '">' +
+                escapeHtml(v.employer) +
+            '</button>';
+        }
         return '<tr>' +
             '<td>' + idCell + '</td>' +
             (showRole ? '<td>' + roleCell + '</td>' : '') +
             '<td>' + formatCell(v.name) + '</td>' +
-            '<td>' + formatCell(v.employer) + '</td>' +
+            '<td>' + employerCell + '</td>' +
             '<td>' + formatCell(v.city) + '</td>' +
             '<td>' + formatCell(v.salary_from) + '</td>' +
             '<td>' + formatCell(v.salary_to) + '</td>' +
@@ -806,6 +817,37 @@ function openVacancyModal(withList, withoutList, contextHtml) {
 }
 function closeVacancyModal() {
     var backdrop = document.getElementById('vacancy-modal-backdrop');
+    if (!backdrop) return;
+    backdrop.style.display = 'none';
+    document.body.style.overflow = '';
+}
+function openEmployerModal(data) {
+    var backdrop = document.getElementById('employer-modal-backdrop');
+    var body = document.getElementById('employer-modal-body');
+    if (!backdrop || !body) return;
+
+    var name = data.name || '—';
+    var accredited = String(data.accredited || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
+    var trusted = String(data.trusted || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
+    var rating = data.rating ? escapeHtml(String(data.rating)) : '—';
+    var url = data.url ? escapeHtml(String(data.url)) : '';
+
+    var linkHtml = url ? ('<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">Открыть страницу компании</a>') : '—';
+
+    body.innerHTML =
+        '<div class=\"employer-modal-grid\">' +
+            '<div class=\"employer-modal-row\"><span>Компания</span><strong>' + escapeHtml(name) + '</strong></div>' +
+            '<div class=\"employer-modal-row\"><span>Аккредитация</span><strong>' + accredited + '</strong></div>' +
+            '<div class=\"employer-modal-row\"><span>Рейтинг</span><strong>' + rating + '</strong></div>' +
+            '<div class=\"employer-modal-row\"><span>Доверие</span><strong>' + trusted + '</strong></div>' +
+            '<div class=\"employer-modal-row\"><span>Ссылка</span><strong>' + linkHtml + '</strong></div>' +
+        '</div>';
+
+    backdrop.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeEmployerModal() {
+    var backdrop = document.getElementById('employer-modal-backdrop');
     if (!backdrop) return;
     backdrop.style.display = 'none';
     document.body.style.overflow = '';

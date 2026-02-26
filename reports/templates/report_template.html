@@ -235,13 +235,26 @@
                 <div class="skills-search-panel-header">
                     <button class="skills-search-toggle" type="button" aria-expanded="true">&#9650;</button>
                     <button class="skills-search-select-all" type="button">&#1042;&#1099;&#1073;&#1088;&#1072;&#1090;&#1100; &#1074;&#1089;&#1077;</button>
+                    <div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">
+                        <button class="skills-search-dropdown-btn" type="button" data-value="or">??????</button>
+                        <div class="skills-search-dropdown-menu"></div>
+                    </div>
+                    <div class="skills-search-dropdown skills-search-sort-inline" data-filter="sort">
+                        <button class="skills-search-dropdown-btn" type="button" data-value="count">??????????</button>
+                        <div class="skills-search-dropdown-menu"></div>
+                    </div>
+                    <button class="skills-search-clear" type="button">&#10005;</button>
+                    <div class="skills-search-summary-line"></div>
+                </div>
+                    </div>
+                    <div class="skills-search-summary-line"></div>
                     <button class="skills-search-clear" type="button">&#10005;</button>
                 </div>
                 <div class="skills-search-buttons"></div>
             </div>
             <div class="skills-search-filter-bar">
                 <div class="skills-search-dropdown" data-filter="period">
-                    <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">&#10005;</button>
                     <div class="skills-search-dropdown-menu"></div>
                 </div>
                 <div class="skills-search-dropdown" data-filter="exp" data-multi="1">
@@ -249,13 +262,14 @@
                     <div class="skills-search-dropdown-menu"></div>
                 </div>
                 <div class="skills-search-dropdown" data-filter="status">
-                    <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">&#10005;</button>
                     <div class="skills-search-dropdown-menu"></div>
                 </div>
                 <div class="skills-search-dropdown" data-filter="currency">
-                    <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                    <button class="skills-search-dropdown-btn" type="button" data-value="all">&#10005;</button>
                     <div class="skills-search-dropdown-menu"></div>
                 </div>
+                <button class="skills-search-reset-all" type="button">???????? ???</button>
             </div>
             <div class="skills-search-results">
                 <div class="skills-search-hint">&#1042;&#1099;&#1073;&#1077;&#1088;&#1080;&#1090;&#1077; &#1085;&#1072;&#1074;&#1099;&#1082;&#1080;, &#1095;&#1090;&#1086;&#1073;&#1099; &#1091;&#1074;&#1080;&#1076;&#1077;&#1090;&#1100; &#1074;&#1072;&#1082;&#1072;&#1085;&#1089;&#1080;&#1080;</div>
@@ -447,6 +461,16 @@
             </div>
             <div id="vacancy-modal-context" class="vacancy-modal-context"></div>
             <div id="vacancy-modal-body" class="vacancy-modal-body"></div>
+        </div>
+    </div>
+
+    <div id="employer-modal-backdrop" class="employer-modal-backdrop" style="display: none;">
+        <div class="employer-modal" role="dialog" aria-modal="true" aria-labelledby="employer-modal-title">
+            <div class="employer-modal-header">
+                <div id="employer-modal-title" class="employer-modal-title">&#1056;&#1072;&#1073;&#1086;&#1090;&#1086;&#1076;&#1072;&#1090;&#1077;&#1083;&#1100;</div>
+                <button type="button" class="employer-modal-close" aria-label="&#1047;&#1072;&#1082;&#1088;&#1099;&#1090;&#1100;">&#215;</button>
+            </div>
+            <div id="employer-modal-body" class="employer-modal-body"></div>
         </div>
     </div>
 </body>
