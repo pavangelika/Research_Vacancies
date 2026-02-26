@@ -1215,8 +1215,58 @@ tr:hover { background-color: #f0f4f9; }
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 8px;
+}
+.skills-search-summary-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    text-align: left;
+}
+.skills-search-summary-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.skills-search-summary-label,
+.skills-search-summary-sep {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+.skills-search-summary-skill {
+    border: 1px solid var(--border-light);
+    background: var(--surface-variant);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.skills-search-summary-skill.include {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+.skills-search-summary-skill.exclude {
+    background: #fce8e8;
+    border-color: #e08a8a;
+    color: #8c2f2f;
+}
+.skills-search-summary-skill:hover {
+    background: var(--tab-hover-bg);
+}
+.skills-search-summary-remove {
+    font-size: 0.75rem;
+    opacity: 0.7;
 }
 .skills-search-summary-line {
     margin-left: 8px;
@@ -1235,21 +1285,29 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-panel.collapsed .skills-search-buttons {
     display: none;
 }
-.skills-search-toggle {
+.skills-search-toggle,
+.skills-search-select-all,
+.skills-search-clear,
+.skills-search-dropdown-btn {
     background: var(--surface-variant);
     border: 1px solid var(--border-light);
     color: var(--text-secondary);
     border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.skills-search-toggle {
     width: 30px;
     height: 30px;
     padding: 0;
-    cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
-.skills-search-toggle:hover {
+.skills-search-toggle:hover,
+.skills-search-select-all:hover,
+.skills-search-clear:hover,
+.skills-search-dropdown-btn:hover {
     background: var(--tab-hover-bg);
     color: var(--text-primary);
 }
@@ -1276,31 +1334,9 @@ tr:hover { background-color: #f0f4f9; }
     font-weight: 600;
     color: var(--text-primary);
 }
-.skills-search-clear {
-    background: var(--surface-variant);
-    border: 1px solid var(--border-light);
-    color: var(--text-secondary);
-    border-radius: 999px;
-    padding: 6px 12px;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
+.skills-search-clear,
 .skills-search-select-all {
-    background: var(--surface-variant);
-    border: 1px solid var(--border-light);
-    color: var(--text-secondary);
-    border-radius: 999px;
     padding: 6px 12px;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-.skills-search-clear:hover {
-    background: var(--tab-hover-bg);
-    color: var(--text-primary);
-}
-.skills-search-select-all:hover {
-    background: var(--tab-hover-bg);
-    color: var(--text-primary);
 }
 .skills-search-buttons {
     display: flex;
@@ -1355,18 +1391,9 @@ tr:hover { background-color: #f0f4f9; }
     position: relative;
 }
 .skills-search-dropdown-btn {
-    border: 1px solid var(--border-light);
-    background: var(--surface);
-    border-radius: 999px;
     padding: 6px 12px;
     font-size: 0.85rem;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
     white-space: nowrap;
-}
-.skills-search-dropdown-btn:hover {
-    background: var(--tab-hover-bg);
 }
 .skills-search-dropdown-menu {
     position: absolute;
@@ -1403,18 +1430,4 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-dropdown-item.active {
     background: var(--surface-variant);
     font-weight: 600;
-}
-.skills-search-reset-all {
-    border: 1px solid var(--border-light);
-    background: var(--surface);
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
-}
-.skills-search-reset-all:hover {
-    background: var(--tab-hover-bg);
-    color: var(--text-primary);
 }

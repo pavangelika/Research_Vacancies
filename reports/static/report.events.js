@@ -96,6 +96,25 @@ document.addEventListener('click', function(e) {
 });
 
 document.addEventListener('click', function(e) {
+    var summaryBtn = e.target.closest('.skills-search-summary-skill');
+    if (!summaryBtn) return;
+    e.preventDefault();
+    var block = summaryBtn.closest('.skills-search-content');
+    if (!block) return;
+    var mode = summaryBtn.dataset.mode || 'include';
+    var skill = summaryBtn.dataset.skill || '';
+    var skillNorm = normalizeSkillName(skill);
+    var btns = block.querySelectorAll('.skills-search-skill');
+    btns.forEach(function(btn) {
+        var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
+        if (key !== skillNorm) return;
+        if (mode === 'exclude') btn.classList.remove('excluded');
+        else btn.classList.remove('active');
+    });
+    updateSkillsSearchResults(block);
+});
+
+document.addEventListener('click', function(e) {
     var skillBtn = e.target.closest('.skills-search-skill');
     if (!skillBtn) return;
     skillBtn.classList.toggle('active');
@@ -224,29 +243,6 @@ document.addEventListener('click', function(e) {
 document.addEventListener('click', function(e) {
     if (e.target.closest('.skills-search-dropdown')) return;
     document.querySelectorAll('.skills-search-dropdown.open').forEach(d => d.classList.remove('open'));
-});
-
-document.addEventListener('click', function(e) {
-    var resetBtn = e.target.closest('.skills-search-reset-all');
-    if (!resetBtn) return;
-    var block = resetBtn.closest('.skills-search-content');
-    if (!block) return;
-    var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
-    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
-    var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
-    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
-    var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
-    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
-
-    if (periodDd) setSkillsSearchDropdownValue(periodDd, 'all');
-    if (statusDd) setSkillsSearchDropdownValue(statusDd, 'all');
-    if (currencyDd) setSkillsSearchDropdownValue(currencyDd, 'all');
-    if (sortDd) setSkillsSearchDropdownValue(sortDd, 'count');
-    if (logicDd) setSkillsSearchDropdownValue(logicDd, 'or');
-    if (expDd) setSkillsSearchDropdownMulti(expDd, []);
-    block.dataset.period = 'all';
-
-    updateSkillsSearchData(block);
 });
 
 document.addEventListener('keydown', function(e) {

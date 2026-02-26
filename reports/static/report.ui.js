@@ -497,10 +497,27 @@ function updateSkillsSearchSummaryLine(block) {
         .map(b => (b.dataset.skill || b.textContent || '').trim());
     var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
         .map(b => (b.dataset.skill || b.textContent || '').trim());
-    var parts = [];
-    if (selected.length) parts.push('Включено: ' + selected.join(', '));
-    if (excluded.length) parts.push('Исключено: ' + excluded.join(', '));
-    summary.textContent = parts.length ? parts.join(' · ') : 'Навыки не выбраны';
+    if (!selected.length && !excluded.length) {
+        summary.textContent = 'Навыки не выбраны';
+        return;
+    }
+    function buildGroup(label, items, mode) {
+        var buttons = items.map(s => (
+            '<button class="skills-search-summary-skill ' + mode + '" type="button" data-mode="' + mode + '" data-skill="' + escapeHtml(s) + '">' +
+                '<span class="skills-search-summary-skill-label">' + escapeHtml(s) + '</span>' +
+                '<span class="skills-search-summary-remove" aria-hidden="true">×</span>' +
+            '</button>'
+        )).join('');
+        return '<span class="skills-search-summary-group">' +
+            '<span class="skills-search-summary-label">' + escapeHtml(label) + ':</span>' +
+            buttons +
+        '</span>';
+    }
+    var html = '';
+    if (selected.length) html += buildGroup('Включено', selected, 'include');
+    if (selected.length && excluded.length) html += '<span class="skills-search-summary-sep">·</span>';
+    if (excluded.length) html += buildGroup('Исключено', excluded, 'exclude');
+    summary.innerHTML = html;
 }
 
 function getSkillsSearchState(block) {
