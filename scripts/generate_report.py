@@ -1,9 +1,10 @@
-from datetime import datetime
+﻿from datetime import datetime
 import os
 import json
 import psycopg2
 import shutil
 import logging
+import urllib.request
 from jinja2 import Environment, FileSystemLoader
 from collections import defaultdict
 import json as json_lib  # для сериализации данных графиков
@@ -24,6 +25,62 @@ def load_roles_mapping(json_path):
                 mapping[role_id] = role_name
     logging.info(f"Loaded {len(mapping)} role mappings from JSON")
     return mapping
+
+
+def load_hh_areas(cache_path):
+    if os.path.exists(cache_path):
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    url = 'https://api.hh.ru/areas'
+    logging.info(f"Fetching HH areas from {url}")
+    with urllib.request.urlopen(url) as resp:
+        raw = resp.read().decode('utf-8')
+    data = json.loads(raw)
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    with open(cache_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False)
+    return data
+
+
+def build_city_country_map(areas):
+    def _norm_city(name):
+        return name.strip().casefold() if isinstance(name, str) else ''
+
+    city_to_countries = defaultdict(set)
+    country_names = set()
+
+    def walk(area, country_name):
+        if not area:
+            return
+        name = area.get('name')
+        if name:
+            city_to_countries[_norm_city(name)].add(country_name)
+        for child in area.get('areas') or []:
+            walk(child, country_name)
+
+    for country in areas or []:
+        cname = country.get('name')
+        if not cname:
+            continue
+        if cname == '?????? ???????':
+            def add_all_as_countries(area):
+                if not area:
+                    return
+                name = area.get('name')
+                if name:
+                    country_names.add(name)
+                country_names.add(_norm_city(name))
+                for child in area.get('areas') or []:
+                    add_all_as_countries(child)
+
+            for child in country.get('areas') or []:
+                add_all_as_countries(child)
+                walk(child, child.get('name') or '')
+            continue
+        country_names.add(cname)
+        walk(country, cname)
+
+    return city_to_countries, country_names
 
 def get_db_connection():
     """Устанавливает соединение с PostgreSQL."""
@@ -1082,6 +1139,14 @@ def fetch_salary_data(mapping):
         'KGS': 0.011
     }
 
+    areas_cache = os.path.join('reports', 'hh_areas.json')
+    try:
+        areas_data = load_hh_areas(areas_cache)
+        city_country_map, country_names = build_city_country_map(areas_data)
+    except Exception as e:
+        logging.warning(f'Failed to load HH areas: {e}')
+        city_country_map, country_names = {}, set()
+
     vacancies_by_role = defaultdict(list)
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
@@ -1113,6 +1178,15 @@ def fetch_salary_data(mapping):
             rate = currency_rates.get(currency, 1.0)
             converted_salary = calculated_salary if currency in ('RUR', 'USD') else calculated_salary * rate
 
+        country = None
+        if city and city_country_map:
+            city_norm = city.strip().casefold()
+            countries = city_country_map.get(city_norm)
+            if countries and len(countries) == 1:
+                country = next(iter(countries))
+            elif city_norm in country_names:
+                country = city
+
         published_iso = published_at.isoformat() if published_at else None
         archived_iso = archived_at.isoformat() if archived_at else None
         vacancy_obj = {
@@ -1120,6 +1194,7 @@ def fetch_salary_data(mapping):
             'name': name,
             'employer': employer,
             'city': city,
+            'country': country,
             'salary_from': salary_from,
             'salary_to': salary_to,
             'currency': currency,

@@ -212,7 +212,6 @@ function initSkillsSearch(parentRole) {
         var skills = computeSalarySkillsFromVacancies(vacanciesSource, 50);
         if (!block.dataset.skillsCountLogged) {
             var allSkills = computeSalarySkillsFromVacancies(vacanciesSource, 0);
-            console.log('[skills-search] total skills', allSkills.length);
             block.dataset.skillsCountLogged = '1';
         }
         var months = [];
@@ -307,6 +306,21 @@ function initSkillsSearch(parentRole) {
         currencyDropdown.dataset.ready = '1';
         block.dataset.currency = 'all';
         setSkillsSearchDropdownValue(currencyDropdown, 'all');
+    }
+
+    var countryDropdown = block.querySelector('.skills-search-dropdown[data-filter=\"country\"]');
+    if (countryDropdown && !countryDropdown.dataset.ready) {
+        var countrySet = new Set();
+        (block._data && block._data.vacancies || []).forEach(v => {
+            if (v && v.country) countrySet.add(v.country);
+        });
+        var countryList = Array.from(countrySet).sort((a, b) => a.localeCompare(b));
+        var countryItems = countryList.map(x => ({ value: x, label: x }));
+        countryItems.push({ value: 'none', label: '\u041d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430' });
+        renderSkillsSearchDropdown(countryDropdown, countryItems, '\u0421\u0442\u0440\u0430\u043d\u0430', '\u0412\u0441\u0435', false, true);
+        countryDropdown.dataset.ready = '1';
+        block.dataset.country = 'all';
+        setSkillsSearchDropdownValue(countryDropdown, 'all');
     }
 
     var sortDropdown = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
@@ -484,6 +498,7 @@ function updateSkillsSearchData(block) {
         }
     }
     var statusVal = getSkillsSearchFilterValue(block, 'status');
+    var countryVal = getSkillsSearchFilterValue(block, 'country');
     var currencyVal = getSkillsSearchFilterValue(block, 'currency');
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
     var currencyVals = [];
@@ -509,8 +524,16 @@ function updateSkillsSearchData(block) {
             }
         }
         if (statusVal !== 'all') {
-            var status = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
+            var status = v._status || (v.archived_at ? '????????' : '????????');
             if (status !== statusVal) return false;
+        }
+        if (countryVal !== 'all') {
+            var country = v.country || '';
+            if (countryVal === 'none') {
+                if (country) return false;
+            } else if (country !== countryVal) {
+                return false;
+            }
         }
           var selectedCurrencies = (currencyVals && currencyVals.length) ? currencyVals : null;
           if (selectedCurrencies && selectedCurrencies.length) {
@@ -644,6 +667,7 @@ function saveSkillsSearchState(block) {
         period: block.dataset.period || 'all',
         exp: Array.isArray(expVals) ? expVals : (expVals ? [expVals] : []),
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
+        country: getSkillsSearchFilterValue(block, 'country') || 'all',
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
         sort: getSkillsSearchFilterValue(block, 'sort') || 'count',
         logic: getSkillsSearchFilterValue(block, 'logic') || 'or',
@@ -658,12 +682,14 @@ function applySkillsSearchState(block, state) {
     var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
     var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
     var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
+    var countryDd = block.querySelector('.skills-search-dropdown[data-filter="country"]');
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
     var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
     var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
 
     if (periodDd) setSkillsSearchDropdownValue(periodDd, state.period || 'all');
     if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || 'all');
+    if (countryDd) setSkillsSearchDropdownValue(countryDd, state.country || 'all');
     if (currencyDd) {
         if (Array.isArray(state.currency)) setSkillsSearchDropdownMulti(currencyDd, state.currency);
         else setSkillsSearchDropdownValue(currencyDd, state.currency || 'all');
