@@ -750,12 +750,291 @@ function setSkillsSearchDropdownMulti(dropdown, values) {
     }
 }
 
+function buildActivityTableHtml(entries) {
+    var rows = (entries || []).map(function(e) {
+        var cls = e.is_max_archived ? ' class="max-archived"' : '';
+        var avg = (e.avg_age !== null && e.avg_age !== undefined) ? Number(e.avg_age).toFixed(1) : '—';
+        return '<tr' + cls + '>' +
+            '<td>' + escapeHtml(e.experience) + '</td>' +
+            '<td>' + (e.total || 0) + '</td>' +
+            '<td>' + (e.archived || 0) + '</td>' +
+            '<td>' + (e.active || 0) + '</td>' +
+            '<td>' + avg + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<table>' +
+        '<thead><tr><th>Опыт</th><th>Всего</th><th>Архивных</th><th>Активных</th><th>Ср. возраст (дни)</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+    '</table>';
+}
+
+function buildActivityBlock(parentRole, blockId, label, entries) {
+    var block = document.createElement('div');
+    block.id = blockId;
+    block.className = 'month-content activity-only';
+    block.dataset.month = label;
+    block.dataset.entries = JSON.stringify(entries || []);
+    block._data = { entries: entries || [], month: label };
+    block.innerHTML =
+        '<div class="view-toggle-horizontal">' +
+            '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
+            '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
+            '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+        '</div>' +
+        '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
+            '<div class="table-container">' +
+                buildActivityTableHtml(entries || []) +
+            '</div>' +
+            '<div class="plotly-graph" id="activity-graph-' + blockId.replace('month-', '') + '"></div>' +
+        '</div>';
+
+    var firstMonth = parentRole.querySelector('.month-content.activity-only');
+    if (firstMonth) parentRole.insertBefore(block, firstMonth);
+    else parentRole.appendChild(block);
+    return block;
+}
+
+function aggregateActivityEntries(entries) {
+    var expOrder = getExperienceOrder();
+    var labels = getExperienceLabels();
+    var expMap = {};
+    (entries || []).forEach(function(e) {
+        var expNorm = normalizeExperience(e.experience);
+        if (!expNorm || expNorm === labels.total) return;
+        var bucket = expMap[expNorm] || { experience: expNorm, total: 0, archived: 0, active: 0, ageSum: 0, ageWeight: 0 };
+        bucket.total += e.total || 0;
+        bucket.archived += e.archived || 0;
+        bucket.active += e.active || 0;
+        if (e.avg_age !== null && e.avg_age !== undefined) {
+            var weight = e.total || 0;
+            bucket.ageSum += Number(e.avg_age) * weight;
+            bucket.ageWeight += weight;
+        }
+        expMap[expNorm] = bucket;
+    });
+
+    var rows = Object.values(expMap).map(function(b) {
+        return {
+            experience: b.experience,
+            total: b.total,
+            archived: b.archived,
+            active: b.active,
+            avg_age: b.ageWeight ? (b.ageSum / b.ageWeight) : null
+        };
+    });
+    rows.sort(function(a, b) { return (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99); });
+
+    var maxArchived = 0;
+    var maxAge = null;
+    rows.forEach(function(e) {
+        if (e.archived > maxArchived) maxArchived = e.archived;
+        if (e.avg_age !== null && e.avg_age !== undefined) {
+            if (maxAge === null || e.avg_age > maxAge) maxAge = e.avg_age;
+        }
+    });
+    rows.forEach(function(e) {
+        e.is_max_archived = e.archived === maxArchived;
+        e.is_max_age = (maxAge !== null && e.avg_age === maxAge);
+    });
+
+    var totalEntry = {
+        experience: labels.total,
+        total: rows.reduce((s, e) => s + (e.total || 0), 0),
+        archived: rows.reduce((s, e) => s + (e.archived || 0), 0),
+        active: rows.reduce((s, e) => s + (e.active || 0), 0),
+        avg_age: null,
+        is_max_archived: false,
+        is_max_age: false
+    };
+    var ageVals = rows.map(e => e.avg_age).filter(v => v !== null && v !== undefined);
+    if (ageVals.length) {
+        totalEntry.avg_age = ageVals.reduce((s, v) => s + v, 0) / ageVals.length;
+    }
+    rows.push(totalEntry);
+
+    if (!rows.length) {
+        return [totalEntry];
+    }
+    return rows;
+}
+
+function computeActivityEntriesFromVacancies(vacancies) {
+    var expOrder = getExperienceOrder();
+    var labels = getExperienceLabels();
+    var expMap = {};
+    (vacancies || []).forEach(function(v) {
+        if (!v) return;
+        var exp = normalizeExperience(v._experience || v.experience || '');
+        if (!exp) exp = 'Не указан';
+        var bucket = expMap[exp] || { experience: exp, total: 0, archived: 0, active: 0, ageSum: 0, ageCount: 0 };
+        bucket.total += 1;
+
+        var status = String(v._status || '').toLowerCase();
+        var isArchived = status.indexOf('архив') >= 0 || !!v.archived_at;
+        if (isArchived) bucket.archived += 1;
+        else bucket.active += 1;
+
+        if (isArchived && v.published_at && v.archived_at) {
+            var pub = new Date(v.published_at);
+            var arch = new Date(v.archived_at);
+            if (!isNaN(pub) && !isNaN(arch)) {
+                var diffMs = arch - pub;
+                if (diffMs >= 0) {
+                    bucket.ageSum += diffMs / (1000 * 60 * 60 * 24);
+                    bucket.ageCount += 1;
+                }
+            }
+        }
+        expMap[exp] = bucket;
+    });
+
+    var rows = Object.values(expMap).map(function(b) {
+        return {
+            experience: b.experience,
+            total: b.total,
+            archived: b.archived,
+            active: b.active,
+            avg_age: b.ageCount ? (b.ageSum / b.ageCount) : null
+        };
+    });
+    rows.sort(function(a, b) { return (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99); });
+
+    var maxArchived = 0;
+    var maxAge = null;
+    rows.forEach(function(e) {
+        if (e.archived > maxArchived) maxArchived = e.archived;
+        if (e.avg_age !== null && e.avg_age !== undefined) {
+            if (maxAge === null || e.avg_age > maxAge) maxAge = e.avg_age;
+        }
+    });
+    rows.forEach(function(e) {
+        e.is_max_archived = e.archived === maxArchived;
+        e.is_max_age = (maxAge !== null && e.avg_age === maxAge);
+    });
+
+    var totalEntry = {
+        experience: labels.total,
+        total: rows.reduce((s, e) => s + (e.total || 0), 0),
+        archived: rows.reduce((s, e) => s + (e.archived || 0), 0),
+        active: rows.reduce((s, e) => s + (e.active || 0), 0),
+        avg_age: null,
+        is_max_archived: false,
+        is_max_age: false
+    };
+    var ageVals = rows.map(e => e.avg_age).filter(v => v !== null && v !== undefined);
+    if (ageVals.length) {
+        totalEntry.avg_age = ageVals.reduce((s, v) => s + v, 0) / ageVals.length;
+    }
+    rows.push(totalEntry);
+
+    if (!rows.length) {
+        return [totalEntry];
+    }
+    return rows;
+}
+
+function ensureActivityQuickFilters(parentRole, controlRow) {
+    if (!parentRole || parentRole.dataset.activityFiltersReady === '1') return;
+    var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only.activity-month-tabs')
+        || parentRole.querySelector('.tabs.month-tabs.activity-only:not(.activity-filter-tabs)');
+    if (!monthTabs) return;
+    monthTabs.classList.add('activity-month-tabs');
+    var filterTabs = parentRole.querySelector('.activity-filter-tabs');
+    if (filterTabs && filterTabs.parentElement) {
+        filterTabs.remove();
+    }
+
+    var monthBlocks = Array.from(parentRole.querySelectorAll('.month-content.activity-only'));
+    var monthByLabel = {};
+    monthBlocks.forEach(function(b) {
+        if (b.dataset.month) monthByLabel[b.dataset.month] = b;
+    });
+
+    var realMonthBlocks = monthBlocks.filter(function(b) {
+        return b.dataset.month && /^\d{4}-\d{2}$/.test(b.dataset.month);
+    }).sort(function(a, b) {
+        return a.dataset.month.localeCompare(b.dataset.month);
+    });
+
+    var summaryBlock = monthBlocks.find(function(b) {
+        return isSummaryMonth(b.dataset.month);
+    }) || null;
+
+    function addFilter(label, block, suffix, entries) {
+        var target = block;
+        if (!target) {
+            target = buildActivityBlock(parentRole, 'month-' + parentRole.id + '-filter-' + suffix, label, entries || []);
+            monthByLabel[label] = target;
+        }
+        var btn = document.createElement('button');
+        btn.className = 'tab-button month-button activity-filter-button activity-quick-filter';
+        btn.textContent = label;
+        btn.addEventListener('click', function(e) {
+            openMonthTab(e, target.id);
+        });
+        monthTabs.insertBefore(btn, monthTabs.firstChild);
+    }
+
+    var vacancies = getRoleVacancies(parentRole);
+    function filterVacanciesByDays(days) {
+        var now = new Date();
+        var since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        return (vacancies || []).filter(function(v) {
+            if (!v || !v.published_at) return false;
+            var d = new Date(v.published_at);
+            return !isNaN(d) && d >= since;
+        });
+    }
+
+    var entries3 = computeActivityEntriesFromVacancies(filterVacanciesByDays(3));
+    var entries7 = computeActivityEntriesFromVacancies(filterVacanciesByDays(7));
+    var entries14 = computeActivityEntriesFromVacancies(filterVacanciesByDays(14));
+    addFilter('За 14 дней', monthByLabel['За 14 дней'], '14d', entries14);
+    addFilter('За 7 дней', monthByLabel['За 7 дней'], '7d', entries7);
+    addFilter('За 3 дня', monthByLabel['За 3 дня'], '3d', entries3);
+
+    var emptyEntries = computeActivityEntriesFromVacancies([]);
+    var summaryLabel = null;
+    var summaryTarget = summaryBlock;
+    var summaryEntries = summaryBlock ? parseJsonDataset(summaryBlock, 'entries', []) : null;
+    if (!summaryTarget) {
+        var allEntriesRaw = [];
+        realMonthBlocks.forEach(function(b) {
+            allEntriesRaw = allEntriesRaw.concat(parseJsonDataset(b, 'entries', []));
+        });
+        summaryEntries = allEntriesRaw.length ? aggregateActivityEntries(allEntriesRaw) : emptyEntries;
+        summaryLabel = formatMonthTitle(realMonthBlocks.length);
+        summaryTarget = buildActivityBlock(parentRole, 'month-' + parentRole.id + '-filter-summary', summaryLabel, summaryEntries);
+    } else {
+        summaryLabel = summaryTarget.dataset.month;
+    }
+
+    var summaryBtn = Array.from(monthTabs.querySelectorAll('.month-button')).find(function(btn) {
+        return isSummaryMonth((btn.textContent || '').trim());
+    });
+    if (!summaryBtn) {
+        summaryBtn = document.createElement('button');
+        summaryBtn.className = 'tab-button month-button';
+        summaryBtn.textContent = summaryLabel;
+        summaryBtn.addEventListener('click', function(e) {
+            openMonthTab(e, summaryTarget.id);
+        });
+        monthTabs.appendChild(summaryBtn);
+    } else {
+        monthTabs.appendChild(summaryBtn);
+    }
+
+    parentRole.dataset.activityFiltersReady = '1';
+}
+
 function normalizeActivityControls(parentRole) {
     if (!parentRole) return;
     var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
     if (!monthTabs) return;
 
-    sortActivityMonthsNewestFirst(parentRole, monthTabs);
+    if (!monthTabs.classList.contains('activity-month-tabs') && !monthTabs.classList.contains('activity-filter-tabs')) {
+        monthTabs.classList.add('activity-month-tabs');
+    }
 
     var controlRow = parentRole.querySelector('.activity-control-row');
     if (!controlRow) {
@@ -765,6 +1044,10 @@ function normalizeActivityControls(parentRole) {
     }
     controlRow.classList.add('skills-control-row');
     if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
+
+    ensureActivityQuickFilters(parentRole, controlRow);
+
+    sortActivityMonthsNewestFirst(parentRole, monthTabs);
 
     var inlineToggle = controlRow.querySelector('.activity-mode-toggle-inline');
     if (!inlineToggle) {
@@ -808,12 +1091,26 @@ function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
     if (!parentRole || !monthTabs || monthTabs.dataset.sorted === '1') return;
     var buttons = Array.from(monthTabs.querySelectorAll('.month-button'));
     if (!buttons.length) return;
-    buttons.sort(function(a, b) {
+    var quick = buttons.filter(b => b.classList.contains('activity-quick-filter'));
+    var summary = buttons.filter(b => /^За\s+\d+\s+месяц/.test((b.textContent || '').trim()));
+    var months = buttons.filter(b => /^\d{4}-\d{2}$/.test((b.textContent || '').trim()));
+    var other = buttons.filter(b => quick.indexOf(b) < 0 && summary.indexOf(b) < 0 && months.indexOf(b) < 0);
+
+    var quickOrder = { 'За 3 дня': 1, 'За 7 дней': 2, 'За 14 дней': 3 };
+    quick.sort(function(a, b) {
+        var am = (a.textContent || '').trim();
+        var bm = (b.textContent || '').trim();
+        return (quickOrder[am] || 99) - (quickOrder[bm] || 99);
+    });
+
+    months.sort(function(a, b) {
         var am = (a.textContent || '').trim();
         var bm = (b.textContent || '').trim();
         return bm.localeCompare(am);
     });
-    buttons.forEach(function(btn) { monthTabs.appendChild(btn); });
+
+    var ordered = quick.concat(months, summary, other);
+    ordered.forEach(function(btn) { monthTabs.appendChild(btn); });
     monthTabs.dataset.sorted = '1';
 }
 
