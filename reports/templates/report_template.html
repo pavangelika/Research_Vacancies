@@ -43,7 +43,8 @@
 
     {% for role in roles %}
     {% set role_index = loop.index %}
-    <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">
+    <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}"
+         data-vacancies='{{ role.vacancies | tojson if role.vacancies else "[]" }}'>
         <h2>{{ role.name }} [ID: {{ role.id }}]</h2>
 
         <!-- Вкладки выбора анализа (4) -->

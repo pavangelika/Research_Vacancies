@@ -178,6 +178,10 @@ function getRoleSalaryData(roleContent) {
     if (!salaryBlock) return [];
     return parseJsonDataset(salaryBlock, 'salary', []);
 }
+function getRoleVacancies(roleContent) {
+    if (!roleContent) return [];
+    return parseJsonDataset(roleContent, 'vacancies', []);
+}
 function getRoleWeekdayData(roleContent) {
     var weekdayBlock = roleContent.querySelector('.weekday-content');
     if (!weekdayBlock) return [];

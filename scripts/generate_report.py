@@ -1082,6 +1082,7 @@ def fetch_salary_data(mapping):
         'KGS': 0.011
     }
 
+    vacancies_by_role = defaultdict(list)
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
          skills, requirement, responsibility, apply_alternate_url, role_id,
@@ -1128,6 +1129,9 @@ def fetch_salary_data(mapping):
             'archived_at': archived_iso,
             'role_id': role_key,
             'role_name': role_name,
+            'experience': experience,
+            '_experience': experience,
+            '_status': status,
             'skills': skills,
             'requirement': requirement,
             'responsibility': responsibility,
@@ -1137,6 +1141,7 @@ def fetch_salary_data(mapping):
             'employer_trusted': trusted,
             'employer_url': employer_url
         }
+        vacancies_by_role[role_key].append(vacancy_obj)
 
         if has_salary:
             if display_currency is None:
@@ -1236,7 +1241,7 @@ def fetch_salary_data(mapping):
         result.append(role_data)
 
     result.sort(key=lambda x: x['name'])
-    return result
+    return result, vacancies_by_role
 
 def fetch_employer_analysis_data(mapping):
     conn = get_db_connection()
@@ -1338,7 +1343,7 @@ def fetch_employer_analysis_data(mapping):
     result.sort(key=lambda x: x['name'])
     return result
 
-def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data):
+def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data, vacancies_by_role):
     env = Environment(loader=FileSystemLoader('templates'))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
@@ -1349,6 +1354,7 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
     }
     for role in roles_data:
         role_id = role['id']
+        role['vacancies'] = vacancies_by_role.get(role_id, [])
         report_data['roles'][role_id] = {
             'trend': role['trend'],
             'weekdays': None,
@@ -1444,12 +1450,12 @@ def main():
     skills_monthly_data = fetch_skills_monthly_data(mapping)
 
     logging.info("Fetching salary data...")
-    salary_data = fetch_salary_data(mapping)
+    salary_data, vacancies_by_role = fetch_salary_data(mapping)
 
     logging.info("Fetching employer analysis data...")
     employer_analysis_data = fetch_employer_analysis_data(mapping)
 
-    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data)
+    html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data, vacancies_by_role)
     save_report(html)
     copy_styles()
     copy_js()
