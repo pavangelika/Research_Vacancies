@@ -164,6 +164,7 @@ function normalizeSalaryControls(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.salary-content');
     if (!block) return;
+    rebuildSalaryFromVacancies(parentRole, block);
     if (uiState.salary_view_mode === 'together') uiState.salary_view_mode = 'table';
     var monthTabs = block.querySelector('.salary-month-tabs');
     if (!monthTabs) {
@@ -221,7 +222,7 @@ function buildSalaryMonthFromVacancies(vacancies, label) {
         if (!v) return;
         var exp = normalizeExperience(v._experience || v.experience || '') || 'Не указан';
         var status = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
-        var currency = v.currency || 'RUR';
+        var currency = normalizeSalaryCurrencyBucket(v.currency);
         var key = status + '|' + currency;
         var bucketMap = expMap[exp] || {};
         var bucket = bucketMap[key] || { status: status, currency: currency, with: [], without: [] };
@@ -237,7 +238,75 @@ function buildSalaryMonthFromVacancies(vacancies, label) {
         return { experience: expName, entries: buildSalaryEntriesFromBuckets(expMap[expName]) };
     });
     experiences.sort((a, b) => (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99));
-    return { month: label, experiences: experiences };
+    var monthData = { month: label, experiences: experiences };
+    if (experiences.length) monthData.experiences = experiences.concat([buildSalarySummaryExp(monthData)]);
+    return monthData;
+}
+
+function normalizeSalaryCurrencyBucket(rawCurrency) {
+    var curr = String(rawCurrency || '').trim().toUpperCase();
+    if (!curr || curr === '—' || curr === '-') return '\u041d\u0435 \u0437\u0430\u043f\u043e\u043b\u043d\u0435\u043d\u0430';
+    if (curr === 'RUR' || curr === 'RUB') return 'RUR';
+    if (curr === 'USD') return 'USD';
+    if (curr === 'EUR') return 'EUR';
+    return '\u0414\u0440\u0443\u0433\u0430\u044f';
+}
+
+function buildSalaryMonthsFromVacancies(vacancies) {
+    var monthMap = {};
+    (vacancies || []).forEach(function(v) {
+        if (!v || !v.published_at) return;
+        var d = new Date(v.published_at);
+        if (isNaN(d)) return;
+        var month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (!monthMap[month]) monthMap[month] = [];
+        monthMap[month].push(v);
+    });
+
+    var months = Object.keys(monthMap).sort();
+    if (!months.length) return [];
+
+    var result = months.map(function(month) {
+        return buildSalaryMonthFromVacancies(monthMap[month], month);
+    });
+    result.unshift(buildSalaryMonthFromVacancies(vacancies, formatMonthTitle(months.length)));
+    return result;
+}
+
+function rebuildSalaryFromVacancies(parentRole, block) {
+    if (!parentRole || !block || block.dataset.salaryBuiltFromVacancies === '1') return;
+    var vacancies = getRoleVacancies(parentRole);
+    if (!vacancies || !vacancies.length) return;
+
+    var salaryMonths = buildSalaryMonthsFromVacancies(vacancies);
+    if (!salaryMonths.length) return;
+
+    var monthTabs = block.querySelector('.salary-month-tabs');
+    if (!monthTabs) {
+        monthTabs = document.createElement('div');
+        monthTabs.className = 'tabs salary-month-tabs';
+        monthTabs.style.justifyContent = 'center';
+        monthTabs.style.marginTop = '10px';
+        block.insertBefore(monthTabs, block.firstChild);
+    }
+
+    block.querySelectorAll('.salary-month-content').forEach(function(node) { node.remove(); });
+    monthTabs.innerHTML = '';
+
+    salaryMonths.forEach(function(monthData, idx) {
+        var suffix = 'vac-' + (idx + 1);
+        var monthId = buildSalaryMonthBlock(block, monthData, suffix, parentRole.id);
+        var btn = document.createElement('button');
+        btn.className = 'tab-button salary-month-button';
+        btn.textContent = monthData.month;
+        btn.addEventListener('click', function(e) { openSalaryMonthTab(e, monthId); });
+        monthTabs.appendChild(btn);
+    });
+
+    block._data = block._data || {};
+    block._data.salary = salaryMonths;
+    block.dataset.salaryBuiltFromVacancies = '1';
+    block.dataset.salaryFiltersReady = '0';
 }
 
 function buildSalaryMonthBlock(block, monthData, suffix, roleId) {

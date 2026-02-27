@@ -178,6 +178,9 @@ function getRoleSalaryData(roleContent) {
     if (!salaryBlock) return [];
     return parseJsonDataset(salaryBlock, 'salary', []);
 }
+function isSalarySummaryExperience(expName) {
+    return String(expName || '').trim().toLowerCase() === 'все';
+}
 function getRoleVacancies(roleContent) {
     if (!roleContent) return [];
     return parseJsonDataset(roleContent, 'vacancies', []);
@@ -392,7 +395,7 @@ function aggregateSkillsMonthly(roleContents) {
     return monthsList;
 }
 function computeSalaryValue(v, currency) {
-    if (currency === '%USD') {
+    if (currency === '%USD' || currency === '\u0414\u0440\u0443\u0433\u0430\u044f') {
         if (v.converted_salary !== null && v.converted_salary !== undefined) return Number(v.converted_salary);
     }
     if (v.calculated_salary !== null && v.calculated_salary !== undefined) return Number(v.calculated_salary);
@@ -1136,8 +1139,13 @@ function buildSkillsSummaryExp(monthData) {
     };
 }
 function buildSalarySummaryExp(monthData) {
+    var sourceExperiences = monthData && monthData.experiences ? monthData.experiences : [];
+    var experiences = sourceExperiences.filter(function(exp) {
+        return !isSalarySummaryExperience(exp && exp.experience);
+    });
+    if (!experiences.length) experiences = sourceExperiences;
     var buckets = {};
-    (monthData.experiences || []).forEach(exp => {
+    experiences.forEach(exp => {
         (exp.entries || []).forEach(entry => {
             var key = entry.status + '|' + entry.currency;
             var bucket = buckets[key] || { status: entry.status, currency: entry.currency, with: [], without: [] };
@@ -1145,6 +1153,10 @@ function buildSalarySummaryExp(monthData) {
             bucket.without = bucket.without.concat(entry.vacancies_without_salary_list || []);
             buckets[key] = bucket;
         });
+    });
+    Object.keys(buckets).forEach(function(key) {
+        buckets[key].with = dedupeVacanciesById(buckets[key].with);
+        buckets[key].without = dedupeVacanciesById(buckets[key].without);
     });
     return {
         experience: 'Все',

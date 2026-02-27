@@ -370,6 +370,7 @@ function addSummaryTabs(root) {
         if (monthDiv.querySelector('.salary-exp-button[data-summary="1"]')) return;
         var monthData = (monthDiv._data && monthDiv._data.month) ? monthDiv._data.month : parseJsonDataset(monthDiv, 'month', {});
         if (!monthData || !monthData.experiences) return;
+        if ((monthData.experiences || []).some(function(exp) { return isSalarySummaryExperience(exp && exp.experience); })) return;
         var expTabs = monthDiv.querySelector('.salary-exp-tabs');
         if (!expTabs) return;
         var expIndex = (monthData.experiences.length || 0) + 1;

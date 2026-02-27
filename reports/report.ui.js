@@ -45,6 +45,23 @@ function updateViewToggleIcons(root) {
         }
     });
 }
+function registerSkillDisplayName(rawSkill) {
+    var raw = String(rawSkill || '').trim();
+    if (!raw) return '';
+    var key = normalizeSkillName(raw);
+    if (!key) return raw;
+    if (!uiState.global_skill_case_map) uiState.global_skill_case_map = {};
+    if (!uiState.global_skill_case_map[key]) uiState.global_skill_case_map[key] = raw;
+    return uiState.global_skill_case_map[key];
+}
+function getSkillDisplayName(rawSkill) {
+    var raw = String(rawSkill || '').trim();
+    if (!raw) return '';
+    var key = normalizeSkillName(raw);
+    if (!key) return raw;
+    if (uiState.global_skill_case_map && uiState.global_skill_case_map[key]) return uiState.global_skill_case_map[key];
+    return raw;
+}
 function applySalaryStatusIcons(root) {
     var scope = root || document;
     var rows = scope.querySelectorAll('.salary-content .salary-row');
@@ -147,6 +164,7 @@ function normalizeSalaryControls(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.salary-content');
     if (!block) return;
+    rebuildSalaryFromVacancies(parentRole, block);
     if (uiState.salary_view_mode === 'together') uiState.salary_view_mode = 'table';
     var monthTabs = block.querySelector('.salary-month-tabs');
     if (!monthTabs) {
@@ -204,7 +222,7 @@ function buildSalaryMonthFromVacancies(vacancies, label) {
         if (!v) return;
         var exp = normalizeExperience(v._experience || v.experience || '') || 'Не указан';
         var status = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
-        var currency = v.currency || 'RUR';
+        var currency = normalizeSalaryCurrencyBucket(v.currency);
         var key = status + '|' + currency;
         var bucketMap = expMap[exp] || {};
         var bucket = bucketMap[key] || { status: status, currency: currency, with: [], without: [] };
@@ -220,7 +238,75 @@ function buildSalaryMonthFromVacancies(vacancies, label) {
         return { experience: expName, entries: buildSalaryEntriesFromBuckets(expMap[expName]) };
     });
     experiences.sort((a, b) => (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99));
-    return { month: label, experiences: experiences };
+    var monthData = { month: label, experiences: experiences };
+    if (experiences.length) monthData.experiences = experiences.concat([buildSalarySummaryExp(monthData)]);
+    return monthData;
+}
+
+function normalizeSalaryCurrencyBucket(rawCurrency) {
+    var curr = String(rawCurrency || '').trim().toUpperCase();
+    if (!curr || curr === '—' || curr === '-') return '\u041d\u0435 \u0437\u0430\u043f\u043e\u043b\u043d\u0435\u043d\u0430';
+    if (curr === 'RUR' || curr === 'RUB') return 'RUR';
+    if (curr === 'USD') return 'USD';
+    if (curr === 'EUR') return 'EUR';
+    return '\u0414\u0440\u0443\u0433\u0430\u044f';
+}
+
+function buildSalaryMonthsFromVacancies(vacancies) {
+    var monthMap = {};
+    (vacancies || []).forEach(function(v) {
+        if (!v || !v.published_at) return;
+        var d = new Date(v.published_at);
+        if (isNaN(d)) return;
+        var month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (!monthMap[month]) monthMap[month] = [];
+        monthMap[month].push(v);
+    });
+
+    var months = Object.keys(monthMap).sort();
+    if (!months.length) return [];
+
+    var result = months.map(function(month) {
+        return buildSalaryMonthFromVacancies(monthMap[month], month);
+    });
+    result.unshift(buildSalaryMonthFromVacancies(vacancies, formatMonthTitle(months.length)));
+    return result;
+}
+
+function rebuildSalaryFromVacancies(parentRole, block) {
+    if (!parentRole || !block || block.dataset.salaryBuiltFromVacancies === '1') return;
+    var vacancies = getRoleVacancies(parentRole);
+    if (!vacancies || !vacancies.length) return;
+
+    var salaryMonths = buildSalaryMonthsFromVacancies(vacancies);
+    if (!salaryMonths.length) return;
+
+    var monthTabs = block.querySelector('.salary-month-tabs');
+    if (!monthTabs) {
+        monthTabs = document.createElement('div');
+        monthTabs.className = 'tabs salary-month-tabs';
+        monthTabs.style.justifyContent = 'center';
+        monthTabs.style.marginTop = '10px';
+        block.insertBefore(monthTabs, block.firstChild);
+    }
+
+    block.querySelectorAll('.salary-month-content').forEach(function(node) { node.remove(); });
+    monthTabs.innerHTML = '';
+
+    salaryMonths.forEach(function(monthData, idx) {
+        var suffix = 'vac-' + (idx + 1);
+        var monthId = buildSalaryMonthBlock(block, monthData, suffix, parentRole.id);
+        var btn = document.createElement('button');
+        btn.className = 'tab-button salary-month-button';
+        btn.textContent = monthData.month;
+        btn.addEventListener('click', function(e) { openSalaryMonthTab(e, monthId); });
+        monthTabs.appendChild(btn);
+    });
+
+    block._data = block._data || {};
+    block._data.salary = salaryMonths;
+    block.dataset.salaryBuiltFromVacancies = '1';
+    block.dataset.salaryFiltersReady = '0';
 }
 
 function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
@@ -514,7 +600,26 @@ function initSkillsSearch(parentRole) {
     }
 
     var saved = getSkillsSearchState(block);
-    if (saved) applySkillsSearchState(block, saved);
+    if (saved) {
+        applySkillsSearchState(block, saved);
+    } else {
+        var labels = getExperienceLabels();
+        if (periodDropdown) {
+            setSkillsSearchDropdownValue(periodDropdown, 'last_3');
+            block.dataset.period = 'last_3';
+        }
+        if (statusDropdown) {
+            setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
+            block.dataset.status = 'Открытая';
+        }
+        if (expDropdown) {
+            var wantedExp = [labels.threeToSix, labels.sixPlus];
+            var availableExp = wantedExp.filter(function(v) {
+                return !!expDropdown.querySelector('.skills-search-dropdown-item[data-value="' + v + '"]');
+            });
+            setSkillsSearchDropdownMulti(expDropdown, availableExp);
+        }
+    }
 
     var currentPeriod = block.dataset.period || 'all';
     applySkillsSearchPeriod(block, currentPeriod);
@@ -524,7 +629,10 @@ function renderSkillsSearchButtons(block, skillsList) {
     var buttonsWrap = block.querySelector('.skills-search-buttons');
     if (!buttonsWrap) return;
     var sortMode = getSkillsSearchFilterValue(block, 'sort');
-    var list = (skillsList || []).slice();
+    var list = (skillsList || []).slice().map(function(s) {
+        var displaySkill = registerSkillDisplayName(s.skill);
+        return Object.assign({}, s, { skill: displaySkill });
+    });
     if (sortMode === 'alpha') {
         list.sort((a, b) => a.skill.localeCompare(b.skill));
     }
@@ -827,7 +935,7 @@ function saveSkillsSearchState(block) {
     }
     var state = {
         period: block.dataset.period || 'all',
-        exp: Array.isArray(expVals) ? expVals : (expVals ? [expVals] : []),
+        exp: (!expVals || expVals === 'all') ? [] : (Array.isArray(expVals) ? expVals.filter(v => v && v !== 'all') : [expVals]),
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
         country: getSkillsSearchFilterValue(block, 'country') || 'all',
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
@@ -858,7 +966,10 @@ function applySkillsSearchState(block, state) {
     }
     if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
-    if (expDd && Array.isArray(state.exp)) setSkillsSearchDropdownMulti(expDd, state.exp);
+    if (expDd && Array.isArray(state.exp)) {
+        if (!state.exp.length || (state.exp.length === 1 && state.exp[0] === 'all')) setSkillsSearchDropdownMulti(expDd, []);
+        else setSkillsSearchDropdownMulti(expDd, state.exp.filter(v => v && v !== 'all'));
+    }
 
     if (state.collapsed) {
         var panel = block.querySelector('.skills-search-panel');
@@ -1349,9 +1460,24 @@ function normalizeSkillsMonthlyControls(parentRole) {
         if (!multiInput.dataset.bound) {
             multiInput.addEventListener('change', function() {
                 block.dataset.skillsMultiEnabled = multiInput.checked ? '1' : '0';
+                uiState.global_skills_multi_enabled = multiInput.checked;
                 if (!multiInput.checked) {
                     var visibleMonth = block.querySelector('.monthly-skills-month-content[style*="display: block"]');
                     if (!visibleMonth) return;
+                    var role = block.closest('.role-content');
+                    if (role) {
+                        var stateKey = getStateKey(role.id, 'skills-monthly');
+                        var savedState = uiState[stateKey] || {};
+                        delete savedState.exp_list;
+                        if (savedState.exp_by_month) {
+                            Object.keys(savedState.exp_by_month).forEach(function(k) {
+                                var bucket = savedState.exp_by_month[k];
+                                if (bucket) delete bucket.exp_list;
+                            });
+                        }
+                        uiState[stateKey] = savedState;
+                    }
+                    uiState.global_skills_exp_list = [];
                     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
                     var active = Array.from(expButtons).filter(b => b.classList.contains('active'));
                     if (active.length > 1) {
@@ -1415,6 +1541,7 @@ function aggregateSkillsExpData(expDivs, label) {
         if (!expData) return;
         totalVac += expData.total_vacancies || 0;
         (expData.skills || []).forEach(function(s) {
+            registerSkillDisplayName(s.skill);
             var key = normalizeSkillName(s.skill);
             if (!key) return;
             skillMap.set(key, (skillMap.get(key) || 0) + (s.count || 0));
@@ -1423,7 +1550,7 @@ function aggregateSkillsExpData(expDivs, label) {
     var skills = Array.from(skillMap.entries()).map(function(pair) {
         var count = pair[1] || 0;
         return {
-            skill: pair[0],
+            skill: getSkillDisplayName(pair[0]),
             count: count,
             coverage: totalVac ? Math.round((count * 10000) / totalVac) / 100 : 0,
             rank: 0
@@ -1441,7 +1568,8 @@ function renderSkillsExpContent(expDiv, expData) {
     var tableWrap = expDiv.querySelector('.table-container');
     if (tableWrap) {
         var rows = (expData.skills || []).map(function(s) {
-            return '<tr><td>' + escapeHtml(s.skill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
+            var displaySkill = registerSkillDisplayName(s.skill);
+            return '<tr><td>' + escapeHtml(displaySkill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
         }).join('');
         tableWrap.innerHTML =
             '<table>' +
@@ -1460,6 +1588,13 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
         var salaryMonths = getRoleSalaryData(parentRole);
         vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
     }
+    block.querySelectorAll('.monthly-skills-exp-content').forEach(function(expDiv) {
+        var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', null);
+        if (!expData || !Array.isArray(expData.skills)) return;
+        expData.skills.forEach(function(s) {
+            registerSkillDisplayName(s && s.skill ? s.skill : '');
+        });
+    });
 
     function filterVacanciesByDays(days) {
         var now = new Date();
@@ -1490,7 +1625,7 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
         var expOrder = getExperienceOrder();
         var exps = Object.values(expMap).map(function(b) {
             var skills = Array.from(b.skills.entries()).map(function(pair) {
-                return { skill: pair[0], count: pair[1], coverage: b.total_vacancies ? Math.round((pair[1] * 10000) / b.total_vacancies) / 100 : 0, rank: 0 };
+                return { skill: getSkillDisplayName(pair[0]), count: pair[1], coverage: b.total_vacancies ? Math.round((pair[1] * 10000) / b.total_vacancies) / 100 : 0, rank: 0 };
             });
             skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
             skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
@@ -2328,38 +2463,97 @@ function restoreExpInMonth(parentRole, roleId) {
     if (!visibleMonth) return;
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
-
-    if (uiState.global_skills_experience) {
-        for (var btn of expButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_experience) {
-                btn.click();
-                return;
-            }
-        }
-    }
+    var monthData = (visibleMonth._data && visibleMonth._data.month) ? visibleMonth._data.month : parseJsonDataset(visibleMonth, 'month', {});
+    var monthStr = monthData && monthData.month ? monthData.month : null;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey];
+    var savedByMonth = (saved && saved.exp_by_month && monthStr) ? saved.exp_by_month[monthStr] : null;
     var block = parentRole.querySelector('.skills-monthly-content');
     var multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
-    if (multiEnabled && saved && saved.exp_list && Array.isArray(saved.exp_list) && saved.exp_list.length) {
-        var clicked = false;
-        for (var btn of expButtons) {
-            if (saved.exp_list.indexOf(btn.textContent.trim()) >= 0) {
-                btn.click();
-                clicked = true;
+    var globalMultiEnabled = uiState.global_skills_multi_enabled === true;
+    if (block && globalMultiEnabled) block.dataset.skillsMultiEnabled = '1';
+    if (block && !globalMultiEnabled) block.dataset.skillsMultiEnabled = '0';
+    multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
+    var byMonthExpList = (savedByMonth && Array.isArray(savedByMonth.exp_list)) ? savedByMonth.exp_list.slice() : null;
+    var roleExpList = (saved && Array.isArray(saved.exp_list)) ? saved.exp_list.slice() : null;
+    var globalExpList = Array.isArray(uiState.global_skills_exp_list) ? uiState.global_skills_exp_list.slice() : [];
+    var effectiveExpList = (multiEnabled && globalExpList.length) ? globalExpList : (multiEnabled ? roleExpList : []);
+    var expContents = visibleMonth.querySelectorAll('.monthly-skills-exp-content');
+    var prevVisibility = visibleMonth.style.visibility;
+    visibleMonth.style.visibility = 'hidden';
+
+    expContents.forEach(function(content) { content.style.display = 'none'; });
+    expButtons.forEach(function(btn) { btn.classList.remove('active'); });
+    var multiDiv = document.getElementById(visibleMonth.id + '-exp-multi');
+    if (multiDiv) multiDiv.style.display = 'none';
+
+    if (effectiveExpList && effectiveExpList.length > 1) {
+        if (!multiEnabled) {
+            block.dataset.skillsMultiEnabled = '1';
+            multiEnabled = true;
+            var multiInput = parentRole.querySelector('.skills-multi-toggle-input');
+            if (multiInput) multiInput.checked = true;
+        }
+    }
+    if (block) block.dataset.skillsRestoreInProgress = '1';
+    try {
+        if (multiEnabled && effectiveExpList && effectiveExpList.length) {
+            var clickedByMonth = false;
+            for (var btn of expButtons) {
+                if (effectiveExpList.indexOf(btn.textContent.trim()) >= 0) {
+                    btn.click();
+                    clickedByMonth = true;
+                }
+            }
+            if (clickedByMonth) return;
+        }
+        if (uiState.global_skills_experience) {
+            for (var btn of expButtons) {
+                if (btn.textContent.trim() === uiState.global_skills_experience) {
+                    btn.click();
+                    return;
+                }
             }
         }
-        if (clicked) return;
-    }
-    if (saved && saved.experience) {
-        for (var btn of expButtons) {
-            if (btn.textContent.trim() === saved.experience) {
-                btn.click();
-                return;
+        if (multiEnabled && saved && saved.experience) {
+            for (var btn of expButtons) {
+                if (btn.textContent.trim() === saved.experience) {
+                    btn.click();
+                    return;
+                }
             }
         }
+        if (savedByMonth && savedByMonth.experience) {
+            for (var btn of expButtons) {
+                if (btn.textContent.trim() === savedByMonth.experience) {
+                    btn.click();
+                    return;
+                }
+            }
+        }
+        if (multiEnabled && byMonthExpList && byMonthExpList.length) {
+            var clicked = false;
+            for (var btn of expButtons) {
+                if (byMonthExpList.indexOf(btn.textContent.trim()) >= 0) {
+                    btn.click();
+                    clicked = true;
+                }
+            }
+            if (clicked) return;
+        }
+        if (saved && saved.experience) {
+            for (var btn of expButtons) {
+                if (btn.textContent.trim() === saved.experience) {
+                    btn.click();
+                    return;
+                }
+            }
+        }
+        expButtons[0].click();
+    } finally {
+        if (block && block.dataset.skillsRestoreInProgress === '1') delete block.dataset.skillsRestoreInProgress;
+        visibleMonth.style.visibility = prevVisibility;
     }
-    expButtons[0].click();
 }
 function openMonthlySkillsExpTab(evt, expId) {
     var parentMonth = evt.currentTarget.closest('.monthly-skills-month-content');
@@ -2369,12 +2563,12 @@ function openMonthlySkillsExpTab(evt, expId) {
     var expDiv = document.getElementById(expId);
     var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
     var experience = expData.experience;
+    var monthData = (parentMonth._data && parentMonth._data.month) ? parentMonth._data.month : parseJsonDataset(parentMonth, 'month', {});
+    var monthStr = monthData && monthData.month ? monthData.month : null;
 
-    uiState.global_skills_experience = experience;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
-    saved.experience = experience;
-    uiState[stateKey] = saved;
+    var isRestoring = block && block.dataset.skillsRestoreInProgress === '1';
 
     var expContents = parentMonth.getElementsByClassName("monthly-skills-exp-content");
     for (var i = 0; i < expContents.length; i++) {
@@ -2400,6 +2594,20 @@ function openMonthlySkillsExpTab(evt, expId) {
         evt.currentTarget.classList.add('active');
         selectedBtns = [evt.currentTarget];
     }
+    var selectedExp = selectedBtns.map(b => (b.textContent || '').trim());
+    uiState.global_skills_multi_enabled = multiEnabled;
+    uiState.global_skills_experience = selectedExp[0] || experience;
+    uiState.global_skills_exp_list = (multiEnabled && selectedExp.length > 1) ? selectedExp.slice() : [];
+    saved.experience = selectedExp[0] || experience;
+    if (selectedExp.length > 1 && multiEnabled) saved.exp_list = selectedExp.slice();
+    else if (!(isRestoring && multiEnabled)) delete saved.exp_list;
+    if (monthStr) {
+        if (!saved.exp_by_month) saved.exp_by_month = {};
+        saved.exp_by_month[monthStr] = { experience: selectedExp[0] || experience };
+        if (selectedExp.length > 1 && multiEnabled) saved.exp_by_month[monthStr].exp_list = selectedExp.slice();
+        else if (!(isRestoring && multiEnabled)) delete saved.exp_by_month[monthStr].exp_list;
+    }
+    uiState[stateKey] = saved;
 
     if (!multiEnabled || selectedBtns.length === 1) {
         expDiv.style.display = "block";
@@ -2429,8 +2637,6 @@ function openMonthlySkillsExpTab(evt, expId) {
         renderSkillsExpContent(multiDiv, agg);
         multiDiv.style.display = 'block';
         expDiv = multiDiv;
-        saved.exp_list = selectedBtns.map(b => (b.textContent || '').trim());
-        uiState[stateKey] = saved;
     }
 
     // Восстанавливаем режим для навыков
