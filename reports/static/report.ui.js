@@ -45,6 +45,23 @@ function updateViewToggleIcons(root) {
         }
     });
 }
+function registerSkillDisplayName(rawSkill) {
+    var raw = String(rawSkill || '').trim();
+    if (!raw) return '';
+    var key = normalizeSkillName(raw);
+    if (!key) return raw;
+    if (!uiState.global_skill_case_map) uiState.global_skill_case_map = {};
+    if (!uiState.global_skill_case_map[key]) uiState.global_skill_case_map[key] = raw;
+    return uiState.global_skill_case_map[key];
+}
+function getSkillDisplayName(rawSkill) {
+    var raw = String(rawSkill || '').trim();
+    if (!raw) return '';
+    var key = normalizeSkillName(raw);
+    if (!key) return raw;
+    if (uiState.global_skill_case_map && uiState.global_skill_case_map[key]) return uiState.global_skill_case_map[key];
+    return raw;
+}
 function applySalaryStatusIcons(root) {
     var scope = root || document;
     var rows = scope.querySelectorAll('.salary-content .salary-row');
@@ -514,7 +531,26 @@ function initSkillsSearch(parentRole) {
     }
 
     var saved = getSkillsSearchState(block);
-    if (saved) applySkillsSearchState(block, saved);
+    if (saved) {
+        applySkillsSearchState(block, saved);
+    } else {
+        var labels = getExperienceLabels();
+        if (periodDropdown) {
+            setSkillsSearchDropdownValue(periodDropdown, 'last_3');
+            block.dataset.period = 'last_3';
+        }
+        if (statusDropdown) {
+            setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
+            block.dataset.status = 'Открытая';
+        }
+        if (expDropdown) {
+            var wantedExp = [labels.threeToSix, labels.sixPlus];
+            var availableExp = wantedExp.filter(function(v) {
+                return !!expDropdown.querySelector('.skills-search-dropdown-item[data-value="' + v + '"]');
+            });
+            setSkillsSearchDropdownMulti(expDropdown, availableExp);
+        }
+    }
 
     var currentPeriod = block.dataset.period || 'all';
     applySkillsSearchPeriod(block, currentPeriod);
@@ -524,7 +560,10 @@ function renderSkillsSearchButtons(block, skillsList) {
     var buttonsWrap = block.querySelector('.skills-search-buttons');
     if (!buttonsWrap) return;
     var sortMode = getSkillsSearchFilterValue(block, 'sort');
-    var list = (skillsList || []).slice();
+    var list = (skillsList || []).slice().map(function(s) {
+        var displaySkill = registerSkillDisplayName(s.skill);
+        return Object.assign({}, s, { skill: displaySkill });
+    });
     if (sortMode === 'alpha') {
         list.sort((a, b) => a.skill.localeCompare(b.skill));
     }
@@ -827,7 +866,7 @@ function saveSkillsSearchState(block) {
     }
     var state = {
         period: block.dataset.period || 'all',
-        exp: Array.isArray(expVals) ? expVals : (expVals ? [expVals] : []),
+        exp: (!expVals || expVals === 'all') ? [] : (Array.isArray(expVals) ? expVals.filter(v => v && v !== 'all') : [expVals]),
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
         country: getSkillsSearchFilterValue(block, 'country') || 'all',
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
@@ -858,7 +897,10 @@ function applySkillsSearchState(block, state) {
     }
     if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
-    if (expDd && Array.isArray(state.exp)) setSkillsSearchDropdownMulti(expDd, state.exp);
+    if (expDd && Array.isArray(state.exp)) {
+        if (!state.exp.length || (state.exp.length === 1 && state.exp[0] === 'all')) setSkillsSearchDropdownMulti(expDd, []);
+        else setSkillsSearchDropdownMulti(expDd, state.exp.filter(v => v && v !== 'all'));
+    }
 
     if (state.collapsed) {
         var panel = block.querySelector('.skills-search-panel');
@@ -1430,6 +1472,7 @@ function aggregateSkillsExpData(expDivs, label) {
         if (!expData) return;
         totalVac += expData.total_vacancies || 0;
         (expData.skills || []).forEach(function(s) {
+            registerSkillDisplayName(s.skill);
             var key = normalizeSkillName(s.skill);
             if (!key) return;
             skillMap.set(key, (skillMap.get(key) || 0) + (s.count || 0));
@@ -1438,7 +1481,7 @@ function aggregateSkillsExpData(expDivs, label) {
     var skills = Array.from(skillMap.entries()).map(function(pair) {
         var count = pair[1] || 0;
         return {
-            skill: pair[0],
+            skill: getSkillDisplayName(pair[0]),
             count: count,
             coverage: totalVac ? Math.round((count * 10000) / totalVac) / 100 : 0,
             rank: 0
@@ -1456,7 +1499,8 @@ function renderSkillsExpContent(expDiv, expData) {
     var tableWrap = expDiv.querySelector('.table-container');
     if (tableWrap) {
         var rows = (expData.skills || []).map(function(s) {
-            return '<tr><td>' + escapeHtml(s.skill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
+            var displaySkill = registerSkillDisplayName(s.skill);
+            return '<tr><td>' + escapeHtml(displaySkill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
         }).join('');
         tableWrap.innerHTML =
             '<table>' +
@@ -1475,16 +1519,11 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
         var salaryMonths = getRoleSalaryData(parentRole);
         vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
     }
-    var skillCaseMap = new Map();
     block.querySelectorAll('.monthly-skills-exp-content').forEach(function(expDiv) {
         var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', null);
         if (!expData || !Array.isArray(expData.skills)) return;
         expData.skills.forEach(function(s) {
-            var raw = s && s.skill ? String(s.skill).trim() : '';
-            if (!raw) return;
-            var key = normalizeSkillName(raw);
-            if (!key) return;
-            if (!skillCaseMap.has(key)) skillCaseMap.set(key, raw);
+            registerSkillDisplayName(s && s.skill ? s.skill : '');
         });
     });
 
@@ -1517,7 +1556,7 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
         var expOrder = getExperienceOrder();
         var exps = Object.values(expMap).map(function(b) {
             var skills = Array.from(b.skills.entries()).map(function(pair) {
-                return { skill: skillCaseMap.get(pair[0]) || pair[0], count: pair[1], coverage: b.total_vacancies ? Math.round((pair[1] * 10000) / b.total_vacancies) / 100 : 0, rank: 0 };
+                return { skill: getSkillDisplayName(pair[0]), count: pair[1], coverage: b.total_vacancies ? Math.round((pair[1] * 10000) / b.total_vacancies) / 100 : 0, rank: 0 };
             });
             skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
             skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });

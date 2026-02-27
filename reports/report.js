@@ -30,6 +30,23 @@ function getAnalysisStateKey(roleId) {
 function getStateKey(roleId, analysisType) {
     return roleId + '_' + analysisType;
 }
+function registerSkillDisplayName(rawSkill) {
+    var raw = String(rawSkill || '').trim();
+    if (!raw) return '';
+    var key = normalizeSkillName(raw);
+    if (!key) return raw;
+    if (!uiState.global_skill_case_map) uiState.global_skill_case_map = {};
+    if (!uiState.global_skill_case_map[key]) uiState.global_skill_case_map[key] = raw;
+    return uiState.global_skill_case_map[key];
+}
+function getSkillDisplayName(rawSkill) {
+    var raw = String(rawSkill || '').trim();
+    if (!raw) return '';
+    var key = normalizeSkillName(raw);
+    if (!key) return raw;
+    if (uiState.global_skill_case_map && uiState.global_skill_case_map[key]) return uiState.global_skill_case_map[key];
+    return raw;
+}
 
 // ---------- Переключение ролей ----------
 function openRoleTab(evt, roleId) {
@@ -387,6 +404,7 @@ function aggregateSkillsExpData(expDivs, label) {
         if (!expData) return;
         totalVac += expData.total_vacancies || 0;
         (expData.skills || []).forEach(function(s) {
+            registerSkillDisplayName(s.skill);
             var key = normalizeSkillName(s.skill);
             if (!key) return;
             skillMap.set(key, (skillMap.get(key) || 0) + (s.count || 0));
@@ -395,7 +413,7 @@ function aggregateSkillsExpData(expDivs, label) {
     var skills = Array.from(skillMap.entries()).map(function(pair) {
         var count = pair[1] || 0;
         return {
-            skill: pair[0],
+            skill: getSkillDisplayName(pair[0]),
             count: count,
             coverage: totalVac ? Math.round((count * 10000) / totalVac) / 100 : 0,
             rank: 0
@@ -413,7 +431,8 @@ function renderSkillsExpContent(expDiv, expData) {
     var tableWrap = expDiv.querySelector('.table-container');
     if (tableWrap) {
         var rows = (expData.skills || []).map(function(s) {
-            return '<tr><td>' + escapeHtml(s.skill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
+            var displaySkill = registerSkillDisplayName(s.skill);
+            return '<tr><td>' + escapeHtml(displaySkill) + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
         }).join('');
         tableWrap.innerHTML =
             '<table>' +
@@ -1259,6 +1278,7 @@ function aggregateSkillsMonthly(roleContents) {
                 var bucket = byMonth[m.month][exp.experience] || { total: 0, skills: new Map() };
                 bucket.total += exp.total_vacancies || 0;
                 (exp.skills || []).forEach(s => {
+                    registerSkillDisplayName(s.skill);
                     bucket.skills.set(s.skill, (bucket.skills.get(s.skill) || 0) + (s.count || 0));
                 });
                 byMonth[m.month][exp.experience] = bucket;
@@ -1271,7 +1291,7 @@ function aggregateSkillsMonthly(roleContents) {
             var bucket = expMap[expName];
             var skills = Array.from(bucket.skills.entries()).map(([skill, count]) => {
                 return {
-                    skill: skill,
+                    skill: getSkillDisplayName(skill),
                     count: count,
                     coverage: bucket.total ? Math.round((count * 10000) / bucket.total) / 100 : 0,
                     rank: 0
@@ -1296,6 +1316,7 @@ function aggregateSkillsMonthly(roleContents) {
                 var bucket = agg[exp.experience] || { total: 0, skills: new Map() };
                 bucket.total += exp.total_vacancies || 0;
                 exp.skills.forEach(s => {
+                    registerSkillDisplayName(s.skill);
                     bucket.skills.set(s.skill, (bucket.skills.get(s.skill) || 0) + (s.count || 0));
                 });
                 agg[exp.experience] = bucket;
