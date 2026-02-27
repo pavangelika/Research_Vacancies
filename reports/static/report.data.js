@@ -440,7 +440,7 @@ function buildSalaryEntriesFromBuckets(bucketsByKey) {
             mode_salary: mode,
             min_salary: min,
             max_salary: max,
-            top_skills: buildTopSkills(b.with),
+            top_skills: buildTopSkills((b.with || []).concat(b.without || [])),
             vacancy_ids: [],
             vacancies_with_salary_list: b.with,
             vacancies_without_salary_list: b.without

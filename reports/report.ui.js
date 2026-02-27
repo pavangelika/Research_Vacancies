@@ -75,11 +75,11 @@ function applySalaryStatusIcons(root) {
         var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('архив') !== -1;
         var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('откры') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('актив') !== -1;
 
-        var icon = isArchived ? '🗄️' : (isOpen ? '✅' : null);
-        if (!icon) return;
+        var iconClass = isArchived ? 'status-icon-archived' : (isOpen ? 'status-icon-open' : null);
+        if (!iconClass) return;
 
         cell.classList.add('status-icon-cell');
-        cell.innerHTML = '<span class="status-icon" title="' + escapeHtml(raw) + '" aria-label="' + escapeHtml(raw) + '">' + icon + '</span>';
+        cell.innerHTML = '<span class="status-icon ' + iconClass + '" title="' + escapeHtml(raw) + '" aria-label="' + escapeHtml(raw) + '"></span>';
     });
 }
 
@@ -309,6 +309,58 @@ function rebuildSalaryFromVacancies(parentRole, block) {
     block.dataset.salaryFiltersReady = '0';
 }
 
+function buildSalaryTablesHtml(entries) {
+    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
+    var coverageTotal = 0;
+    (entries || []).forEach(function(entry) {
+        if (!entry) return;
+        var count = Number(entry.total_vacancies) || 0;
+        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Другая';
+        coverageMap[currency] += count;
+        coverageTotal += count;
+    });
+    function pct(value) {
+        return coverageTotal ? (Math.round((value * 10000) / coverageTotal) / 100) + '%' : '0%';
+    }
+    var coverageRows = '<tr>' +
+        '<td>' + coverageTotal + '</td>' +
+        '<td>' + coverageMap['RUR'] + ' (' + pct(coverageMap['RUR']) + ')</td>' +
+        '<td>' + coverageMap['USD'] + ' (' + pct(coverageMap['USD']) + ')</td>' +
+        '<td>' + coverageMap['EUR'] + ' (' + pct(coverageMap['EUR']) + ')</td>' +
+        '<td>' + coverageMap['Другая'] + ' (' + pct(coverageMap['Другая']) + ')</td>' +
+        '<td>' + coverageMap['Не заполнена'] + ' (' + pct(coverageMap['Не заполнена']) + ')</td>' +
+    '</tr>';
+    var statsRows = (entries || []).map(function(entry) {
+        return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
+            '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
+            '<td>' + entry.currency + '</td>' +
+            '<td>' + entry.total_vacancies + '</td>' +
+            '<td>' + Math.round(entry.avg_salary) + '</td>' +
+            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+            '<td>' + Math.round(entry.min_salary) + '</td>' +
+            '<td>' + Math.round(entry.max_salary) + '</td>' +
+            '<td>' + entry.top_skills + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<div class="salary-split-tables">' +
+        '<div style="overflow-x: auto; margin-bottom: 16px;">' +
+            '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
+            '<table>' +
+                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
+                '<tbody>' + coverageRows + '</tbody>' +
+            '</table>' +
+        '</div>' +
+        '<div style="overflow-x: auto;">' +
+            '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
+            '<table>' +
+                '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                '<tbody>' + statsRows + '</tbody>' +
+            '</table>' +
+        '</div>' +
+    '</div>';
+}
+
 function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
     var monthId = 'sal-month-' + roleId + '-filter-' + suffix;
     if (document.getElementById(monthId)) return monthId;
@@ -340,32 +392,11 @@ function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
         expDiv.dataset.exp = JSON.stringify(exp);
         expDiv._data = { exp: exp };
 
-        var rowsHtml = (exp.entries || []).map(function(entry) {
-            return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
-                '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
-                '<td>' + entry.currency + '</td>' +
-                '<td>' + entry.total_vacancies + '</td>' +
-                '<td>' + entry.vacancies_with_salary + '</td>' +
-                '<td>' + entry.salary_percentage + '%</td>' +
-                '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
-                '<td>' + Math.round(entry.min_salary) + '</td>' +
-                '<td>' + Math.round(entry.max_salary) + '</td>' +
-                '<td>' + entry.top_skills + '</td>' +
-            '</tr>';
-        }).join('');
-
         expDiv.innerHTML =
             '<div class="salary-display-flex" data-exp-index="' + (idx + 1) + '">' +
                 '<div class="salary-main-content">' +
                     '<div class="salary-table-container">' +
-                        '<div style="overflow-x: auto;">' +
-                            '<table>' +
-                                '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
-                                '<tbody>' + rowsHtml + '</tbody>' +
-                            '</table>' +
-                        '</div>' +
+                        buildSalaryTablesHtml(exp.entries || []) +
                     '</div>' +
                     '<div class="salary-graph-container">' +
                         '<div class="plotly-graph" id="salary-graph-' + expId.replace('sal-exp-', '') + '"></div>' +

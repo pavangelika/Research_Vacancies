@@ -60,6 +60,64 @@ function buildVacancyTableHtml(vacancies) {
         '</table>' +
     '</div>';
 }
+function buildSalaryTablesHtml(entries) {
+    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
+    var coverageTotal = 0;
+    (entries || []).forEach(function(entry) {
+        if (!entry) return;
+        var count = Number(entry.total_vacancies) || 0;
+        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Другая';
+        coverageMap[currency] += count;
+        coverageTotal += count;
+    });
+    function pct(value) {
+        return coverageTotal ? (Math.round((value * 10000) / coverageTotal) / 100) + '%' : '0%';
+    }
+    var coverageRows = '<tr>' +
+        '<td>' + coverageTotal + '</td>' +
+        '<td>' + coverageMap['RUR'] + ' (' + pct(coverageMap['RUR']) + ')</td>' +
+        '<td>' + coverageMap['USD'] + ' (' + pct(coverageMap['USD']) + ')</td>' +
+        '<td>' + coverageMap['EUR'] + ' (' + pct(coverageMap['EUR']) + ')</td>' +
+        '<td>' + coverageMap['Другая'] + ' (' + pct(coverageMap['Другая']) + ')</td>' +
+        '<td>' + coverageMap['Не заполнена'] + ' (' + pct(coverageMap['Не заполнена']) + ')</td>' +
+    '</tr>';
+    var statsRows = (entries || []).map(function(entry) {
+        return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
+            '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
+            '<td>' + entry.currency + '</td>' +
+            '<td>' + entry.total_vacancies + '</td>' +
+            '<td>' + Math.round(entry.avg_salary) + '</td>' +
+            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+            '<td>' + Math.round(entry.min_salary) + '</td>' +
+            '<td>' + Math.round(entry.max_salary) + '</td>' +
+            '<td>' + entry.top_skills + '</td>' +
+        '</tr>';
+    }).join('');
+
+    return '<div class="salary-split-tables">' +
+        '<div style="overflow-x: auto; margin-bottom: 16px;">' +
+            '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
+            '<table>' +
+                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
+                '<tbody>' + coverageRows + '</tbody>' +
+            '</table>' +
+        '</div>' +
+        '<div style="overflow-x: auto;">' +
+            '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
+            '<table>' +
+                '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                '<tbody>' + statsRows + '</tbody>' +
+            '</table>' +
+        '</div>' +
+    '</div>';
+}
+function applySalaryTablesMarkup(expDiv, entries) {
+    if (!expDiv) return;
+    var tableContainer = expDiv.querySelector('.salary-table-container');
+    if (!tableContainer) return;
+    tableContainer.innerHTML = buildSalaryTablesHtml(entries || []);
+}
 function renderVacancyDetails(container, withList, withoutList) {
     var withCount = (withList || []).length;
     var withoutCount = (withoutList || []).length;
@@ -425,6 +483,7 @@ function addSummaryTabs(root) {
                     '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
                 '</div>' +
             '</div>';
+        applySalaryTablesMarkup(expDiv, summaryExp.entries || []);
         monthDiv.appendChild(expDiv);
 
         var rows = expDiv.querySelectorAll('.salary-row');
@@ -664,6 +723,7 @@ function renderCombinedContainer(container, roleContents) {
         expBlocks.forEach((expBlock, j) => {
             var expData = (salaryMonths[i] && salaryMonths[i].experiences) ? salaryMonths[i].experiences[j] : {};
             expBlock._data = { exp: expData };
+            applySalaryTablesMarkup(expBlock, expData.entries || []);
             var rows = expBlock.querySelectorAll('.salary-row');
             rows.forEach((row, k) => {
                 var entry = (expData.entries || [])[k] || {};

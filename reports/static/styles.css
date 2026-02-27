@@ -1446,3 +1446,356 @@ tr:hover { background-color: #f0f4f9; }
     background: var(--surface-variant);
     font-weight: 600;
 }
+
+/* iOS-like visual refresh */
+:root {
+    --bg-body: #eef3f9;
+    --surface: rgba(255, 255, 255, 0.88);
+    --surface-variant: #f3f6fb;
+    --border-light: rgba(148, 163, 184, 0.24);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --primary: #0a84ff;
+    --primary-light: #5ac8fa;
+    --primary-dark: #0066cc;
+    --tab-inactive: #526075;
+    --tab-active-bg: #0a84ff;
+    --tab-hover-bg: #e9eef7;
+    --shadow-light: 0 10px 24px rgba(15, 23, 42, 0.06);
+    --shadow-medium: 0 16px 36px rgba(15, 23, 42, 0.08);
+    --shadow-card: 0 24px 60px rgba(15, 23, 42, 0.08);
+    --border-radius-card: 24px;
+    --border-radius-tab: 16px;
+}
+
+body {
+    background:
+        radial-gradient(circle at top left, rgba(90, 200, 250, 0.16), transparent 30%),
+        radial-gradient(circle at top right, rgba(10, 132, 255, 0.1), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, #eef3f9 100%);
+    letter-spacing: -0.01em;
+}
+
+.tabs,
+.role-content,
+.table-container > div,
+.salary-table-container > div,
+.vacancy-modal,
+.employer-modal {
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+.tabs {
+    border: 1px solid var(--border-light);
+}
+
+.tab-button {
+    border-radius: 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.tab-button.active {
+    background: linear-gradient(180deg, #3da2ff 0%, #0a84ff 100%);
+}
+
+.role-content {
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.view-toggle-horizontal,
+.salary-view-toggle,
+.employer-view-toggle {
+    padding: 4px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--border-light);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.view-mode-btn {
+    min-height: 34px;
+    min-width: 88px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    box-shadow: none;
+    font-size: 0;
+    color: transparent;
+}
+
+.view-mode-btn::before {
+    display: inline-block;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: -0.01em;
+    content: attr(title);
+}
+
+.view-mode-btn[data-view="table"]::before { content: "Таблица"; }
+.view-mode-btn[data-view="graph"]::before { content: "График"; }
+.view-mode-btn[data-view="together"]::before { content: "Вместе"; }
+
+.view-mode-btn:hover {
+    background: rgba(226, 232, 240, 0.64);
+}
+
+.view-mode-btn.active {
+    background: linear-gradient(180deg, #3da2ff 0%, #0a84ff 100%);
+    border-color: rgba(10, 132, 255, 0.08);
+    box-shadow: 0 8px 18px rgba(10, 132, 255, 0.24);
+}
+
+.view-mode-btn.active::before {
+    color: #ffffff;
+}
+
+.status-icon-cell {
+    width: 44px;
+}
+
+.status-icon.status-icon-open,
+.status-icon.status-icon-archived {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border-radius: 999px;
+    font-size: 0;
+    color: transparent;
+}
+
+.status-icon.status-icon-open {
+    background: rgba(52, 199, 89, 0.16);
+    border: 1px solid rgba(52, 199, 89, 0.28);
+}
+
+.status-icon.status-icon-open::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    border-radius: 999px;
+    background: #34c759;
+}
+
+.status-icon.status-icon-archived {
+    background: rgba(100, 116, 139, 0.1);
+    border: 1px solid rgba(100, 116, 139, 0.24);
+}
+
+.status-icon.status-icon-archived::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 999px;
+    border: 2px solid #64748b;
+}
+
+.status-icon:not(.status-icon-open):not(.status-icon-archived) {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    border: 0;
+    background: transparent;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: var(--shadow-light);
+}
+
+th {
+    background: #f6f8fc;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: none;
+}
+
+td {
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+tbody tr:hover {
+    background: rgba(10, 132, 255, 0.05);
+}
+
+/* Restore default theme, keep status markers */
+:root {
+    --bg-body: #f5f7fa;
+    --surface: #ffffff;
+    --surface-variant: #edf0f5;
+    --border-light: #dde3e9;
+    --text-primary: #2c3e50;
+    --text-secondary: #5e7a93;
+    --primary: #3a6b92;
+    --primary-light: #5f8db0;
+    --primary-dark: #2a4b6a;
+    --tab-inactive: #6c859e;
+    --tab-active-bg: #2c3e50;
+    --tab-active-text: #ffffff;
+    --tab-hover-bg: #e2e9f0;
+    --shadow-light: 0 1px 4px rgba(0, 0, 0, 0.04);
+    --shadow-medium: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --border-radius-card: 12px;
+    --border-radius-tab: 20px;
+}
+
+body {
+    background: var(--bg-body);
+    letter-spacing: normal;
+}
+
+.tabs,
+.role-content,
+.table-container > div,
+.salary-table-container > div,
+.vacancy-modal,
+.employer-modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.tabs {
+    border: 0;
+}
+
+.tab-button {
+    border-radius: var(--border-radius-tab);
+    font-weight: 500;
+    letter-spacing: normal;
+}
+
+.tab-button.active {
+    background: var(--tab-active-bg);
+}
+
+.role-content {
+    border: 0;
+}
+
+.view-toggle-horizontal,
+.salary-view-toggle,
+.employer-view-toggle {
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.view-mode-btn {
+    min-height: 0;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: none;
+    background: var(--surface-variant);
+    box-shadow: var(--shadow-light);
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+}
+
+.view-mode-btn::before {
+    content: none;
+    display: none;
+}
+
+.view-mode-btn:hover {
+    background: var(--border-light);
+}
+
+.view-mode-btn.active {
+    background: var(--primary);
+    border: none;
+    box-shadow: var(--shadow-medium);
+}
+
+.view-mode-btn.active::before {
+    color: inherit;
+}
+
+.status-icon-cell {
+    width: auto;
+}
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+}
+
+th {
+    background: transparent;
+    color: inherit;
+    font-weight: 600;
+    font-size: inherit;
+}
+
+td {
+    border-top: 0;
+}
+
+tbody tr:hover {
+    background: var(--tab-hover-bg);
+}
+
+/* Restore original button colors */
+.tab-button {
+    background: transparent;
+    color: var(--tab-inactive);
+}
+
+.tab-button:hover {
+    background-color: var(--tab-hover-bg);
+    color: var(--tab-inactive);
+}
+
+.tab-button.active {
+    background-color: var(--tab-active-bg);
+    color: var(--tab-active-text);
+}
+
+.analysis-button.active {
+    background-color: var(--primary-dark);
+    color: #ffffff;
+}
+
+.month-button.active,
+.monthly-skills-month-button.active,
+.monthly-skills-exp-button.active,
+.salary-month-button.active,
+.salary-exp-button.active {
+    background-color: var(--primary-light);
+    color: #ffffff;
+}
+
+.view-mode-btn {
+    color: var(--text-secondary);
+}
+
+.view-mode-btn:hover {
+    background: var(--border-light);
+    color: var(--text-secondary);
+}
+
+.view-mode-btn.active {
+    background: var(--primary);
+    color: #ffffff;
+}
