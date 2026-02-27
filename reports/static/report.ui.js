@@ -162,6 +162,9 @@ function normalizeSalaryControls(parentRole) {
     }
     if (monthTabs.parentElement !== controlRow) controlRow.appendChild(monthTabs);
 
+    ensureSalaryQuickFilters(parentRole, block, monthTabs);
+    sortSalaryMonths(monthTabs);
+
     var inlineToggle = controlRow.querySelector('.salary-mode-toggle-inline');
     if (!inlineToggle) {
         inlineToggle = document.createElement('div');
@@ -192,6 +195,167 @@ function normalizeSalaryControls(parentRole) {
 
     setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'table');
     updateViewToggleIcons(block);
+}
+
+function buildSalaryMonthFromVacancies(vacancies, label) {
+    var expOrder = getExperienceOrder();
+    var expMap = {};
+    (vacancies || []).forEach(function(v) {
+        if (!v) return;
+        var exp = normalizeExperience(v._experience || v.experience || '') || 'Не указан';
+        var status = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
+        var currency = v.currency || 'RUR';
+        var key = status + '|' + currency;
+        var bucketMap = expMap[exp] || {};
+        var bucket = bucketMap[key] || { status: status, currency: currency, with: [], without: [] };
+        var hasSalary = v.salary_from !== null && v.salary_from !== undefined;
+        if (!hasSalary && v.salary_to !== null && v.salary_to !== undefined) hasSalary = true;
+        if (hasSalary) bucket.with.push(v);
+        else bucket.without.push(v);
+        bucketMap[key] = bucket;
+        expMap[exp] = bucketMap;
+    });
+
+    var experiences = Object.keys(expMap).map(function(expName) {
+        return { experience: expName, entries: buildSalaryEntriesFromBuckets(expMap[expName]) };
+    });
+    experiences.sort((a, b) => (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99));
+    return { month: label, experiences: experiences };
+}
+
+function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
+    var monthId = 'sal-month-' + roleId + '-filter-' + suffix;
+    if (document.getElementById(monthId)) return monthId;
+    var monthDiv = document.createElement('div');
+    monthDiv.id = monthId;
+    monthDiv.className = 'salary-month-content';
+    monthDiv.style.display = 'none';
+    monthDiv.dataset.month = JSON.stringify(monthData);
+    monthDiv._data = { month: monthData };
+
+    var expTabs = document.createElement('div');
+    expTabs.className = 'tabs salary-exp-tabs';
+    expTabs.style.justifyContent = 'center';
+    expTabs.style.marginTop = '5px';
+    monthDiv.appendChild(expTabs);
+
+    (monthData.experiences || []).forEach(function(exp, idx) {
+        var expId = 'sal-exp-' + roleId + '-filter-' + suffix + '-' + (idx + 1);
+        var btn = document.createElement('button');
+        btn.className = 'tab-button salary-exp-button';
+        btn.textContent = exp.experience;
+        btn.addEventListener('click', function(e) { openSalaryExpTab(e, expId); });
+        expTabs.appendChild(btn);
+
+        var expDiv = document.createElement('div');
+        expDiv.id = expId;
+        expDiv.className = 'salary-exp-content';
+        expDiv.style.display = 'none';
+        expDiv.dataset.exp = JSON.stringify(exp);
+        expDiv._data = { exp: exp };
+
+        var rowsHtml = (exp.entries || []).map(function(entry) {
+            return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
+                '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
+                '<td>' + entry.currency + '</td>' +
+                '<td>' + entry.total_vacancies + '</td>' +
+                '<td>' + entry.vacancies_with_salary + '</td>' +
+                '<td>' + entry.salary_percentage + '%</td>' +
+                '<td>' + Math.round(entry.avg_salary) + '</td>' +
+                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                '<td>' + Math.round(entry.min_salary) + '</td>' +
+                '<td>' + Math.round(entry.max_salary) + '</td>' +
+                '<td>' + entry.top_skills + '</td>' +
+            '</tr>';
+        }).join('');
+
+        expDiv.innerHTML =
+            '<div class="salary-display-flex" data-exp-index="' + (idx + 1) + '">' +
+                '<div class="salary-main-content">' +
+                    '<div class="salary-table-container">' +
+                        '<div style="overflow-x: auto;">' +
+                            '<table>' +
+                                '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                '<tbody>' + rowsHtml + '</tbody>' +
+                            '</table>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="salary-graph-container">' +
+                        '<div class="plotly-graph" id="salary-graph-' + expId.replace('sal-exp-', '') + '"></div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="salary-view-toggle">' +
+                    '<button class="view-mode-btn active" data-view="table" title="Таблица">▦</button>' +
+                    '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                '</div>' +
+            '</div>';
+
+        var rows = expDiv.querySelectorAll('.salary-row');
+        rows.forEach((row, k) => {
+            var entry = (exp.entries || [])[k] || {};
+            row._data = {
+                withList: entry.vacancies_with_salary_list || [],
+                withoutList: entry.vacancies_without_salary_list || []
+            };
+        });
+
+        monthDiv.appendChild(expDiv);
+    });
+
+    block.appendChild(monthDiv);
+    return monthId;
+}
+
+function ensureSalaryQuickFilters(parentRole, block, monthTabs) {
+    if (!parentRole || !block || !monthTabs || block.dataset.salaryFiltersReady === '1') return;
+
+    var vacancies = getRoleVacancies(parentRole);
+    if (!vacancies || !vacancies.length) {
+        var salaryMonths = getRoleSalaryData(parentRole);
+        vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+    }
+
+    function filterVacanciesByDays(days) {
+        var now = new Date();
+        var since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+        return (vacancies || []).filter(function(v) {
+            if (!v || !v.published_at) return false;
+            var d = new Date(v.published_at);
+            return !isNaN(d) && d >= since;
+        });
+    }
+
+    function addQuickButton(label, suffix, list) {
+        var monthData = buildSalaryMonthFromVacancies(list, label);
+        var monthId = buildSalaryMonthBlock(block, monthData, suffix, parentRole.id);
+        var btn = document.createElement('button');
+        btn.className = 'tab-button salary-month-button salary-quick-filter';
+        btn.textContent = label;
+        btn.addEventListener('click', function(e) { openSalaryMonthTab(e, monthId); });
+        monthTabs.insertBefore(btn, monthTabs.firstChild);
+    }
+
+    addQuickButton('За 14 дней', '14d', filterVacanciesByDays(14));
+    addQuickButton('За 7 дней', '7d', filterVacanciesByDays(7));
+    addQuickButton('За 3 дня', '3d', filterVacanciesByDays(3));
+
+    block.dataset.salaryFiltersReady = '1';
+}
+
+function sortSalaryMonths(monthTabs) {
+    if (!monthTabs) return;
+    var buttons = Array.from(monthTabs.querySelectorAll('.salary-month-button'));
+    if (!buttons.length) return;
+    var quickOrder = { 'За 3 дня': 1, 'За 7 дней': 2, 'За 14 дней': 3 };
+    var quick = buttons.filter(b => b.classList.contains('salary-quick-filter'))
+        .sort((a, b) => (quickOrder[(a.textContent || '').trim()] || 99) - (quickOrder[(b.textContent || '').trim()] || 99));
+    var months = buttons.filter(b => /^\d{4}-\d{2}$/.test((b.textContent || '').trim()))
+        .sort((a, b) => (b.textContent || '').trim().localeCompare((a.textContent || '').trim()));
+    var summary = buttons.filter(b => /^За\s+\d+\s+месяц/.test((b.textContent || '').trim()));
+    var other = buttons.filter(b => quick.indexOf(b) < 0 && months.indexOf(b) < 0 && summary.indexOf(b) < 0);
+    var ordered = quick.concat(months, summary, other);
+    ordered.forEach(btn => monthTabs.appendChild(btn));
 }
 
 function initSkillsSearch(parentRole) {
@@ -1164,36 +1328,39 @@ function normalizeSkillsMonthlyControls(parentRole) {
     ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs);
     sortSkillsMonthlyMonths(monthTabs);
 
-    var visibleMonth = block.querySelector('.monthly-skills-month-content[style*="display: block"]');
-    if (visibleMonth) {
-        var expTabs = visibleMonth.querySelector('.monthly-skills-exp-tabs');
-        if (expTabs) {
-            var multiToggle = expTabs.querySelector('.skills-multi-toggle');
-            if (!multiToggle) {
-                multiToggle = document.createElement('label');
-                multiToggle.className = 'skills-multi-toggle';
-                multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"> Мультивыбор';
-                expTabs.appendChild(multiToggle);
-            } else if (multiToggle.parentElement !== expTabs) {
-                expTabs.appendChild(multiToggle);
-            }
-            var multiInput = multiToggle.querySelector('.skills-multi-toggle-input');
-            if (!block.dataset.skillsMultiEnabled) block.dataset.skillsMultiEnabled = '0';
-            multiInput.checked = block.dataset.skillsMultiEnabled === '1';
-            if (!multiInput.dataset.bound) {
-                multiInput.addEventListener('change', function() {
-                    block.dataset.skillsMultiEnabled = multiInput.checked ? '1' : '0';
-                    if (!multiInput.checked) {
-                        var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
-                        var active = Array.from(expButtons).filter(b => b.classList.contains('active'));
-                        if (active.length > 1) {
-                            active.slice(1).forEach(b => b.classList.remove('active'));
-                            active[0].click();
-                        }
+    var expTabs = null;
+    var monthBlocks = Array.from(block.querySelectorAll('.monthly-skills-month-content'));
+    var visibleMonth = monthBlocks.find(m => (m.style.display || '') === 'block');
+    if (visibleMonth) expTabs = visibleMonth.querySelector('.monthly-skills-exp-tabs');
+    if (!expTabs) expTabs = block.querySelector('.monthly-skills-exp-tabs');
+    if (expTabs) {
+        var multiToggle = expTabs.querySelector('.skills-multi-toggle');
+        if (!multiToggle) {
+            multiToggle = document.createElement('label');
+            multiToggle.className = 'skills-multi-toggle';
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"> Мультивыбор';
+            expTabs.appendChild(multiToggle);
+        } else if (multiToggle.parentElement !== expTabs) {
+            expTabs.appendChild(multiToggle);
+        }
+        var multiInput = multiToggle.querySelector('.skills-multi-toggle-input');
+        if (!block.dataset.skillsMultiEnabled) block.dataset.skillsMultiEnabled = '0';
+        multiInput.checked = block.dataset.skillsMultiEnabled === '1';
+        if (!multiInput.dataset.bound) {
+            multiInput.addEventListener('change', function() {
+                block.dataset.skillsMultiEnabled = multiInput.checked ? '1' : '0';
+                if (!multiInput.checked) {
+                    var visibleMonth = block.querySelector('.monthly-skills-month-content[style*="display: block"]');
+                    if (!visibleMonth) return;
+                    var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
+                    var active = Array.from(expButtons).filter(b => b.classList.contains('active'));
+                    if (active.length > 1) {
+                        active.slice(1).forEach(b => b.classList.remove('active'));
+                        active[0].click();
                     }
-                });
-                multiInput.dataset.bound = '1';
-            }
+                }
+            });
+            multiInput.dataset.bound = '1';
         }
     }
 
@@ -2161,7 +2328,40 @@ function restoreExpInMonth(parentRole, roleId) {
     if (!visibleMonth) return;
     var expButtons = visibleMonth.querySelectorAll('.monthly-skills-exp-button');
     if (expButtons.length === 0) return;
+    var monthData = (visibleMonth._data && visibleMonth._data.month) ? visibleMonth._data.month : parseJsonDataset(visibleMonth, 'month', {});
+    var monthStr = monthData && monthData.month ? monthData.month : null;
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    var savedByMonth = (saved && saved.exp_by_month && monthStr) ? saved.exp_by_month[monthStr] : null;
+    var block = parentRole.querySelector('.skills-monthly-content');
+    var multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
 
+    if (savedByMonth && savedByMonth.exp_list && Array.isArray(savedByMonth.exp_list) && savedByMonth.exp_list.length > 1) {
+        if (!multiEnabled) {
+            block.dataset.skillsMultiEnabled = '1';
+            multiEnabled = true;
+            var multiInput = parentRole.querySelector('.skills-multi-toggle-input');
+            if (multiInput) multiInput.checked = true;
+        }
+    }
+    if (multiEnabled && savedByMonth && savedByMonth.exp_list && Array.isArray(savedByMonth.exp_list) && savedByMonth.exp_list.length) {
+        var clickedByMonth = false;
+        for (var btn of expButtons) {
+            if (savedByMonth.exp_list.indexOf(btn.textContent.trim()) >= 0) {
+                btn.click();
+                clickedByMonth = true;
+            }
+        }
+        if (clickedByMonth) return;
+    }
+    if (savedByMonth && savedByMonth.experience) {
+        for (var btn of expButtons) {
+            if (btn.textContent.trim() === savedByMonth.experience) {
+                btn.click();
+                return;
+            }
+        }
+    }
     if (uiState.global_skills_experience) {
         for (var btn of expButtons) {
             if (btn.textContent.trim() === uiState.global_skills_experience) {
@@ -2170,10 +2370,6 @@ function restoreExpInMonth(parentRole, roleId) {
             }
         }
     }
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
-    var block = parentRole.querySelector('.skills-monthly-content');
-    var multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
     if (multiEnabled && saved && saved.exp_list && Array.isArray(saved.exp_list) && saved.exp_list.length) {
         var clicked = false;
         for (var btn of expButtons) {
@@ -2202,12 +2398,11 @@ function openMonthlySkillsExpTab(evt, expId) {
     var expDiv = document.getElementById(expId);
     var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
     var experience = expData.experience;
+    var monthData = (parentMonth._data && parentMonth._data.month) ? parentMonth._data.month : parseJsonDataset(parentMonth, 'month', {});
+    var monthStr = monthData && monthData.month ? monthData.month : null;
 
-    uiState.global_skills_experience = experience;
     var stateKey = getStateKey(roleId, 'skills-monthly');
     var saved = uiState[stateKey] || {};
-    saved.experience = experience;
-    uiState[stateKey] = saved;
 
     var expContents = parentMonth.getElementsByClassName("monthly-skills-exp-content");
     for (var i = 0; i < expContents.length; i++) {
@@ -2233,6 +2428,17 @@ function openMonthlySkillsExpTab(evt, expId) {
         evt.currentTarget.classList.add('active');
         selectedBtns = [evt.currentTarget];
     }
+    var selectedExp = selectedBtns.map(b => (b.textContent || '').trim());
+    uiState.global_skills_experience = selectedExp[0] || experience;
+    saved.experience = selectedExp[0] || experience;
+    if (selectedExp.length > 1 && multiEnabled) saved.exp_list = selectedExp.slice();
+    else delete saved.exp_list;
+    if (monthStr) {
+        if (!saved.exp_by_month) saved.exp_by_month = {};
+        saved.exp_by_month[monthStr] = { experience: selectedExp[0] || experience };
+        if (selectedExp.length > 1 && multiEnabled) saved.exp_by_month[monthStr].exp_list = selectedExp.slice();
+    }
+    uiState[stateKey] = saved;
 
     if (!multiEnabled || selectedBtns.length === 1) {
         expDiv.style.display = "block";
@@ -2262,8 +2468,6 @@ function openMonthlySkillsExpTab(evt, expId) {
         renderSkillsExpContent(multiDiv, agg);
         multiDiv.style.display = 'block';
         expDiv = multiDiv;
-        saved.exp_list = selectedBtns.map(b => (b.textContent || '').trim());
-        uiState[stateKey] = saved;
     }
 
     // Восстанавливаем режим для навыков

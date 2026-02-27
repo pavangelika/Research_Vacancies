@@ -5,13 +5,13 @@
     <title>Анализ вакансий по ролям - {{ current_date }} {{ current_time }}</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
-    <script src="report.state.js"></script>
-    <script src="report.utils.js"></script>
-    <script src="report.data.js"></script>
-    <script src="report.charts.js"></script>
-    <script src="report.render.js"></script>
-    <script src="report.ui.js"></script>
-    <script src="report.events.js"></script>
+    <script src="report.state.js?v=20260227f"></script>
+    <script src="report.utils.js?v=20260227f"></script>
+    <script src="report.data.js?v=20260227f"></script>
+    <script src="report.charts.js?v=20260227f"></script>
+    <script src="report.render.js?v=20260227f"></script>
+    <script src="report.ui.js?v=20260227f"></script>
+    <script src="report.events.js?v=20260227f"></script>
 </head>
 <body>
     <h1>Анализ вакансий на {{ current_date }} {{ current_time }}</h1>
@@ -182,6 +182,9 @@
                         {% for exp in month_data.experiences %}
                         <button class="tab-button monthly-skills-exp-button" onclick="openMonthlySkillsExpTab(event, 'ms-exp-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
                         {% endfor %}
+                        <label class="skills-multi-toggle">
+                            <input type="checkbox" class="skills-multi-toggle-input"> Мультивыбор
+                        </label>
                     </div>
 
                     <!-- Контейнеры для каждого опыта внутри месяца -->

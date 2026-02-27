@@ -362,48 +362,7 @@ function renderAllRolesContainer(container, roleContents) {
 function addSummaryTabs(root) {
     var skillsMonths = root.querySelectorAll('.monthly-skills-month-content');
     skillsMonths.forEach(monthDiv => {
-        if (monthDiv.querySelector('.monthly-skills-exp-button[data-summary="1"]')) return;
-        var monthData = (monthDiv._data && monthDiv._data.month) ? monthDiv._data.month : parseJsonDataset(monthDiv, 'month', {});
-        if (!monthData || !monthData.experiences) return;
-        var expTabs = monthDiv.querySelector('.monthly-skills-exp-tabs');
-        if (!expTabs) return;
-        var expIndex = (monthData.experiences.length || 0) + 1;
-        var expId = monthDiv.id.replace('ms-month-', 'ms-exp-') + '-' + expIndex;
-        var btn = document.createElement('button');
-        btn.className = 'tab-button monthly-skills-exp-button';
-        btn.dataset.summary = '1';
-        btn.textContent = 'Все';
-        btn.setAttribute('onclick', "openMonthlySkillsExpTab(event, '" + expId + "')");
-        expTabs.appendChild(btn);
-
-        var expDiv = document.createElement('div');
-        expDiv.id = expId;
-        expDiv.className = 'monthly-skills-exp-content';
-        expDiv.style.display = 'none';
-        var summaryExp = buildSkillsSummaryExp(monthData);
-        expDiv.dataset.exp = JSON.stringify(summaryExp);
-        expDiv._data = { exp: summaryExp };
-        expDiv.innerHTML =
-            '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
-            '</div>' +
-            '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
-                '<div class="table-container">' +
-                    '<table>' +
-                        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
-                        '<tbody>' +
-                            summaryExp.skills.map(s => (
-                                '<tr><td>' + s.skill + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>'
-                            )).join('') +
-                        '</tbody>' +
-                    '</table>' +
-                    '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + summaryExp.total_vacancies + '</p>' +
-                '</div>' +
-                '<div class="plotly-graph" id="skills-monthly-graph-' + expId.replace('ms-exp-', '') + '"></div>' +
-            '</div>';
-        monthDiv.appendChild(expDiv);
+        monthDiv.querySelectorAll('.monthly-skills-exp-button[data-summary="1"]').forEach(btn => btn.remove());
     });
 
     var salaryMonths = root.querySelectorAll('.salary-month-content');
