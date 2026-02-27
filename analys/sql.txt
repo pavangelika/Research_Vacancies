@@ -1,16 +1,26 @@
-Всего вакансий
-Динамика вакансий, опубликовано, архивировано, время жизни вакансии по уровню опыта
-Динамика публикаций (дни когда больше опубликованных вакансий, когда вакансий больше открытых, когда больше закрывается вакансий)
-Количество вакансий по опыту работы:
-Топ-15 самых востребованных навыков по опыту работы
-Вакансий с указанной зарплатой, из них в RUR, в USD, другая валюта конвертированная в USD (средняя, мода, медиана, минимум, максимум)
+Для каждой роли создай вкладку мои отклики.
+Мои отклики содержат таблицу с вакансиями с теми же полями и функционалом, что во вкладке поиск по навыкам.
+Только в поле отклик вместо слова отклик и ссылки будет чек-бокс. С текущим значением параметра send_resume из get_vacancies для данного id
+Справа от поля отклик, дата отклика, собес. В поле дата отклика вывести resume_at.
+В поле собес вывести ссылку подробнее. При нажатии на ссылку будет выводится таблица с полями:
+requirement, responsibility, description, published_at, archived, archived_at
+и формой ввода:
+поле в БД - имя в интерфейсе
+hr_name - ФИО HR
+interview_date - Дата и время собеседования
+interview_stages - Этапы собеседования
+company_type - Тип компании
+result - Результат собеседования
+feedback - Обратная связь
+offer_salary - Сумма оффера
+pros - Плюсы
+cons - Минусы
+введенные данные сохранять в get_vacancies в соответсвующие поля по ключу ID.
+При открытии в следующий раз показать введенные ранее данные, при их повторном
+изменении запрашивать у пользователя разрешения перезаписи данных в БД.
 
+Поля требования и обязанности убрать из таблицы.
 
-Уникальных работодателей:
-select count(*) from employers;
-Топ работодателей по вакансиям:
-
-Топ работодателей по рейтингу:
 
 
 Топ-3 вакансии с зарплатой:
@@ -23,73 +33,4 @@ SELECT
     sum(case when offer_salary is not null then 1 else 0 end) as offers
 FROM get_vacancies;
 
-Анализ топ навыков в зависимости от опыта
-WITH skills_expanded AS (
-    SELECT
-        experience,
-        TRIM(BOTH ' ' FROM unnest(string_to_array(skills, ','))) AS skill
-    FROM get_vacancies
-    WHERE skills IS NOT NULL AND skills != ''
-),
-skill_counts AS (
-    SELECT
-        experience,
-        skill,
-        COUNT(*) AS freq
-    FROM skills_expanded
-    GROUP BY experience, skill
-),
-ranked_skills AS (
-    SELECT
-        experience,
-        skill,
-        freq,
-        ROW_NUMBER() OVER (PARTITION BY experience ORDER BY freq DESC) AS rn
-    FROM skill_counts
-)
-SELECT
-    experience,
-    skill,
-    freq
-FROM ranked_skills
-WHERE rn <= 10  -- топ-10 навыков для каждого уровня опыта
-ORDER BY experience, rn;
 
-Связь зарплаты и аккредитации компании
-SELECT
-    CASE gv.experience
-        WHEN 'От 1 года до 3 лет' THEN 2
-        WHEN 'От 3 до 6 лет' THEN 3
-        WHEN 'Более 6 лет' THEN 4
-        ELSE 1
-    END AS exp_order,
-    gv.experience,
-    e.accredited_it_employer,
-    COUNT(*) AS vacancy_count,
-    ROUND(AVG((COALESCE(gv.salary_from, 0) + COALESCE(gv.salary_to, 0)) / 2)) AS avg_salary
-FROM get_vacancies gv
-JOIN employers e ON gv.employer = e.name
-WHERE gv.salary_from IS NOT NULL OR gv.salary_to IS NOT NULL
-GROUP BY gv.experience, e.accredited_it_employer
-ORDER BY exp_order, e.accredited_it_employer;
-
-Анализ компаний по аккредитации и рейтингу
-
-SELECT
-    e.accredited_it_employer,
-    COUNT(*) AS vacancies_count,
-    ROUND(AVG((COALESCE(g.salary_from, g.salary_to) + COALESCE(g.salary_to, g.salary_from)) / 2)) AS avg_salary
-FROM get_vacancies g
-JOIN employers e ON g.employer = e.name
-WHERE g.salary_from IS NOT NULL OR g.salary_to IS NOT NULL
-GROUP BY e.accredited_it_employer;
-
-
-Анализ тестового задания
-
-SELECT
-    has_test,
-    COUNT(*) AS cnt,
-    ROUND(AVG((COALESCE(salary_from, salary_to) + COALESCE(salary_to, salary_from)) / 2)) AS avg_salary
-FROM get_vacancies
-GROUP BY has_test;
