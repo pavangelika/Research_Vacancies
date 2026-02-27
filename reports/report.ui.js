@@ -2059,9 +2059,15 @@ function parseEmployerAnalysisData(block) {
         var rawValue = (row.dataset.factorValue || row.dataset.rawValue || row.cells[2].dataset.rawValue || row.cells[2].textContent || '').trim();
         var valueKey = normalizeEmployerValueKey(rawValue);
         var groupN = parseInt((row.dataset.groupN || row.cells[3].textContent || '0').replace(/\s/g, ''), 10) || 0;
+        var avgRurNRaw = parseInt((row.dataset.avgRurN || '').replace(/\s/g, ''), 10);
         var avgRur = parseFloat((row.dataset.avgRur || row.cells[4].textContent || '').replace(/\s/g, '').replace(',', '.'));
+        var avgUsdNRaw = parseInt((row.dataset.avgUsdN || '').replace(/\s/g, ''), 10);
         var avgUsd = parseFloat((row.dataset.avgUsd || row.cells[5].textContent || '').replace(/\s/g, '').replace(',', '.'));
+        var avgUsdOtherNRaw = parseInt((row.dataset.avgUsdOtherN || '').replace(/\s/g, ''), 10);
         var avgUsdOther = parseFloat((row.dataset.avgUsdOther || row.cells[6].textContent || '').replace(/\s/g, '').replace(',', '.'));
+        var avgRurN = isFinite(avgRur) ? (isFinite(avgRurNRaw) ? avgRurNRaw : groupN) : 0;
+        var avgUsdN = isFinite(avgUsd) ? (isFinite(avgUsdNRaw) ? avgUsdNRaw : groupN) : 0;
+        var avgUsdOtherN = isFinite(avgUsdOther) ? (isFinite(avgUsdOtherNRaw) ? avgUsdOtherNRaw : groupN) : 0;
         parsed.push({
             month: month,
             factorKey: factorKey,
@@ -2069,8 +2075,11 @@ function parseEmployerAnalysisData(block) {
             valueKey: valueKey,
             valueLabel: getEmployerValueLabel(factorKey, valueKey),
             groupN: groupN,
+            avgRurN: avgRurN,
             avgRur: isFinite(avgRur) ? avgRur : null,
+            avgUsdN: avgUsdN,
             avgUsd: isFinite(avgUsd) ? avgUsd : null,
+            avgUsdOtherN: avgUsdOtherN,
             avgUsdOther: isFinite(avgUsdOther) ? avgUsdOther : null
         });
     });
@@ -2096,16 +2105,16 @@ function aggregateEmployerAnalysisRows(rows) {
         var avgUsdOtherWeight = 0;
         grouped.forEach(function(row) {
             if (isFinite(row.avgRur)) {
-                avgRurNumerator += row.avgRur * row.groupN;
-                avgRurWeight += row.groupN;
+                avgRurNumerator += row.avgRur * (row.avgRurN || 0);
+                avgRurWeight += (row.avgRurN || 0);
             }
             if (isFinite(row.avgUsd)) {
-                avgUsdNumerator += row.avgUsd * row.groupN;
-                avgUsdWeight += row.groupN;
+                avgUsdNumerator += row.avgUsd * (row.avgUsdN || 0);
+                avgUsdWeight += (row.avgUsdN || 0);
             }
             if (isFinite(row.avgUsdOther)) {
-                avgUsdOtherNumerator += row.avgUsdOther * row.groupN;
-                avgUsdOtherWeight += row.groupN;
+                avgUsdOtherNumerator += row.avgUsdOther * (row.avgUsdOtherN || 0);
+                avgUsdOtherWeight += (row.avgUsdOtherN || 0);
             }
         });
         return {
@@ -2115,8 +2124,11 @@ function aggregateEmployerAnalysisRows(rows) {
             valueKey: head.valueKey,
             valueLabel: head.valueLabel,
             groupN: groupN,
+            avgRurN: avgRurWeight,
             avgRur: avgRurWeight ? (avgRurNumerator / avgRurWeight) : null,
+            avgUsdN: avgUsdWeight,
             avgUsd: avgUsdWeight ? (avgUsdNumerator / avgUsdWeight) : null,
+            avgUsdOtherN: avgUsdOtherWeight,
             avgUsdOther: avgUsdOtherWeight ? (avgUsdOtherNumerator / avgUsdOtherWeight) : null
         };
     });
@@ -2160,8 +2172,11 @@ function renderEmployerAnalysisTable(block, rows, allPeriodLabel) {
             'data-value-key="' + row.valueKey + '" ' +
             'data-value-label="' + row.valueLabel + '" ' +
             'data-group-n="' + row.groupN + '" ' +
+            'data-avg-rur-n="' + (row.avgRurN || 0) + '" ' +
             'data-avg-rur="' + (row.avgRur || '') + '" ' +
+            'data-avg-usd-n="' + (row.avgUsdN || 0) + '" ' +
             'data-avg-usd="' + (row.avgUsd || '') + '" ' +
+            'data-avg-usd-other-n="' + (row.avgUsdOtherN || 0) + '" ' +
             'data-avg-usd-other="' + (row.avgUsdOther || '') + '">' +
             '<td>' + monthLabel + '</td>' +
             '<td>' + row.factorLabel + '</td>' +

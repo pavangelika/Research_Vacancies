@@ -1326,22 +1326,111 @@ def fetch_employer_analysis_data(mapping):
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
-        WITH base AS (
+        WITH vacancies_base AS (
             SELECT
-                COALESCE(NULLIF(v.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
-                date_trunc('month', v.published_at)::date AS month_start,
+                v.professional_role,
+                v.published_at,
                 v.currency,
                 v.has_test,
                 v.response_letter_required,
+                v.salary_from,
+                v.salary_to,
                 COALESCE(e.accredited_it_employer, false) AS accredited_it_employer,
-                NULLIF(regexp_replace(COALESCE(e.rating, ''), '[^0-9\\.]', '', 'g'), '')::numeric AS rating_num,
-                (COALESCE(v.salary_from, v.salary_to) + COALESCE(v.salary_to, v.salary_from)) / 2.0 AS salary_mid
+                NULLIF(regexp_replace(COALESCE(e.rating, ''), '[^0-9\\.]', '', 'g'), '')::numeric AS rating_num
             FROM public.get_vacancies v
-            LEFT JOIN public.employers e ON e.name = v.employer
-            WHERE (v.salary_from IS NOT NULL OR v.salary_to IS NOT NULL)
-              AND v.published_at IS NOT NULL
+            LEFT JOIN public.employers e ON v.employer = e.name
+            WHERE v.published_at IS NOT NULL
+              AND v.professional_role IS NOT NULL
         ),
-        factor_rows AS (
+        salary_base AS (
+            SELECT
+                COALESCE(NULLIF(vb.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
+                date_trunc('month', vb.published_at)::date AS month_start,
+                vb.currency,
+                vb.has_test,
+                vb.response_letter_required,
+                vb.accredited_it_employer,
+                vb.rating_num,
+                (COALESCE(vb.salary_from, vb.salary_to) + COALESCE(vb.salary_to, vb.salary_from)) / 2.0 AS salary_mid
+            FROM vacancies_base vb
+            WHERE (vb.salary_from IS NOT NULL OR vb.salary_to IS NOT NULL)
+        ),
+        count_rows AS (
+            SELECT
+                professional_role,
+                month_start,
+                'rating_bucket' AS factor,
+                CASE
+                    WHEN rating_num IS NULL THEN 'unknown'
+                    WHEN rating_num < 3.5 THEN '<3.5'
+                    WHEN rating_num < 4.0 THEN '3.5-3.99'
+                    WHEN rating_num < 4.5 THEN '4.0-4.49'
+                    ELSE '>=4.5'
+                END AS factor_value,
+                1 AS row_n
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(vb.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
+                    date_trunc('month', vb.published_at)::date AS month_start,
+                    vb.has_test,
+                    vb.response_letter_required,
+                    vb.accredited_it_employer,
+                    vb.rating_num
+                FROM vacancies_base vb
+            ) base_all
+            UNION ALL
+            SELECT
+                professional_role,
+                month_start,
+                'accreditation' AS factor,
+                CASE WHEN accredited_it_employer THEN 'true' ELSE 'false' END AS factor_value,
+                1 AS row_n
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(vb.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
+                    date_trunc('month', vb.published_at)::date AS month_start,
+                    vb.has_test,
+                    vb.response_letter_required,
+                    vb.accredited_it_employer,
+                    vb.rating_num
+                FROM vacancies_base vb
+            ) base_all
+            UNION ALL
+            SELECT
+                professional_role,
+                month_start,
+                'has_test' AS factor,
+                CASE WHEN has_test THEN 'true' ELSE 'false' END AS factor_value,
+                1 AS row_n
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(vb.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
+                    date_trunc('month', vb.published_at)::date AS month_start,
+                    vb.has_test,
+                    vb.response_letter_required,
+                    vb.accredited_it_employer,
+                    vb.rating_num
+                FROM vacancies_base vb
+            ) base_all
+            UNION ALL
+            SELECT
+                professional_role,
+                month_start,
+                'cover_letter_required' AS factor,
+                CASE WHEN response_letter_required THEN 'true' ELSE 'false' END AS factor_value,
+                1 AS row_n
+            FROM (
+                SELECT
+                    COALESCE(NULLIF(vb.professional_role, ''), 'UNKNOWN_ROLE') AS professional_role,
+                    date_trunc('month', vb.published_at)::date AS month_start,
+                    vb.has_test,
+                    vb.response_letter_required,
+                    vb.accredited_it_employer,
+                    vb.rating_num
+                FROM vacancies_base vb
+            ) base_all
+        ),
+        salary_factor_rows AS (
             SELECT
                 professional_role,
                 month_start,
@@ -1355,7 +1444,7 @@ def fetch_employer_analysis_data(mapping):
                     ELSE '>=4.5'
                 END AS factor_value,
                 salary_mid
-            FROM base
+            FROM salary_base
             UNION ALL
             SELECT
                 professional_role,
@@ -1364,7 +1453,7 @@ def fetch_employer_analysis_data(mapping):
                 'accreditation' AS factor,
                 CASE WHEN accredited_it_employer THEN 'true' ELSE 'false' END AS factor_value,
                 salary_mid
-            FROM base
+            FROM salary_base
             UNION ALL
             SELECT
                 professional_role,
@@ -1373,7 +1462,7 @@ def fetch_employer_analysis_data(mapping):
                 'has_test' AS factor,
                 CASE WHEN has_test THEN 'true' ELSE 'false' END AS factor_value,
                 salary_mid
-            FROM base
+            FROM salary_base
             UNION ALL
             SELECT
                 professional_role,
@@ -1382,21 +1471,52 @@ def fetch_employer_analysis_data(mapping):
                 'cover_letter_required' AS factor,
                 CASE WHEN response_letter_required THEN 'true' ELSE 'false' END AS factor_value,
                 salary_mid
-            FROM base
+            FROM salary_base
+        ),
+        counts_agg AS (
+            SELECT
+                professional_role,
+                month_start,
+                factor,
+                factor_value,
+                COUNT(*) AS group_n
+            FROM count_rows
+            GROUP BY professional_role, month_start, factor, factor_value
+        ),
+        salary_agg AS (
+            SELECT
+                professional_role,
+                month_start,
+                factor,
+                factor_value,
+                COUNT(*) FILTER (WHERE currency = 'RUR') AS avg_salary_rur_n,
+                ROUND(AVG(salary_mid) FILTER (WHERE currency = 'RUR')::numeric, 2) AS avg_salary_rur,
+                COUNT(*) FILTER (WHERE currency = 'USD') AS avg_salary_usd_n,
+                ROUND(AVG(salary_mid) FILTER (WHERE currency = 'USD')::numeric, 2) AS avg_salary_usd,
+                COUNT(*) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD')) AS "avg_salary_%usd_n",
+                ROUND(AVG(salary_mid) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD'))::numeric, 2) AS "avg_salary_%usd"
+            FROM salary_factor_rows
+            GROUP BY professional_role, month_start, factor, factor_value
         )
         SELECT
-            professional_role,
-            to_char(month_start, 'YYYY-MM') AS month,
-            factor,
-            factor_value,
-            COUNT(*) AS group_n,
-            ROUND(AVG(salary_mid) FILTER (WHERE currency = 'RUR')::numeric, 2) AS avg_salary_rur,
-            ROUND(AVG(salary_mid) FILTER (WHERE currency = 'USD')::numeric, 2) AS avg_salary_usd,
-            ROUND(AVG(salary_mid) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD'))::numeric, 2) AS "avg_salary_%usd"
-        FROM factor_rows
-        GROUP BY professional_role, month_start, factor, factor_value
-        HAVING COUNT(*) >= 10
-        ORDER BY professional_role, month_start, factor, group_n DESC;
+            c.professional_role,
+            to_char(c.month_start, 'YYYY-MM') AS month,
+            c.factor,
+            c.factor_value,
+            c.group_n,
+            s.avg_salary_rur_n,
+            s.avg_salary_rur,
+            s.avg_salary_usd_n,
+            s.avg_salary_usd,
+            s."avg_salary_%usd_n",
+            s."avg_salary_%usd"
+        FROM counts_agg c
+        LEFT JOIN salary_agg s
+          ON s.professional_role = c.professional_role
+         AND s.month_start = c.month_start
+         AND s.factor = c.factor
+         AND s.factor_value = c.factor_value
+        ORDER BY c.professional_role, c.month_start, c.factor, c.group_n DESC;
     """
     cur.execute(query)
     rows = cur.fetchall()
@@ -1404,7 +1524,7 @@ def fetch_employer_analysis_data(mapping):
     conn.close()
 
     roles = {}
-    for role_id, month, factor, factor_value, group_n, avg_salary_rur, avg_salary_usd, avg_salary_usd_other in rows:
+    for role_id, month, factor, factor_value, group_n, avg_salary_rur_n, avg_salary_rur, avg_salary_usd_n, avg_salary_usd, avg_salary_usd_other_n, avg_salary_usd_other in rows:
         role_key = str(role_id) if role_id is not None else 'UNKNOWN_ROLE'
         role_name = mapping.get(role_key, role_key)
         bucket = roles.setdefault(role_key, {'id': role_key, 'name': role_name, 'rows': []})
@@ -1413,8 +1533,11 @@ def fetch_employer_analysis_data(mapping):
             'factor': factor,
             'factor_value': factor_value,
             'group_n': int(group_n) if group_n is not None else 0,
+            'avg_salary_rur_n': int(avg_salary_rur_n) if avg_salary_rur_n is not None else 0,
             'avg_salary_rur': float(avg_salary_rur) if avg_salary_rur is not None else None,
+            'avg_salary_usd_n': int(avg_salary_usd_n) if avg_salary_usd_n is not None else 0,
             'avg_salary_usd': float(avg_salary_usd) if avg_salary_usd is not None else None,
+            'avg_salary_usd_other_n': int(avg_salary_usd_other_n) if avg_salary_usd_other_n is not None else 0,
             'avg_salary_usd_other': float(avg_salary_usd_other) if avg_salary_usd_other is not None else None
         })
 
