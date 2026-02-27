@@ -1493,8 +1493,10 @@ def fetch_employer_analysis_data(mapping):
                 ROUND(AVG(salary_mid) FILTER (WHERE currency = 'RUR')::numeric, 2) AS avg_salary_rur,
                 COUNT(*) FILTER (WHERE currency = 'USD') AS avg_salary_usd_n,
                 ROUND(AVG(salary_mid) FILTER (WHERE currency = 'USD')::numeric, 2) AS avg_salary_usd,
-                COUNT(*) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD')) AS "avg_salary_%usd_n",
-                ROUND(AVG(salary_mid) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD'))::numeric, 2) AS "avg_salary_%usd"
+                COUNT(*) FILTER (WHERE currency = 'EUR') AS avg_salary_eur_n,
+                ROUND(AVG(salary_mid) FILTER (WHERE currency = 'EUR')::numeric, 2) AS avg_salary_eur,
+                COUNT(*) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD', 'EUR')) AS avg_salary_other_n,
+                ROUND(AVG(salary_mid) FILTER (WHERE currency IS NOT NULL AND currency NOT IN ('RUR', 'USD', 'EUR'))::numeric, 2) AS avg_salary_other
             FROM salary_factor_rows
             GROUP BY professional_role, month_start, factor, factor_value
         )
@@ -1508,8 +1510,10 @@ def fetch_employer_analysis_data(mapping):
             s.avg_salary_rur,
             s.avg_salary_usd_n,
             s.avg_salary_usd,
-            s."avg_salary_%usd_n",
-            s."avg_salary_%usd"
+            s.avg_salary_eur_n,
+            s.avg_salary_eur,
+            s.avg_salary_other_n,
+            s.avg_salary_other
         FROM counts_agg c
         LEFT JOIN salary_agg s
           ON s.professional_role = c.professional_role
@@ -1524,7 +1528,7 @@ def fetch_employer_analysis_data(mapping):
     conn.close()
 
     roles = {}
-    for role_id, month, factor, factor_value, group_n, avg_salary_rur_n, avg_salary_rur, avg_salary_usd_n, avg_salary_usd, avg_salary_usd_other_n, avg_salary_usd_other in rows:
+    for role_id, month, factor, factor_value, group_n, avg_salary_rur_n, avg_salary_rur, avg_salary_usd_n, avg_salary_usd, avg_salary_eur_n, avg_salary_eur, avg_salary_other_n, avg_salary_other in rows:
         role_key = str(role_id) if role_id is not None else 'UNKNOWN_ROLE'
         role_name = mapping.get(role_key, role_key)
         bucket = roles.setdefault(role_key, {'id': role_key, 'name': role_name, 'rows': []})
@@ -1537,8 +1541,10 @@ def fetch_employer_analysis_data(mapping):
             'avg_salary_rur': float(avg_salary_rur) if avg_salary_rur is not None else None,
             'avg_salary_usd_n': int(avg_salary_usd_n) if avg_salary_usd_n is not None else 0,
             'avg_salary_usd': float(avg_salary_usd) if avg_salary_usd is not None else None,
-            'avg_salary_usd_other_n': int(avg_salary_usd_other_n) if avg_salary_usd_other_n is not None else 0,
-            'avg_salary_usd_other': float(avg_salary_usd_other) if avg_salary_usd_other is not None else None
+            'avg_salary_eur_n': int(avg_salary_eur_n) if avg_salary_eur_n is not None else 0,
+            'avg_salary_eur': float(avg_salary_eur) if avg_salary_eur is not None else None,
+            'avg_salary_other_n': int(avg_salary_other_n) if avg_salary_other_n is not None else 0,
+            'avg_salary_other': float(avg_salary_other) if avg_salary_other is not None else None
         })
 
     result = list(roles.values())
