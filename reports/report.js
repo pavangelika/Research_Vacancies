@@ -11,6 +11,8 @@ let uiState = {
     global_activity_month: null,
     global_skills_month: null,
     global_skills_experience: null,
+    global_skills_multi_enabled: false,
+    global_skills_exp_list: [],
     global_salary_month: null,
     global_salary_experience: null,
     all_roles_active: false,
@@ -231,19 +233,19 @@ function restoreSkillsMonthlyState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
 
-    var stateKey = getStateKey(roleId, 'skills-monthly');
-    var saved = uiState[stateKey];
-    if (saved && saved.month) {
+    if (uiState.global_skills_month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === saved.month) {
+            if (btn.textContent.trim() === uiState.global_skills_month) {
                 btn.click();
                 return;
             }
         }
     }
-    if (uiState.global_skills_month) {
+    var stateKey = getStateKey(roleId, 'skills-monthly');
+    var saved = uiState[stateKey];
+    if (saved && saved.month) {
         for (var btn of monthButtons) {
-            if (btn.textContent.trim() === uiState.global_skills_month) {
+            if (btn.textContent.trim() === saved.month) {
                 btn.click();
                 return;
             }
@@ -291,8 +293,14 @@ function restoreExpInMonth(parentRole, roleId) {
     var savedByMonth = (saved && saved.exp_by_month && monthStr) ? saved.exp_by_month[monthStr] : null;
     var block = parentRole.querySelector('.skills-monthly-content');
     var multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
+    var globalMultiEnabled = uiState.global_skills_multi_enabled === true;
+    if (block && globalMultiEnabled) block.dataset.skillsMultiEnabled = '1';
+    if (block && !globalMultiEnabled) block.dataset.skillsMultiEnabled = '0';
+    multiEnabled = block && block.dataset.skillsMultiEnabled === '1';
     var byMonthExpList = (savedByMonth && Array.isArray(savedByMonth.exp_list)) ? savedByMonth.exp_list.slice() : null;
     var roleExpList = (saved && Array.isArray(saved.exp_list)) ? saved.exp_list.slice() : null;
+    var globalExpList = Array.isArray(uiState.global_skills_exp_list) ? uiState.global_skills_exp_list.slice() : [];
+    var effectiveExpList = (multiEnabled && globalExpList.length) ? globalExpList : (multiEnabled ? roleExpList : []);
     var expContents = visibleMonth.querySelectorAll('.monthly-skills-exp-content');
     var prevVisibility = visibleMonth.style.visibility;
     visibleMonth.style.visibility = 'hidden';
@@ -302,7 +310,7 @@ function restoreExpInMonth(parentRole, roleId) {
     var multiDiv = document.getElementById(visibleMonth.id + '-exp-multi');
     if (multiDiv) multiDiv.style.display = 'none';
 
-    if (roleExpList && roleExpList.length > 1) {
+    if (effectiveExpList && effectiveExpList.length > 1) {
         if (!multiEnabled) {
             block.dataset.skillsMultiEnabled = '1';
             multiEnabled = true;
@@ -312,15 +320,23 @@ function restoreExpInMonth(parentRole, roleId) {
     }
     if (block) block.dataset.skillsRestoreInProgress = '1';
     try {
-        if (multiEnabled && roleExpList && roleExpList.length) {
+        if (multiEnabled && effectiveExpList && effectiveExpList.length) {
             var clickedByMonth = false;
             for (var btn of expButtons) {
-                if (roleExpList.indexOf(btn.textContent.trim()) >= 0) {
+                if (effectiveExpList.indexOf(btn.textContent.trim()) >= 0) {
                     btn.click();
                     clickedByMonth = true;
                 }
             }
             if (clickedByMonth) return;
+        }
+        if (uiState.global_skills_experience) {
+            for (var btn of expButtons) {
+                if (btn.textContent.trim() === uiState.global_skills_experience) {
+                    btn.click();
+                    return;
+                }
+            }
         }
         if (multiEnabled && saved && saved.experience) {
             for (var btn of expButtons) {
@@ -351,14 +367,6 @@ function restoreExpInMonth(parentRole, roleId) {
         if (saved && saved.experience) {
             for (var btn of expButtons) {
                 if (btn.textContent.trim() === saved.experience) {
-                    btn.click();
-                    return;
-                }
-            }
-        }
-        if (uiState.global_skills_experience) {
-            for (var btn of expButtons) {
-                if (btn.textContent.trim() === uiState.global_skills_experience) {
                     btn.click();
                     return;
                 }
@@ -456,7 +464,9 @@ function openMonthlySkillsExpTab(evt, expId) {
         selectedBtns = [evt.currentTarget];
     }
     var selectedExp = selectedBtns.map(b => (b.textContent || '').trim());
+    uiState.global_skills_multi_enabled = multiEnabled;
     uiState.global_skills_experience = selectedExp[0] || experience;
+    uiState.global_skills_exp_list = (multiEnabled && selectedExp.length > 1) ? selectedExp.slice() : [];
     saved.experience = selectedExp[0] || experience;
     if (selectedExp.length > 1 && multiEnabled) saved.exp_list = selectedExp.slice();
     else if (!(isRestoring && multiEnabled)) delete saved.exp_list;

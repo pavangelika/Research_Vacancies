@@ -11,6 +11,8 @@ let uiState = {
     global_activity_month: null,
     global_skills_month: null,
     global_skills_experience: null,
+    global_skills_multi_enabled: false,
+    global_skills_exp_list: [],
     global_salary_month: null,
     global_salary_experience: null,
     all_roles_active: false,
