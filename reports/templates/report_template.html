@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Анализ вакансий по ролям - {{ current_date }} {{ current_time }}</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=20260301m">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
-    <script src="report.state.js?v=20260227g"></script>
-    <script src="report.utils.js?v=20260227g"></script>
-    <script src="report.data.js?v=20260227g"></script>
-    <script src="report.charts.js?v=20260227g"></script>
-    <script src="report.render.js?v=20260227g"></script>
-    <script src="report.ui.js?v=20260227g"></script>
-    <script src="report.events.js?v=20260227g"></script>
+    <script src="report.state.js?v=20260301m"></script>
+    <script src="report.utils.js?v=20260301m"></script>
+    <script src="report.data.js?v=20260301m"></script>
+    <script src="report.charts.js?v=20260301m"></script>
+    <script src="report.render.js?v=20260301m"></script>
+    <script src="report.ui.js?v=20260301m"></script>
+    <script src="report.events.js?v=20260301m"></script>
 </head>
 <body>
     <h1>Анализ вакансий на {{ current_date }} {{ current_time }}</h1>
@@ -68,30 +68,7 @@
                 <button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>
             </div>
             <div class="analysis-flex view-mode-container" data-analysis="activity">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Опыт</th>
-                                <th>Всего</th>
-                                <th>Архивных</th>
-                                <th>Активных</th>
-                                <th>Ср. возраст (дни)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for entry in month_data.entries %}
-                            <tr {% if entry.is_max_archived %}class="max-archived"{% endif %}>
-                                <td>{{ entry.experience }}</td>
-                                <td>{{ entry.total }}</td>
-                                <td>{{ entry.archived }}</td>
-                                <td>{{ entry.active }}</td>
-                                <td>{% if entry.avg_age is not none %}{{ "%.1f"|format(entry.avg_age) }}{% else %}—{% endif %}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                <div class="table-container"></div>
                 <div class="plotly-graph" id="activity-graph-{{ role_index }}-{{ month_index }}"></div>
             </div>
         </div>
@@ -109,30 +86,7 @@
                 <button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>
             </div>
             <div class="analysis-flex view-mode-container" data-analysis="weekday">
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>День недели</th>
-                                <th>Публикаций</th>
-                                <th>Архиваций</th>
-                                <th>Ср. время публикации</th>
-                                <th>Ср. время архивации</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for day in weekday_role.weekdays %}
-                            <tr>
-                                <td>{{ day.weekday }}</td>
-                                <td>{{ day.publications }}</td>
-                                <td>{{ day.archives }}</td>
-                                <td>{{ day.avg_pub_hour }}</td>
-                                <td>{{ day.avg_arch_hour }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                <div class="table-container"></div>
                 <div class="plotly-graph" id="weekday-graph-{{ role_index }}"></div>
             </div>
             {% else %}
@@ -177,27 +131,7 @@
                             <button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>
                         </div>
                         <div class="analysis-flex view-mode-container" data-analysis="skills-monthly">
-                            <div class="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Навык</th>
-                                            <th>Упоминаний</th>
-                                            <th>% покрытия</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for skill in exp.skills %}
-                                        <tr>
-                                            <td>{{ skill.skill }}</td>
-                                            <td>{{ skill.count }}</td>
-                                            <td>{{ skill.coverage }}%</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                                <p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: {{ exp.total_vacancies }}</p>
-                            </div>
+                            <div class="table-container"></div>
                             <div class="plotly-graph" id="skills-monthly-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
                         </div>
                     </div>
@@ -257,106 +191,7 @@
             </div>
         </div>
 
-<div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;"
-             data-salary='{{ salary_role.months_list | tojson if salary_role else "[]" }}'>
-            {% if salary_role and salary_role.months_list %}
-                <!-- Вкладки для выбора месяца -->
-                <div class="tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">
-                    {% for month_data in salary_role.months_list %}
-                    <button class="tab-button salary-month-button" onclick="openSalaryMonthTab(event, 'sal-month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
-                    {% endfor %}
-                </div>
-
-                <!-- Контейнеры для каждого месяца -->
-                {% for month_data in salary_role.months_list %}
-                {% set month_index = loop.index %}
-                <div id="sal-month-{{ role_index }}-{{ month_index }}" class="salary-month-content" data-month='{{ month_data | tojson }}' style="display: none;">
-                    <!-- Внутри месяца - вкладки для выбора опыта -->
-                    <div class="tabs salary-exp-tabs" style="justify-content: center; margin-top: 5px;">
-                        {% for exp in month_data.experiences %}
-                        <button class="tab-button salary-exp-button" onclick="openSalaryExpTab(event, 'sal-exp-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
-                        {% endfor %}
-                    </div>
-
-                    <!-- Контейнеры для каждого опыта внутри месяца -->
-                    {% for exp in month_data.experiences %}
-                    {% set exp_index = loop.index %}
-                    <div id="sal-exp-{{ role_index }}-{{ month_index }}-{{ exp_index }}" class="salary-exp-content" data-exp='{{ exp | tojson }}' style="display: none;">
-                        <div class="salary-display-flex" data-exp-index="{{ exp_index }}">
-                            <!-- Основная область: таблица и график -->
-                            <div class="salary-main-content">
-                                <div class="salary-table-container">
-                                    <div style="overflow-x: auto;">
-                                        <table id="salary-table-{{ role_index }}-{{ month_index }}-{{ exp_index }}">
-                                            <thead>
-                                                <tr>
-                                                    <th>Статус</th>
-                                                    <th>Валюта</th>
-                                                    <th>Всего</th>
-                                                    <th>С з/п</th>
-                                                    <th>% с з/п</th>
-                                                    <th>Средняя</th>
-                                                    <th>Медианная</th>
-                                                    <th>Модальная</th>
-                                                    <th>Мин</th>
-                                                    <th>Макс</th>
-                                                    <!-- столбец "Размах" удалён -->
-                                                    <th>Топ-10 навыков</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for entry in exp.entries %}
-                                                <tr class="salary-row">
-                                                    {% set status_lc = (entry.status|string|lower) %}
-                                                    <td class="status-icon-cell">
-                                                        {% if 'архив' in status_lc or 'archiv' in status_lc %}
-                                                            <span class="status-icon status-icon-archived" title="Архивная" aria-label="Архивная">🗄️</span>
-                                                        {% elif 'откры' in status_lc or 'open' in status_lc or 'active' in status_lc or 'актив' in status_lc %}
-                                                            <span class="status-icon status-icon-open" title="Открытая" aria-label="Открытая">✅</span>
-                                                        {% else %}
-                                                            <span class="status-icon" title="{{ entry.status }}" aria-label="{{ entry.status }}">{{ entry.status }}</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>{{ entry.currency }}</td>
-                                                    <td>{{ entry.total_vacancies }}</td>
-                                                    <td>{{ entry.vacancies_with_salary }}</td>
-                                                    <td>{{ entry.salary_percentage }}%</td>
-                                                    <td>{{ "{:,.0f}".format(entry.avg_salary) }}</td>
-                                                    <td>{% if entry.median_salary is not none %}{{ "{:,.0f}".format(entry.median_salary) }}{% else %}—{% endif %}</td>
-                                                    <td>{% if entry.mode_salary is not none %}{{ "{:,.0f}".format(entry.mode_salary) }}{% else %}—{% endif %}</td>
-                                                    <td>{{ "{:,.0f}".format(entry.min_salary) }}</td>
-                                                    <td>{{ "{:,.0f}".format(entry.max_salary) }}</td>
-                                                    <td>{{ entry.top_skills }}</td>
-                                                </tr>
-                                                <tr class="vacancy-details" style="display: none;">
-                                                    <td colspan="11">
-                                                        <div class="vacancy-details-container"></div>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                                <div class="salary-graph-container">
-                                    <div class="plotly-graph" id="salary-graph-{{ role_index }}-{{ month_index }}-{{ exp_index }}"></div>
-                                </div>
-                            </div>
-                            <!-- Вертикальный переключатель режимов -->
-                            <div class="salary-view-toggle">
-                                <button class="view-mode-btn" data-view="together" title="Вместе">⊞</button>
-                                <button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>
-                                <button class="view-mode-btn" data-view="graph" title="График">📊</button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endfor %}
-            {% else %}
-                <p>Нет данных по зарплатам для этой роли</p>
-            {% endif %}
-        </div>
+        <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;" data-salary="[]"></div>
 
         {% set employer_analysis_role = employer_analysis_roles | selectattr('id', 'equalto', role.id) | first %}
         <div class="employer-analysis-content" data-analysis="employer-analysis-{{ role_index }}" style="display: none;">

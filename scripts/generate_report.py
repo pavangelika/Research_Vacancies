@@ -16,6 +16,18 @@ REPORTS_DIR = os.path.join(PROJECT_ROOT, 'reports')
 REPORT_TEMPLATES_DIR = os.path.join(REPORTS_DIR, 'templates')
 REPORT_STATIC_DIR = os.path.join(REPORTS_DIR, 'static')
 
+
+def compact_text(value, max_len=240):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    text = ' '.join(text.split())
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1].rstrip() + '…'
+
 def load_roles_mapping(json_path):
     """Загружает JSON и возвращает словарь {id: name}."""
     with open(json_path, 'r', encoding='utf-8') as f:
@@ -1043,7 +1055,7 @@ def fetch_salary_data(mapping):
     for row in rows_monthly:
         (role_id, experience, month, currency, status, total_vacancies,
          vacancies_with_salary, salary_percentage, avg_salary, median_salary,
-         mode_salary, min_salary, max_salary, top_skills, vacancy_ids) = row
+         mode_salary, min_salary, max_salary, top_skills, _vacancy_ids) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -1067,9 +1079,6 @@ def fetch_salary_data(mapping):
                 'entries': []
             }
 
-        # Преобразуем массив id в список Python
-        vacancy_ids_list = list(vacancy_ids) if vacancy_ids else []
-
         entry = {
             'status': status,
             'currency': currency,
@@ -1082,7 +1091,6 @@ def fetch_salary_data(mapping):
             'min_salary': float(min_salary) if min_salary else 0,
             'max_salary': float(max_salary) if max_salary else 0,
             'top_skills': top_skills,
-            'vacancy_ids': vacancy_ids_list,  # добавляем список id
             'vacancies_with_salary_list': [],
             'vacancies_without_salary_list': []
         }
@@ -1093,7 +1101,7 @@ def fetch_salary_data(mapping):
     for row in rows_total:
         (role_id, experience, currency, status, total_vacancies,
          vacancies_with_salary, salary_percentage, avg_salary, median_salary,
-         mode_salary, min_salary, max_salary, top_skills, vacancy_ids) = row
+         mode_salary, min_salary, max_salary, top_skills, _vacancy_ids) = row
 
         if role_id is None:
             role_key = "NULL"
@@ -1113,8 +1121,7 @@ def fetch_salary_data(mapping):
             'mode_salary': float(mode_salary) if mode_salary else 0,
             'min_salary': float(min_salary) if min_salary else 0,
             'max_salary': float(max_salary) if max_salary else 0,
-            'top_skills': top_skills,
-            'vacancy_ids': list(vacancy_ids) if vacancy_ids else []
+            'top_skills': top_skills
         }
 
     monthly_currency_groups = defaultdict(set)
@@ -1216,9 +1223,9 @@ def fetch_salary_data(mapping):
             'experience': experience,
             '_experience': experience,
             '_status': status,
-            'skills': skills,
-            'requirement': requirement,
-            'responsibility': responsibility,
+            'skills': compact_text(skills, 180),
+            'requirement': compact_text(requirement, 240),
+            'responsibility': compact_text(responsibility, 240),
             'apply_alternate_url': apply_alternate_url,
             'employer_accredited': accredited_it_employer,
             'employer_rating': rating,
@@ -1290,7 +1297,6 @@ def fetch_salary_data(mapping):
                 'min_salary': vals['min_salary'],
                 'max_salary': vals['max_salary'],
                 'top_skills': vals['top_skills'],
-                'vacancy_ids': vals['vacancy_ids'],
                 'vacancies_with_salary_list': [],
                 'vacancies_without_salary_list': []
             }

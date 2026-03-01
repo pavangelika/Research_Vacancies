@@ -137,6 +137,9 @@ function switchAnalysis(evt, analysisId) {
         if (roleId === 'role-all') {
             restoreAllRolesPeriodState(parentRole, 'weekday');
         } else {
+            var weekdays = parseJsonDataset(weekdayBlock, 'weekdays', []);
+            var tableWrap = weekdayBlock.querySelector('.table-container');
+            if (tableWrap) tableWrap.innerHTML = buildWeekdayTableHtml(weekdays || []);
             var viewBtns = weekdayBlock.querySelectorAll('.view-mode-btn');
             setActiveViewButton(viewBtns, uiState.weekday_view_mode);
             applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
@@ -217,11 +220,14 @@ function ensureSharedFilterPanel() {
         panel.id = 'global-shared-filter-panel';
         panel.className = 'shared-filter-panel';
         panel.style.display = 'none';
-        panel.style.margin = '10px 0 14px';
-        panel.style.padding = '10px 12px';
-        panel.style.border = '1px solid var(--border-color, #d9e2ec)';
-        panel.style.borderRadius = '12px';
-        panel.style.background = 'var(--card-background, #fff)';
+        panel.style.margin = '6px 0 10px';
+        panel.style.padding = '8px 10px';
+        panel.style.border = '1px solid rgba(148, 163, 184, 0.28)';
+        panel.style.borderRadius = '18px';
+        panel.style.background = 'rgba(255, 255, 255, 0.9)';
+        panel.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.05)';
+        panel.style.backdropFilter = 'blur(14px)';
+        panel.style.overflow = 'visible';
 
         var title = document.createElement('div');
         title.className = 'shared-filter-panel-title';
@@ -232,17 +238,18 @@ function ensureSharedFilterPanel() {
         var hint = document.createElement('div');
         hint.className = 'shared-filter-panel-hint';
         hint.textContent = 'ЛКМ — включить, ПКМ — исключить';
-        hint.style.fontSize = '12px';
-        hint.style.color = 'var(--text-secondary, #52606d)';
-        hint.style.marginBottom = '8px';
+        hint.style.fontSize = '10px';
+        hint.style.color = '#94a3b8';
+        hint.style.marginBottom = '6px';
 
         var body = document.createElement('div');
         body.className = 'shared-filter-panel-body';
         body.style.display = 'flex';
         body.style.flexWrap = 'nowrap';
         body.style.alignItems = 'flex-start';
-        body.style.gap = '12px';
+        body.style.gap = '6px';
         body.style.overflowX = 'auto';
+        body.style.overflowY = 'visible';
 
         var chips = document.createElement('div');
         chips.className = 'shared-filter-active-chips';
@@ -372,7 +379,7 @@ function createAllRolesPeriodControl(activeRole) {
     menu.className = 'global-filter-menu all-roles-period-menu';
     menu.style.display = 'none';
     menu.style.marginTop = '8px';
-    menu.style.padding = '6px';
+    menu.style.padding = '0';
     menu.style.border = '1px solid var(--border-color, #d9e2ec)';
     menu.style.borderRadius = '10px';
     menu.style.background = 'var(--card-background, #fff)';
@@ -413,6 +420,7 @@ function createAllRolesPeriodControl(activeRole) {
         });
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         menu.style.display = nextState;
+        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
         arrow.textContent = nextState === 'block' ? '▴' : '▾';
     });
 
@@ -514,6 +522,7 @@ function createSummaryAnalysisControl(activeRole) {
         });
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         menu.style.display = nextState;
+        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
         triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
     });
 
@@ -586,8 +595,24 @@ function dedupeFilterOptions(options) {
     });
 }
 
+function normalizePeriodOptionValue(value) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
+    if (quick) return 'last_' + String(Number(quick[1]) || 0);
+    return text;
+}
+
+function formatPeriodSelectionValue(value) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    var quick = text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
+    if (quick) return 'За ' + String(Number(quick[1]) || 0) + ' дня';
+    return text;
+}
+
 function summarizeSelectedPeriodsLabel(selectedPeriods) {
-    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return String(v).trim(); }).filter(Boolean) : [];
+    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return formatPeriodSelectionValue(v); }).filter(Boolean) : [];
     if (!labels.length) return 'За все время';
     if (labels.some(function(label) { return isSummaryMonth(label) || label === 'За период'; })) return 'За все время';
     if (labels.length === 1) return labels[0];
@@ -600,6 +625,61 @@ function ensureGlobalFilterBucket(filterKey) {
     if (!Array.isArray(uiState.global_filters[filterKey].include)) uiState.global_filters[filterKey].include = [];
     if (!Array.isArray(uiState.global_filters[filterKey].exclude)) uiState.global_filters[filterKey].exclude = [];
     return uiState.global_filters[filterKey];
+}
+
+function ensureGlobalFilterModeState() {
+    if (!uiState.global_filter_modes) uiState.global_filter_modes = {};
+    ['roles', 'periods', 'experiences'].forEach(function(key) {
+        if (typeof uiState.global_filter_modes[key] !== 'boolean') uiState.global_filter_modes[key] = false;
+    });
+    return uiState.global_filter_modes;
+}
+
+function isGlobalFilterMultiEnabled(filterKey) {
+    return !!ensureGlobalFilterModeState()[filterKey];
+}
+
+function setGlobalFilterMultiEnabled(filterKey, enabled) {
+    ensureGlobalFilterModeState()[filterKey] = !!enabled;
+    if (!enabled) {
+        var bucket = ensureGlobalFilterBucket(filterKey);
+        var singleInclude = bucket.include.length ? [bucket.include[0]] : [];
+        var singleExclude = singleInclude.length ? [] : (bucket.exclude.length ? [bucket.exclude[0]] : []);
+        bucket.include = singleInclude;
+        bucket.exclude = singleExclude;
+    }
+}
+
+function applyGlobalFilterIconButtonStyle(button, isActive) {
+    if (!button) return;
+    button.style.borderRadius = '999px';
+    button.style.padding = '0';
+    button.style.width = '28px';
+    button.style.height = '28px';
+    button.style.display = 'inline-flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
+    button.style.border = '1px solid ' + (isActive ? 'rgba(59, 130, 246, 0.26)' : 'rgba(148, 163, 184, 0.22)');
+    button.style.background = isActive ? 'rgba(239, 246, 255, 0.92)' : 'rgba(248, 250, 252, 0.92)';
+    button.style.color = isActive ? '#2563eb' : '#475569';
+    button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+}
+
+function sortExperienceFilterOptions(options) {
+    var rank = {
+        'Нет опыта': 0,
+        'От 1 года до 3 лет': 1,
+        'От 3 до 6 лет': 2,
+        'Более 6 лет': 3
+    };
+    return (options || []).slice().sort(function(a, b) {
+        var aLabel = String((a && a.label) || '').trim();
+        var bLabel = String((b && b.label) || '').trim();
+        var aRank = Object.prototype.hasOwnProperty.call(rank, aLabel) ? rank[aLabel] : 999;
+        var bRank = Object.prototype.hasOwnProperty.call(rank, bLabel) ? rank[bLabel] : 999;
+        if (aRank !== bRank) return aRank - bRank;
+        return aLabel.localeCompare(bLabel, 'ru');
+    });
 }
 
 function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
@@ -618,7 +698,8 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         else if (current === 'employer-analysis') selectors = ['.employer-period-chips .employer-period-chip'];
         for (var i = 0; i < selectors.length; i++) {
             var found = Array.from(activeRole.querySelectorAll(selectors[i])).map(function(btn) {
-                return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() };
+                var label = (btn.textContent || '').trim();
+                return { value: normalizePeriodOptionValue(label), label: label };
             }).filter(function(item) { return !!item.value; });
             if (found.length) return dedupeFilterOptions(found);
         }
@@ -635,28 +716,32 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
     if (filterKey === 'experiences') {
         if (current === 'skills-monthly') {
             var skillsButtons = Array.from(activeRole.querySelectorAll('.monthly-skills-exp-button'));
-            return dedupeFilterOptions(skillsButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; }));
+            return sortExperienceFilterOptions(dedupeFilterOptions(skillsButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; })));
         }
         if (current === 'salary') {
             var salaryButtons = Array.from(activeRole.querySelectorAll('.salary-exp-button'));
-            return dedupeFilterOptions(salaryButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; }));
+            return sortExperienceFilterOptions(dedupeFilterOptions(salaryButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; })));
         }
         if (current === 'skills-search') {
-            return dedupeFilterOptions(Array.from(activeRole.querySelectorAll('.skills-search-dropdown[data-filter="exp"] .skills-search-dropdown-item')).map(function(btn) {
+            return sortExperienceFilterOptions(dedupeFilterOptions(Array.from(activeRole.querySelectorAll('.skills-search-dropdown[data-filter="exp"] .skills-search-dropdown-item')).map(function(btn) {
                 var value = (btn.dataset.value || '').trim();
                 var label = (btn.textContent || '').trim();
                 if (!value || value === 'all') return null;
                 return { value: value, label: label || value };
-            }).filter(Boolean));
+            }).filter(Boolean)));
         }
-        return [];
+        var vacancyExperiences = sortExperienceFilterOptions(dedupeFilterOptions(getRoleVacancies(activeRole).map(function(vacancy) {
+            var value = String(vacancy && (vacancy.experience || vacancy._experience) || '').trim();
+            if (!value) return null;
+            return { value: value, label: value };
+        }).filter(Boolean)));
+        return vacancyExperiences;
     }
     return [];
 }
 
 function isGlobalFilterDisabled(filterKey, analysisType) {
-    if (filterKey !== 'experiences') return false;
-    return analysisType === 'activity' || analysisType === 'weekday' || analysisType === 'employer-analysis';
+    return false;
 }
 
 function summarizeGlobalFilterSelection(filterKey, options, disabled) {
@@ -667,6 +752,13 @@ function summarizeGlobalFilterSelection(filterKey, options, disabled) {
     if (!includeCount && !excludeCount) return filterKey === 'roles' ? 'Выбрать роль' : 'Все';
     var optionMap = {};
     (options || []).forEach(function(item) { optionMap[item.value] = item.label; });
+    if (filterKey !== 'roles') {
+        var includeLabels = bucket.include.map(function(value) { return optionMap[value] || value; }).filter(Boolean);
+        var excludeLabels = bucket.exclude.map(function(value) { return optionMap[value] || value; }).filter(Boolean);
+        if (includeLabels.length && !excludeLabels.length) return includeLabels.join(', ');
+        if (!includeLabels.length && excludeLabels.length) return 'Все, кроме ' + excludeLabels.join(', ');
+        if (includeLabels.length && excludeLabels.length) return includeLabels.join(', ');
+    }
     if (includeCount === 1 && !excludeCount) return optionMap[bucket.include[0]] || '1 выбрано';
     if (!includeCount && excludeCount === 1) return 'Все, кроме 1';
     if (includeCount && !excludeCount) return includeCount + ' выбрано';
@@ -681,6 +773,76 @@ function closeGlobalFilterMenus(exceptMenu, exceptArrow) {
     document.querySelectorAll('#global-shared-filter-panel .global-filter-trigger-arrow').forEach(function(arrow) {
         if (arrow !== exceptArrow) arrow.textContent = '▾';
     });
+}
+
+function positionGlobalFilterMenu(trigger, menu) {
+    if (!trigger || !menu) return;
+    var rect = trigger.getBoundingClientRect();
+    var width = Math.max(220, Math.round(rect.width));
+    var maxHeight = Math.max(240, Math.min(window.innerHeight - Math.round(rect.bottom) - 12, Math.round(window.innerHeight * 0.72)));
+    var left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+    menu.style.setProperty('position', 'fixed', 'important');
+    menu.style.setProperty('top', Math.round(rect.bottom + 6) + 'px', 'important');
+    menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+    menu.style.setProperty('right', 'auto', 'important');
+    menu.style.setProperty('bottom', 'auto', 'important');
+    menu.style.setProperty('box-sizing', 'border-box', 'important');
+    menu.style.setProperty('width', Math.round(width) + 'px', 'important');
+    menu.style.setProperty('max-height', maxHeight + 'px', 'important');
+    menu.style.setProperty('overflow-y', 'auto', 'important');
+    menu.style.setProperty('margin', '0', 'important');
+    menu.style.setProperty('transform', 'none', 'important');
+    menu.style.setProperty('inset', 'auto auto auto auto', 'important');
+    menu.style.setProperty('z-index', '1000', 'important');
+}
+
+function ensureGlobalFilterTooltip() {
+    var tooltip = document.getElementById('global-filter-tooltip');
+    if (tooltip) return tooltip;
+    tooltip = document.createElement('div');
+    tooltip.id = 'global-filter-tooltip';
+    tooltip.style.position = 'fixed';
+    tooltip.style.display = 'none';
+    tooltip.style.padding = '6px 10px';
+    tooltip.style.border = '1px solid rgba(148, 163, 184, 0.18)';
+    tooltip.style.borderRadius = '12px';
+    tooltip.style.background = 'rgba(255, 255, 255, 0.94)';
+    tooltip.style.color = '#334155';
+    tooltip.style.fontSize = '12px';
+    tooltip.style.lineHeight = '1.2';
+    tooltip.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.08)';
+    tooltip.style.backdropFilter = 'blur(12px)';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.zIndex = '1100';
+    document.body.appendChild(tooltip);
+    return tooltip;
+}
+
+function showGlobalFilterTooltip(target, text) {
+    if (!target || !text) return;
+    var tooltip = ensureGlobalFilterTooltip();
+    tooltip.textContent = text;
+    tooltip.style.display = 'block';
+    var rect = target.getBoundingClientRect();
+    var tooltipWidth = tooltip.offsetWidth || 120;
+    var left = Math.min(Math.max(8, rect.left + Math.round((rect.width - tooltipWidth) / 2)), Math.max(8, window.innerWidth - tooltipWidth - 8));
+    var top = Math.max(8, rect.top - (tooltip.offsetHeight || 32) - 8);
+    tooltip.style.left = Math.round(left) + 'px';
+    tooltip.style.top = Math.round(top) + 'px';
+}
+
+function hideGlobalFilterTooltip() {
+    var tooltip = document.getElementById('global-filter-tooltip');
+    if (tooltip) tooltip.style.display = 'none';
+}
+
+function bindGlobalFilterTooltip(target, text) {
+    if (!target || !text) return;
+    target.setAttribute('aria-label', text);
+    target.addEventListener('mouseenter', function() { showGlobalFilterTooltip(target, text); });
+    target.addEventListener('mouseleave', hideGlobalFilterTooltip);
+    target.addEventListener('focus', function() { showGlobalFilterTooltip(target, text); });
+    target.addEventListener('blur', hideGlobalFilterTooltip);
 }
 
 function refreshExistingGlobalFilterUi(parentRole, analysisType) {
@@ -703,7 +865,7 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
             return;
         }
 
-        var disabled = key === 'experiences' && isGlobalFilterDisabled('experiences', current);
+        var disabled = false;
         var options = getGlobalFilterOptions(activeRole, key, current);
         labelNode.textContent = summarizeGlobalFilterSelection(key, options, disabled);
     });
@@ -749,11 +911,21 @@ function updateGlobalFilterSelection(filterKey, value, action) {
         bucket.include = bucket.include.filter(function(v) { return v !== value; });
         bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
     } else if (action === 'include') {
-        if (bucket.include.indexOf(value) < 0) bucket.include.push(value);
-        bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
+        if (isGlobalFilterMultiEnabled(filterKey)) {
+            if (bucket.include.indexOf(value) < 0) bucket.include.push(value);
+            bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
+        } else {
+            bucket.include = value ? [value] : [];
+            bucket.exclude = [];
+        }
     } else if (action === 'exclude') {
-        if (bucket.exclude.indexOf(value) < 0) bucket.exclude.push(value);
-        bucket.include = bucket.include.filter(function(v) { return v !== value; });
+        if (isGlobalFilterMultiEnabled(filterKey)) {
+            if (bucket.exclude.indexOf(value) < 0) bucket.exclude.push(value);
+            bucket.include = bucket.include.filter(function(v) { return v !== value; });
+        } else {
+            bucket.exclude = value ? [value] : [];
+            bucket.include = [];
+        }
     } else if (action === 'all') {
         if (filterKey === 'roles') {
             bucket.include = getGlobalFilterOptions(null, 'roles', null).map(function(item) { return item.value; });
@@ -797,12 +969,6 @@ function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
     var defs = [
         { key: 'roles', title: 'Роль', options: getGlobalFilterOptions(activeRole, 'roles', analysisType), disabled: false }
     ];
-    if (!isAllRolesView) {
-        defs.push(
-            { key: 'periods', title: 'Период', options: getGlobalFilterOptions(activeRole, 'periods', analysisType), disabled: false },
-            { key: 'experiences', title: 'Опыт', options: getGlobalFilterOptions(activeRole, 'experiences', analysisType), disabled: isGlobalFilterDisabled('experiences', analysisType) }
-        );
-    }
 
     defs.forEach(function(def) {
         if (def.disabled) return;
@@ -838,54 +1004,37 @@ function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
             host.appendChild(chip);
         });
     });
-    if (isAllRolesView) {
-        var periodButtons = getAllRolesPeriodButtons(activeRole);
-        var activePeriodBtn = periodButtons.find(function(btn) { return btn.classList.contains('active'); }) || periodButtons[0];
-        if (activePeriodBtn) {
-            var periodChip = document.createElement('button');
-            periodChip.type = 'button';
-            periodChip.textContent = ((activePeriodBtn.textContent || '').trim() || 'Период') + ' ×';
-            periodChip.style.border = '0';
-            periodChip.style.borderRadius = '999px';
-            periodChip.style.padding = '4px 10px';
-            periodChip.style.background = '#eef2f6';
-            periodChip.style.color = 'inherit';
-            periodChip.style.cursor = 'pointer';
-            periodChip.addEventListener('click', function() {
-                var resetBtn = periodButtons[0];
-                if (!resetBtn || resetBtn === activePeriodBtn) return;
-                resetBtn.click();
-                syncSharedFilterPanel(activeRole, activeRole.dataset.activeAnalysis || '');
-            });
-            host.appendChild(periodChip);
-        }
-    }
 }
 
 function createUnifiedRolesControl(activeRole, analysisType) {
     var options = getGlobalFilterOptions(activeRole, 'roles', analysisType);
     var bucket = ensureGlobalFilterBucket('roles');
     var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown';
+    wrap.className = 'global-filter-dropdown skills-search-dropdown';
     wrap.dataset.filterKey = 'roles';
-    wrap.style.marginTop = '8px';
+    wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
+    wrap.style.minWidth = '280px';
+    wrap.style.width = '280px';
 
     var caption = document.createElement('div');
     caption.textContent = 'Роли';
-    caption.style.fontSize = '12px';
+    caption.style.fontSize = '10px';
     caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
-    caption.style.color = 'var(--text-secondary, #52606d)';
+    caption.style.marginBottom = '4px';
+    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger';
+    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
     trigger.style.width = '100%';
     trigger.style.borderRadius = '999px';
-    trigger.style.padding = '8px 12px';
+    trigger.style.padding = '5px 10px';
+    trigger.style.minHeight = '34px';
+    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
+    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
+    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
     trigger.style.display = 'flex';
     trigger.style.alignItems = 'center';
     trigger.style.justifyContent = 'space-between';
@@ -908,41 +1057,59 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     wrap.appendChild(trigger);
 
     var menu = document.createElement('div');
-    menu.className = 'global-filter-menu';
+    menu.className = 'global-filter-menu skills-search-dropdown-menu';
     menu.style.display = 'none';
-    menu.style.marginTop = '8px';
-    menu.style.padding = '8px';
+    menu.style.marginTop = '0';
+    menu.style.padding = '6px';
     menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '10px';
+    menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '300px';
+    menu.style.width = '240px';
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '260px';
     menu.style.overflowY = 'auto';
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';
-    controls.style.gap = '6px';
+    controls.style.gap = '4px';
     controls.style.flexWrap = 'wrap';
-    controls.style.marginBottom = '8px';
+    controls.style.marginBottom = '0';
+    controls.style.padding = '2px';
 
     var allBtn = document.createElement('button');
     allBtn.type = 'button';
-    allBtn.className = 'tab-button';
-    allBtn.textContent = 'Выбрать все';
-    allBtn.style.borderRadius = '999px';
+    allBtn.className = 'tab-button skills-search-dropdown-item';
+    allBtn.textContent = '✓';
+    bindGlobalFilterTooltip(allBtn, 'Выбрать все');
+    applyGlobalFilterIconButtonStyle(allBtn, false);
     allBtn.addEventListener('click', function() {
         if (isSummaryModeActive()) setSummaryModeActive(false);
         updateGlobalFilterSelection('roles', '', 'all');
     });
     controls.appendChild(allBtn);
 
+    var multiBtn = document.createElement('button');
+    multiBtn.type = 'button';
+    multiBtn.className = 'tab-button skills-search-dropdown-item';
+    multiBtn.textContent = '⧉';
+    bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
+    applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled('roles'));
+    multiBtn.addEventListener('click', function() {
+        if (isSummaryModeActive()) setSummaryModeActive(false);
+        var next = !isGlobalFilterMultiEnabled('roles');
+        setGlobalFilterMultiEnabled('roles', next);
+        applyGlobalFilterIconButtonStyle(multiBtn, next);
+        applyGlobalRoleFilter();
+    });
+    controls.appendChild(multiBtn);
+
     var clearExcludedBtn = document.createElement('button');
     clearExcludedBtn.type = 'button';
-    clearExcludedBtn.className = 'tab-button';
-    clearExcludedBtn.textContent = 'Очистить исключения';
-    clearExcludedBtn.style.borderRadius = '999px';
+    clearExcludedBtn.className = 'tab-button skills-search-dropdown-item';
+    clearExcludedBtn.textContent = '⊘';
+    bindGlobalFilterTooltip(clearExcludedBtn, 'Очистить исключения');
+    applyGlobalFilterIconButtonStyle(clearExcludedBtn, false);
     clearExcludedBtn.addEventListener('click', function() {
         if (isSummaryModeActive()) setSummaryModeActive(false);
         updateGlobalFilterSelection('roles', '', 'clear_excluded');
@@ -951,11 +1118,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
-    clearBtn.className = 'tab-button';
-    clearBtn.textContent = 'Сбросить все';
-    clearBtn.style.border = '0';
-    clearBtn.style.background = 'transparent';
-    clearBtn.style.color = 'var(--text-secondary, #52606d)';
+    clearBtn.className = 'tab-button skills-search-dropdown-item';
+    clearBtn.textContent = '✕';
+    bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
+    applyGlobalFilterIconButtonStyle(clearBtn, false);
     clearBtn.addEventListener('click', function() {
         if (isSummaryModeActive()) setSummaryModeActive(false);
         updateGlobalFilterSelection('roles', '', 'clear');
@@ -969,20 +1135,24 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     search.placeholder = 'Поиск роли';
     search.style.width = '100%';
     search.style.boxSizing = 'border-box';
-    search.style.marginBottom = '8px';
-    search.style.padding = '8px 10px';
+    search.style.marginBottom = '2px';
+    search.style.marginLeft = '2px';
+    search.style.marginRight = '2px';
+    search.style.padding = '7px 10px';
+    search.style.fontSize = '12px';
     search.style.border = '1px solid var(--border-color, #d9e2ec)';
     search.style.borderRadius = '8px';
     menu.appendChild(search);
 
     options.forEach(function(option) {
         var row = document.createElement('div');
+        row.className = 'skills-search-dropdown-item';
         row.style.display = 'grid';
         row.style.gridTemplateColumns = '1fr';
-        row.style.gap = '6px';
+        row.style.gap = '4px';
         row.style.alignItems = 'center';
-        row.style.marginBottom = '6px';
-        row.style.padding = '6px 8px';
+        row.style.marginBottom = '2px';
+        row.style.padding = '5px 8px';
         row.style.borderRadius = '8px';
         row.style.cursor = 'pointer';
         row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
@@ -1002,7 +1172,8 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         var isExcludedNow = bucket.exclude.indexOf(option.value) >= 0;
         label.textContent = option.label;
         label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
-        row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : '#f8fafc';
+        label.style.fontSize = '12px';
+        row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
         row.appendChild(label);
         menu.appendChild(row);
     });
@@ -1020,6 +1191,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
         menu.style.display = nextState;
+        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
         triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
     });
 
@@ -1030,26 +1202,31 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown';
+    wrap.className = 'global-filter-dropdown skills-search-dropdown';
     wrap.dataset.filterKey = filterKey;
-    wrap.style.marginTop = '8px';
+    wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
+    wrap.style.minWidth = '280px';
+    wrap.style.width = '280px';
 
     var caption = document.createElement('div');
     caption.textContent = title;
-    caption.style.fontSize = '12px';
+    caption.style.fontSize = '10px';
     caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
-    caption.style.color = 'var(--text-secondary, #52606d)';
+    caption.style.marginBottom = '4px';
+    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger';
+    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
     trigger.style.width = '100%';
     trigger.style.borderRadius = '999px';
-    trigger.style.padding = '8px 12px';
+    trigger.style.padding = '5px 10px';
+    trigger.style.minHeight = '34px';
+    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
+    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
+    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
     trigger.style.display = 'flex';
     trigger.style.alignItems = 'center';
     trigger.style.justifyContent = 'space-between';
@@ -1074,47 +1251,65 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     wrap.appendChild(trigger);
 
     var menu = document.createElement('div');
-    menu.className = 'global-filter-menu';
+    menu.className = 'global-filter-menu skills-search-dropdown-menu';
     menu.style.display = 'none';
-    menu.style.marginTop = '8px';
-    menu.style.padding = '8px';
+    menu.style.marginTop = '0';
+    menu.style.padding = '0';
     menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '10px';
+    menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '300px';
+    menu.style.width = '240px';
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '260px';
     menu.style.overflowY = 'auto';
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';
-    controls.style.gap = '6px';
+    controls.style.gap = '4px';
     controls.style.flexWrap = 'wrap';
-    controls.style.marginBottom = '8px';
+    controls.style.marginBottom = '0';
+    controls.style.padding = '2px';
     var allBtn = document.createElement('button');
     allBtn.type = 'button';
-    allBtn.className = 'tab-button';
-    allBtn.textContent = 'Выбрать все';
-    allBtn.style.borderRadius = '999px';
+    allBtn.className = 'tab-button skills-search-dropdown-item';
+    allBtn.textContent = '✓';
+    bindGlobalFilterTooltip(allBtn, 'Выбрать все');
+    applyGlobalFilterIconButtonStyle(allBtn, false);
     allBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'all'); });
     controls.appendChild(allBtn);
 
-    var clearExcludedBtn = document.createElement('button');
-    clearExcludedBtn.type = 'button';
-    clearExcludedBtn.className = 'tab-button';
-    clearExcludedBtn.textContent = 'Очистить исключения';
-    clearExcludedBtn.style.borderRadius = '999px';
-    clearExcludedBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear_excluded'); });
-    controls.appendChild(clearExcludedBtn);
+    var multiBtn = document.createElement('button');
+    multiBtn.type = 'button';
+    multiBtn.className = 'tab-button skills-search-dropdown-item';
+    multiBtn.textContent = '⧉';
+    bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
+    applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled(filterKey));
+    multiBtn.addEventListener('click', function() {
+        var next = !isGlobalFilterMultiEnabled(filterKey);
+        setGlobalFilterMultiEnabled(filterKey, next);
+        applyGlobalFilterIconButtonStyle(multiBtn, next);
+        refreshExistingGlobalFilterUi();
+    });
+    controls.appendChild(multiBtn);
+
+    if (filterKey === 'roles') {
+        var clearExcludedBtn = document.createElement('button');
+        clearExcludedBtn.type = 'button';
+        clearExcludedBtn.className = 'tab-button skills-search-dropdown-item';
+        clearExcludedBtn.textContent = '⊘';
+        bindGlobalFilterTooltip(clearExcludedBtn, 'Очистить исключения');
+        applyGlobalFilterIconButtonStyle(clearExcludedBtn, false);
+        clearExcludedBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear_excluded'); });
+        controls.appendChild(clearExcludedBtn);
+    }
 
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
-    clearBtn.className = 'tab-button';
-    clearBtn.textContent = 'Сбросить все';
-    clearBtn.style.border = '0';
-    clearBtn.style.background = 'transparent';
-    clearBtn.style.color = 'var(--text-secondary, #52606d)';
+    clearBtn.className = 'tab-button skills-search-dropdown-item';
+    clearBtn.textContent = '✕';
+    bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
+    applyGlobalFilterIconButtonStyle(clearBtn, false);
     clearBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear'); });
     controls.appendChild(clearBtn);
     menu.appendChild(controls);
@@ -1126,8 +1321,11 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         search.placeholder = 'Поиск роли';
         search.style.width = '100%';
         search.style.boxSizing = 'border-box';
-        search.style.marginBottom = '8px';
-        search.style.padding = '8px 10px';
+        search.style.marginBottom = '2px';
+        search.style.marginLeft = '2px';
+        search.style.marginRight = '2px';
+        search.style.padding = '7px 10px';
+        search.style.fontSize = '12px';
         search.style.border = '1px solid var(--border-color, #d9e2ec)';
         search.style.borderRadius = '8px';
         menu.appendChild(search);
@@ -1143,12 +1341,13 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         var searchInput = menu.querySelector('.global-filter-search');
         options.forEach(function(option) {
             var row = document.createElement('div');
+            row.className = 'skills-search-dropdown-item';
             row.style.display = 'grid';
             row.style.gridTemplateColumns = '1fr';
-            row.style.gap = '6px';
+            row.style.gap = '4px';
             row.style.alignItems = 'center';
-            row.style.marginBottom = '6px';
-            row.style.padding = '6px 8px';
+            row.style.marginBottom = '2px';
+            row.style.padding = '5px 8px';
             row.style.borderRadius = '8px';
             row.style.cursor = 'pointer';
             row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
@@ -1166,7 +1365,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             var isExcludedNow = bucket.exclude.indexOf(option.value) >= 0;
             label.textContent = option.label;
             label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
-            row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : '#f8fafc';
+            label.style.fontSize = '12px';
+            row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
             row.appendChild(label);
             menu.appendChild(row);
         });
@@ -1187,6 +1387,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             var nextState = menu.style.display === 'none' ? 'block' : 'none';
             closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
             menu.style.display = nextState;
+            if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
             triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
         });
     }
@@ -1195,6 +1396,22 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
 }
 
 function getResolvedGlobalFilterValues(filterKey, options) {
+    if (filterKey === 'periods') {
+        var periodBucket = ensureGlobalFilterBucket(filterKey);
+        var normalizedAllowed = (options || []).map(function(item) {
+            return { raw: item.value, norm: normalizeGlobalPeriodValue(item.value) };
+        });
+        var includeNorm = (periodBucket.include || []).map(normalizeGlobalPeriodValue).filter(Boolean);
+        var excludeNorm = (periodBucket.exclude || []).map(normalizeGlobalPeriodValue).filter(Boolean);
+        if (includeNorm.length) {
+            return normalizedAllowed.filter(function(item) {
+                return includeNorm.indexOf(item.norm) >= 0 && excludeNorm.indexOf(item.norm) < 0;
+            }).map(function(item) { return item.raw; });
+        }
+        return normalizedAllowed.filter(function(item) {
+            return excludeNorm.indexOf(item.norm) < 0;
+        }).map(function(item) { return item.raw; });
+    }
     var bucket = ensureGlobalFilterBucket(filterKey);
     var allowed = (options || []).map(function(item) { return item.value; });
     var include = (bucket.include || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
@@ -1203,21 +1420,55 @@ function getResolvedGlobalFilterValues(filterKey, options) {
     return allowed.filter(function(v) { return exclude.indexOf(v) < 0; });
 }
 
+function normalizeGlobalPeriodValue(value) {
+    var text = normalizePeriodOptionValue(value);
+    if (!text) return '';
+    var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
+    if (quick) return 'last_' + String(Number(quick[1]) || 0);
+    if (/^\d{4}-\d{2}$/.test(text)) return text;
+    if (text === 'За период' || isSummaryMonth(text)) return 'summary';
+    return text;
+}
+
+function parsePublishedAtDate(value) {
+    if (!value) return null;
+    var text = String(value).trim();
+    if (!text) return null;
+    var match = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (match) {
+        var manual = new Date(
+            Number(match[1]),
+            Number(match[2]) - 1,
+            Number(match[3]),
+            Number(match[4] || 0),
+            Number(match[5] || 0),
+            Number(match[6] || 0)
+        );
+        return isNaN(manual) ? null : manual;
+    }
+    var parsed = new Date(text);
+    return isNaN(parsed) ? null : parsed;
+}
+
 function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
     var list = dedupeVacanciesById((vacancies || []).slice());
     var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean) : [];
     if (!labels.length) return list;
-    if (labels.some(function(label) { return isSummaryMonth(label); })) return list;
+    var effectiveLabels = labels.filter(function(label) {
+        var text = String(label || '').trim();
+        return !isSummaryMonth(text) && text !== 'За период';
+    });
+    if (!effectiveLabels.length) return list;
 
     var monthSet = new Set();
     var maxQuickDays = 0;
-    labels.forEach(function(label) {
+    effectiveLabels.forEach(function(label) {
         var text = String(label || '').trim();
         if (/^\d{4}-\d{2}$/.test(text)) {
             monthSet.add(text);
             return;
         }
-        var match = text.match(/^За\s+(\d+)\s+д/i);
+        var match = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
         if (match) {
             var days = Number(match[1]) || 0;
             if (days > maxQuickDays) maxQuickDays = days;
@@ -1229,8 +1480,8 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
         var maxDate = null;
         list.forEach(function(v) {
             if (!v || !v.published_at) return;
-            var d = new Date(v.published_at);
-            if (isNaN(d)) return;
+            var d = parsePublishedAtDate(v.published_at);
+            if (!d) return;
             if (!maxDate || d > maxDate) maxDate = d;
         });
         if (maxDate) quickCutoff = new Date(maxDate.getTime() - maxQuickDays * 24 * 60 * 60 * 1000);
@@ -1240,8 +1491,8 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
 
     return list.filter(function(v) {
         if (!v || !v.published_at) return false;
-        var d = new Date(v.published_at);
-        if (isNaN(d)) return false;
+        var d = parsePublishedAtDate(v.published_at);
+        if (!d) return false;
         var month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         if (monthSet.has(month)) return true;
         if (quickCutoff && d >= quickCutoff) return true;
@@ -1481,11 +1732,15 @@ function renderGlobalEmployerFiltered(parentRole) {
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var rows;
-    var allPeriod = !selectedPeriods.length || selectedPeriods.some(function(label) { return isSummaryMonth(label) || label === 'За период'; });
+    var effectivePeriods = selectedPeriods.filter(function(label) {
+        var text = String(label || '').trim();
+        return !isSummaryMonth(text) && text !== 'За период';
+    });
+    var allPeriod = !selectedPeriods.length || !effectivePeriods.length;
     if (allPeriod) {
         rows = block.__employerAllRows || aggregateEmployerAnalysisRows(block.__employerData);
     } else {
-        var allowed = new Set(selectedPeriods);
+        var allowed = new Set(effectivePeriods);
         rows = aggregateEmployerAnalysisRows(block.__employerData.filter(function(row) {
             return row && allowed.has(row.month);
         }));
@@ -1526,7 +1781,7 @@ function syncSharedFilterPanel(parentRole, analysisType) {
     } else {
         body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
     }
-    body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', isAllRolesView ? [] : getGlobalFilterOptions(activeRole, 'experiences', current), isAllRolesView || isGlobalFilterDisabled('experiences', current)));
+    body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
     panel.style.display = body.children.length ? 'block' : 'none';
     renderActiveGlobalFilterChips(panel, activeRole, current);
     applyGlobalFiltersToActiveAnalysis(activeRole, current);
@@ -3847,6 +4102,8 @@ function openMonthTab(evt, monthId) {
     applyViewMode(container, uiState.activity_view_mode);
 
     var entries = parseJsonDataset(monthDiv, 'entries', []);
+    var tableWrap = monthDiv.querySelector('.table-container');
+    if (tableWrap) tableWrap.innerHTML = buildActivityTableHtml(entries || []);
     var graphId = 'activity-graph-' + monthId.replace('month-', '');
     buildActivityBarChart(graphId, entries);
     applyActivityModeSizing(container, uiState.activity_view_mode);
@@ -4082,6 +4339,7 @@ function openMonthlySkillsExpTab(evt, expId) {
 
     if (!multiEnabled || selectedBtns.length === 1) {
         expDiv.style.display = "block";
+        renderSkillsExpContent(expDiv, expData);
     } else {
         var selectedDivs = selectedBtns.map(b => document.getElementById(b.dataset.expId || '')).filter(Boolean);
         var label = selectedBtns.map(b => (b.textContent || '').trim()).join(' + ');
@@ -4234,6 +4492,8 @@ function openSalaryExpTab(evt, expId) {
     expDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
+    bindSalaryRowData(expDiv, expData.entries || []);
+    applySalaryTablesMarkup(expDiv, expData.entries || []);
     bindSalaryRowData(expDiv, expData.entries || []);
     applySalaryViewMode(expDiv, expData.entries);
     normalizeSalaryControls(parentRole);

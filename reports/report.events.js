@@ -105,6 +105,8 @@ document.addEventListener('contextmenu', function(e) {
 document.addEventListener('click', function(e) {
     var dropdownBtn = e.target.closest('.skills-search-dropdown-btn');
     if (dropdownBtn) {
+        var skillsBlock = dropdownBtn.closest('.skills-search-content');
+        if (!skillsBlock) return;
         var dropdown = dropdownBtn.closest('.skills-search-dropdown');
         if (!dropdown) return;
         var isOpen = dropdown.classList.contains('open');
@@ -264,7 +266,7 @@ document.addEventListener('click', function(e) {
 });
 
 document.addEventListener('click', function(e) {
-    if (e.target.closest('.skills-search-dropdown')) return;
+    if (e.target.closest('.skills-search-content .skills-search-dropdown')) return;
     document.querySelectorAll('.skills-search-dropdown.open').forEach(d => d.classList.remove('open'));
 });
 

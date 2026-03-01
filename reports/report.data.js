@@ -195,7 +195,20 @@ function getAllRoleContents() {
 function getRoleSalaryData(roleContent) {
     var salaryBlock = roleContent.querySelector('.salary-content');
     if (!salaryBlock) return [];
-    return parseJsonDataset(salaryBlock, 'salary', []);
+    salaryBlock._data = salaryBlock._data || {};
+    if (salaryBlock._data.salary !== undefined) return salaryBlock._data.salary;
+    var embedded = parseJsonDataset(salaryBlock, 'salary', []);
+    if (embedded && embedded.length) {
+        salaryBlock._data.salary = embedded;
+        return embedded;
+    }
+    if (typeof buildSalaryMonthsFromVacancies === 'function') {
+        var vacancies = getRoleVacancies(roleContent);
+        salaryBlock._data.salary = buildSalaryMonthsFromVacancies(vacancies || []);
+        return salaryBlock._data.salary;
+    }
+    salaryBlock._data.salary = [];
+    return salaryBlock._data.salary;
 }
 function isSalarySummaryExperience(expName) {
     return String(expName || '').trim().toLowerCase() === 'все';
