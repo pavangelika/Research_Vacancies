@@ -762,11 +762,11 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             if (found.length) return dedupeFilterOptions(found);
         }
         if (current === 'skills-search') {
-            return dedupeFilterOptions(Array.from(activeRole.querySelectorAll('.skills-search-dropdown[data-filter="period"] .skills-search-dropdown-item')).map(function(btn) {
-                var value = (btn.dataset.value || '').trim();
-                var label = (btn.textContent || '').trim();
-                if (!value || value === 'all') return null;
-                return { value: value, label: label || value };
+            var searchBlock = activeRole.querySelector('.skills-search-content');
+            var items = (searchBlock && searchBlock._data && Array.isArray(searchBlock._data.periodItems)) ? searchBlock._data.periodItems : [];
+            return dedupeFilterOptions(items.map(function(item) {
+                if (!item || !item.month) return null;
+                return { value: item.month, label: item.label || item.month };
             }).filter(Boolean));
         }
         return [];
@@ -781,11 +781,12 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             return sortExperienceFilterOptions(dedupeFilterOptions(salaryButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; })));
         }
         if (current === 'skills-search') {
-            return sortExperienceFilterOptions(dedupeFilterOptions(Array.from(activeRole.querySelectorAll('.skills-search-dropdown[data-filter="exp"] .skills-search-dropdown-item')).map(function(btn) {
-                var value = (btn.dataset.value || '').trim();
-                var label = (btn.textContent || '').trim();
-                if (!value || value === 'all') return null;
-                return { value: value, label: label || value };
+            var searchBlock2 = activeRole.querySelector('.skills-search-content');
+            var searchVacancies = (searchBlock2 && searchBlock2._data && Array.isArray(searchBlock2._data.vacancies)) ? searchBlock2._data.vacancies : [];
+            return sortExperienceFilterOptions(dedupeFilterOptions(searchVacancies.map(function(vacancy) {
+                var value = String(vacancy && (vacancy._experience || vacancy.experience) || '').trim();
+                if (!value) return null;
+                return { value: value, label: value };
             }).filter(Boolean)));
         }
         var vacancyExperiences = sortExperienceFilterOptions(dedupeFilterOptions(getRoleVacancies(activeRole).map(function(vacancy) {
@@ -2312,38 +2313,9 @@ function initSkillsSearch(parentRole) {
         };
     }
 
-    var periodDropdown = block.querySelector('.skills-search-dropdown[data-filter="period"]');
-    if (periodDropdown && !periodDropdown.dataset.ready) {
-        var items = (block._data && block._data.periodItems) ? block._data.periodItems : [];
-        var monthItems = items.filter(p => p.month).map(p => ({ value: p.month, label: p.label }));
-        renderSkillsSearchDropdown(periodDropdown, monthItems, 'Период', periodAllLabel, true, true);
-        periodDropdown.dataset.ready = '1';
-        block.dataset.period = 'all';
-    }
-
-    var expDropdown = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
-    if (expDropdown && !expDropdown.dataset.ready) {
-        var expSet = new Set();
-        if (block._data && block._data.fullVacancies) {
-            (block._data.vacancies || []).forEach(v => {
-                var expName = v && (v._experience || v.experience);
-                if (expName) expSet.add(expName);
-            });
-        } else {
-            (block._data && block._data.salaryMonths || []).forEach(m => {
-                if (!m || !m.month || isSummaryMonth(m.month)) return;
-                (m.experiences || []).forEach(exp => {
-                    if (exp && exp.experience) expSet.add(exp.experience);
-                });
-            });
-        }
-        var expOrder = getExperienceOrder();
-        var expList = Array.from(expSet);
-        expList.sort((a, b) => (expOrder[normalizeExperience(a)] || 99) - (expOrder[normalizeExperience(b)] || 99));
-        renderSkillsSearchDropdown(expDropdown, expList.map(x => ({ value: x, label: x })), 'Опыт', 'Все', false, true);
-        expDropdown.dataset.ready = '1';
-        block.dataset.exp = 'all';
-    }
+    block.querySelectorAll('.skills-search-dropdown[data-filter="period"], .skills-search-dropdown[data-filter="exp"]').forEach(function(node) {
+        if (node && node.parentElement) node.parentElement.removeChild(node);
+    });
 
     var statusDropdown = block.querySelector('.skills-search-dropdown[data-filter="status"]');
     if (statusDropdown && !statusDropdown.dataset.ready) {
@@ -2416,26 +2388,12 @@ function initSkillsSearch(parentRole) {
     if (saved) {
         applySkillsSearchState(block, saved);
     } else {
-        var labels = getExperienceLabels();
-        if (periodDropdown) {
-            setSkillsSearchDropdownValue(periodDropdown, 'last_3');
-            block.dataset.period = 'last_3';
-        }
         if (statusDropdown) {
             setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
             block.dataset.status = 'Открытая';
         }
-        if (expDropdown) {
-            var wantedExp = [labels.threeToSix, labels.sixPlus];
-            var availableExp = wantedExp.filter(function(v) {
-                return !!expDropdown.querySelector('.skills-search-dropdown-item[data-value="' + v + '"]');
-            });
-            setSkillsSearchDropdownMulti(expDropdown, availableExp);
-        }
     }
-
-    var currentPeriod = block.dataset.period || 'all';
-    applySkillsSearchPeriod(block, currentPeriod);
+    updateSkillsSearchData(block);
 }
 
 function renderSkillsSearchButtons(block, skillsList) {
@@ -2496,20 +2454,6 @@ function getSkillsSearchFilterValue(block, filterName) {
     return btn ? (btn.dataset.value || 'all') : 'all';
 }
 
-function applySkillsSearchPeriod(block, period) {
-    if (!block) return;
-    var target = period || 'all';
-    block.dataset.period = target;
-    var periodTabs = block.querySelectorAll('.skills-search-period-button');
-    periodTabs.forEach(btn => {
-        var isActive = (btn.dataset.period || 'all') === target;
-        if (isActive) btn.classList.add('active');
-        else btn.classList.remove('active');
-    });
-
-    updateSkillsSearchData(block);
-}
-
 function updateSkillsSearchData(block) {
     if (!block || !block._data) return;
     var parentRole = block.closest('.role-content');
@@ -2517,77 +2461,12 @@ function updateSkillsSearchData(block) {
     var globalExpOptions = getGlobalFilterOptions(parentRole, 'experiences', 'skills-search');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', globalPeriodOptions);
     var selectedExps = getResolvedGlobalFilterValues('experiences', globalExpOptions);
-    var period = block.dataset.period || 'all';
-    var months = block._data.salaryMonths || [];
-    var baseVacancies;
-    if (globalPeriodOptions.length) {
-        baseVacancies = (block._data.vacancies || []).slice();
+    var baseVacancies = (block._data.vacancies || []).slice();
+    if (selectedPeriods.length) {
         baseVacancies = filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods);
-    } else if (block._data.fullVacancies) {
-        baseVacancies = (block._data.vacancies || []).slice();
-        if (period && period.indexOf('last_') === 0) {
-            var days = Number(period.replace('last_', '')) || 0;
-            if (days > 0) {
-                var maxDate = null;
-                baseVacancies.forEach(v => {
-                    if (!v || !v.published_at) return;
-                    var d = new Date(v.published_at);
-                    if (isNaN(d)) return;
-                    if (!maxDate || d > maxDate) maxDate = d;
-                });
-                if (maxDate) {
-                    var cutoff = new Date(maxDate.getTime() - days * 24 * 60 * 60 * 1000);
-                    baseVacancies = baseVacancies.filter(v => {
-                        if (!v || !v.published_at) return false;
-                        var d = new Date(v.published_at);
-                        return !isNaN(d) && d >= cutoff;
-                    });
-                }
-            }
-        } else if (period && period !== 'all') {
-            baseVacancies = baseVacancies.filter(v => {
-                if (!v || !v.published_at) return false;
-                var d = new Date(v.published_at);
-                if (isNaN(d)) return false;
-                var m = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-                return m === period;
-            });
-        }
-    } else if (period && period.indexOf('last_') === 0) {
-        baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, null);
-        var days2 = Number(period.replace('last_', '')) || 0;
-        if (days2 > 0) {
-            var maxDate2 = null;
-            baseVacancies.forEach(v => {
-                if (!v || !v.published_at) return;
-                var d2 = new Date(v.published_at);
-                if (isNaN(d2)) return;
-                if (!maxDate2 || d2 > maxDate2) maxDate2 = d2;
-            });
-            if (maxDate2) {
-                var cutoff2 = new Date(maxDate2.getTime() - days2 * 24 * 60 * 60 * 1000);
-                baseVacancies = baseVacancies.filter(v => {
-                    if (!v || !v.published_at) return false;
-                    var d3 = new Date(v.published_at);
-                    return !isNaN(d3) && d3 >= cutoff2;
-                });
-            }
-        }
-    } else {
-        baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, period === 'all' ? null : period);
     }
     baseVacancies = dedupeVacanciesById(baseVacancies);
 
-    var expVal = getSkillsSearchFilterValue(block, 'exp');
-    var expVals = [];
-    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
-    if (expDd && expDd.dataset.multi === '1') {
-        try {
-            expVals = JSON.parse(expDd.dataset.values || '[]');
-        } catch (_e) {
-            expVals = [];
-        }
-    }
     var statusVal = getSkillsSearchFilterValue(block, 'status');
     var countryVal = getSkillsSearchFilterValue(block, 'country');
     var currencyVal = getSkillsSearchFilterValue(block, 'currency');
@@ -2604,19 +2483,11 @@ function updateSkillsSearchData(block) {
 
     var filteredBase = baseVacancies.filter(v => {
         if (!v) return false;
-        if (globalExpOptions.length) {
-            var vExpGlobal = normalizeExperience(v._experience || '');
-            var allowedGlobal = selectedExps.map(function(x) { return normalizeExperience(x); }).filter(Boolean);
-            if (allowedGlobal.length && allowedGlobal.indexOf(vExpGlobal) < 0) return false;
-        } else if (expVal !== 'all') {
-            var vExp = normalizeExperience(v._experience || '');
-            if (expVals && expVals.length) {
-                var expOk = expVals.some(x => normalizeExperience(x) === vExp);
-                if (!expOk) return false;
-            } else {
-                var expNorm = normalizeExperience(expVal);
-                if (vExp !== expNorm) return false;
-            }
+        var vExpGlobal = normalizeExperience(v._experience || v.experience || '');
+        var allowedGlobal = selectedExps.map(function(x) { return normalizeExperience(x); }).filter(Boolean);
+        if (allowedGlobal.length && allowedGlobal.indexOf(vExpGlobal) < 0) return false;
+        if (globalExpOptions.length && selectedExps.length && allowedGlobal.length === 0) {
+            return false;
         }
         if (statusVal !== 'all') {
             var status = v._status || (v.archived_at ? '????????' : '????????');
@@ -2748,7 +2619,6 @@ function getSkillsSearchState(block) {
     return uiState.skills_search_global || null;
 }
 function saveSkillsSearchState(block) {
-    var expVals = getSkillsSearchFilterValue(block, 'exp');
     var currencyVals = [];
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
     if (currencyDd && currencyDd.dataset.multi === '1') {
@@ -2759,8 +2629,6 @@ function saveSkillsSearchState(block) {
         }
     }
     var state = {
-        period: block.dataset.period || 'all',
-        exp: (!expVals || expVals === 'all') ? [] : (Array.isArray(expVals) ? expVals.filter(v => v && v !== 'all') : [expVals]),
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
         country: getSkillsSearchFilterValue(block, 'country') || 'all',
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
@@ -2774,15 +2642,12 @@ function saveSkillsSearchState(block) {
 }
 function applySkillsSearchState(block, state) {
     if (!state) return;
-    var periodDd = block.querySelector('.skills-search-dropdown[data-filter="period"]');
-    var expDd = block.querySelector('.skills-search-dropdown[data-filter="exp"]');
     var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
     var countryDd = block.querySelector('.skills-search-dropdown[data-filter="country"]');
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
     var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
     var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
 
-    if (periodDd) setSkillsSearchDropdownValue(periodDd, state.period || 'all');
     if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f');
     if (countryDd) setSkillsSearchDropdownValue(countryDd, state.country || 'all');
     if (currencyDd) {
@@ -2791,10 +2656,6 @@ function applySkillsSearchState(block, state) {
     }
     if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
-    if (expDd && Array.isArray(state.exp)) {
-        if (!state.exp.length || (state.exp.length === 1 && state.exp[0] === 'all')) setSkillsSearchDropdownMulti(expDd, []);
-        else setSkillsSearchDropdownMulti(expDd, state.exp.filter(v => v && v !== 'all'));
-    }
 
     if (state.collapsed) {
         var panel = block.querySelector('.skills-search-panel');
@@ -2814,7 +2675,6 @@ function applySkillsSearchState(block, state) {
             if (include.indexOf(key) >= 0) btn.classList.add('active');
             if (exclude.indexOf(key) >= 0) btn.classList.add('excluded');
         });
-    block.dataset.period = state.period || 'all';
 }
 function setSkillsSearchDropdownValue(dropdown, value) {
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');
