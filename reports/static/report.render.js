@@ -773,6 +773,16 @@ function updateRoleView(selectedIndices) {
         return;
     }
 
+    if (!selectedIndices || !selectedIndices.size) {
+        roleContents.forEach(c => c.style.display = 'none');
+        if (allRoles) allRoles.style.display = 'none';
+        if (combined) {
+            combined.style.display = 'block';
+            combined.innerHTML = '<div style="padding:16px 12px;color:var(--text-secondary, #52606d);text-align:center;">Нет выбранных ролей</div>';
+        }
+        return;
+    }
+
     if (selectedIndices.size <= 1) {
         if (combined) combined.style.display = 'none';
         var idx = selectedIndices.size === 1 ? Array.from(selectedIndices)[0] : '1';

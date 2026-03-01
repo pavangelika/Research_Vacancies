@@ -806,6 +806,10 @@ function summarizeGlobalFilterSelection(filterKey, options, disabled) {
     var includeCount = bucket.include.length;
     var excludeCount = bucket.exclude.length;
     if (!includeCount && !excludeCount) return filterKey === 'roles' ? 'Выбрать роль' : 'Все';
+    if (filterKey === 'roles' && isGlobalFilterMultiEnabled(filterKey)) {
+        if (!excludeCount) return includeCount + ' выбрано';
+        return includeCount + ' выбрано / ' + excludeCount + ' исключено';
+    }
     var optionMap = {};
     (options || []).forEach(function(item) { optionMap[item.value] = item.label; });
     if (filterKey !== 'roles') {
@@ -1011,8 +1015,7 @@ function applyGlobalRoleFilter() {
     var next;
     if (include.length) next = include.filter(function(v) { return exclude.indexOf(v) < 0; });
     else if (exclude.length) next = allIds.filter(function(v) { return exclude.indexOf(v) < 0; });
-    else next = Array.from(ctx.getSelected());
-    if (!next.length && allIds.length) next = [allIds[0]];
+    else next = [];
     ctx.applySelection(new Set(next), next);
 }
 
@@ -1056,12 +1059,8 @@ function updateGlobalFilterSelection(filterKey, value, action) {
             var ctx = uiState.roleSelectionContext;
             if (ctx && typeof ctx.applySelection === 'function') {
                 if (isSummaryModeActive()) setSummaryModeActive(false);
-                var allIds = getGlobalFilterOptions(null, 'roles', null).map(function(item) { return item.value; });
-                var firstId = allIds[0];
-                if (firstId !== undefined) {
-                    ctx.applySelection(new Set([firstId]), [firstId]);
-                    return;
-                }
+                ctx.applySelection(new Set(), []);
+                return;
             }
         }
         applyGlobalRoleFilter();
@@ -1075,7 +1074,6 @@ function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
     var host = panel.querySelector('.shared-filter-active-chips');
     if (!host) return;
     host.innerHTML = '';
-    var isAllRolesView = !!(activeRole && activeRole.id === 'role-all');
 
     var defs = [
         { key: 'roles', title: 'Роль', options: getGlobalFilterOptions(activeRole, 'roles', analysisType), disabled: false }
@@ -1088,33 +1086,64 @@ function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
         (def.options || []).forEach(function(item) { labels[item.value] = item.label; });
         (bucket.include || []).forEach(function(value) {
             if (!labels[value]) return;
-            var chip = document.createElement('button');
-            chip.type = 'button';
-            chip.textContent = labels[value] + ' ×';
-            chip.style.border = '0';
-            chip.style.borderRadius = '999px';
-            chip.style.padding = '4px 10px';
-            chip.style.background = '#eef2f6';
-            chip.style.color = 'inherit';
-            chip.style.cursor = 'pointer';
-            chip.addEventListener('click', function() { updateGlobalFilterSelection(def.key, value, 'reset'); });
-            host.appendChild(chip);
+            host.appendChild(createActiveRoleFilterChip(def.key, value, labels[value], 'include'));
         });
         (bucket.exclude || []).forEach(function(value) {
             if (!labels[value]) return;
-            var chip = document.createElement('button');
-            chip.type = 'button';
-            chip.textContent = labels[value] + ' ×';
-            chip.style.border = '0';
-            chip.style.borderRadius = '999px';
-            chip.style.padding = '4px 10px';
-            chip.style.background = '#eef2f6';
-            chip.style.color = 'inherit';
-            chip.style.cursor = 'pointer';
-            chip.addEventListener('click', function() { updateGlobalFilterSelection(def.key, value, 'reset'); });
-            host.appendChild(chip);
+            host.appendChild(createActiveRoleFilterChip(def.key, value, labels[value], 'exclude'));
         });
     });
+}
+
+function createActiveRoleFilterChip(filterKey, value, labelText, state) {
+    var chip = document.createElement('div');
+    var isExcluded = state === 'exclude';
+    chip.className = 'active-role-filter-chip';
+    chip.title = 'ЛКМ: включить, ПКМ: исключить, ×: удалить';
+    chip.style.display = 'inline-flex';
+    chip.style.alignItems = 'center';
+    chip.style.gap = '6px';
+    chip.style.border = '0';
+    chip.style.borderRadius = '999px';
+    chip.style.padding = '4px 10px';
+    chip.style.cursor = 'pointer';
+    chip.style.userSelect = 'none';
+    chip.style.background = isExcluded ? '#fee2e2' : '#eef2f6';
+    chip.style.color = isExcluded ? '#991b1b' : 'inherit';
+
+    var label = document.createElement('span');
+    label.textContent = labelText;
+    label.style.fontSize = '12px';
+    chip.appendChild(label);
+
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.textContent = '×';
+    removeBtn.title = 'Удалить роль из выбранных';
+    removeBtn.style.padding = '0';
+    removeBtn.style.border = '0';
+    removeBtn.style.cursor = 'pointer';
+    removeBtn.style.background = 'transparent';
+    removeBtn.style.color = 'inherit';
+    removeBtn.style.fontSize = '14px';
+    removeBtn.style.lineHeight = '1';
+    removeBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        updateGlobalFilterSelection(filterKey, value, 'reset');
+    });
+    chip.appendChild(removeBtn);
+
+    chip.addEventListener('click', function(e) {
+        if (e.target === removeBtn) return;
+        updateGlobalFilterSelection(filterKey, value, 'include');
+    });
+    chip.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        if (e.target === removeBtn) return;
+        updateGlobalFilterSelection(filterKey, value, 'exclude');
+    });
+    return chip;
 }
 
 function createUnifiedRolesControl(activeRole, analysisType) {
