@@ -100,7 +100,7 @@ def init_table():
                 response_letter_required BOOLEAN DEFAULT FALSE,
                 apply_alternate_url TEXT,
                 send_resume BOOLEAN DEFAULT FALSE,
-                resume_at TIMESTAMP,
+                resume_at TIMESTAMP
             )
             """
         )
