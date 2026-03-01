@@ -230,6 +230,8 @@ function ensureSharedFilterPanel() {
         panel.style.background = 'rgba(255, 255, 255, 0.9)';
         panel.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.05)';
         panel.style.backdropFilter = 'blur(14px)';
+        panel.style.position = 'relative';
+        panel.style.zIndex = '50';
         panel.style.overflow = 'visible';
 
         var title = document.createElement('div');
@@ -853,7 +855,7 @@ function positionGlobalFilterMenu(trigger, menu) {
     menu.style.setProperty('margin', '0', 'important');
     menu.style.setProperty('transform', 'none', 'important');
     menu.style.setProperty('inset', 'auto auto auto auto', 'important');
-    menu.style.setProperty('z-index', '1000', 'important');
+    menu.style.setProperty('z-index', '5000', 'important');
 }
 
 function ensureGlobalFilterTooltip() {
