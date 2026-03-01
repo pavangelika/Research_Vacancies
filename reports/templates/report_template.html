@@ -306,10 +306,7 @@
                                             </thead>
                                             <tbody>
                                                 {% for entry in exp.entries %}
-                                                <tr class="salary-row"
-                                                    data-vacancy-ids='{{ entry.vacancy_ids | tojson }}'
-                                                    data-vacancies-with='{{ entry.vacancies_with_salary_list | tojson }}'
-                                                    data-vacancies-without='{{ entry.vacancies_without_salary_list | tojson }}'>
+                                                <tr class="salary-row">
                                                     {% set status_lc = (entry.status|string|lower) %}
                                                     <td class="status-icon-cell">
                                                         {% if 'архив' in status_lc or 'archiv' in status_lc %}

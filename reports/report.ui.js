@@ -79,6 +79,18 @@ function applySalaryStatusIcons(root) {
     });
 }
 
+function bindSalaryRowData(container, entries) {
+    if (!container) return;
+    var rows = container.querySelectorAll('.salary-row');
+    rows.forEach(function(row, idx) {
+        var entry = (entries || [])[idx] || {};
+        row._data = {
+            withList: entry.vacancies_with_salary_list || [],
+            withoutList: entry.vacancies_without_salary_list || []
+        };
+    });
+}
+
 // ---------- Переключение типов анализа ----------
 function switchAnalysis(evt, analysisId) {
     var parentRole = evt.currentTarget.closest('.role-content');
@@ -1384,14 +1396,7 @@ function renderGlobalSalaryFiltered(parentRole) {
     var tableContainer = hostExp.querySelector('.salary-table-container');
     if (tableContainer) {
         tableContainer.innerHTML = buildSalaryTablesHtml(entries);
-        var rows = tableContainer.querySelectorAll('.salary-row');
-        rows.forEach(function(row, idx) {
-            var entry = entries[idx] || {};
-            row._data = {
-                withList: entry.vacancies_with_salary_list || [],
-                withoutList: entry.vacancies_without_salary_list || []
-            };
-        });
+        bindSalaryRowData(tableContainer, entries);
     }
     applySalaryStatusIcons(hostExp);
     host.style.display = 'block';
@@ -1775,14 +1780,7 @@ function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
                 '</div>' +
             '</div>';
 
-        var rows = expDiv.querySelectorAll('.salary-row');
-        rows.forEach((row, k) => {
-            var entry = (exp.entries || [])[k] || {};
-            row._data = {
-                withList: entry.vacancies_with_salary_list || [],
-                withoutList: entry.vacancies_without_salary_list || []
-            };
-        });
+        bindSalaryRowData(expDiv, exp.entries || []);
 
         monthDiv.appendChild(expDiv);
     });
@@ -4236,6 +4234,7 @@ function openSalaryExpTab(evt, expId) {
     expDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
+    bindSalaryRowData(expDiv, expData.entries || []);
     applySalaryViewMode(expDiv, expData.entries);
     normalizeSalaryControls(parentRole);
     syncSharedFilterPanel(parentRole, 'salary');

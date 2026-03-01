@@ -7,9 +7,14 @@ import logging
 import urllib.request
 from jinja2 import Environment, FileSystemLoader
 from collections import defaultdict
-import json as json_lib  # для сериализации данных графиков
 
 logging.basicConfig(level=logging.INFO)
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+REPORTS_DIR = os.path.join(PROJECT_ROOT, 'reports')
+REPORT_TEMPLATES_DIR = os.path.join(REPORTS_DIR, 'templates')
+REPORT_STATIC_DIR = os.path.join(REPORTS_DIR, 'static')
 
 def load_roles_mapping(json_path):
     """Загружает JSON и возвращает словарь {id: name}."""
@@ -1552,75 +1557,32 @@ def fetch_employer_analysis_data(mapping):
     return result
 
 def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data, vacancies_by_role):
-    env = Environment(loader=FileSystemLoader('templates'))
+    env = Environment(loader=FileSystemLoader(REPORT_TEMPLATES_DIR))
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
     current_time = datetime.now().strftime("%H:%M")
 
-    report_data = {
-        'roles': {}
-    }
     for role in roles_data:
         role_id = role['id']
         role['vacancies'] = vacancies_by_role.get(role_id, [])
-        report_data['roles'][role_id] = {
-            'trend': role['trend'],
-            'weekdays': None,
-            'skills_monthly': None
-        }
-    for wrole in weekday_data:
-        role_id = wrole['id']
-        if role_id in report_data['roles']:
-            report_data['roles'][role_id]['weekdays'] = wrole['weekdays']
-        else:
-            report_data['roles'][role_id] = {
-                'trend': None,
-                'weekdays': wrole['weekdays'],
-                'skills_monthly': None
-            }
-    for smrole in skills_monthly_data:
-        role_id = smrole['id']
-        if role_id in report_data['roles']:
-            report_data['roles'][role_id]['skills_monthly'] = smrole['months_list']
-        else:
-            report_data['roles'][role_id] = {
-                'trend': None,
-                'weekdays': None,
-                'skills_monthly': smrole['months_list']
-            }
 
-    for srole in salary_data:
-        role_id = srole['id']
-        if role_id in report_data['roles']:
-            report_data['roles'][role_id]['salary'] = srole['months_list']
-        else:
-            report_data['roles'][role_id] = {
-                'trend': None,
-                'weekdays': None,
-                'skills_monthly': None,
-                'salary': srole['months_list']
-            }
-
-    report_data_json = json_lib.dumps(report_data, ensure_ascii=False)
     return template.render(roles=roles_data, weekday_roles=weekday_data,
                            skills_monthly_roles=skills_monthly_data,
                            salary_roles=salary_data,
                            employer_analysis_roles=employer_analysis_data,
-                           current_date=current_date, current_time=current_time,
-                           report_data_json=report_data_json)
+                           current_date=current_date, current_time=current_time)
 
 
 def save_report(html_content):
-    output_dir = '/reports'
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, 'report.html')
+    os.makedirs(REPORTS_DIR, exist_ok=True)
+    output_file = os.path.join(REPORTS_DIR, 'report.html')
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     logging.info(f"Report saved to {output_file}")
 
 def copy_styles():
-    src = 'static/styles.css'
-    dst = os.path.join('/reports', 'styles.css')
+    src = os.path.join(REPORT_STATIC_DIR, 'styles.css')
+    dst = os.path.join(REPORTS_DIR, 'styles.css')
     shutil.copy2(src, dst)
     logging.info(f"Styles copied to {dst}")
 
@@ -1635,8 +1597,8 @@ def copy_js():
         'report.events.js'
     ]
     for filename in js_files:
-        src = os.path.join('static', filename)
-        dst = os.path.join('/reports', filename)
+        src = os.path.join(REPORT_STATIC_DIR, filename)
+        dst = os.path.join(REPORTS_DIR, filename)
         shutil.copy2(src, dst)
         logging.info(f"JS copied to {dst}")
 
