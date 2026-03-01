@@ -143,7 +143,10 @@ function switchAnalysis(evt, analysisId) {
             var viewBtns = weekdayBlock.querySelectorAll('.view-mode-btn');
             setActiveViewButton(viewBtns, uiState.weekday_view_mode);
             applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
+            var weekdayPeriods = getResolvedGlobalFilterValues('periods', getGlobalFilterOptions(parentRole, 'periods', 'weekday'));
+            var weekdayGraphId = 'weekday-graph-' + analysisId.split('-')[1];
             buildWeekdayBarChart(analysisId.split('-')[1], weekdayBlock);
+            applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(weekdayPeriods), null));
             applyWeekdayModeSizing(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
         }
     } else if (analysisType === 'skills-monthly') {
@@ -614,9 +617,41 @@ function formatPeriodSelectionValue(value) {
 function summarizeSelectedPeriodsLabel(selectedPeriods) {
     var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return formatPeriodSelectionValue(v); }).filter(Boolean) : [];
     if (!labels.length) return 'За все время';
-    if (labels.some(function(label) { return isSummaryMonth(label) || label === 'За период'; })) return 'За все время';
-    if (labels.length === 1) return labels[0];
+    var specificLabels = labels.filter(function(label) {
+        return !(isSummaryMonth(label) || label === 'За период');
+    });
+    if (!specificLabels.length) return 'За все время';
+    if (specificLabels.length === 1) return specificLabels[0];
     return 'По выбранному периоду';
+}
+
+function summarizeChartPeriodLabel(selectedPeriods) {
+    var bucket = ensureGlobalFilterBucket('periods');
+    var explicit = (bucket.include || []).map(function(value) {
+        return normalizePeriodOptionValue(value);
+    }).filter(Boolean);
+    var quickOnly = explicit.filter(function(value) {
+        return /^last_\d+$/i.test(String(value || '').trim());
+    });
+    if (quickOnly.length) return summarizeSelectedPeriodsLabel(quickOnly);
+    var panelLabel = '';
+    var panelNode = document.querySelector('#global-shared-filter-panel .global-filter-dropdown[data-filter-key="periods"] .global-filter-trigger-label');
+    if (panelNode) panelLabel = String(panelNode.textContent || '').trim();
+    if (panelLabel && panelLabel !== 'Все' && panelLabel !== 'Недоступно' && panelLabel !== 'Выбрать') {
+        return panelLabel;
+    }
+    return summarizeSelectedPeriodsLabel(selectedPeriods);
+}
+
+function getCurrentGlobalPeriodDisplayLabel() {
+    var panelNode = document.querySelector('#global-shared-filter-panel .global-filter-dropdown[data-filter-key="periods"] .global-filter-trigger-label');
+    var label = panelNode ? String(panelNode.textContent || '').trim() : '';
+    if (!label || label === 'Все' || label === 'Недоступно' || label === 'Выбрать') return '';
+    return label;
+}
+
+function resolveChartPeriodLabel(selectedPeriods) {
+    return getCurrentGlobalPeriodDisplayLabel() || summarizeChartPeriodLabel(selectedPeriods);
 }
 
 function ensureGlobalFilterBucket(filterKey) {
@@ -843,6 +878,59 @@ function bindGlobalFilterTooltip(target, text) {
     target.addEventListener('mouseleave', hideGlobalFilterTooltip);
     target.addEventListener('focus', function() { showGlobalFilterTooltip(target, text); });
     target.addEventListener('blur', hideGlobalFilterTooltip);
+}
+
+function composeChartTitle(baseTitle, contextText) {
+    var base = String(baseTitle || '').trim();
+    var context = String(contextText || '').trim();
+    if (!context) return base;
+    return base + '<br><span style="font-size:12px;color:#64748b;font-weight:400;">' + context + '</span>';
+}
+
+function buildChartContextLabel(periodValue, experienceValue) {
+    var parts = [];
+    var period = String(formatPeriodSelectionValue(periodValue) || '').trim();
+    var experience = String(experienceValue || '').trim();
+    var allExperienceValues = [
+        'Нет опыта',
+        'От 1 года до 3 лет',
+        'От 3 до 6 лет',
+        'Более 6 лет'
+    ];
+    function isAllExperienceSelection(value) {
+        var text = String(value || '').trim();
+        if (!text) return false;
+        if (text === 'Все') return true;
+        var values = text.split(',').map(function(item) { return item.trim(); }).filter(Boolean);
+        if (values.length !== allExperienceValues.length) return false;
+        return allExperienceValues.every(function(item) { return values.indexOf(item) !== -1; });
+    }
+    if (period) parts.push('Период: ' + period);
+    if (isAllExperienceSelection(experience)) {
+        parts.push('Опыт: все категории');
+    } else if (experience) {
+        parts.push('Опыт: ' + experience);
+    }
+    return parts.join(' · ');
+}
+
+function applyChartTitleContext(graphId, baseTitle, contextText) {
+    if (!graphId || typeof Plotly === 'undefined') return;
+    var el = document.getElementById(graphId);
+    if (!el) return;
+    var titleText = composeChartTitle(baseTitle, contextText);
+    var layoutUpdate = {
+        'title.text': titleText,
+        'title.x': 0.5,
+        'title.xanchor': 'center'
+    };
+    var apply = function() {
+        if (!el || !el.isConnected) return;
+        Plotly.relayout(el, layoutUpdate);
+    };
+    apply();
+    requestAnimationFrame(apply);
+    setTimeout(apply, 60);
 }
 
 function refreshExistingGlobalFilterUi(parentRole, analysisType) {
@@ -1555,6 +1643,7 @@ function renderGlobalSkillsFiltered(parentRole) {
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'skills-monthly');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var vacancies = getRoleVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
@@ -1594,7 +1683,9 @@ function renderGlobalSkillsFiltered(parentRole) {
     setActiveViewButton(hostExp.querySelectorAll('.view-mode-btn'), uiState.skills_monthly_view_mode);
     var container = hostExp.querySelector('.view-mode-container');
     applyViewMode(container, uiState.skills_monthly_view_mode);
-    buildHorizontalBarChart('skills-monthly-graph-global-' + parentRole.id, agg.skills || [], agg.experience || periodLabel);
+    var globalSkillsGraphId = 'skills-monthly-graph-global-' + parentRole.id;
+    buildHorizontalBarChart(globalSkillsGraphId, agg.skills || [], agg.experience || periodLabel);
+    applyChartTitleContext(globalSkillsGraphId, 'Топ-15 навыков', buildChartContextLabel(chartPeriodLabel, selectedExps.length ? selectedExps.join(', ') : null));
     applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
 }
 
@@ -1608,6 +1699,7 @@ function renderGlobalSalaryFiltered(parentRole) {
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'salary');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var vacancies = getRoleVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
@@ -1644,6 +1736,7 @@ function renderGlobalSalaryFiltered(parentRole) {
 
     var hostExp = host.querySelector('.salary-exp-content');
     hostExp._data = { exp: { experience: periodLabel, entries: entries } };
+    hostExp.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, selectedExps.length ? selectedExps.join(', ') : null);
     var tableContainer = hostExp.querySelector('.salary-table-container');
     if (tableContainer) {
         tableContainer.innerHTML = buildSalaryTablesHtml(entries);
@@ -1659,6 +1752,7 @@ function renderGlobalActivityFiltered(parentRole) {
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'activity');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
     var entries = computeActivityEntriesFromVacancies(vacancies);
 
@@ -1683,7 +1777,9 @@ function renderGlobalActivityFiltered(parentRole) {
     setActiveViewButton(host.querySelectorAll('.view-mode-btn'), mode);
     var container = host.querySelector('.view-mode-container');
     applyViewMode(container, mode);
-    buildActivityBarChart('activity-graph-' + host.id.replace('month-', ''), entries || []);
+    var globalActivityGraphId = 'activity-graph-' + host.id.replace('month-', '');
+    buildActivityBarChart(globalActivityGraphId, entries || []);
+    applyChartTitleContext(globalActivityGraphId, 'Количество вакансий по опыту', buildChartContextLabel(chartPeriodLabel, null));
     applyActivityModeSizing(container, mode);
 }
 
@@ -1708,7 +1804,11 @@ function renderGlobalWeekdayFiltered(parentRole) {
     if (container) {
         setActiveViewButton(block.querySelectorAll('.view-mode-btn'), mode);
         applyViewMode(container, mode);
-        if (roleSuffix) buildWeekdayBarChart(roleSuffix, block);
+        if (roleSuffix) {
+            var weekdayGraphId = 'weekday-graph-' + roleSuffix;
+            buildWeekdayBarChart(roleSuffix, block);
+            applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(selectedPeriods), null));
+        }
         applyWeekdayModeSizing(container, mode);
     }
 }
@@ -1731,6 +1831,8 @@ function renderGlobalEmployerFiltered(parentRole) {
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'employer-analysis');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
+    block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, null);
     var rows;
     var effectivePeriods = selectedPeriods.filter(function(label) {
         var text = String(label || '').trim();
@@ -3015,7 +3117,9 @@ function normalizeActivityControls(parentRole) {
             var monthId = visibleMonth.id || '';
             var graphId = 'activity-graph-' + monthId.replace('month-', '');
             var entries = parseJsonDataset(visibleMonth, 'entries', []);
+            var visibleMonthLabel = (visibleMonth._data && visibleMonth._data.month) ? visibleMonth._data.month : (visibleMonth.dataset.month || '');
             buildActivityBarChart(graphId, entries);
+            applyChartTitleContext(graphId, 'Количество вакансий по опыту', buildChartContextLabel(visibleMonthLabel, null));
             applyActivityModeSizing(container, view);
         });
         inlineToggle.dataset.bound = '1';
@@ -3185,7 +3289,10 @@ function normalizeSkillsMonthlyControls(parentRole) {
             var expData = parseJsonDataset(visibleExp, 'exp', null);
             if (view !== 'table' && expData) {
                 var graphId = 'skills-monthly-graph-' + visibleExp.id.replace('ms-exp-', '');
+                var visibleMonthData = (visibleMonth._data && visibleMonth._data.month) ? visibleMonth._data.month : parseJsonDataset(visibleMonth, 'month', {});
+                var visibleMonthLabel = visibleMonthData && visibleMonthData.month ? visibleMonthData.month : '';
                 buildHorizontalBarChart(graphId, expData.skills, expData.experience);
+                applyChartTitleContext(graphId, 'Топ-15 навыков', buildChartContextLabel(visibleMonthLabel, expData.experience));
             }
             applySkillsModeSizing(container, view);
         });
@@ -3442,6 +3549,7 @@ function renderEmployerAnalysisChart(block) {
     if (!graph) return;
     var mode = block.dataset.employerViewMode || 'table';
     if (mode !== 'graph') return;
+    var chartContext = block.dataset.chartContext || '';
 
     var rows = Array.from(block.querySelectorAll('.table-container tbody tr')).filter(function(row) {
         return row.style.display !== 'none';
@@ -3601,7 +3709,7 @@ function renderEmployerAnalysisChart(block) {
         y: avgRur,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Средняя зарплата по параметрам (RUR)', x: 0.5, xanchor: 'center' },
+        title: { text: composeChartTitle('Средняя зарплата по параметрам (RUR)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
         yaxis: { title: 'Зарплата, RUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
@@ -3615,7 +3723,7 @@ function renderEmployerAnalysisChart(block) {
         y: avgUsd,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Средняя зарплата по параметрам (USD)', x: 0.5, xanchor: 'center' },
+        title: { text: composeChartTitle('Средняя зарплата по параметрам (USD)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
         yaxis: { title: 'Зарплата, USD' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
@@ -3629,7 +3737,7 @@ function renderEmployerAnalysisChart(block) {
         y: avgEur,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Средняя зарплата по параметрам (EUR)', x: 0.5, xanchor: 'center' },
+        title: { text: composeChartTitle('Средняя зарплата по параметрам (EUR)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
         yaxis: { title: 'Зарплата, EUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
@@ -3643,7 +3751,7 @@ function renderEmployerAnalysisChart(block) {
         y: avgOther,
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
-        title: { text: 'Средняя зарплата по параметрам (Другая валюта)', x: 0.5, xanchor: 'center' },
+        title: { text: composeChartTitle('Средняя зарплата по параметрам (Другая валюта)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
         yaxis: { title: 'Зарплата, Другая валюта' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
@@ -4021,7 +4129,12 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         var rows = parseJsonDataset(target, 'entries', []);
         var mainId = target.dataset.graphMain;
         var ageId = target.dataset.graphAge;
-        if (mainId && ageId) buildAllRolesActivityChart(rows, mainId, ageId);
+        var allRolesContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
+        if (mainId && ageId) {
+            buildAllRolesActivityChart(rows, mainId, ageId);
+            applyChartTitleContext(mainId, 'Открытые и архивные вакансии по ролям', allRolesContext);
+            applyChartTitleContext(ageId, 'Ср. возраст (дни) по ролям', allRolesContext);
+        }
         applyActivityModeSizing(viewContainer, mode);
     } else if (analysisType === 'weekday' && target) {
         normalizeWeekdayControls(target.closest('.role-content'));
@@ -4032,7 +4145,11 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         applyViewMode(viewContainer, mode);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
-        if (mode !== 'table' && graphId) buildAllRolesWeekdayChart(rows, graphId);
+        var allRolesWeekdayContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
+        if (mode !== 'table' && graphId) {
+            buildAllRolesWeekdayChart(rows, graphId);
+            applyChartTitleContext(graphId, 'Публикации и архивы по ролям', allRolesWeekdayContext);
+        }
         applyWeekdayModeSizing(viewContainer, mode);
     } else if (analysisType === 'skills' && target) {
         var mode = uiState.skills_monthly_view_mode === 'together' ? 'table' : uiState.skills_monthly_view_mode;
@@ -4042,7 +4159,11 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         applyViewMode(viewContainer, mode);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesSkillsChart(rows, graphId);
+        var allRolesSkillsContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
+        if (mode === 'graph' && graphId) {
+            buildAllRolesSkillsChart(rows, graphId);
+            applyChartTitleContext(graphId, 'Топ навыков по упоминаниям', allRolesSkillsContext);
+        }
     } else if (analysisType === 'salary' && target) {
         var mode = uiState.salary_view_mode === 'together' ? 'table' : uiState.salary_view_mode;
         var viewBtns = target.querySelectorAll('.view-mode-btn');
@@ -4051,7 +4172,11 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         applyViewMode(viewContainer, mode);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
-        if (mode === 'graph' && graphId) buildAllRolesSalaryChart(rows, graphId);
+        var allRolesSalaryContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
+        if (mode === 'graph' && graphId) {
+            buildAllRolesSalaryChart(rows, graphId);
+            applyChartTitleContext(graphId, 'Суммарная частота навыков по ролям', allRolesSalaryContext);
+        }
     }
 }
 
@@ -4106,6 +4231,7 @@ function openMonthTab(evt, monthId) {
     if (tableWrap) tableWrap.innerHTML = buildActivityTableHtml(entries || []);
     var graphId = 'activity-graph-' + monthId.replace('month-', '');
     buildActivityBarChart(graphId, entries);
+    applyChartTitleContext(graphId, 'Количество вакансий по опыту', buildChartContextLabel(monthStr, null));
     applyActivityModeSizing(container, uiState.activity_view_mode);
     normalizeActivityControls(parentRole);
     syncSharedFilterPanel(parentRole, 'activity');
@@ -4381,6 +4507,7 @@ function openMonthlySkillsExpTab(evt, expId) {
         finalGraphId = 'skills-monthly-graph-' + expDiv.id.replace('ms-exp-', '');
     }
     buildHorizontalBarChart(finalGraphId, liveExp.skills || [], liveExp.experience || experience);
+    applyChartTitleContext(finalGraphId, 'Топ-15 навыков', buildChartContextLabel(monthStr, liveExp.experience || experience));
     applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
     normalizeSkillsMonthlyControls(parentRole);
     syncSharedFilterPanel(parentRole, 'skills-monthly');
@@ -4474,6 +4601,8 @@ function openSalaryExpTab(evt, expId) {
     var expDiv = document.getElementById(expId);
     var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
     var experience = expData.experience;
+    var monthData = (parentMonth._data && parentMonth._data.month) ? parentMonth._data.month : parseJsonDataset(parentMonth, 'month', {});
+    var monthStr = monthData && monthData.month ? monthData.month : '';
 
     uiState.global_salary_experience = experience;
     var stateKey = getStateKey(roleId, 'salary');
@@ -4491,6 +4620,7 @@ function openSalaryExpTab(evt, expId) {
     }
     expDiv.style.display = "block";
     evt.currentTarget.className += " active";
+    expDiv.dataset.chartContext = buildChartContextLabel(monthStr, experience);
 
     bindSalaryRowData(expDiv, expData.entries || []);
     applySalaryTablesMarkup(expDiv, expData.entries || []);
@@ -4710,6 +4840,9 @@ function applySalaryViewMode(expDiv, entries) {
         tableContainer.style.display = 'none';
         graphContainer.style.width = '100%';
         buildSalaryBarChart(graphId, entries);
+        applyChartTitleContext(graphId + '-RUR', 'Средняя зарплата · RUR', expDiv.dataset.chartContext || '');
+        applyChartTitleContext(graphId + '-USD', 'Средняя зарплата · USD', expDiv.dataset.chartContext || '');
+        applyChartTitleContext(graphId + '-pUSD', 'Средняя зарплата · %USD', expDiv.dataset.chartContext || '');
     } else {
         graphContainer.style.display = 'none';
         tableContainer.style.width = '100%';
