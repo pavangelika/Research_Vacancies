@@ -753,6 +753,45 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         }));
     }
     if (!activeRole) return [];
+    if (activeRole.id === 'role-all') {
+        var summaryRoleContents = Array.isArray(activeRole.__selectedRoleContents) && activeRole.__selectedRoleContents.length
+            ? activeRole.__selectedRoleContents.slice()
+            : getAllRoleContents();
+        if (filterKey === 'periods') {
+            var vacancies = [];
+            summaryRoleContents.forEach(function(roleContent) {
+                vacancies = vacancies.concat(getRoleVacancies(roleContent) || []);
+            });
+            vacancies = dedupeVacanciesById(vacancies);
+            var months = Array.from(new Set(vacancies.map(function(v) {
+                var d = parsePublishedAtDate(v && v.published_at);
+                if (!d) return '';
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            }).filter(Boolean))).sort().reverse();
+            var totalLabel = months.length
+                ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
+                : 'За период';
+            return dedupeFilterOptions([
+                { value: totalLabel, label: totalLabel },
+                { value: 'За 14 дней', label: 'За 14 дней' },
+                { value: 'За 7 дней', label: 'За 7 дней' },
+                { value: 'За 3 дня', label: 'За 3 дня' }
+            ].concat(months.map(function(month) {
+                return { value: month, label: month };
+            })));
+        }
+        if (filterKey === 'experiences') {
+            var summaryVacancies = [];
+            summaryRoleContents.forEach(function(roleContent) {
+                summaryVacancies = summaryVacancies.concat(getRoleVacancies(roleContent) || []);
+            });
+            return sortExperienceFilterOptions(dedupeFilterOptions(summaryVacancies.map(function(vacancy) {
+                var value = String(vacancy && (vacancy._experience || vacancy.experience) || '').trim();
+                if (!value) return null;
+                return { value: value, label: value };
+            }).filter(Boolean)));
+        }
+    }
     var current = analysisType || activeRole.dataset.activeAnalysis || '';
     if (filterKey === 'periods') {
         var selectors = [];
@@ -1922,7 +1961,10 @@ function renderGlobalEmployerFiltered(parentRole) {
 
 function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     if (!parentRole) return;
-    if (parentRole.id === 'role-all') return;
+    if (parentRole.id === 'role-all') {
+        renderAllRolesContainer(parentRole, parentRole.__selectedRoleContents || getAllRoleContents());
+        return;
+    }
     var current = analysisType || parentRole.dataset.activeAnalysis || '';
     if (current === 'skills-monthly') renderGlobalSkillsFiltered(parentRole);
     else if (current === 'salary') renderGlobalSalaryFiltered(parentRole);
@@ -1942,14 +1984,8 @@ function syncSharedFilterPanel(parentRole, analysisType) {
     body.innerHTML = '';
 
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
-    var isAllRolesView = !!(activeRole && activeRole.id === 'role-all');
     body.appendChild(createUnifiedRolesControl(activeRole, current));
-    if (isAllRolesView) {
-        var allRolesPeriodControl = createAllRolesPeriodControl(activeRole);
-        if (allRolesPeriodControl) body.appendChild(allRolesPeriodControl);
-    } else {
-        body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
-    }
+    body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
     panel.style.display = body.children.length ? 'block' : 'none';
     renderActiveGlobalFilterChips(panel, activeRole, current);
