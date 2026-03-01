@@ -654,6 +654,25 @@ function resolveChartPeriodLabel(selectedPeriods) {
     return getCurrentGlobalPeriodDisplayLabel() || summarizeChartPeriodLabel(selectedPeriods);
 }
 
+function resolveChartExperienceLabel(selectedExps, expOptions) {
+    var selected = Array.isArray(selectedExps) ? selectedExps.filter(Boolean) : [];
+    if (!selected.length) return null;
+    var allowed = Array.isArray(expOptions) ? expOptions.map(function(item) {
+        return normalizeExperience(item && item.value);
+    }).filter(Boolean) : [];
+    var selectedNorm = Array.from(new Set(selected.map(function(item) {
+        return normalizeExperience(item);
+    }).filter(Boolean)));
+    if (allowed.length) {
+        var allowedNorm = Array.from(new Set(allowed));
+        var allSelected = allowedNorm.length === selectedNorm.length && allowedNorm.every(function(item) {
+            return selectedNorm.indexOf(item) !== -1;
+        });
+        if (allSelected) return 'Все';
+    }
+    return selected.join(', ');
+}
+
 function ensureGlobalFilterBucket(filterKey) {
     if (!uiState.global_filters) uiState.global_filters = {};
     if (!uiState.global_filters[filterKey]) uiState.global_filters[filterKey] = { include: [], exclude: [] };
@@ -896,12 +915,14 @@ function buildChartContextLabel(periodValue, experienceValue) {
         'От 1 года до 3 лет',
         'От 3 до 6 лет',
         'Более 6 лет'
-    ];
+    ].map(function(item) { return normalizeExperience(item); }).filter(Boolean);
     function isAllExperienceSelection(value) {
         var text = String(value || '').trim();
         if (!text) return false;
-        if (text === 'Все') return true;
-        var values = text.split(',').map(function(item) { return item.trim(); }).filter(Boolean);
+        if (text === 'Все' || text === 'Все категории') return true;
+        var values = Array.from(new Set(text.split(',').map(function(item) {
+            return normalizeExperience(item);
+        }).filter(Boolean)));
         if (values.length !== allExperienceValues.length) return false;
         return allExperienceValues.every(function(item) { return values.indexOf(item) !== -1; });
     }
@@ -1645,6 +1666,7 @@ function renderGlobalSkillsFiltered(parentRole) {
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var vacancies = getRoleVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
@@ -1685,7 +1707,7 @@ function renderGlobalSkillsFiltered(parentRole) {
     applyViewMode(container, uiState.skills_monthly_view_mode);
     var globalSkillsGraphId = 'skills-monthly-graph-global-' + parentRole.id;
     buildHorizontalBarChart(globalSkillsGraphId, agg.skills || [], agg.experience || periodLabel);
-    applyChartTitleContext(globalSkillsGraphId, 'Топ-15 навыков', buildChartContextLabel(chartPeriodLabel, selectedExps.length ? selectedExps.join(', ') : null));
+    applyChartTitleContext(globalSkillsGraphId, 'Топ-15 навыков', buildChartContextLabel(chartPeriodLabel, chartExperienceLabel));
     applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
 }
 
@@ -1701,6 +1723,7 @@ function renderGlobalSalaryFiltered(parentRole) {
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var vacancies = getRoleVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
@@ -1736,7 +1759,7 @@ function renderGlobalSalaryFiltered(parentRole) {
 
     var hostExp = host.querySelector('.salary-exp-content');
     hostExp._data = { exp: { experience: periodLabel, entries: entries } };
-    hostExp.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, selectedExps.length ? selectedExps.join(', ') : null);
+    hostExp.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, chartExperienceLabel);
     var tableContainer = hostExp.querySelector('.salary-table-container');
     if (tableContainer) {
         tableContainer.innerHTML = buildSalaryTablesHtml(entries);
