@@ -169,6 +169,25 @@ function collectVacanciesWithMetaFromSalaryMonths(salaryMonths, month) {
 function getRoleContentByIndex(idx) {
     return document.getElementById('role-' + idx);
 }
+function getSelectableRoleContents() {
+    return Array.from(document.querySelectorAll('.role-content'))
+        .filter(c => /^role-\d+$/.test(c.id));
+}
+function getRoleMetaList() {
+    return getSelectableRoleContents().map(function(c) {
+        var idxMatch = String(c.id || '').match(/^role-(\d+)$/);
+        var index = idxMatch ? idxMatch[1] : '';
+        return {
+            index: index,
+            id: c.dataset.roleId || '',
+            name: c.dataset.roleName || ''
+        };
+    }).filter(function(item) { return !!item.index; });
+}
+function getRoleMetaByIndex(idx) {
+    var key = String(idx || '');
+    return getRoleMetaList().find(function(item) { return item.index === key; }) || null;
+}
 function getAllRoleContents() {
     return Array.from(document.querySelectorAll('.role-content'))
         .filter(c => c.id !== 'role-combined' && c.id !== 'role-all');
@@ -183,7 +202,10 @@ function isSalarySummaryExperience(expName) {
 }
 function getRoleVacancies(roleContent) {
     if (!roleContent) return [];
-    return parseJsonDataset(roleContent, 'vacancies', []);
+    if (!roleContent._data) roleContent._data = {};
+    if (roleContent._data.vacancies !== undefined) return roleContent._data.vacancies;
+    roleContent._data.vacancies = parseJsonDataset(roleContent, 'vacancies', []);
+    return roleContent._data.vacancies;
 }
 function getRoleWeekdayData(roleContent) {
     var weekdayBlock = roleContent.querySelector('.weekday-content');

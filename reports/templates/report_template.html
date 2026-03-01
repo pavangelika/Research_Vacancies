@@ -5,41 +5,19 @@
     <title>Анализ вакансий по ролям - {{ current_date }} {{ current_time }}</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
-    <script src="report.state.js?v=20260227f"></script>
-    <script src="report.utils.js?v=20260227f"></script>
-    <script src="report.data.js?v=20260227f"></script>
-    <script src="report.charts.js?v=20260227f"></script>
-    <script src="report.render.js?v=20260227f"></script>
-    <script src="report.ui.js?v=20260227f"></script>
-    <script src="report.events.js?v=20260227f"></script>
+    <script src="report.state.js?v=20260227g"></script>
+    <script src="report.utils.js?v=20260227g"></script>
+    <script src="report.data.js?v=20260227g"></script>
+    <script src="report.charts.js?v=20260227g"></script>
+    <script src="report.render.js?v=20260227g"></script>
+    <script src="report.ui.js?v=20260227g"></script>
+    <script src="report.events.js?v=20260227g"></script>
 </head>
 <body>
     <h1>Анализ вакансий на {{ current_date }} {{ current_time }}</h1>
 
     <!-- Вкладки по ролям -->
-    <div id="role-selector" class="role-selector">
-        <div class="role-selector-header">
-            <div class="role-selector-controls">
-                <label class="role-multiselect">
-                    <input type="checkbox" id="multi-role-toggle">
-                    Мультивыбор
-                </label>
-                <button id="all-roles-toggle" class="role-selector-toggle" type="button" aria-pressed="false" title="Сводно по всем ролям">Σ</button>
-                <button id="role-selector-toggle" class="role-selector-toggle" type="button" aria-expanded="true" aria-controls="role-selector-panel">
-                    ▼
-                </button>
-            </div>
-            <div class="role-selector-choices">
-                <div id="role-selected-chips" class="role-selected-chips"></div>
-                <button id="role-selection-clear" class="role-selection-clear" type="button" aria-label="Сбросить выбор">×</button>
-            </div>
-        </div>
-        <div id="role-selector-panel" class="tabs role-tabs">
-            {% for role in roles %}
-            <button class="tab-button role-button" data-role-index="{{ loop.index }}" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}">{{ role.name }}</button>
-            {% endfor %}
-        </div>
-    </div>
+    <div id="role-selector" class="role-selector"></div>
 
     {% for role in roles %}
     {% set role_index = loop.index %}
@@ -67,6 +45,7 @@
             <button class="tab-button analysis-button"
                     data-analysis-id="employer-analysis-{{ role_index }}"
                     onclick="switchAnalysis(event, 'employer-analysis-{{ role_index }}')">Анализ работодателей</button>
+            <button class="tab-button summary-report-btn" type="button">Сводный отчет</button>
         </div>
 
         <!-- Вкладки по месяцам (только для анализа активности) -->

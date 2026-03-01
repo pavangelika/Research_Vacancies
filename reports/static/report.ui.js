@@ -1,12 +1,8 @@
 ﻿function openRoleTab(evt, roleId) {
-    var i, roleContent, roleButtons;
+    var i, roleContent;
     roleContent = document.getElementsByClassName("role-content");
     for (i = 0; i < roleContent.length; i++) {
         roleContent[i].style.display = "none";
-    }
-    roleButtons = document.getElementsByClassName("role-button");
-    for (i = 0; i < roleButtons.length; i++) {
-        roleButtons[i].className = roleButtons[i].className.replace(" active", "");
     }
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
@@ -157,7 +153,1378 @@ function switchAnalysis(evt, analysisId) {
             initEmployerAnalysisFilter(employerAnalysisBlock);
         }
     }
+    parentRole.dataset.activeAnalysis = analysisType || '';
+    syncSharedFilterPanel(parentRole, analysisType);
     updateViewToggleIcons(parentRole);
+}
+
+function switchFromSummaryToAnalysis(analysisType) {
+    setSummaryModeActive(false);
+
+    function findTargetButton(roleContent) {
+        if (!roleContent) return null;
+        return Array.from(roleContent.querySelectorAll('.analysis-button')).find(function(btn) {
+            var id = btn.dataset.analysisId || '';
+            return id.indexOf(analysisType + '-') === 0;
+        }) || null;
+    }
+
+    var targetRole = getActiveRoleContent();
+    var targetButton = findTargetButton(targetRole);
+    if (!targetButton) {
+        var ctx = uiState.roleSelectionContext;
+        if (ctx && typeof ctx.getOrder === 'function' && typeof ctx.applySelection === 'function') {
+            var order = ctx.getOrder();
+            var selected = typeof ctx.getSelected === 'function' ? Array.from(ctx.getSelected()) : [];
+            var first = order[0] || selected[0];
+            if (first !== undefined && first !== null) {
+                ctx.applySelection(new Set([first]), [first]);
+                targetRole = getActiveRoleContent();
+                targetButton = findTargetButton(targetRole);
+            }
+        }
+    }
+
+    if (targetButton) targetButton.click();
+}
+
+function getActiveRoleContent(preferredRole) {
+    if (preferredRole && preferredRole.classList && preferredRole.classList.contains('role-content')) return preferredRole;
+    var visible = Array.from(document.querySelectorAll('.role-content')).find(function(node) {
+        return (node.style.display || '') === 'block';
+    });
+    return visible || null;
+}
+
+function ensureSharedFilterPanel() {
+    var host = document.getElementById('role-selector');
+    if (!host) return null;
+    var panel = document.getElementById('global-shared-filter-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'global-shared-filter-panel';
+        panel.className = 'shared-filter-panel';
+        panel.style.display = 'none';
+        panel.style.margin = '10px 0 14px';
+        panel.style.padding = '10px 12px';
+        panel.style.border = '1px solid var(--border-color, #d9e2ec)';
+        panel.style.borderRadius = '12px';
+        panel.style.background = 'var(--card-background, #fff)';
+
+        var title = document.createElement('div');
+        title.className = 'shared-filter-panel-title';
+        title.textContent = '';
+        title.style.fontWeight = '600';
+        title.style.marginBottom = '0';
+
+        var hint = document.createElement('div');
+        hint.className = 'shared-filter-panel-hint';
+        hint.textContent = 'ЛКМ — включить, ПКМ — исключить';
+        hint.style.fontSize = '12px';
+        hint.style.color = 'var(--text-secondary, #52606d)';
+        hint.style.marginBottom = '8px';
+
+        var body = document.createElement('div');
+        body.className = 'shared-filter-panel-body';
+        body.style.display = 'flex';
+        body.style.flexWrap = 'nowrap';
+        body.style.alignItems = 'flex-start';
+        body.style.gap = '12px';
+        body.style.overflowX = 'auto';
+
+        var chips = document.createElement('div');
+        chips.className = 'shared-filter-active-chips';
+        chips.style.display = 'flex';
+        chips.style.flexWrap = 'wrap';
+        chips.style.gap = '8px';
+        chips.style.marginTop = '10px';
+
+        panel.appendChild(title);
+        panel.appendChild(hint);
+        panel.appendChild(body);
+        panel.appendChild(chips);
+        host.appendChild(panel);
+
+        if (!document.body.dataset.globalFilterMenusBound) {
+            document.addEventListener('click', function(e) {
+                var target = e.target;
+                if (target && target.closest && target.closest('#global-shared-filter-panel')) return;
+                document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(menu) {
+                    menu.style.display = 'none';
+                });
+                document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(arrow) {
+                    arrow.textContent = '▾';
+                });
+            });
+            document.body.dataset.globalFilterMenusBound = '1';
+        }
+    }
+    return panel;
+}
+
+function hideSharedFilterSources(parentRole) {
+    if (!parentRole) return;
+    [
+        '.activity-month-tabs',
+        '.tabs.month-tabs.activity-only',
+        '.monthly-skills-month-tabs',
+        '.monthly-skills-exp-tabs',
+        '.salary-month-tabs',
+        '.salary-exp-tabs',
+        '.employer-period-chips',
+        '.summary-analysis-menu-legacy',
+        '.all-roles-period-tabs'
+    ].forEach(function(selector) {
+        parentRole.querySelectorAll(selector).forEach(function(node) {
+            node.style.display = 'none';
+        });
+    });
+}
+
+function getSummaryAnalysisButtons(activeRole) {
+    if (!activeRole || activeRole.id !== 'role-all') return [];
+    return Array.from(activeRole.querySelectorAll('.analysis-tabs .analysis-button'));
+}
+
+function getAllRolesPeriodButtons(activeRole) {
+    if (!activeRole || activeRole.id !== 'role-all') return [];
+    var current = activeRole.dataset.activeAnalysis || 'activity';
+    var content = activeRole.querySelector('.all-roles-period-content[data-analysis="' + current + '-all"]');
+    if (!content) {
+        var visibleBlock = Array.from(activeRole.querySelectorAll('.all-roles-period-content')).find(function(node) {
+            return (node.style.display || '') === 'block';
+        });
+        if (visibleBlock) {
+            current = String(visibleBlock.dataset.analysis || '').replace(/-all$/, '');
+        }
+    }
+    var host = activeRole.querySelector('.' + (current === 'activity' ? 'activity-only' : current === 'weekday' ? 'weekday-content' : current === 'skills-monthly' ? 'skills-monthly-content' : 'salary-content'));
+    if (!host) return [];
+    return Array.from(host.querySelectorAll('.all-roles-period-tabs .all-roles-period-button'));
+}
+
+function createAllRolesPeriodControl(activeRole) {
+    var buttons = getAllRolesPeriodButtons(activeRole);
+    var wrap = document.createElement('div');
+    wrap.className = 'global-filter-dropdown all-roles-period-dropdown';
+    wrap.dataset.filterKey = 'periods';
+    wrap.style.marginTop = '8px';
+    wrap.style.flex = '0 0 auto';
+    wrap.style.minWidth = '220px';
+    wrap.style.maxWidth = '260px';
+
+    var caption = document.createElement('div');
+    caption.textContent = 'Период';
+    caption.style.fontSize = '12px';
+    caption.style.fontWeight = '600';
+    caption.style.marginBottom = '6px';
+    caption.style.color = 'var(--text-secondary, #52606d)';
+    wrap.appendChild(caption);
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tab-button global-filter-trigger';
+    trigger.style.width = '100%';
+    trigger.style.textAlign = 'left';
+    trigger.style.borderRadius = '999px';
+    trigger.style.padding = '8px 12px';
+    trigger.style.display = 'flex';
+    trigger.style.alignItems = 'center';
+    trigger.style.justifyContent = 'space-between';
+    if (!buttons.length) {
+        trigger.textContent = 'Недоступно';
+        trigger.disabled = true;
+        wrap.appendChild(trigger);
+        return wrap;
+    }
+
+    var activeBtn = buttons.find(function(btn) { return btn.classList.contains('active'); }) || buttons[0];
+    var label = document.createElement('span');
+    label.className = 'global-filter-trigger-label';
+    label.textContent = ((activeBtn && activeBtn.textContent) || '').trim() || 'Выбрать период';
+    label.style.overflow = 'hidden';
+    label.style.textOverflow = 'ellipsis';
+    label.style.whiteSpace = 'nowrap';
+    label.style.maxWidth = 'calc(100% - 18px)';
+    trigger.appendChild(label);
+
+    var arrow = document.createElement('span');
+    arrow.className = 'summary-filter-trigger-arrow';
+    arrow.textContent = '▾';
+    arrow.style.fontSize = '12px';
+    arrow.style.opacity = '0.8';
+    trigger.appendChild(arrow);
+    wrap.appendChild(trigger);
+
+    var menu = document.createElement('div');
+    menu.className = 'global-filter-menu all-roles-period-menu';
+    menu.style.display = 'none';
+    menu.style.marginTop = '8px';
+    menu.style.padding = '6px';
+    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
+    menu.style.borderRadius = '10px';
+    menu.style.background = 'var(--card-background, #fff)';
+    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
+    menu.style.width = '260px';
+    menu.style.maxWidth = 'calc(100vw - 48px)';
+
+    buttons.forEach(function(sourceBtn, idx) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'tab-button summary-filter-item';
+        item.textContent = (sourceBtn.textContent || '').trim();
+        item.style.display = 'block';
+        item.style.width = '100%';
+        item.style.margin = idx < buttons.length - 1 ? '0 0 6px' : '0';
+        item.style.textAlign = 'left';
+        item.style.borderRadius = '8px';
+        item.style.padding = '8px 10px';
+        if (sourceBtn.classList.contains('active')) {
+            item.classList.add('active');
+            item.style.fontWeight = '600';
+        }
+        item.addEventListener('click', function() {
+            sourceBtn.click();
+            menu.style.display = 'none';
+            arrow.textContent = '▾';
+            syncSharedFilterPanel(getActiveRoleContent(activeRole), activeRole.dataset.activeAnalysis || '');
+        });
+        menu.appendChild(item);
+    });
+
+    trigger.addEventListener('click', function() {
+        document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(other) {
+            if (other !== menu) other.style.display = 'none';
+        });
+        document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(otherArrow) {
+            if (otherArrow !== arrow) otherArrow.textContent = '▾';
+        });
+        var nextState = menu.style.display === 'none' ? 'block' : 'none';
+        menu.style.display = nextState;
+        arrow.textContent = nextState === 'block' ? '▴' : '▾';
+    });
+
+    wrap.appendChild(menu);
+    return wrap;
+}
+
+function createSummaryAnalysisControl(activeRole) {
+    var buttons = getSummaryAnalysisButtons(activeRole);
+    if (!buttons.length) return null;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'global-filter-dropdown summary-filter-dropdown';
+    wrap.style.marginTop = '8px';
+    wrap.style.flex = '0 0 auto';
+    wrap.style.minWidth = '220px';
+    wrap.style.maxWidth = '260px';
+
+    var caption = document.createElement('div');
+    caption.textContent = 'Раздел';
+    caption.style.fontSize = '12px';
+    caption.style.fontWeight = '600';
+    caption.style.marginBottom = '6px';
+    caption.style.color = 'var(--text-secondary, #52606d)';
+    wrap.appendChild(caption);
+
+    var activeBtn = buttons.find(function(btn) { return btn.classList.contains('active'); }) || buttons[0];
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tab-button global-filter-trigger summary-filter-trigger';
+    trigger.style.width = '100%';
+    trigger.style.textAlign = 'left';
+    trigger.style.borderRadius = '999px';
+    trigger.style.padding = '8px 12px';
+    trigger.style.display = 'flex';
+    trigger.style.alignItems = 'center';
+    trigger.style.justifyContent = 'space-between';
+
+    var triggerLabel = document.createElement('span');
+    triggerLabel.textContent = ((activeBtn && activeBtn.textContent) || '').trim() || 'Выбрать раздел';
+    triggerLabel.style.overflow = 'hidden';
+    triggerLabel.style.textOverflow = 'ellipsis';
+    triggerLabel.style.whiteSpace = 'nowrap';
+    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
+    trigger.appendChild(triggerLabel);
+
+    var triggerArrow = document.createElement('span');
+    triggerArrow.className = 'summary-filter-trigger-arrow';
+    triggerArrow.textContent = '▾';
+    triggerArrow.style.fontSize = '12px';
+    triggerArrow.style.opacity = '0.8';
+    trigger.appendChild(triggerArrow);
+
+    wrap.appendChild(trigger);
+
+    var menu = document.createElement('div');
+    menu.className = 'global-filter-menu summary-filter-menu';
+    menu.style.display = 'none';
+    menu.style.marginTop = '8px';
+    menu.style.padding = '6px';
+    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
+    menu.style.borderRadius = '10px';
+    menu.style.background = 'var(--card-background, #fff)';
+    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
+    menu.style.width = '260px';
+    menu.style.maxWidth = 'calc(100vw - 48px)';
+
+    buttons.forEach(function(sourceBtn, idx) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'tab-button summary-filter-item';
+        item.textContent = (sourceBtn.textContent || '').trim();
+        item.style.display = 'block';
+        item.style.width = '100%';
+        item.style.margin = idx < buttons.length - 1 ? '0 0 6px' : '0';
+        item.style.textAlign = 'left';
+        item.style.borderRadius = '8px';
+        item.style.padding = '8px 10px';
+        if (sourceBtn.classList.contains('active')) {
+            item.classList.add('active');
+            item.style.fontWeight = '600';
+        }
+        item.addEventListener('click', function() {
+            sourceBtn.click();
+            menu.style.display = 'none';
+            triggerArrow.textContent = '▾';
+            syncSharedFilterPanel(getActiveRoleContent(activeRole), activeRole.dataset.activeAnalysis || '');
+        });
+        menu.appendChild(item);
+    });
+
+    trigger.addEventListener('click', function() {
+        document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(other) {
+            if (other !== menu) other.style.display = 'none';
+        });
+        document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(arrow) {
+            if (arrow !== triggerArrow) arrow.textContent = '▾';
+        });
+        var nextState = menu.style.display === 'none' ? 'block' : 'none';
+        menu.style.display = nextState;
+        triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
+    });
+
+    wrap.appendChild(menu);
+    return wrap;
+}
+
+function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {
+    var group = document.createElement('div');
+    group.className = 'shared-filter-group';
+    group.style.marginTop = '8px';
+
+    var caption = document.createElement('div');
+    caption.textContent = label;
+    caption.style.fontSize = '12px';
+    caption.style.fontWeight = '600';
+    caption.style.marginBottom = '6px';
+    caption.style.color = 'var(--text-secondary, #52606d)';
+    group.appendChild(caption);
+
+    var tabs = document.createElement('div');
+    tabs.className = 'tabs shared-filter-tabs';
+    tabs.style.justifyContent = 'flex-start';
+    if (!buttons || !buttons.length) {
+        var emptyBtn = document.createElement('button');
+        emptyBtn.type = 'button';
+        emptyBtn.className = 'tab-button shared-filter-proxy-button';
+        emptyBtn.textContent = 'Недоступно';
+        emptyBtn.disabled = true;
+        emptyBtn.style.opacity = '0.6';
+        tabs.appendChild(emptyBtn);
+        group.appendChild(tabs);
+        if (typeof extraBuilder === 'function') {
+            var emptyExtra = extraBuilder();
+            if (emptyExtra) group.appendChild(emptyExtra);
+        }
+        return group;
+    }
+    buttons.forEach(function(sourceBtn) {
+        if (!sourceBtn) return;
+        var proxy = document.createElement('button');
+        proxy.type = 'button';
+        proxy.className = 'tab-button shared-filter-proxy-button';
+        var isPressed = sourceBtn.getAttribute && sourceBtn.getAttribute('aria-pressed') === 'true';
+        if ((sourceBtn.classList && sourceBtn.classList.contains('active')) || isPressed) proxy.classList.add('active');
+        proxy.textContent = (sourceBtn.dataset && sourceBtn.dataset.proxyLabel) ? sourceBtn.dataset.proxyLabel : (sourceBtn.textContent || '').trim();
+        proxy.addEventListener('click', function() {
+            sourceBtn.click();
+            syncSharedFilterPanel(getActiveRoleContent(parentRole), analysisType);
+        });
+        tabs.appendChild(proxy);
+    });
+    group.appendChild(tabs);
+
+    if (typeof extraBuilder === 'function') {
+        var extra = extraBuilder();
+        if (extra) group.appendChild(extra);
+    }
+    return group;
+}
+
+function dedupeFilterOptions(options) {
+    var seen = new Set();
+    return (options || []).filter(function(item) {
+        if (!item || !item.value) return false;
+        var key = String(item.value);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function summarizeSelectedPeriodsLabel(selectedPeriods) {
+    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return String(v).trim(); }).filter(Boolean) : [];
+    if (!labels.length) return 'За все время';
+    if (labels.some(function(label) { return isSummaryMonth(label) || label === 'За период'; })) return 'За все время';
+    if (labels.length === 1) return labels[0];
+    return 'По выбранному периоду';
+}
+
+function ensureGlobalFilterBucket(filterKey) {
+    if (!uiState.global_filters) uiState.global_filters = {};
+    if (!uiState.global_filters[filterKey]) uiState.global_filters[filterKey] = { include: [], exclude: [] };
+    if (!Array.isArray(uiState.global_filters[filterKey].include)) uiState.global_filters[filterKey].include = [];
+    if (!Array.isArray(uiState.global_filters[filterKey].exclude)) uiState.global_filters[filterKey].exclude = [];
+    return uiState.global_filters[filterKey];
+}
+
+function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
+    if (filterKey === 'roles') {
+        return dedupeFilterOptions(getRoleMetaList().map(function(item) {
+            return { value: item.index, label: (item.name || '').trim() };
+        }));
+    }
+    if (!activeRole) return [];
+    var current = analysisType || activeRole.dataset.activeAnalysis || '';
+    if (filterKey === 'periods') {
+        var selectors = [];
+        if (current === 'activity' || current === 'weekday') selectors = ['.activity-month-tabs .month-button', '.tabs.month-tabs.activity-only .month-button'];
+        else if (current === 'skills-monthly') selectors = ['.monthly-skills-month-tabs .monthly-skills-month-button'];
+        else if (current === 'salary') selectors = ['.salary-month-tabs .salary-month-button'];
+        else if (current === 'employer-analysis') selectors = ['.employer-period-chips .employer-period-chip'];
+        for (var i = 0; i < selectors.length; i++) {
+            var found = Array.from(activeRole.querySelectorAll(selectors[i])).map(function(btn) {
+                return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() };
+            }).filter(function(item) { return !!item.value; });
+            if (found.length) return dedupeFilterOptions(found);
+        }
+        if (current === 'skills-search') {
+            return dedupeFilterOptions(Array.from(activeRole.querySelectorAll('.skills-search-dropdown[data-filter="period"] .skills-search-dropdown-item')).map(function(btn) {
+                var value = (btn.dataset.value || '').trim();
+                var label = (btn.textContent || '').trim();
+                if (!value || value === 'all') return null;
+                return { value: value, label: label || value };
+            }).filter(Boolean));
+        }
+        return [];
+    }
+    if (filterKey === 'experiences') {
+        if (current === 'skills-monthly') {
+            var skillsButtons = Array.from(activeRole.querySelectorAll('.monthly-skills-exp-button'));
+            return dedupeFilterOptions(skillsButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; }));
+        }
+        if (current === 'salary') {
+            var salaryButtons = Array.from(activeRole.querySelectorAll('.salary-exp-button'));
+            return dedupeFilterOptions(salaryButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; }));
+        }
+        if (current === 'skills-search') {
+            return dedupeFilterOptions(Array.from(activeRole.querySelectorAll('.skills-search-dropdown[data-filter="exp"] .skills-search-dropdown-item')).map(function(btn) {
+                var value = (btn.dataset.value || '').trim();
+                var label = (btn.textContent || '').trim();
+                if (!value || value === 'all') return null;
+                return { value: value, label: label || value };
+            }).filter(Boolean));
+        }
+        return [];
+    }
+    return [];
+}
+
+function isGlobalFilterDisabled(filterKey, analysisType) {
+    if (filterKey !== 'experiences') return false;
+    return analysisType === 'activity' || analysisType === 'weekday' || analysisType === 'employer-analysis';
+}
+
+function summarizeGlobalFilterSelection(filterKey, options, disabled) {
+    if (disabled) return 'Недоступно';
+    var bucket = ensureGlobalFilterBucket(filterKey);
+    var includeCount = bucket.include.length;
+    var excludeCount = bucket.exclude.length;
+    if (!includeCount && !excludeCount) return filterKey === 'roles' ? 'Выбрать роль' : 'Все';
+    var optionMap = {};
+    (options || []).forEach(function(item) { optionMap[item.value] = item.label; });
+    if (includeCount === 1 && !excludeCount) return optionMap[bucket.include[0]] || '1 выбрано';
+    if (!includeCount && excludeCount === 1) return 'Все, кроме 1';
+    if (includeCount && !excludeCount) return includeCount + ' выбрано';
+    if (!includeCount && excludeCount) return 'Все, кроме ' + excludeCount;
+    return '+' + includeCount + ' / -' + excludeCount;
+}
+
+function closeGlobalFilterMenus(exceptMenu, exceptArrow) {
+    document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(other) {
+        if (other !== exceptMenu) other.style.display = 'none';
+    });
+    document.querySelectorAll('#global-shared-filter-panel .global-filter-trigger-arrow').forEach(function(arrow) {
+        if (arrow !== exceptArrow) arrow.textContent = '▾';
+    });
+}
+
+function refreshExistingGlobalFilterUi(parentRole, analysisType) {
+    var activeRole = getActiveRoleContent(parentRole);
+    var panel = document.getElementById('global-shared-filter-panel');
+    if (!panel || !activeRole) return;
+
+    var current = analysisType || activeRole.dataset.activeAnalysis || '';
+    var isAllRolesView = activeRole.id === 'role-all';
+
+    panel.querySelectorAll('.global-filter-dropdown[data-filter-key]').forEach(function(wrap) {
+        var key = wrap.dataset.filterKey || '';
+        var labelNode = wrap.querySelector('.global-filter-trigger-label');
+        if (!labelNode) return;
+
+        if (key === 'periods' && isAllRolesView) {
+            var periodButtons = getAllRolesPeriodButtons(activeRole);
+            var activeBtn = periodButtons.find(function(btn) { return btn.classList.contains('active'); }) || periodButtons[0];
+            labelNode.textContent = ((activeBtn && activeBtn.textContent) || '').trim() || 'Недоступно';
+            return;
+        }
+
+        var disabled = key === 'experiences' && isGlobalFilterDisabled('experiences', current);
+        var options = getGlobalFilterOptions(activeRole, key, current);
+        labelNode.textContent = summarizeGlobalFilterSelection(key, options, disabled);
+    });
+
+    renderActiveGlobalFilterChips(panel, activeRole, current);
+    applyGlobalFiltersToActiveAnalysis(activeRole, current);
+}
+
+function isSummaryModeActive() {
+    var ctx = uiState.roleSelectionContext;
+    return !!(ctx && typeof ctx.isSummaryActive === 'function' && ctx.isSummaryActive());
+}
+
+function setSummaryModeActive(isActive) {
+    var ctx = uiState.roleSelectionContext;
+    if (ctx && typeof ctx.setSummaryActive === 'function') {
+        ctx.setSummaryActive(!!isActive);
+        return;
+    }
+    uiState.all_roles_active = !!isActive;
+}
+
+function applyGlobalRoleFilter() {
+    var ctx = uiState.roleSelectionContext;
+    if (!ctx) return;
+    if (isSummaryModeActive()) setSummaryModeActive(false);
+    var allOptions = getGlobalFilterOptions(null, 'roles', null);
+    var allIds = allOptions.map(function(item) { return item.value; });
+    var bucket = ensureGlobalFilterBucket('roles');
+    var include = bucket.include.filter(function(v) { return allIds.indexOf(v) >= 0; });
+    var exclude = bucket.exclude.filter(function(v) { return allIds.indexOf(v) >= 0; });
+    var next;
+    if (include.length) next = include.filter(function(v) { return exclude.indexOf(v) < 0; });
+    else if (exclude.length) next = allIds.filter(function(v) { return exclude.indexOf(v) < 0; });
+    else next = Array.from(ctx.getSelected());
+    if (!next.length && allIds.length) next = [allIds[0]];
+    ctx.applySelection(new Set(next), next);
+}
+
+function updateGlobalFilterSelection(filterKey, value, action) {
+    var bucket = ensureGlobalFilterBucket(filterKey);
+    if (action === 'reset') {
+        bucket.include = bucket.include.filter(function(v) { return v !== value; });
+        bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
+    } else if (action === 'include') {
+        if (bucket.include.indexOf(value) < 0) bucket.include.push(value);
+        bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
+    } else if (action === 'exclude') {
+        if (bucket.exclude.indexOf(value) < 0) bucket.exclude.push(value);
+        bucket.include = bucket.include.filter(function(v) { return v !== value; });
+    } else if (action === 'all') {
+        if (filterKey === 'roles') {
+            bucket.include = getGlobalFilterOptions(null, 'roles', null).map(function(item) { return item.value; });
+            bucket.exclude = [];
+        } else {
+            bucket.include = [];
+            bucket.exclude = [];
+        }
+    } else if (action === 'clear') {
+        bucket.include = [];
+        bucket.exclude = [];
+    } else if (action === 'clear_excluded') {
+        bucket.exclude = [];
+    }
+    if (filterKey === 'roles') {
+        if (action === 'clear') {
+            var ctx = uiState.roleSelectionContext;
+            if (ctx && typeof ctx.applySelection === 'function') {
+                if (isSummaryModeActive()) setSummaryModeActive(false);
+                var allIds = getGlobalFilterOptions(null, 'roles', null).map(function(item) { return item.value; });
+                var firstId = allIds[0];
+                if (firstId !== undefined) {
+                    ctx.applySelection(new Set([firstId]), [firstId]);
+                    return;
+                }
+            }
+        }
+        applyGlobalRoleFilter();
+        return;
+    }
+    refreshExistingGlobalFilterUi();
+}
+
+function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
+    if (!panel) return;
+    var host = panel.querySelector('.shared-filter-active-chips');
+    if (!host) return;
+    host.innerHTML = '';
+    var isAllRolesView = !!(activeRole && activeRole.id === 'role-all');
+
+    var defs = [
+        { key: 'roles', title: 'Роль', options: getGlobalFilterOptions(activeRole, 'roles', analysisType), disabled: false }
+    ];
+    if (!isAllRolesView) {
+        defs.push(
+            { key: 'periods', title: 'Период', options: getGlobalFilterOptions(activeRole, 'periods', analysisType), disabled: false },
+            { key: 'experiences', title: 'Опыт', options: getGlobalFilterOptions(activeRole, 'experiences', analysisType), disabled: isGlobalFilterDisabled('experiences', analysisType) }
+        );
+    }
+
+    defs.forEach(function(def) {
+        if (def.disabled) return;
+        var bucket = ensureGlobalFilterBucket(def.key);
+        var labels = {};
+        (def.options || []).forEach(function(item) { labels[item.value] = item.label; });
+        (bucket.include || []).forEach(function(value) {
+            if (!labels[value]) return;
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.textContent = labels[value] + ' ×';
+            chip.style.border = '0';
+            chip.style.borderRadius = '999px';
+            chip.style.padding = '4px 10px';
+            chip.style.background = '#eef2f6';
+            chip.style.color = 'inherit';
+            chip.style.cursor = 'pointer';
+            chip.addEventListener('click', function() { updateGlobalFilterSelection(def.key, value, 'reset'); });
+            host.appendChild(chip);
+        });
+        (bucket.exclude || []).forEach(function(value) {
+            if (!labels[value]) return;
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.textContent = labels[value] + ' ×';
+            chip.style.border = '0';
+            chip.style.borderRadius = '999px';
+            chip.style.padding = '4px 10px';
+            chip.style.background = '#eef2f6';
+            chip.style.color = 'inherit';
+            chip.style.cursor = 'pointer';
+            chip.addEventListener('click', function() { updateGlobalFilterSelection(def.key, value, 'reset'); });
+            host.appendChild(chip);
+        });
+    });
+    if (isAllRolesView) {
+        var periodButtons = getAllRolesPeriodButtons(activeRole);
+        var activePeriodBtn = periodButtons.find(function(btn) { return btn.classList.contains('active'); }) || periodButtons[0];
+        if (activePeriodBtn) {
+            var periodChip = document.createElement('button');
+            periodChip.type = 'button';
+            periodChip.textContent = ((activePeriodBtn.textContent || '').trim() || 'Период') + ' ×';
+            periodChip.style.border = '0';
+            periodChip.style.borderRadius = '999px';
+            periodChip.style.padding = '4px 10px';
+            periodChip.style.background = '#eef2f6';
+            periodChip.style.color = 'inherit';
+            periodChip.style.cursor = 'pointer';
+            periodChip.addEventListener('click', function() {
+                var resetBtn = periodButtons[0];
+                if (!resetBtn || resetBtn === activePeriodBtn) return;
+                resetBtn.click();
+                syncSharedFilterPanel(activeRole, activeRole.dataset.activeAnalysis || '');
+            });
+            host.appendChild(periodChip);
+        }
+    }
+}
+
+function createUnifiedRolesControl(activeRole, analysisType) {
+    var options = getGlobalFilterOptions(activeRole, 'roles', analysisType);
+    var bucket = ensureGlobalFilterBucket('roles');
+    var wrap = document.createElement('div');
+    wrap.className = 'global-filter-dropdown';
+    wrap.dataset.filterKey = 'roles';
+    wrap.style.marginTop = '8px';
+    wrap.style.flex = '0 0 auto';
+    wrap.style.minWidth = '220px';
+
+    var caption = document.createElement('div');
+    caption.textContent = 'Роли';
+    caption.style.fontSize = '12px';
+    caption.style.fontWeight = '600';
+    caption.style.marginBottom = '6px';
+    caption.style.color = 'var(--text-secondary, #52606d)';
+    wrap.appendChild(caption);
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tab-button global-filter-trigger';
+    trigger.style.width = '100%';
+    trigger.style.borderRadius = '999px';
+    trigger.style.padding = '8px 12px';
+    trigger.style.display = 'flex';
+    trigger.style.alignItems = 'center';
+    trigger.style.justifyContent = 'space-between';
+
+    var triggerLabel = document.createElement('span');
+    triggerLabel.className = 'global-filter-trigger-label';
+    triggerLabel.textContent = summarizeGlobalFilterSelection('roles', options, false);
+    triggerLabel.style.overflow = 'hidden';
+    triggerLabel.style.textOverflow = 'ellipsis';
+    triggerLabel.style.whiteSpace = 'nowrap';
+    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
+    trigger.appendChild(triggerLabel);
+
+    var triggerArrow = document.createElement('span');
+    triggerArrow.className = 'global-filter-trigger-arrow';
+    triggerArrow.textContent = '▾';
+    triggerArrow.style.fontSize = '12px';
+    triggerArrow.style.opacity = '0.8';
+    trigger.appendChild(triggerArrow);
+    wrap.appendChild(trigger);
+
+    var menu = document.createElement('div');
+    menu.className = 'global-filter-menu';
+    menu.style.display = 'none';
+    menu.style.marginTop = '8px';
+    menu.style.padding = '8px';
+    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
+    menu.style.borderRadius = '10px';
+    menu.style.background = 'var(--card-background, #fff)';
+    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
+    menu.style.width = '300px';
+    menu.style.maxWidth = 'calc(100vw - 48px)';
+    menu.style.maxHeight = '260px';
+    menu.style.overflowY = 'auto';
+
+    var controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '6px';
+    controls.style.flexWrap = 'wrap';
+    controls.style.marginBottom = '8px';
+
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'tab-button';
+    allBtn.textContent = 'Выбрать все';
+    allBtn.style.borderRadius = '999px';
+    allBtn.addEventListener('click', function() {
+        if (isSummaryModeActive()) setSummaryModeActive(false);
+        updateGlobalFilterSelection('roles', '', 'all');
+    });
+    controls.appendChild(allBtn);
+
+    var clearExcludedBtn = document.createElement('button');
+    clearExcludedBtn.type = 'button';
+    clearExcludedBtn.className = 'tab-button';
+    clearExcludedBtn.textContent = 'Очистить исключения';
+    clearExcludedBtn.style.borderRadius = '999px';
+    clearExcludedBtn.addEventListener('click', function() {
+        if (isSummaryModeActive()) setSummaryModeActive(false);
+        updateGlobalFilterSelection('roles', '', 'clear_excluded');
+    });
+    controls.appendChild(clearExcludedBtn);
+
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'tab-button';
+    clearBtn.textContent = 'Сбросить все';
+    clearBtn.style.border = '0';
+    clearBtn.style.background = 'transparent';
+    clearBtn.style.color = 'var(--text-secondary, #52606d)';
+    clearBtn.addEventListener('click', function() {
+        if (isSummaryModeActive()) setSummaryModeActive(false);
+        updateGlobalFilterSelection('roles', '', 'clear');
+    });
+    controls.appendChild(clearBtn);
+    menu.appendChild(controls);
+
+    var search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'global-filter-search';
+    search.placeholder = 'Поиск роли';
+    search.style.width = '100%';
+    search.style.boxSizing = 'border-box';
+    search.style.marginBottom = '8px';
+    search.style.padding = '8px 10px';
+    search.style.border = '1px solid var(--border-color, #d9e2ec)';
+    search.style.borderRadius = '8px';
+    menu.appendChild(search);
+
+    options.forEach(function(option) {
+        var row = document.createElement('div');
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr';
+        row.style.gap = '6px';
+        row.style.alignItems = 'center';
+        row.style.marginBottom = '6px';
+        row.style.padding = '6px 8px';
+        row.style.borderRadius = '8px';
+        row.style.cursor = 'pointer';
+        row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
+        row.addEventListener('click', function() {
+            if (isSummaryModeActive()) setSummaryModeActive(false);
+            var isIncluded = bucket.include.indexOf(option.value) >= 0;
+            updateGlobalFilterSelection('roles', option.value, isIncluded ? 'reset' : 'include');
+        });
+        row.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            if (isSummaryModeActive()) setSummaryModeActive(false);
+            var isExcluded = bucket.exclude.indexOf(option.value) >= 0;
+            updateGlobalFilterSelection('roles', option.value, isExcluded ? 'reset' : 'exclude');
+        });
+        var label = document.createElement('div');
+        var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
+        var isExcludedNow = bucket.exclude.indexOf(option.value) >= 0;
+        label.textContent = option.label;
+        label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
+        row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : '#f8fafc';
+        row.appendChild(label);
+        menu.appendChild(row);
+    });
+
+    search.addEventListener('input', function() {
+        var q = String(search.value || '').trim().toLowerCase();
+        Array.from(menu.children).forEach(function(node) {
+            if (node === controls || node === search) return;
+            var text = (node.textContent || '').trim().toLowerCase();
+            node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+        });
+    });
+
+    trigger.addEventListener('click', function() {
+        var nextState = menu.style.display === 'none' ? 'block' : 'none';
+        closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
+        menu.style.display = nextState;
+        triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
+    });
+
+    wrap.appendChild(menu);
+    return wrap;
+}
+
+function createGlobalFilterDropdown(filterKey, title, options, disabled) {
+    var bucket = ensureGlobalFilterBucket(filterKey);
+    var wrap = document.createElement('div');
+    wrap.className = 'global-filter-dropdown';
+    wrap.dataset.filterKey = filterKey;
+    wrap.style.marginTop = '8px';
+    wrap.style.flex = '0 0 auto';
+    wrap.style.minWidth = '220px';
+
+    var caption = document.createElement('div');
+    caption.textContent = title;
+    caption.style.fontSize = '12px';
+    caption.style.fontWeight = '600';
+    caption.style.marginBottom = '6px';
+    caption.style.color = 'var(--text-secondary, #52606d)';
+    wrap.appendChild(caption);
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tab-button global-filter-trigger';
+    trigger.style.width = '100%';
+    trigger.style.borderRadius = '999px';
+    trigger.style.padding = '8px 12px';
+    trigger.style.display = 'flex';
+    trigger.style.alignItems = 'center';
+    trigger.style.justifyContent = 'space-between';
+    if (disabled) trigger.disabled = true;
+
+    var triggerLabel = document.createElement('span');
+    triggerLabel.className = 'global-filter-trigger-label';
+    triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+    triggerLabel.style.overflow = 'hidden';
+    triggerLabel.style.textOverflow = 'ellipsis';
+    triggerLabel.style.whiteSpace = 'nowrap';
+    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
+    trigger.appendChild(triggerLabel);
+
+    var triggerArrow = document.createElement('span');
+    triggerArrow.className = 'global-filter-trigger-arrow';
+    triggerArrow.textContent = '▾';
+    triggerArrow.style.fontSize = '12px';
+    triggerArrow.style.opacity = '0.8';
+    if (disabled) triggerArrow.style.opacity = '0.35';
+    trigger.appendChild(triggerArrow);
+    wrap.appendChild(trigger);
+
+    var menu = document.createElement('div');
+    menu.className = 'global-filter-menu';
+    menu.style.display = 'none';
+    menu.style.marginTop = '8px';
+    menu.style.padding = '8px';
+    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
+    menu.style.borderRadius = '10px';
+    menu.style.background = 'var(--card-background, #fff)';
+    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
+    menu.style.width = '300px';
+    menu.style.maxWidth = 'calc(100vw - 48px)';
+    menu.style.maxHeight = '260px';
+    menu.style.overflowY = 'auto';
+
+    var controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '6px';
+    controls.style.flexWrap = 'wrap';
+    controls.style.marginBottom = '8px';
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'tab-button';
+    allBtn.textContent = 'Выбрать все';
+    allBtn.style.borderRadius = '999px';
+    allBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'all'); });
+    controls.appendChild(allBtn);
+
+    var clearExcludedBtn = document.createElement('button');
+    clearExcludedBtn.type = 'button';
+    clearExcludedBtn.className = 'tab-button';
+    clearExcludedBtn.textContent = 'Очистить исключения';
+    clearExcludedBtn.style.borderRadius = '999px';
+    clearExcludedBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear_excluded'); });
+    controls.appendChild(clearExcludedBtn);
+
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'tab-button';
+    clearBtn.textContent = 'Сбросить все';
+    clearBtn.style.border = '0';
+    clearBtn.style.background = 'transparent';
+    clearBtn.style.color = 'var(--text-secondary, #52606d)';
+    clearBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear'); });
+    controls.appendChild(clearBtn);
+    menu.appendChild(controls);
+
+    if (filterKey === 'roles' && !disabled) {
+        var search = document.createElement('input');
+        search.type = 'text';
+        search.className = 'global-filter-search';
+        search.placeholder = 'Поиск роли';
+        search.style.width = '100%';
+        search.style.boxSizing = 'border-box';
+        search.style.marginBottom = '8px';
+        search.style.padding = '8px 10px';
+        search.style.border = '1px solid var(--border-color, #d9e2ec)';
+        search.style.borderRadius = '8px';
+        menu.appendChild(search);
+    }
+
+    if (!options.length) {
+        var empty = document.createElement('div');
+        empty.textContent = disabled ? 'Фильтр недоступен на этой вкладке' : 'Нет значений';
+        empty.style.color = 'var(--text-secondary, #52606d)';
+        empty.style.fontSize = '12px';
+        menu.appendChild(empty);
+    } else {
+        var searchInput = menu.querySelector('.global-filter-search');
+        options.forEach(function(option) {
+            var row = document.createElement('div');
+            row.style.display = 'grid';
+            row.style.gridTemplateColumns = '1fr';
+            row.style.gap = '6px';
+            row.style.alignItems = 'center';
+            row.style.marginBottom = '6px';
+            row.style.padding = '6px 8px';
+            row.style.borderRadius = '8px';
+            row.style.cursor = 'pointer';
+            row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
+            row.addEventListener('click', function() {
+                var isIncluded = bucket.include.indexOf(option.value) >= 0;
+                updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include');
+            });
+            row.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                var isExcluded = bucket.exclude.indexOf(option.value) >= 0;
+                updateGlobalFilterSelection(filterKey, option.value, isExcluded ? 'reset' : 'exclude');
+            });
+            var label = document.createElement('div');
+            var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
+            var isExcludedNow = bucket.exclude.indexOf(option.value) >= 0;
+            label.textContent = option.label;
+            label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
+            row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : '#f8fafc';
+            row.appendChild(label);
+            menu.appendChild(row);
+        });
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                var q = String(searchInput.value || '').trim().toLowerCase();
+                Array.from(menu.children).forEach(function(node) {
+                    if (node === controls || node === searchInput) return;
+                    var text = (node.textContent || '').trim().toLowerCase();
+                    node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+                });
+            });
+        }
+    }
+
+    if (!disabled) {
+        trigger.addEventListener('click', function() {
+            var nextState = menu.style.display === 'none' ? 'block' : 'none';
+            closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
+            menu.style.display = nextState;
+            triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
+        });
+    }
+    wrap.appendChild(menu);
+    return wrap;
+}
+
+function getResolvedGlobalFilterValues(filterKey, options) {
+    var bucket = ensureGlobalFilterBucket(filterKey);
+    var allowed = (options || []).map(function(item) { return item.value; });
+    var include = (bucket.include || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
+    var exclude = (bucket.exclude || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
+    if (include.length) return include.filter(function(v) { return exclude.indexOf(v) < 0; });
+    return allowed.filter(function(v) { return exclude.indexOf(v) < 0; });
+}
+
+function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean) : [];
+    if (!labels.length) return list;
+    if (labels.some(function(label) { return isSummaryMonth(label); })) return list;
+
+    var monthSet = new Set();
+    var maxQuickDays = 0;
+    labels.forEach(function(label) {
+        var text = String(label || '').trim();
+        if (/^\d{4}-\d{2}$/.test(text)) {
+            monthSet.add(text);
+            return;
+        }
+        var match = text.match(/^За\s+(\d+)\s+д/i);
+        if (match) {
+            var days = Number(match[1]) || 0;
+            if (days > maxQuickDays) maxQuickDays = days;
+        }
+    });
+
+    var quickCutoff = null;
+    if (maxQuickDays > 0) {
+        var maxDate = null;
+        list.forEach(function(v) {
+            if (!v || !v.published_at) return;
+            var d = new Date(v.published_at);
+            if (isNaN(d)) return;
+            if (!maxDate || d > maxDate) maxDate = d;
+        });
+        if (maxDate) quickCutoff = new Date(maxDate.getTime() - maxQuickDays * 24 * 60 * 60 * 1000);
+    }
+
+    if (!monthSet.size && !quickCutoff) return list;
+
+    return list.filter(function(v) {
+        if (!v || !v.published_at) return false;
+        var d = new Date(v.published_at);
+        if (isNaN(d)) return false;
+        var month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (monthSet.has(month)) return true;
+        if (quickCutoff && d >= quickCutoff) return true;
+        return false;
+    });
+}
+
+function filterVacanciesBySelectedExperiences(vacancies, selectedExps) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var values = Array.isArray(selectedExps) ? selectedExps.filter(Boolean) : [];
+    if (!values.length) return list;
+    var allowed = new Set(values.map(function(exp) { return normalizeExperience(exp); }).filter(Boolean));
+    if (!allowed.size) return list;
+    return list.filter(function(v) {
+        var exp = normalizeExperience(v && (v._experience || v.experience || ''));
+        return !!exp && allowed.has(exp);
+    });
+}
+
+function buildWeekdayTableHtml(days) {
+    var rows = (days || []).map(function(day) {
+        return '<tr>' +
+            '<td>' + escapeHtml(day.weekday || '') + '</td>' +
+            '<td>' + (day.publications || 0) + '</td>' +
+            '<td>' + (day.archives || 0) + '</td>' +
+            '<td>' + escapeHtml(day.avg_pub_hour || '—') + '</td>' +
+            '<td>' + escapeHtml(day.avg_arch_hour || '—') + '</td>' +
+        '</tr>';
+    }).join('');
+    return '<table>' +
+        '<thead><tr><th>День недели</th><th>Публикаций</th><th>Архиваций</th><th>Ср. время публикации</th><th>Ср. время архивации</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+    '</table>';
+}
+
+function buildSkillsExpDataFromVacancies(vacancies, label) {
+    var filtered = (vacancies || []).filter(function(v) { return !!(v && v.skills); });
+    var totalVacancies = filtered.length;
+    var skills = computeSalarySkillsFromVacancies(filtered, 15).map(function(item, idx) {
+        return {
+            skill: item.skill,
+            count: item.count || 0,
+            coverage: totalVacancies ? Math.round(((item.count || 0) * 10000) / totalVacancies) / 100 : 0,
+            rank: idx + 1
+        };
+    });
+    return {
+        experience: label || 'По выбранному периоду',
+        total_vacancies: totalVacancies,
+        skills: skills
+    };
+}
+
+function renderGlobalSkillsFiltered(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.skills-monthly-content');
+    if (!block) return;
+
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'skills-monthly');
+    var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'skills-monthly');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var vacancies = getRoleVacancies(parentRole);
+    vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
+    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+
+    Array.from(block.querySelectorAll('.monthly-skills-month-content')).forEach(function(monthDiv) {
+        monthDiv.style.display = 'none';
+    });
+
+    var host = block.querySelector('.monthly-skills-month-content.global-filtered-month');
+    if (!host) {
+        host = document.createElement('div');
+        host.className = 'monthly-skills-month-content global-filtered-month';
+        host.style.display = 'none';
+        var expDiv = document.createElement('div');
+        expDiv.className = 'monthly-skills-exp-content';
+        expDiv.style.display = 'block';
+        expDiv.id = 'ms-exp-global-' + parentRole.id;
+        expDiv.innerHTML =
+            '<div class="view-toggle-horizontal">' +
+                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '</div>' +
+            '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
+                '<div class="table-container"></div>' +
+                '<div class="plotly-graph" id="skills-monthly-graph-global-' + parentRole.id + '"></div>' +
+            '</div>';
+        host.appendChild(expDiv);
+        block.appendChild(host);
+    }
+
+    var hostExp = host.querySelector('.monthly-skills-exp-content');
+    var agg = buildSkillsExpDataFromVacancies(vacancies, periodLabel);
+    renderSkillsExpContent(hostExp, agg);
+    host.style.display = 'block';
+    setActiveViewButton(hostExp.querySelectorAll('.view-mode-btn'), uiState.skills_monthly_view_mode);
+    var container = hostExp.querySelector('.view-mode-container');
+    applyViewMode(container, uiState.skills_monthly_view_mode);
+    buildHorizontalBarChart('skills-monthly-graph-global-' + parentRole.id, agg.skills || [], agg.experience || periodLabel);
+    applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
+}
+
+function renderGlobalSalaryFiltered(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.salary-content');
+    if (!block) return;
+    rebuildSalaryFromVacancies(parentRole, block);
+
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'salary');
+    var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'salary');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var vacancies = getRoleVacancies(parentRole);
+    vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
+    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    var monthData = buildSalaryMonthFromVacancies(vacancies, periodLabel);
+    var summaryExp = (monthData.experiences || []).find(function(exp) { return exp && exp.experience === 'Все'; });
+    var entries = summaryExp ? (summaryExp.entries || []) : [];
+
+    Array.from(block.querySelectorAll('.salary-month-content')).forEach(function(monthDiv) {
+        monthDiv.style.display = 'none';
+    });
+
+    var host = block.querySelector('.salary-month-content.global-filtered-month');
+    if (!host) {
+        host = document.createElement('div');
+        host.className = 'salary-month-content global-filtered-month';
+        host.style.display = 'none';
+        var expDiv = document.createElement('div');
+        expDiv.className = 'salary-exp-content';
+        expDiv.style.display = 'block';
+        expDiv.id = 'sal-exp-global-' + parentRole.id;
+        expDiv.innerHTML =
+            '<div class="salary-display-flex">' +
+                '<div class="salary-main-content">' +
+                    '<div class="salary-table-container"></div>' +
+                    '<div class="salary-graph-container">' +
+                        '<div class="plotly-graph" id="salary-graph-global-' + parentRole.id + '"></div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        host.appendChild(expDiv);
+        block.appendChild(host);
+    }
+
+    var hostExp = host.querySelector('.salary-exp-content');
+    hostExp._data = { exp: { experience: periodLabel, entries: entries } };
+    var tableContainer = hostExp.querySelector('.salary-table-container');
+    if (tableContainer) {
+        tableContainer.innerHTML = buildSalaryTablesHtml(entries);
+        var rows = tableContainer.querySelectorAll('.salary-row');
+        rows.forEach(function(row, idx) {
+            var entry = entries[idx] || {};
+            row._data = {
+                withList: entry.vacancies_with_salary_list || [],
+                withoutList: entry.vacancies_without_salary_list || []
+            };
+        });
+    }
+    applySalaryStatusIcons(hostExp);
+    host.style.display = 'block';
+    applySalaryViewMode(hostExp, entries);
+}
+
+function renderGlobalActivityFiltered(parentRole) {
+    if (!parentRole) return;
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'activity');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
+    var entries = computeActivityEntriesFromVacancies(vacancies);
+
+    Array.from(parentRole.querySelectorAll('.month-content.activity-only')).forEach(function(monthDiv) {
+        monthDiv.style.display = 'none';
+    });
+
+    var host = parentRole.querySelector('.month-content.activity-only.global-filtered-month');
+    if (!host) {
+        host = buildActivityBlock(parentRole, 'month-' + parentRole.id + '-global-filtered', periodLabel, []);
+        host.classList.add('global-filtered-month');
+    }
+
+    host.dataset.month = periodLabel;
+    host.dataset.entries = JSON.stringify(entries || []);
+    host._data = { entries: entries || [], month: periodLabel };
+    var tableWrap = host.querySelector('.table-container');
+    if (tableWrap) tableWrap.innerHTML = buildActivityTableHtml(entries || []);
+    host.style.display = 'block';
+
+    var mode = uiState.activity_view_mode || 'together';
+    setActiveViewButton(host.querySelectorAll('.view-mode-btn'), mode);
+    var container = host.querySelector('.view-mode-container');
+    applyViewMode(container, mode);
+    buildActivityBarChart('activity-graph-' + host.id.replace('month-', ''), entries || []);
+    applyActivityModeSizing(container, mode);
+}
+
+function renderGlobalWeekdayFiltered(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.weekday-content');
+    if (!block) return;
+
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'weekday');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
+    var weekdays = computeWeekdayStatsFromVacancies(vacancies);
+
+    block.dataset.weekdays = JSON.stringify(weekdays || []);
+    var tableWrap = block.querySelector('.table-container');
+    if (tableWrap) tableWrap.innerHTML = buildWeekdayTableHtml(weekdays || []);
+
+    var roleMatch = String(parentRole.id || '').match(/^role-(.+)$/);
+    var roleSuffix = roleMatch ? roleMatch[1] : '';
+    var mode = uiState.weekday_view_mode || 'together';
+    var container = block.querySelector('.view-mode-container');
+    if (container) {
+        setActiveViewButton(block.querySelectorAll('.view-mode-btn'), mode);
+        applyViewMode(container, mode);
+        if (roleSuffix) buildWeekdayBarChart(roleSuffix, block);
+        applyWeekdayModeSizing(container, mode);
+    }
+}
+
+function applyGlobalFiltersToSkillsSearch(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.skills-search-content');
+    if (!block) return;
+    initSkillsSearch(parentRole);
+    updateSkillsSearchData(block);
+}
+
+function renderGlobalEmployerFiltered(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.employer-analysis-content');
+    if (!block) return;
+    initEmployerAnalysisFilter(block);
+    if (!block.__employerData || !block.__employerData.length) return;
+
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'employer-analysis');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
+    var rows;
+    var allPeriod = !selectedPeriods.length || selectedPeriods.some(function(label) { return isSummaryMonth(label) || label === 'За период'; });
+    if (allPeriod) {
+        rows = block.__employerAllRows || aggregateEmployerAnalysisRows(block.__employerData);
+    } else {
+        var allowed = new Set(selectedPeriods);
+        rows = aggregateEmployerAnalysisRows(block.__employerData.filter(function(row) {
+            return row && allowed.has(row.month);
+        }));
+    }
+
+    renderEmployerAnalysisTable(block, rows, periodLabel);
+    block.dataset.employerActiveMonth = 'global';
+    renderEmployerAnalysisChart(block);
+}
+
+function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
+    if (!parentRole) return;
+    if (parentRole.id === 'role-all') return;
+    var current = analysisType || parentRole.dataset.activeAnalysis || '';
+    if (current === 'skills-monthly') renderGlobalSkillsFiltered(parentRole);
+    else if (current === 'salary') renderGlobalSalaryFiltered(parentRole);
+    else if (current === 'activity') renderGlobalActivityFiltered(parentRole);
+    else if (current === 'weekday') renderGlobalWeekdayFiltered(parentRole);
+    else if (current === 'skills-search') applyGlobalFiltersToSkillsSearch(parentRole);
+    else if (current === 'employer-analysis') renderGlobalEmployerFiltered(parentRole);
+}
+
+function syncSharedFilterPanel(parentRole, analysisType) {
+    var activeRole = getActiveRoleContent(parentRole);
+    hideSharedFilterSources(activeRole);
+    var panel = ensureSharedFilterPanel();
+    if (!panel) return;
+    var body = panel.querySelector('.shared-filter-panel-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
+    var isAllRolesView = !!(activeRole && activeRole.id === 'role-all');
+    body.appendChild(createUnifiedRolesControl(activeRole, current));
+    if (isAllRolesView) {
+        var allRolesPeriodControl = createAllRolesPeriodControl(activeRole);
+        if (allRolesPeriodControl) body.appendChild(allRolesPeriodControl);
+    } else {
+        body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
+    }
+    body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', isAllRolesView ? [] : getGlobalFilterOptions(activeRole, 'experiences', current), isAllRolesView || isGlobalFilterDisabled('experiences', current)));
+    panel.style.display = body.children.length ? 'block' : 'none';
+    renderActiveGlobalFilterChips(panel, activeRole, current);
+    applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
 
 function normalizeSalaryControls(parentRole) {
@@ -730,10 +2097,18 @@ function applySkillsSearchPeriod(block, period) {
 
 function updateSkillsSearchData(block) {
     if (!block || !block._data) return;
+    var parentRole = block.closest('.role-content');
+    var globalPeriodOptions = getGlobalFilterOptions(parentRole, 'periods', 'skills-search');
+    var globalExpOptions = getGlobalFilterOptions(parentRole, 'experiences', 'skills-search');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', globalPeriodOptions);
+    var selectedExps = getResolvedGlobalFilterValues('experiences', globalExpOptions);
     var period = block.dataset.period || 'all';
     var months = block._data.salaryMonths || [];
     var baseVacancies;
-    if (block._data.fullVacancies) {
+    if (globalPeriodOptions.length) {
+        baseVacancies = (block._data.vacancies || []).slice();
+        baseVacancies = filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods);
+    } else if (block._data.fullVacancies) {
         baseVacancies = (block._data.vacancies || []).slice();
         if (period && period.indexOf('last_') === 0) {
             var days = Number(period.replace('last_', '')) || 0;
@@ -765,21 +2140,21 @@ function updateSkillsSearchData(block) {
         }
     } else if (period && period.indexOf('last_') === 0) {
         baseVacancies = collectVacanciesWithMetaFromSalaryMonths(months, null);
-        var days = Number(period.replace('last_', '')) || 0;
-        if (days > 0) {
-            var maxDate = null;
+        var days2 = Number(period.replace('last_', '')) || 0;
+        if (days2 > 0) {
+            var maxDate2 = null;
             baseVacancies.forEach(v => {
                 if (!v || !v.published_at) return;
-                var d = new Date(v.published_at);
-                if (isNaN(d)) return;
-                if (!maxDate || d > maxDate) maxDate = d;
+                var d2 = new Date(v.published_at);
+                if (isNaN(d2)) return;
+                if (!maxDate2 || d2 > maxDate2) maxDate2 = d2;
             });
-            if (maxDate) {
-                var cutoff = new Date(maxDate.getTime() - days * 24 * 60 * 60 * 1000);
+            if (maxDate2) {
+                var cutoff2 = new Date(maxDate2.getTime() - days2 * 24 * 60 * 60 * 1000);
                 baseVacancies = baseVacancies.filter(v => {
                     if (!v || !v.published_at) return false;
-                    var d = new Date(v.published_at);
-                    return !isNaN(d) && d >= cutoff;
+                    var d3 = new Date(v.published_at);
+                    return !isNaN(d3) && d3 >= cutoff2;
                 });
             }
         }
@@ -814,7 +2189,11 @@ function updateSkillsSearchData(block) {
 
     var filteredBase = baseVacancies.filter(v => {
         if (!v) return false;
-        if (expVal !== 'all') {
+        if (globalExpOptions.length) {
+            var vExpGlobal = normalizeExperience(v._experience || '');
+            var allowedGlobal = selectedExps.map(function(x) { return normalizeExperience(x); }).filter(Boolean);
+            if (allowedGlobal.length && allowedGlobal.indexOf(vExpGlobal) < 0) return false;
+        } else if (expVal !== 'all') {
             var vExp = normalizeExperience(v._experience || '');
             if (expVals && expVals.length) {
                 var expOk = expVals.some(x => normalizeExperience(x) === vExp);
@@ -1589,7 +2968,7 @@ function aggregateSkillsExpData(expDivs, label) {
     });
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
-    return { experience: label || 'Выбрано', total_vacancies: totalVac, skills: skills };
+    return { experience: label || 'По выбранному периоду', total_vacancies: totalVac, skills: skills };
 }
 
 function renderSkillsExpContent(expDiv, expData) {
@@ -1779,6 +3158,7 @@ function applyEmployerAnalysisMonthFilter(block, month) {
     });
     block.dataset.employerActiveMonth = month;
     renderEmployerAnalysisChart(block);
+    syncSharedFilterPanel(block.closest('.role-content'), 'employer-analysis');
 }
 
 function applyEmployerAnalysisViewMode(block, mode) {
@@ -2473,6 +3853,7 @@ function openMonthTab(evt, monthId) {
     buildActivityBarChart(graphId, entries);
     applyActivityModeSizing(container, uiState.activity_view_mode);
     normalizeActivityControls(parentRole);
+    syncSharedFilterPanel(parentRole, 'activity');
 }
 function restoreActivityState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.month-button');
@@ -2548,6 +3929,7 @@ function openMonthlySkillsMonthTab(evt, monthId) {
 
     restoreExpInMonth(parentRole, roleId);
     normalizeSkillsMonthlyControls(parentRole);
+    syncSharedFilterPanel(parentRole, 'skills-monthly');
 }
 function restoreExpInMonth(parentRole, roleId) {
     var visibleMonth = parentRole.querySelector('.monthly-skills-month-content[style*="display: block"]');
@@ -2745,6 +4127,7 @@ function openMonthlySkillsExpTab(evt, expId) {
     buildHorizontalBarChart(finalGraphId, liveExp.skills || [], liveExp.experience || experience);
     applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
     normalizeSkillsMonthlyControls(parentRole);
+    syncSharedFilterPanel(parentRole, 'skills-monthly');
 }
 function restoreSalaryState(parentRole, roleId) {
     if (uiState.salary_view_mode === 'together') uiState.salary_view_mode = 'table';
@@ -2800,6 +4183,7 @@ function openSalaryMonthTab(evt, monthId) {
 
     restoreExpInSalaryMonth(parentRole, roleId);
     normalizeSalaryControls(parentRole);
+    syncSharedFilterPanel(parentRole, 'salary');
 }
 function restoreExpInSalaryMonth(parentRole, roleId) {
     var visibleMonth = parentRole.querySelector('.salary-month-content[style*="display: block"]');
@@ -2854,6 +4238,7 @@ function openSalaryExpTab(evt, expId) {
 
     applySalaryViewMode(expDiv, expData.entries);
     normalizeSalaryControls(parentRole);
+    syncSharedFilterPanel(parentRole, 'salary');
 }
 
 // ---------- Общие функции для переключения режимов ----------

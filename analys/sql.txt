@@ -26,11 +26,6 @@ cons - Минусы
 Топ-3 вакансии с зарплатой:
 
 Эффективность откликов:
-SELECT
-    count(*) as total_vacancies,
-    sum(case when send_resume then 1 else 0 end) as resumes_sent,
-    sum(case when interview_date is not null then 1 else 0 end) as interviews,
-    sum(case when offer_salary is not null then 1 else 0 end) as offers
-FROM get_vacancies;
+сводный отчет состоит изпр
 
 

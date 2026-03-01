@@ -8,6 +8,11 @@ const CHART_COLORS = {
 // Состояние интерфейса
 let uiState = {
     global_analysis_type: null,
+    global_filters: {
+        roles: { include: [], exclude: [] },
+        periods: { include: [], exclude: [] },
+        experiences: { include: [], exclude: [] }
+    },
     global_activity_month: null,
     global_skills_month: null,
     global_skills_experience: null,

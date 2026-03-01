@@ -1,6 +1,6 @@
-function buildVacancyTableHtml(vacancies) {
+﻿function buildVacancyTableHtml(vacancies) {
     if (!vacancies || vacancies.length === 0) {
-        return '<div class="vacancy-empty">Нет вакансий</div>';
+        return '<div class="vacancy-empty">РќРµС‚ РІР°РєР°РЅСЃРёР№</div>';
     }
 
     var showRole = vacancies.some(v => v && (v.role_name || v.role_id));
@@ -11,8 +11,8 @@ function buildVacancyTableHtml(vacancies) {
             : formatCell(v.id);
         var replyCell = v.apply_alternate_url
             ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
-            : '—';
-        var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
+            : 'вЂ”';
+        var roleCell = showRole ? (escapeHtml((v.role_name || 'Р РѕР»СЊ') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
         var employerCell = formatCell(v.employer);
         if (v.employer) {
             employerCell = '<button class="employer-link" type="button" ' +
@@ -61,12 +61,12 @@ function buildVacancyTableHtml(vacancies) {
     '</div>';
 }
 function buildSalaryTablesHtml(entries) {
-    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
+    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Р”СЂСѓРіР°СЏ': 0, 'РќРµ Р·Р°РїРѕР»РЅРµРЅР°': 0 };
     var coverageTotal = 0;
     (entries || []).forEach(function(entry) {
         if (!entry) return;
         var count = Number(entry.total_vacancies) || 0;
-        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Другая';
+        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Р”СЂСѓРіР°СЏ';
         coverageMap[currency] += count;
         coverageTotal += count;
     });
@@ -78,8 +78,8 @@ function buildSalaryTablesHtml(entries) {
         '<td>' + coverageMap['RUR'] + ' (' + pct(coverageMap['RUR']) + ')</td>' +
         '<td>' + coverageMap['USD'] + ' (' + pct(coverageMap['USD']) + ')</td>' +
         '<td>' + coverageMap['EUR'] + ' (' + pct(coverageMap['EUR']) + ')</td>' +
-        '<td>' + coverageMap['Другая'] + ' (' + pct(coverageMap['Другая']) + ')</td>' +
-        '<td>' + coverageMap['Не заполнена'] + ' (' + pct(coverageMap['Не заполнена']) + ')</td>' +
+        '<td>' + coverageMap['Р”СЂСѓРіР°СЏ'] + ' (' + pct(coverageMap['Р”СЂСѓРіР°СЏ']) + ')</td>' +
+        '<td>' + coverageMap['РќРµ Р·Р°РїРѕР»РЅРµРЅР°'] + ' (' + pct(coverageMap['РќРµ Р·Р°РїРѕР»РЅРµРЅР°']) + ')</td>' +
     '</tr>';
     var statsRows = (entries || []).map(function(entry) {
         return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -87,8 +87,8 @@ function buildSalaryTablesHtml(entries) {
             '<td>' + entry.currency + '</td>' +
             '<td>' + entry.total_vacancies + '</td>' +
             '<td>' + Math.round(entry.avg_salary) + '</td>' +
-            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'вЂ”') + '</td>' +
+            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'вЂ”') + '</td>' +
             '<td>' + Math.round(entry.min_salary) + '</td>' +
             '<td>' + Math.round(entry.max_salary) + '</td>' +
             '<td>' + entry.top_skills + '</td>' +
@@ -97,16 +97,16 @@ function buildSalaryTablesHtml(entries) {
 
     return '<div class="salary-split-tables">' +
         '<div style="overflow-x: auto; margin-bottom: 16px;">' +
-            '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
+            '<h4 style="margin: 0 0 8px;">РЎРІРѕРґРєР° РІР°РєР°РЅСЃРёР№ РїРѕ РІР°Р»СЋС‚Р°Рј</h4>' +
             '<table>' +
-                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
+                '<thead><tr><th>Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№</th><th>RUR</th><th>USD</th><th>EUR</th><th>Р”СЂСѓРіР°СЏ</th><th>РќРµ Р·Р°РїРѕР»РЅРµРЅР°</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
         '</div>' +
         '<div style="overflow-x: auto;">' +
-            '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
+            '<h4 style="margin: 0 0 8px;">РЎС‚Р°С‚РёСЃС‚РёРєР° Р·Р°СЂРїР»Р°С‚</h4>' +
             '<table>' +
-                '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>РќР°Р№РґРµРЅРѕ</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
                 '<tbody>' + statsRows + '</tbody>' +
             '</table>' +
         '</div>' +
@@ -119,66 +119,42 @@ function applySalaryTablesMarkup(expDiv, entries) {
     tableContainer.innerHTML = buildSalaryTablesHtml(entries || []);
 }
 function renderVacancyDetails(container, withList, withoutList) {
-    var withCount = (withList || []).length;
-    var withoutCount = (withoutList || []).length;
-    var defaultTab = withCount > 0 ? 'with' : 'without';
-
-    container.dataset.with = JSON.stringify(withList || []);
-    container.dataset.without = JSON.stringify(withoutList || []);
-
-    var filterHtml = '<div class="vacancy-filter">' +
-        '<button class="vacancy-filter-btn' + (defaultTab === 'with' ? ' active' : '') + '" data-filter="with">' +
-            'С з/п (' + withCount + ')' +
-        '</button>' +
-        '<button class="vacancy-filter-btn' + (defaultTab === 'without' ? ' active' : '') + '" data-filter="without">' +
-            'Без з/п (' + withoutCount + ')' +
-        '</button>' +
-    '</div>';
-
-    var initialList = defaultTab === 'with' ? withList : withoutList;
-    container.innerHTML = filterHtml + buildVacancyTableHtml(initialList);
+    var combinedList = (withList || []).concat(withoutList || []);
+    container.innerHTML = buildVacancyTableHtml(combinedList);
 }
 function renderStatusIcon(status) {
     var raw = status === null || status === undefined ? '' : String(status);
     var normalized = raw.trim().toLowerCase();
-    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('архив') !== -1;
-    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('откры') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('актив') !== -1;
+    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('Р°СЂС…РёРІ') !== -1;
+    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('РѕС‚РєСЂС‹') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('Р°РєС‚РёРІ') !== -1;
 
     if (isArchived) {
-        return '<span class="status-icon status-icon-archived" title="Архивная" aria-label="Архивная">🗄️</span>';
+        return '<span class="status-icon status-icon-archived" title="РђСЂС…РёРІРЅР°СЏ" aria-label="РђСЂС…РёРІРЅР°СЏ">рџ—„пёЏ</span>';
     }
     if (isOpen) {
-        return '<span class="status-icon status-icon-open" title="Открытая" aria-label="Открытая">✅</span>';
+        return '<span class="status-icon status-icon-open" title="РћС‚РєСЂС‹С‚Р°СЏ" aria-label="РћС‚РєСЂС‹С‚Р°СЏ">вњ…</span>';
     }
-    return '<span class="status-icon" title="' + escapeHtml(raw || '—') + '" aria-label="' + escapeHtml(raw || '—') + '">' + escapeHtml(raw || '—') + '</span>';
+    return '<span class="status-icon" title="' + escapeHtml(raw || 'вЂ”') + '" aria-label="' + escapeHtml(raw || 'вЂ”') + '">' + escapeHtml(raw || 'вЂ”') + '</span>';
 }
 function buildAllRolesSkillsTableHtml(rows) {
     return '<table class="skills-all-table">' +
-        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th><th>Медианная зп</th><th>Роли</th></tr></thead>' +
+        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя з/п</th><th>Медианная з/п</th><th>Роли</th></tr></thead>' +
         '<tbody>' +
             (rows.length ? rows.map(r => (
                 '<tr>' +
                     '<td>' + escapeHtml(r.skill) + '</td>' +
                     '<td>' + r.mention_count + '</td>' +
-                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
+                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : 'вЂ”') + '</td>' +
+                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : 'вЂ”') + '</td>' +
+                    '<td>' + (r.roles ? escapeHtml(r.roles) : 'вЂ”') + '</td>' +
                 '</tr>'
-            )).join('') : '<tr><td colspan="5">—</td></tr>') +
+            )).join('') : '<tr><td colspan="5">вЂ”</td></tr>') +
         '</tbody>' +
     '</table>';
 }
 function renderAllRolesContainer(container, roleContents) {
-    var excludedRoles = uiState.all_roles_excluded || [];
-    var excludedSet = new Set(excludedRoles.map(r => String(r)));
-    var allRoleNames = roleContents.map(rc => rc.dataset.roleName || rc.dataset.roleId || '')
-        .filter(Boolean)
-        .filter((v, i, arr) => arr.indexOf(v) === i)
-        .sort((a, b) => a.localeCompare(b));
-    var filteredRoleContents = roleContents.filter(rc => {
-        var name = rc.dataset.roleName || rc.dataset.roleId || '';
-        return name && !excludedSet.has(String(name));
-    });
+    var excludedRoles = [];
+    var filteredRoleContents = (roleContents || []).slice();
     var periods = getAllRolesPeriods(roleContents);
     var periodItems = [{ key: 'all', label: 'За все время', month: null }].concat(
         periods.map((m, i) => ({ key: 'm' + (i + 1), label: m, month: m }))
@@ -214,7 +190,7 @@ function renderAllRolesContainer(container, roleContents) {
                                     '<div class="table-container activity-all-table-container">' +
                                         '<table class="details-table align-activity">' +
                                             '<colgroup><col><col><col><col><col><col></colgroup>' +
-                                            '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
+                                            '<thead><tr><th>Опыт</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
                                             '<tbody>' +
                                                 r.exp_breakdown.map(e => (
                                                     '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '?') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '?') + '</td></tr>'
@@ -312,7 +288,7 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var skillsPeriodBlocks = periodItems.map((p, i) => {
-        var summary = computeAllRolesSkillCostSummaryForMonth(roleContents, p.month, excludedRoles);
+        var summary = computeAllRolesSkillCostSummaryForMonth(filteredRoleContents, p.month, excludedRoles);
         var rows = summary.rows || [];
         var graphId = 'skills-graph-all-' + i;
         return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.month || 'all') + '" ' +
@@ -354,7 +330,7 @@ function renderAllRolesContainer(container, roleContents) {
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Навык</th><th>Упоминаний</th><th>Средняя зп</th></tr></thead>' +
+                        '<thead><tr><th>Роль</th><th>Навык</th><th>Упоминаний</th><th>Средняя з/п</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => {
                                 if (!r.skills.length) {
@@ -382,22 +358,17 @@ function renderAllRolesContainer(container, roleContents) {
         salaryPeriodBlocks +
     '</div>';
 
-    var roleFilterHtml = '<div class="all-roles-role-filter">' +
-        '<div class="all-roles-role-filter-header">' +
-            '<button type="button" class="all-roles-role-filter-toggle" aria-expanded="true" title="Свернуть роли">▴</button>' +
-        '</div>' +
-        '<div class="all-roles-role-filter-list">' +
-            (allRoleNames.length ? allRoleNames.map(r => (
-                '<button type="button" class="role-chip role-filter-chip' + (excludedSet.has(String(r)) ? '' : ' active') + '" data-role="' + escapeHtml(r) + '">' +
-                    escapeHtml(r) +
-                '</button>'
-            )).join('') : '<span>—</span>') +
-        '</div>' +
-    '</div>';
-
     container.innerHTML =
         '<h2>Сводно по всем ролям</h2>' +
-        roleFilterHtml +
+        '<div class="tabs summary-return-tabs">' +
+            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'activity\')">Анализ активности</button>' +
+            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'weekday\')">Анализ по дням недели</button>' +
+            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-monthly\')">Топ-навыки</button>' +
+            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-search\')">Поиск вакансий</button>' +
+            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'salary\')">Анализ зарплат</button>' +
+            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'employer-analysis\')">Анализ работодателей</button>' +
+            '<button type="button" class="tab-button summary-return-tab active">Сводный отчет</button>' +
+        '</div>' +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
@@ -436,7 +407,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button salary-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Все';
+        btn.textContent = 'Р’СЃРµ';
         btn.setAttribute('onclick', "openSalaryExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 
@@ -453,7 +424,7 @@ function addSummaryTabs(root) {
                     '<div class="salary-table-container">' +
                         '<div style="overflow-x: auto;">' +
                             '<table>' +
-                                '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>Р’СЃРµРіРѕ</th><th>С з/п</th><th>% СЃ Р·/Рї</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
                                 '<tbody>' +
                                     summaryExp.entries.map(entry => (
                                         '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -463,8 +434,8 @@ function addSummaryTabs(root) {
                                             '<td>' + entry.vacancies_with_salary + '</td>' +
                                             '<td>' + entry.salary_percentage + '%</td>' +
                                             '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                                            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-                                            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                                            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'вЂ”') + '</td>' +
+                                            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'вЂ”') + '</td>' +
                                             '<td>' + Math.round(entry.min_salary) + '</td>' +
                                             '<td>' + Math.round(entry.max_salary) + '</td>' +
                                             '<td>' + entry.top_skills + '</td>' +
@@ -479,8 +450,8 @@ function addSummaryTabs(root) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="Таблица">▦</button>' +
-                    '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn active" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
+                    '<button class="view-mode-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
                 '</div>' +
             '</div>';
         applySalaryTablesMarkup(expDiv, summaryExp.entries || []);
@@ -507,8 +478,8 @@ function renderCombinedContainer(container, roleContents) {
 
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
     var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-    var period = computePublicationPeriod(allVacancies) || '—';
-    var roleTitle = '[ID: ' + ids.join(', ') + '] период сбора вакансий ' + period;
+    var period = computePublicationPeriod(allVacancies) || 'вЂ”';
+    var roleTitle = '[ID: ' + ids.join(', ') + '] РїРµСЂРёРѕРґ СЃР±РѕСЂР° РІР°РєР°РЅСЃРёР№ ' + period;
 
     var activityTabs = activityMonths.map((m, i) => (
         '<button class="tab-button month-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
@@ -517,14 +488,14 @@ function renderCombinedContainer(container, roleContents) {
     var activityBlocks = activityMonths.map((m, i) => (
         '<div id="month-combined-' + (i + 1) + '" class="month-content activity-only" data-entries="" data-month="' + m.month + '">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn together-btn active" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉ•</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Опыт</th><th>Всего</th><th>Архивных</th><th>Активных</th><th>Ср. возраст (дни)</th></tr></thead>' +
+                        '<thead><tr><th>РћРїС‹С‚</th><th>Р’СЃРµРіРѕ</th><th>РђСЂС…РёРІРЅС‹С…</th><th>РђРєС‚РёРІРЅС‹С…</th><th>РЎСЂ. РІРѕР·СЂР°СЃС‚ (РґРЅРё)</th></tr></thead>' +
                         '<tbody>' +
                             m.entries.map(e => (
                                 '<tr' + (e.is_max_archived ? ' class="max-archived"' : '') + '>' +
@@ -532,7 +503,7 @@ function renderCombinedContainer(container, roleContents) {
                                     '<td>' + e.total + '</td>' +
                                     '<td>' + e.archived + '</td>' +
                                     '<td>' + e.active + '</td>' +
-                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td>' +
+                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : 'вЂ”') + '</td>' +
                                 '</tr>'
                             )).join('') +
                         '</tbody>' +
@@ -547,14 +518,14 @@ function renderCombinedContainer(container, roleContents) {
         '<div class="weekday-content" data-analysis="weekday-combined" style="display: none;" data-weekdays="">' +
             (weekdays.length ? (
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉ•</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                     '<div class="table-container">' +
                         '<table>' +
-                            '<thead><tr><th>День недели</th><th>Публикаций</th><th>Архиваций</th><th>Ср. время публикации</th><th>Ср. время архивации</th></tr></thead>' +
+                            '<thead><tr><th>Р”РµРЅСЊ РЅРµРґРµР»Рё</th><th>РџСѓР±Р»РёРєР°С†РёР№</th><th>РђСЂС…РёРІР°С†РёР№</th><th>РЎСЂ. РІСЂРµРјСЏ РїСѓР±Р»РёРєР°С†РёРё</th><th>РЎСЂ. РІСЂРµРјСЏ Р°СЂС…РёРІР°С†РёРё</th></tr></thead>' +
                             '<tbody>' +
                                 weekdays.map(d => (
                                     '<tr><td>' + d.weekday + '</td><td>' + d.publications + '</td><td>' + d.archives + '</td><td>' + d.avg_pub_hour + '</td><td>' + d.avg_arch_hour + '</td></tr>'
@@ -564,7 +535,7 @@ function renderCombinedContainer(container, roleContents) {
                     '</div>' +
                     '<div class="plotly-graph" id="weekday-graph-combined"></div>' +
                 '</div>'
-            ) : '<p>Нет данных по дням недели</p>') +
+            ) : '<p>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ РґРЅСЏРј РЅРµРґРµР»Рё</p>') +
         '</div>'
     );
 
@@ -586,21 +557,21 @@ function renderCombinedContainer(container, roleContents) {
                         m.experiences.map((exp, j) => (
                             '<div id="ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="monthly-skills-exp-content" data-exp="" style="display: none;">' +
                                 '<div class="view-toggle-horizontal">' +
-                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
-                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉ•</button>' +
+                                    '<button class="view-mode-btn table-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
+                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
                                 '</div>' +
                                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                                     '<div class="table-container">' +
                                         '<table>' +
-                                            '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
+                                            '<thead><tr><th>РќР°РІС‹Рє</th><th>РЈРїРѕРјРёРЅР°РЅРёР№</th><th>% РїРѕРєСЂС‹С‚РёСЏ</th></tr></thead>' +
                                             '<tbody>' +
                                                 exp.skills.map(s => (
                                                     '<tr><td>' + s.skill + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>'
                                                 )).join('') +
                                             '</tbody>' +
                                         '</table>' +
-                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + exp.total_vacancies + '</p>' +
+                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№ СЃ РЅР°РІС‹РєР°РјРё: ' + exp.total_vacancies + '</p>' +
                                     '</div>' +
                                     '<div class="plotly-graph" id="skills-monthly-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
                                 '</div>' +
@@ -608,7 +579,7 @@ function renderCombinedContainer(container, roleContents) {
                         )).join('') +
                     '</div>'
                 )).join('')
-            ) : '<p>Нет данных по навыкам</p>') +
+            ) : '<p>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ РЅР°РІС‹РєР°Рј</p>') +
         '</div>'
     );
 
@@ -634,7 +605,7 @@ function renderCombinedContainer(container, roleContents) {
                                         '<div class="salary-table-container">' +
                                             '<div style="overflow-x: auto;">' +
                                                 '<table>' +
-                                                    '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                                    '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>Р’СЃРµРіРѕ</th><th>С з/п</th><th>% СЃ Р·/Рї</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
                                                     '<tbody>' +
                                                         exp.entries.map(entry => (
                                                             '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -644,8 +615,8 @@ function renderCombinedContainer(container, roleContents) {
                                                                 '<td>' + entry.vacancies_with_salary + '</td>' +
                                                                 '<td>' + entry.salary_percentage + '%</td>' +
                                                                 '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'вЂ”') + '</td>' +
+                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'вЂ”') + '</td>' +
                                                                 '<td>' + Math.round(entry.min_salary) + '</td>' +
                                                                 '<td>' + Math.round(entry.max_salary) + '</td>' +
                                                                 '<td>' + entry.top_skills + '</td>' +
@@ -660,25 +631,25 @@ function renderCombinedContainer(container, roleContents) {
                                         '</div>' +
                                     '</div>' +
                                     '<div class="salary-view-toggle">' +
-                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">▦</button>' +
-                                        '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                                        '<button class="view-mode-btn active" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
+                                        '<button class="view-mode-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
                                     '</div>' +
                                 '</div>' +
                             '</div>'
                         )).join('') +
                     '</div>'
                 )).join('')
-            ) : '<p>Нет данных по зарплатам</p>') +
+            ) : '<p>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ Р·Р°СЂРїР»Р°С‚Р°Рј</p>') +
         '</div>'
     );
 
     container.innerHTML =
         '<h2>' + roleTitle + '</h2>' +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Анализ активности</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Анализ по дням недели</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Навыки по месяцам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Анализ зарплат</button>' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">РђРЅР°Р»РёР· Р°РєС‚РёРІРЅРѕСЃС‚Рё</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">РђРЅР°Р»РёР· РїРѕ РґРЅСЏРј РЅРµРґРµР»Рё</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">РќР°РІС‹РєРё РїРѕ РјРµСЃСЏС†Р°Рј</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">РђРЅР°Р»РёР· Р·Р°СЂРїР»Р°С‚</button>' +
         '</div>' +
         '<div class="tabs month-tabs activity-only" style="justify-content: center;">' +
             activityTabs +
@@ -746,26 +717,45 @@ function renderCombinedContainer(container, roleContents) {
     }
 }
 function updateRoleSelectionUI(selectedIndices) {
-    var buttons = document.querySelectorAll('.role-button');
-    var chipsContainer = document.getElementById('role-selected-chips');
-    buttons.forEach(btn => {
-        var idx = btn.dataset.roleIndex;
-        if (selectedIndices.has(idx)) btn.classList.add('active');
-        else btn.classList.remove('active');
+    var summaryBtns = document.querySelectorAll('.summary-report-btn');
+    summaryBtns.forEach(function(btn) {
+        btn.classList.toggle('active', !!uiState.all_roles_active);
     });
-    if (chipsContainer) {
-        var chips = Array.from(selectedIndices).map(idx => {
-            var btn = document.querySelector('.role-button[data-role-index="' + idx + '"]');
-            var name = btn ? btn.dataset.roleName : idx;
-            return '<span class="role-chip">' + escapeHtml(name) + '</span>';
-        });
-        chipsContainer.innerHTML = chips.join('');
-    }
 }
 function showSingleRole(idx) {
-    var btn = document.querySelector('.role-button[data-role-index="' + idx + '"]');
-    if (!btn) return;
-    openRoleTab({ currentTarget: btn }, 'role-' + idx);
+    var targetId = 'role-' + idx;
+    var roleContent = document.getElementById(targetId);
+    if (!roleContent) return;
+    var salaryMonths = getRoleSalaryData(roleContent);
+    var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+    var period = computePublicationPeriod(allVacancies) || '';
+    var h2 = roleContent.querySelector('h2');
+    var periodNode = roleContent.querySelector('.role-period-label');
+    if (period) {
+        if (!periodNode && h2) {
+            periodNode = document.createElement('div');
+            periodNode.className = 'role-period-label';
+            h2.insertAdjacentElement('afterend', periodNode);
+        }
+        if (periodNode) periodNode.textContent = 'Период публикации: ' + period;
+    } else if (periodNode && periodNode.parentElement) {
+        periodNode.parentElement.removeChild(periodNode);
+    }
+    Array.from(document.getElementsByClassName("role-content")).forEach(function(node) {
+        node.style.display = 'none';
+    });
+    roleContent.style.display = 'block';
+    var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(targetId)];
+    if (savedType) {
+        var targetButton = roleContent.querySelector(".analysis-button[data-analysis-id='" + savedType + '-' + idx + "']");
+        if (targetButton) {
+            targetButton.click();
+            updateRoleSelectionUI(new Set([String(idx)]));
+            return;
+        }
+    }
+    var firstButton = roleContent.querySelector('.analysis-button');
+    if (firstButton) firstButton.click();
     updateRoleSelectionUI(new Set([String(idx)]));
 }
 function updateRoleView(selectedIndices) {
@@ -777,7 +767,8 @@ function updateRoleView(selectedIndices) {
         if (combined) combined.style.display = 'none';
         if (allRoles) {
             allRoles.style.display = 'block';
-            renderAllRolesContainer(allRoles, getAllRoleContents());
+            var selectedContents = Array.from(selectedIndices || []).map(i => getRoleContentByIndex(i)).filter(Boolean);
+            renderAllRolesContainer(allRoles, selectedContents.length ? selectedContents : getAllRoleContents());
         }
         return;
     }
@@ -786,15 +777,6 @@ function updateRoleView(selectedIndices) {
         if (combined) combined.style.display = 'none';
         var idx = selectedIndices.size === 1 ? Array.from(selectedIndices)[0] : '1';
         var roleContent = getRoleContentByIndex(idx);
-        if (roleContent) {
-            var salaryMonths = getRoleSalaryData(roleContent);
-            var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-            var period = computePublicationPeriod(allVacancies) || '—';
-            var id = roleContent.dataset.roleId || '';
-            var title = '[ID: ' + id + '] период публикации ' + period;
-            var h2 = roleContent.querySelector('h2');
-            if (h2) h2.textContent = title;
-        }
         showSingleRole(idx);
         return;
     }
@@ -811,7 +793,7 @@ function buildRowContext(row) {
         .map(th => '<th>' + escapeHtml(th.textContent.trim()) + '</th>')
         .join('');
     var valueCells = Array.from(row.querySelectorAll('td'))
-        .map(td => '<td>' + escapeHtml(td.textContent.trim() || '—') + '</td>')
+        .map(td => '<td>' + escapeHtml(td.textContent.trim() || 'вЂ”') + '</td>')
         .join('');
 
     return '<div class="context-table-wrap">' +
@@ -846,13 +828,13 @@ function openEmployerModal(data) {
     var body = document.getElementById('employer-modal-body');
     if (!backdrop || !body) return;
 
-    var name = data.name || '—';
+    var name = data.name || 'вЂ”';
     var accredited = String(data.accredited || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
     var trusted = String(data.trusted || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
-    var rating = data.rating ? escapeHtml(String(data.rating)) : '—';
+    var rating = data.rating ? escapeHtml(String(data.rating)) : 'вЂ”';
     var url = data.url ? escapeHtml(String(data.url)) : '';
 
-    var linkHtml = url ? ('<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">Открыть страницу компании</a>') : '—';
+    var linkHtml = url ? ('<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">Открыть страницу компании</a>') : 'вЂ”';
 
     body.innerHTML =
         '<div class=\"employer-modal-grid\">' +

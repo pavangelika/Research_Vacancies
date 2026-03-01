@@ -50,14 +50,10 @@ function getSkillDisplayName(rawSkill) {
 
 // ---------- Переключение ролей ----------
 function openRoleTab(evt, roleId) {
-    var i, roleContent, roleButtons;
+    var i, roleContent;
     roleContent = document.getElementsByClassName("role-content");
     for (i = 0; i < roleContent.length; i++) {
         roleContent[i].style.display = "none";
-    }
-    roleButtons = document.getElementsByClassName("role-button");
-    for (i = 0; i < roleButtons.length; i++) {
-        roleButtons[i].className = roleButtons[i].className.replace(" active", "");
     }
     document.getElementById(roleId).style.display = "block";
     evt.currentTarget.className += " active";
@@ -421,7 +417,7 @@ function aggregateSkillsExpData(expDivs, label) {
     });
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
-    return { experience: label || 'Выбрано', total_vacancies: totalVac, skills: skills };
+    return { experience: label || 'По выбранному периоду', total_vacancies: totalVac, skills: skills };
 }
 
 function renderSkillsExpContent(expDiv, expData) {
@@ -1098,6 +1094,33 @@ function collectVacanciesFromSalaryMonths(salaryMonths) {
 
 function getRoleContentByIndex(idx) {
     return document.getElementById('role-' + idx);
+}
+
+function getSelectableRoleContents() {
+    return getAllRoleContents()
+        .filter(function(c) {
+            return !!c.dataset.roleId;
+        })
+        .sort(function(a, b) {
+            return Number(a.id.split('-')[1]) - Number(b.id.split('-')[1]);
+        });
+}
+
+function getRoleMetaList() {
+    return getSelectableRoleContents().map(function(c) {
+        return {
+            index: c.id.split('-')[1],
+            id: c.dataset.roleId || '',
+            name: c.dataset.roleName || c.id
+        };
+    });
+}
+
+function getRoleMetaByIndex(idx) {
+    var target = String(idx);
+    return getRoleMetaList().find(function(item) {
+        return String(item.index) === target;
+    }) || null;
 }
 
 function getAllRoleContents() {
@@ -2341,27 +2364,42 @@ function renderCombinedContainer(container, roleContents) {
 }
 
 function updateRoleSelectionUI(selectedIndices) {
-    var buttons = document.querySelectorAll('.role-button');
-    var chipsContainer = document.getElementById('role-selected-chips');
-    buttons.forEach(btn => {
-        var idx = btn.dataset.roleIndex;
-        if (selectedIndices.has(idx)) btn.classList.add('active');
-        else btn.classList.remove('active');
-    });
-    if (chipsContainer) {
-        var chips = Array.from(selectedIndices).map(idx => {
-            var btn = document.querySelector('.role-button[data-role-index="' + idx + '"]');
-            var name = btn ? btn.dataset.roleName : idx;
-            return '<span class="role-chip">' + escapeHtml(name) + '</span>';
-        });
-        chipsContainer.innerHTML = chips.join('');
-    }
 }
 
 function showSingleRole(idx) {
-    var btn = document.querySelector('.role-button[data-role-index="' + idx + '"]');
-    if (!btn) return;
-    openRoleTab({ currentTarget: btn }, 'role-' + idx);
+    var targetId = 'role-' + idx;
+    var roleContent = document.getElementById(targetId);
+    if (!roleContent) return;
+    var salaryMonths = getRoleSalaryData(roleContent);
+    var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+    var period = computePublicationPeriod(allVacancies) || '';
+    var h2 = roleContent.querySelector('h2');
+    var periodNode = roleContent.querySelector('.role-period-label');
+    if (period) {
+        if (!periodNode && h2) {
+            periodNode = document.createElement('div');
+            periodNode.className = 'role-period-label';
+            h2.insertAdjacentElement('afterend', periodNode);
+        }
+        if (periodNode) periodNode.textContent = 'Период публикации: ' + period;
+    } else if (periodNode && periodNode.parentElement) {
+        periodNode.parentElement.removeChild(periodNode);
+    }
+    Array.from(document.getElementsByClassName("role-content")).forEach(function(node) {
+        node.style.display = 'none';
+    });
+    roleContent.style.display = 'block';
+    var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(targetId)];
+    if (savedType) {
+        var targetButton = roleContent.querySelector(".analysis-button[data-analysis-id='" + savedType + '-' + idx + "']");
+        if (targetButton) {
+            targetButton.click();
+            updateRoleSelectionUI(new Set([String(idx)]));
+            return;
+        }
+    }
+    var firstButton = roleContent.querySelector('.analysis-button');
+    if (firstButton) firstButton.click();
     updateRoleSelectionUI(new Set([String(idx)]));
 }
 
@@ -2383,15 +2421,6 @@ function updateRoleView(selectedIndices) {
         if (combined) combined.style.display = 'none';
         var idx = selectedIndices.size === 1 ? Array.from(selectedIndices)[0] : '1';
         var roleContent = getRoleContentByIndex(idx);
-        if (roleContent) {
-            var salaryMonths = getRoleSalaryData(roleContent);
-            var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-            var period = computePublicationPeriod(allVacancies) || '—';
-            var id = roleContent.dataset.roleId || '';
-            var title = '[ID: ' + id + '] период публикации ' + period;
-            var h2 = roleContent.querySelector('h2');
-            if (h2) h2.textContent = title;
-        }
         showSingleRole(idx);
         return;
     }
@@ -2484,37 +2513,6 @@ document.addEventListener('click', function(e) {
         return;
     }
 
-    var btn = e.target.closest('.vacancy-filter-btn');
-    if (!btn) return;
-
-    var container = btn.closest('.vacancy-details-container');
-    if (!container) return;
-
-    var filter = btn.dataset.filter;
-    var withList = [];
-    var withoutList = [];
-    try {
-        withList = JSON.parse(container.dataset.with || '[]');
-    } catch (_e) {
-        withList = [];
-    }
-    try {
-        withoutList = JSON.parse(container.dataset.without || '[]');
-    } catch (_e) {
-        withoutList = [];
-    }
-
-    var allBtns = container.querySelectorAll('.vacancy-filter-btn');
-    allBtns.forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    var list = filter === 'with' ? withList : withoutList;
-    var replaceTarget = container.querySelector('.vacancy-table-wrap, .vacancy-empty');
-    if (replaceTarget) {
-        replaceTarget.outerHTML = buildVacancyTableHtml(list);
-    } else {
-        container.innerHTML = container.innerHTML + buildVacancyTableHtml(list);
-    }
 });
 
 document.addEventListener('keydown', function(e) {
@@ -2576,12 +2574,15 @@ document.addEventListener('click', function(e) {
 
 // ---------- Инициализация ----------
 document.addEventListener("DOMContentLoaded", function() {
-    var buttons = Array.from(document.getElementsByClassName("role-button"));
-    var multiToggle = document.getElementById('multi-role-toggle');
-    var selector = document.getElementById('role-selector');
-    var selectorToggle = document.getElementById('role-selector-toggle');
-    var clearBtn = document.getElementById('role-selection-clear');
-    var allRolesToggle = document.getElementById('all-roles-toggle');
+    var buttons = getRoleMetaList().map(function(item) {
+        return {
+            dataset: {
+                roleIndex: item.index,
+                roleId: item.id,
+                roleName: item.name
+            }
+        };
+    });
     if (buttons.length === 0) return;
 
     var selected = new Set([buttons[0].dataset.roleIndex]);
@@ -2594,75 +2595,6 @@ document.addEventListener("DOMContentLoaded", function() {
         selectionOrder = [idx];
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
-    }
-
-    buttons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var idx = btn.dataset.roleIndex;
-            if (multiToggle && multiToggle.checked) {
-                var next = new Set(selected);
-                if (next.has(idx)) next.delete(idx);
-                else next.add(idx);
-                if (next.size === 0) next.add(idx);
-                selected = next;
-                if (next.has(idx) && !selectionOrder.includes(idx)) {
-                    selectionOrder.push(idx);
-                } else if (!next.has(idx)) {
-                    selectionOrder = selectionOrder.filter(x => x !== idx);
-                }
-                updateRoleSelectionUI(selected);
-                updateRoleView(selected);
-            } else {
-                enforceSingle(idx);
-            }
-        });
-    });
-
-    if (multiToggle) {
-        multiToggle.addEventListener('change', function() {
-            if (!multiToggle.checked) {
-                enforceSingle(Array.from(selected)[0] || buttons[0].dataset.roleIndex);
-            } else {
-                updateRoleSelectionUI(selected);
-                updateRoleView(selected);
-            }
-        });
-    }
-
-    if (selectorToggle && selector) {
-        selectorToggle.addEventListener('click', function() {
-            selector.classList.toggle('collapsed');
-            var expanded = !selector.classList.contains('collapsed');
-            selectorToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-        });
-    }
-
-    if (allRolesToggle) {
-        allRolesToggle.addEventListener('click', function() {
-            uiState.all_roles_active = !uiState.all_roles_active;
-            allRolesToggle.setAttribute('aria-pressed', uiState.all_roles_active ? 'true' : 'false');
-            if (selector) {
-                if (uiState.all_roles_active) {
-                    selector.classList.add('collapsed');
-                    if (selectorToggle) selectorToggle.setAttribute('aria-expanded', 'false');
-                } else {
-                    selector.classList.remove('collapsed');
-                    if (selectorToggle) selectorToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-            updateRoleView(selected);
-        });
-    }
-
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() {
-            var firstSelected = selectionOrder[0] || buttons[0].dataset.roleIndex;
-            selected = new Set([firstSelected]);
-            selectionOrder = [firstSelected];
-            updateRoleSelectionUI(selected);
-            updateRoleView(selected);
-        });
     }
 
     addSummaryTabs(document);
