@@ -332,27 +332,29 @@ function createAllRolesPeriodControl(activeRole) {
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown all-roles-period-dropdown';
     wrap.dataset.filterKey = 'periods';
-    wrap.style.marginTop = '8px';
+    wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '240px';
-    wrap.style.width = '240px';
+    wrap.style.minWidth = '220px';
+    wrap.style.width = '220px';
 
     var caption = document.createElement('div');
     caption.textContent = 'Период';
-    caption.style.fontSize = '12px';
+    caption.style.fontSize = '10px';
     caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
-    caption.style.color = 'var(--text-secondary, #52606d)';
+    caption.style.marginBottom = '4px';
+    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger';
+    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
     trigger.style.width = '100%';
-    trigger.style.textAlign = 'left';
     trigger.style.borderRadius = '999px';
     trigger.style.padding = '5px 10px';
     trigger.style.minHeight = '34px';
+    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
+    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
+    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
     trigger.style.display = 'flex';
     trigger.style.alignItems = 'center';
     trigger.style.justifyContent = 'space-between';
@@ -384,22 +386,23 @@ function createAllRolesPeriodControl(activeRole) {
     var menu = document.createElement('div');
     menu.className = 'global-filter-menu all-roles-period-menu';
     menu.style.display = 'none';
-    menu.style.marginTop = '8px';
-    menu.style.padding = '0';
+    menu.style.marginTop = '0';
+    menu.style.padding = '6px';
     menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '10px';
+    menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '240px';
+    menu.style.width = '220px';
     menu.style.maxWidth = 'calc(100vw - 48px)';
 
     buttons.forEach(function(sourceBtn, idx) {
         var item = document.createElement('button');
         item.type = 'button';
-        item.className = 'tab-button summary-filter-item';
+        item.className = 'tab-button summary-filter-item global-filter-option-row';
         item.textContent = (sourceBtn.textContent || '').trim();
         item.style.display = 'block';
         item.style.width = '100%';
+        item.style.boxSizing = 'border-box';
         item.style.margin = idx < buttons.length - 1 ? '0 0 2px' : '0';
         item.style.textAlign = 'left';
         item.style.borderRadius = '8px';
@@ -440,29 +443,31 @@ function createSummaryAnalysisControl(activeRole) {
 
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown summary-filter-dropdown';
-    wrap.style.marginTop = '8px';
+    wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '240px';
-    wrap.style.width = '240px';
+    wrap.style.minWidth = '220px';
+    wrap.style.width = '220px';
 
     var caption = document.createElement('div');
     caption.textContent = 'Раздел';
-    caption.style.fontSize = '12px';
+    caption.style.fontSize = '10px';
     caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
-    caption.style.color = 'var(--text-secondary, #52606d)';
+    caption.style.marginBottom = '4px';
+    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var activeBtn = buttons.find(function(btn) { return btn.classList.contains('active'); }) || buttons[0];
 
     var trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger summary-filter-trigger';
+    trigger.className = 'tab-button global-filter-trigger summary-filter-trigger skills-search-dropdown-btn';
     trigger.style.width = '100%';
-    trigger.style.textAlign = 'left';
     trigger.style.borderRadius = '999px';
     trigger.style.padding = '5px 10px';
     trigger.style.minHeight = '34px';
+    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
+    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
+    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
     trigger.style.display = 'flex';
     trigger.style.alignItems = 'center';
     trigger.style.justifyContent = 'space-between';
@@ -487,22 +492,23 @@ function createSummaryAnalysisControl(activeRole) {
     var menu = document.createElement('div');
     menu.className = 'global-filter-menu summary-filter-menu';
     menu.style.display = 'none';
-    menu.style.marginTop = '8px';
-    menu.style.padding = '0';
+    menu.style.marginTop = '0';
+    menu.style.padding = '6px';
     menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '10px';
+    menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '240px';
+    menu.style.width = '220px';
     menu.style.maxWidth = 'calc(100vw - 48px)';
 
     buttons.forEach(function(sourceBtn, idx) {
         var item = document.createElement('button');
         item.type = 'button';
-        item.className = 'tab-button summary-filter-item';
+        item.className = 'tab-button summary-filter-item global-filter-option-row';
         item.textContent = (sourceBtn.textContent || '').trim();
         item.style.display = 'block';
         item.style.width = '100%';
+        item.style.boxSizing = 'border-box';
         item.style.margin = idx < buttons.length - 1 ? '0 0 2px' : '0';
         item.style.textAlign = 'left';
         item.style.borderRadius = '8px';
