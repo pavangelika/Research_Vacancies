@@ -184,13 +184,14 @@ function renderAllRolesContainer(container, roleContents) {
     }).filter(Boolean))).sort().reverse();
     var allLabel = periods.length && typeof formatMonthTitle === 'function' ? formatMonthTitle(periods.length) : 'За период';
     var periodItems = [
-        { key: 'all', label: allLabel, period: null },
-        { key: 'd14', label: 'За 14 дней', period: 'last_14' },
+        { key: 'd3', label: 'За 3 дня', period: 'last_3' },
         { key: 'd7', label: 'За 7 дней', period: 'last_7' },
-        { key: 'd3', label: 'За 3 дня', period: 'last_3' }
+        { key: 'd14', label: 'За 14 дней', period: 'last_14' }
     ].concat(periods.map(function(month, index) {
         return { key: 'm' + (index + 1), label: month, period: month };
-    }));
+    })).concat([
+        { key: 'all', label: allLabel, period: null }
+    ]);
 
     function getRoleFilteredVacancies(roleContent, periodValue) {
         var vacancies = dedupeVacanciesById((getRoleVacancies(roleContent) || []).slice());
