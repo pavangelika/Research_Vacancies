@@ -1799,3 +1799,147 @@ tbody tr:hover {
     background: var(--primary);
     color: #ffffff;
 }
+
+@media (max-width: 960px) {
+    body {
+        padding: 12px;
+    }
+
+    .role-content {
+        padding: 16px;
+    }
+
+    .analysis-flex,
+    .activity-graph-wrap,
+    .salary-display-flex,
+    .employer-topbar,
+    .shared-filter-panel .shared-filter-panel-body {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .table-container,
+    .activity-all-table-container,
+    .plotly-graph,
+    .all-roles-graph,
+    .activity-graph-item,
+    .salary-main-content,
+    .salary-table-container,
+    .employer-analysis-main,
+    .employer-analysis-table-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 100%;
+    }
+
+    .activity-graph-item > div,
+    .plotly-graph {
+        height: 320px;
+    }
+
+    .shared-filter-panel .global-filter-dropdown,
+    .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 100%;
+    }
+
+    .analysis-tabs .tab-button,
+    .summary-return-tabs .tab-button,
+    .tabs .tab-button {
+        flex: 1 1 calc(50% - 6px);
+    }
+
+    .skills-search-panel-header {
+        justify-content: flex-start;
+    }
+
+    .skills-search-summary-line {
+        margin-left: 0;
+        margin-right: 0;
+        min-width: 0;
+        width: 100%;
+        text-align: left;
+        order: -1;
+    }
+
+    .skills-search-dropdown {
+        width: 100%;
+    }
+
+    .skills-search-dropdown-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 720px) {
+    h1 {
+        font-size: 1.45rem;
+    }
+
+    .role-content {
+        padding: 12px;
+    }
+
+    .tabs,
+    .analysis-tabs,
+    .summary-return-tabs {
+        gap: 6px;
+    }
+
+    .analysis-tabs .tab-button,
+    .summary-return-tabs .tab-button,
+    .tabs .tab-button {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .view-toggle-horizontal,
+    .salary-view-toggle,
+    .employer-view-toggle {
+        justify-content: stretch;
+        flex-wrap: wrap;
+    }
+
+    .view-mode-btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .skills-search-toggle,
+    .skills-search-select-all,
+    .skills-search-reset-skills,
+    .skills-search-clear,
+    .skills-search-dropdown-btn {
+        width: 100%;
+        min-height: 36px;
+    }
+
+    .skills-search-toggle {
+        width: 100%;
+    }
+
+    .skills-search-buttons {
+        gap: 6px;
+    }
+
+    .skills-search-skill {
+        width: 100%;
+        text-align: left;
+    }
+
+    .shared-filter-panel {
+        padding: 8px !important;
+    }
+
+    .shared-filter-active-chips {
+        gap: 6px !important;
+    }
+
+    .activity-graph-item > div,
+    .plotly-graph {
+        height: 280px;
+    }
+}
