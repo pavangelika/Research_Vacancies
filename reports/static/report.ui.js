@@ -792,13 +792,14 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
                 ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
                 : 'За период';
             return dedupeFilterOptions([
-                { value: totalLabel, label: totalLabel },
-                { value: 'За 14 дней', label: 'За 14 дней' },
+                { value: 'За 3 дня', label: 'За 3 дня' },
                 { value: 'За 7 дней', label: 'За 7 дней' },
-                { value: 'За 3 дня', label: 'За 3 дня' }
+                { value: 'За 14 дней', label: 'За 14 дней' }
             ].concat(months.map(function(month) {
                 return { value: month, label: month };
-            })));
+            })).concat([
+                { value: totalLabel, label: totalLabel }
+            ]));
         }
         if (filterKey === 'experiences') {
             var summaryVacancies = [];
