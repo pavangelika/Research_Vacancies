@@ -90,6 +90,20 @@ function bindSalaryRowData(container, entries) {
         };
     });
 }
+if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && !window.__plotlyResponsivePatchApplied) {
+    window.__plotlyResponsivePatchApplied = true;
+    plotIfChangedById = function(graphId, signature, data, layout) {
+        var el = document.getElementById(graphId);
+        if (!el) return;
+        if (el.dataset.plotSignature === signature && el.dataset.plotReady === '1') return;
+        el.dataset.plotSignature = signature;
+        el.dataset.plotReady = '1';
+        Plotly.newPlot(graphId, data, layout, {
+            responsive: true,
+            displayModeBar: false
+        });
+    };
+}
 
 // ---------- Переключение типов анализа ----------
 function switchAnalysis(evt, analysisId) {
@@ -2176,16 +2190,16 @@ function buildSalaryTablesHtml(entries) {
         '</tr>';
     }).join('');
     return '<div class="salary-split-tables">' +
-        '<div style="overflow-x: auto; margin-bottom: 16px;">' +
+        '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
             '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
-            '<table>' +
+            '<table class="vacancy-table salary-table">' +
                 '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
         '</div>' +
-        '<div style="overflow-x: auto;">' +
+        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
             '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
-            '<table>' +
+            '<table class="vacancy-table salary-table">' +
                 '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                 '<tbody>' + statsRows + '</tbody>' +
             '</table>' +
@@ -4863,6 +4877,107 @@ function syncContainerToGraphHeight(container, graph) {
     requestAnimationFrame(apply);
     setTimeout(apply, 120);
 }
+function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var list = Array.isArray(entries) ? entries : [];
+    var metricDefs = [
+        { key: 'avg_salary', label: 'AVG' },
+        { key: 'median_salary', label: 'MED' },
+        { key: 'mode_salary', label: 'MODE' },
+        { key: 'min_salary', label: 'MIN' },
+        { key: 'max_salary', label: 'MAX' }
+    ];
+    var preferredCurrencies = ['RUR', 'USD', 'EUR', '%USD'];
+    var currencies = [];
+    var statuses = [];
+
+    list.forEach(function(entry) {
+        if (!entry) return;
+        var currency = entry.currency ? String(entry.currency) : '';
+        var status = entry.status ? String(entry.status) : '';
+        if (currency && currencies.indexOf(currency) === -1) currencies.push(currency);
+        if (status && statuses.indexOf(status) === -1) statuses.push(status);
+    });
+
+    currencies.sort(function(a, b) {
+        var ai = preferredCurrencies.indexOf(a);
+        var bi = preferredCurrencies.indexOf(b);
+        if (ai === -1 && bi === -1) return a.localeCompare(b);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
+    });
+
+    if (!currencies.length) currencies = ['RUR'];
+    if (!statuses.length) statuses = ['Open', 'Archived'];
+    if (statuses.length > 2) statuses = statuses.slice(0, 2);
+    var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    var chartHeight = viewportWidth <= 720
+        ? Math.max(220, Math.min(300, Math.round(viewportWidth * 0.58)))
+        : (viewportWidth <= 960 ? 280 : 300);
+
+    var signature = list.map(function(entry) {
+        return [
+            entry && entry.status || '',
+            entry && entry.currency || '',
+            entry && entry.avg_salary || '',
+            entry && entry.median_salary || '',
+            entry && entry.mode_salary || '',
+            entry && entry.min_salary || '',
+            entry && entry.max_salary || ''
+        ].join(':');
+    }).sort().join('|') + '|' + (contextLabel || '');
+    if (container.dataset.plotSignature === signature && container.dataset.plotReady === '1') return;
+    container.dataset.plotSignature = signature;
+    container.dataset.plotReady = '1';
+
+    container.innerHTML = '<div class="salary-graphs-3">' +
+        currencies.map(function(currency) {
+            return '<div class="salary-graph-item"><div class="plotly-graph" id="' + containerId + '-' + currency.replace('%', 'p') + '"></div></div>';
+        }).join('') +
+    '</div>';
+
+    currencies.forEach(function(currency, currencyIdx) {
+        var graphElId = containerId + '-' + currency.replace('%', 'p');
+        var rowsByStatus = {};
+        list.forEach(function(entry) {
+            if (!entry || entry.currency !== currency) return;
+            rowsByStatus[String(entry.status || '')] = entry;
+        });
+
+        var traces = statuses.map(function(status, statusIdx) {
+            var row = rowsByStatus[status] || null;
+            return {
+                x: metricDefs.map(function(metric) { return metric.label; }),
+                y: metricDefs.map(function(metric) {
+                    var value = row ? Number(row[metric.key]) : 0;
+                    return isFinite(value) ? value : 0;
+                }),
+                name: status || ('Status ' + (statusIdx + 1)),
+                type: 'bar',
+                marker: { color: statusIdx === 0 ? CHART_COLORS.light : CHART_COLORS.dark }
+            };
+        });
+
+        var title = 'Salary · ' + currency;
+        if (contextLabel) title += ' · ' + contextLabel;
+        var layout = {
+            title: title,
+            xaxis: { title: 'Metrics' },
+            yaxis: { title: 'Value' },
+            margin: { t: 56, b: 60, l: 50, r: 20 },
+            height: chartHeight,
+            barmode: 'group',
+            showlegend: currencyIdx === 0,
+            legend: { orientation: 'h', x: 0, y: 1.16 }
+        };
+        var traceSignature = currency + '|' + traces.map(function(trace) {
+            return trace.name + ':' + trace.y.join(',');
+        }).join('|') + '|' + (contextLabel || '');
+        plotIfChangedById(graphElId, traceSignature, traces, layout);
+    });
+}
 function applySalaryViewMode(expDiv, entries) {
     var mode = uiState.salary_view_mode === 'together' ? 'table' : uiState.salary_view_mode;
     var mainContent = expDiv.querySelector('.salary-main-content');
@@ -4885,10 +5000,7 @@ function applySalaryViewMode(expDiv, entries) {
     } else if (mode === 'graph') {
         tableContainer.style.display = 'none';
         graphContainer.style.width = '100%';
-        buildSalaryBarChart(graphId, entries);
-        applyChartTitleContext(graphId + '-RUR', 'Средняя зарплата · RUR', expDiv.dataset.chartContext || '');
-        applyChartTitleContext(graphId + '-USD', 'Средняя зарплата · USD', expDiv.dataset.chartContext || '');
-        applyChartTitleContext(graphId + '-pUSD', 'Средняя зарплата · %USD', expDiv.dataset.chartContext || '');
+        renderSalaryChartsFromEntries(graphId, entries, expDiv.dataset.chartContext || '');
     } else {
         graphContainer.style.display = 'none';
         tableContainer.style.width = '100%';

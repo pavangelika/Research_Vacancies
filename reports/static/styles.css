@@ -1520,6 +1520,54 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-results .vacancy-table td:last-child {
     text-align: center;
 }
+.salary-table-container .vacancy-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.96);
+}
+.salary-table-container .vacancy-table {
+    width: 100%;
+    table-layout: fixed;
+    border: 0 !important;
+    border-radius: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: transparent;
+    box-shadow: none !important;
+}
+.salary-table-container .vacancy-table th,
+.salary-table-container .vacancy-table td {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+    text-align: left;
+    font-size: 0.78rem;
+}
+.salary-table-container .vacancy-table th {
+    background: rgba(248, 250, 252, 0.96);
+    color: #475569;
+    font-weight: 600;
+    border: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+.salary-table-container .vacancy-table td {
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+.salary-table-container .vacancy-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+.salary-table-container .vacancy-table tbody tr:hover {
+    background: rgba(148, 163, 184, 0.06);
+}
+.salary-table-container .vacancy-table tbody tr {
+    transition: background-color 0.18s ease;
+}
 .skills-search-filter-bar {
     display: flex;
     flex-wrap: wrap;
@@ -1686,6 +1734,7 @@ body {
 
 .status-icon.status-icon-open,
 .status-icon.status-icon-archived {
+    display: inline-block;
     position: relative;
     width: 18px;
     height: 18px;
@@ -1719,6 +1768,11 @@ body {
     inset: 3px;
     border-radius: 999px;
     border: 2px solid #64748b;
+}
+
+.salary-table-container .vacancy-table .status-icon-cell {
+    text-align: center;
+    vertical-align: middle;
 }
 
 .status-icon:not(.status-icon-open):not(.status-icon-archived) {
@@ -1974,6 +2028,14 @@ tbody tr:hover {
     box-sizing: border-box !important;
     margin-bottom: 2px !important;
     padding: 5px 8px !important;
+    border-radius: 10px !important;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-option-row:hover,
+.shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .summary-filter-item:hover {
+    background: rgba(248, 250, 252, 0.98) !important;
+    transform: translateY(-1px);
 }
 
 .view-mode-btn {
@@ -1988,6 +2050,136 @@ tbody tr:hover {
 .view-mode-btn.active {
     background: var(--primary);
     color: #ffffff;
+}
+
+/* Global flat iOS pass */
+:root {
+    --surface: rgba(255, 255, 255, 0.96);
+    --surface-variant: rgba(248, 250, 252, 0.96);
+    --border-light: rgba(148, 163, 184, 0.16);
+    --shadow-light: none;
+    --shadow-medium: none;
+    --shadow-card: none;
+    --border-radius-card: 16px;
+    --border-radius-tab: 16px;
+}
+
+.role-content,
+.shared-filter-panel,
+.analysis-tabs {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 16px;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.tabs,
+.analysis-tabs,
+.summary-return-tabs,
+.view-toggle-horizontal,
+.salary-view-toggle,
+.employer-view-toggle {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 16px;
+    box-shadow: none;
+}
+
+.tabs,
+.analysis-tabs {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.tab-button,
+.view-mode-btn,
+.global-filter-trigger,
+.summary-filter-trigger {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 999px;
+    box-shadow: none;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.tabs .tab-button,
+.analysis-tabs .tab-button {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 999px;
+    padding: 6px 12px;
+    min-height: 32px;
+}
+
+.tab-button:hover,
+.view-mode-btn:hover,
+.global-filter-trigger:hover,
+.summary-filter-trigger:hover {
+    background: rgba(248, 250, 252, 0.98);
+    border-color: rgba(148, 163, 184, 0.22);
+    transform: translateY(-1px);
+}
+
+.tabs .tab-button:hover,
+.analysis-tabs .tab-button:hover {
+    background: rgba(248, 250, 252, 0.98);
+    border-color: rgba(148, 163, 184, 0.22);
+    transform: translateY(-1px);
+}
+
+.tab-button.active,
+.analysis-button.active,
+.month-button.active,
+.monthly-skills-month-button.active,
+.monthly-skills-exp-button.active,
+.salary-month-button.active,
+.salary-exp-button.active,
+.view-mode-btn.active,
+.summary-return-tab.active {
+    background: rgba(248, 250, 252, 0.98);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
+.tabs .tab-button.active,
+.analysis-tabs .tab-button.active {
+    background: rgba(248, 250, 252, 0.98);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+
+table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: none;
+}
+
+th {
+    background: rgba(248, 250, 252, 0.96);
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+td {
+    border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+tbody tr:hover {
+    background: rgba(148, 163, 184, 0.06);
 }
 
 @media (max-width: 960px) {
@@ -2026,6 +2218,14 @@ tbody tr:hover {
     .activity-graph-item > div,
     .plotly-graph {
         height: 320px;
+    }
+
+    .salary-graphs-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .salary-graphs-3 .plotly-graph {
+        height: 280px;
     }
 
     .shared-filter-panel .global-filter-dropdown,
@@ -2150,5 +2350,14 @@ tbody tr:hover {
     .activity-graph-item > div,
     .plotly-graph {
         height: 280px;
+    }
+
+    .salary-graphs-3 {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .salary-graphs-3 .plotly-graph {
+        height: clamp(220px, 58vw, 300px);
     }
 }

@@ -96,16 +96,16 @@ function buildSalaryTablesHtml(entries) {
     }).join('');
 
     return '<div class="salary-split-tables">' +
-        '<div style="overflow-x: auto; margin-bottom: 16px;">' +
+        '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
             '<h4 style="margin: 0 0 8px;">РЎРІРѕРґРєР° РІР°РєР°РЅСЃРёР№ РїРѕ РІР°Р»СЋС‚Р°Рј</h4>' +
-            '<table>' +
+            '<table class="vacancy-table salary-table">' +
                 '<thead><tr><th>Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№</th><th>RUR</th><th>USD</th><th>EUR</th><th>Р”СЂСѓРіР°СЏ</th><th>РќРµ Р·Р°РїРѕР»РЅРµРЅР°</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
         '</div>' +
-        '<div style="overflow-x: auto;">' +
+        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
             '<h4 style="margin: 0 0 8px;">РЎС‚Р°С‚РёСЃС‚РёРєР° Р·Р°СЂРїР»Р°С‚</h4>' +
-            '<table>' +
+            '<table class="vacancy-table salary-table">' +
                 '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>РќР°Р№РґРµРЅРѕ</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
                 '<tbody>' + statsRows + '</tbody>' +
             '</table>' +
@@ -129,10 +129,10 @@ function renderStatusIcon(status) {
     var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('РѕС‚РєСЂС‹') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('Р°РєС‚РёРІ') !== -1;
 
     if (isArchived) {
-        return '<span class="status-icon status-icon-archived" title="РђСЂС…РёРІРЅР°СЏ" aria-label="РђСЂС…РёРІРЅР°СЏ">рџ—„пёЏ</span>';
+        return '<span class="status-icon status-icon-archived" title="РђСЂС…РёРІРЅР°СЏ" aria-label="РђСЂС…РёРІРЅР°СЏ"></span>';
     }
     if (isOpen) {
-        return '<span class="status-icon status-icon-open" title="РћС‚РєСЂС‹С‚Р°СЏ" aria-label="РћС‚РєСЂС‹С‚Р°СЏ">вњ…</span>';
+        return '<span class="status-icon status-icon-open" title="РћС‚РєСЂС‹С‚Р°СЏ" aria-label="РћС‚РєСЂС‹С‚Р°СЏ"></span>';
     }
     return '<span class="status-icon" title="' + escapeHtml(raw || 'вЂ”') + '" aria-label="' + escapeHtml(raw || 'вЂ”') + '">' + escapeHtml(raw || 'вЂ”') + '</span>';
 }
@@ -480,12 +480,12 @@ function renderAllRolesContainer(container, roleContents) {
     container.innerHTML =
         '<h2>Сводно по всем ролям</h2>' +
         '<div class="tabs summary-return-tabs">' +
-            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'activity\')">Анализ активности</button>' +
-            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'weekday\')">Анализ по дням недели</button>' +
-            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-monthly\')">Топ-навыки</button>' +
-            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-search\')">Поиск вакансий</button>' +
-            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'salary\')">Анализ зарплат</button>' +
-            '<button type="button" class="tab-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'employer-analysis\')">Анализ работодателей</button>' +
+            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'activity\')">Анализ активности</button>' +
+            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'weekday\')">Анализ по дням недели</button>' +
+            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-monthly\')">Топ-навыки</button>' +
+            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-search\')">Поиск вакансий</button>' +
+            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'salary\')">Анализ зарплат</button>' +
+            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'employer-analysis\')">Анализ работодателей</button>' +
             '<button type="button" class="tab-button summary-return-tab active">Сводный отчет</button>' +
         '</div>' +
         '<div class="tabs analysis-tabs">' +
@@ -544,8 +544,8 @@ function addSummaryTabs(root) {
             '<div class="salary-display-flex" data-exp-index="' + expIndex + '">' +
                 '<div class="salary-main-content">' +
                     '<div class="salary-table-container">' +
-                        '<div style="overflow-x: auto;">' +
-                            '<table>' +
+                        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+                            '<table class="vacancy-table salary-table">' +
                                 '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>Р’СЃРµРіРѕ</th><th>С з/п</th><th>% СЃ Р·/Рї</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
                                 '<tbody>' +
                                     summaryExp.entries.map(entry => (
@@ -725,8 +725,8 @@ function renderCombinedContainer(container, roleContents) {
                                 '<div class="salary-display-flex" data-exp-index="' + (j + 1) + '">' +
                                     '<div class="salary-main-content">' +
                                         '<div class="salary-table-container">' +
-                                            '<div style="overflow-x: auto;">' +
-                                                '<table>' +
+                                            '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+                                                '<table class="vacancy-table salary-table">' +
                                                     '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>Р’СЃРµРіРѕ</th><th>С з/п</th><th>% СЃ Р·/Рї</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
                                                     '<tbody>' +
                                                         exp.entries.map(entry => (

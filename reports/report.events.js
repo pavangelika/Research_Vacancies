@@ -440,10 +440,11 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!btn) {
                 btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'tab-button summary-report-btn';
+                btn.className = 'tab-button analysis-button summary-report-btn';
                 btn.textContent = 'Сводный отчет';
                 tabs.appendChild(btn);
             }
+            btn.classList.add('analysis-button');
             btn.classList.toggle('active', !!uiState.all_roles_active);
             if (!btn.dataset.bound) {
                 btn.addEventListener('click', function(e) {
