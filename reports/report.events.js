@@ -290,6 +290,7 @@ document.addEventListener('click', function(e) {
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('.view-mode-btn, .view-mode-button');
     if (!btn) return;
+    if (btn.disabled) return;
 
     var container = btn.closest('.month-content, .weekday-content, .monthly-skills-exp-content, .salary-exp-content, .all-roles-period-content');
     if (!container) return;
@@ -309,7 +310,7 @@ document.addEventListener('click', function(e) {
 
     if (!analysisType) return;
 
-    var mode = btn.dataset.view;
+    var mode = normalizeResponsiveViewMode(btn.dataset.view);
     if (analysisType === 'activity') uiState.activity_view_mode = mode;
     else if (analysisType === 'weekday') uiState.weekday_view_mode = mode;
     else if (analysisType === 'skills-monthly') uiState.skills_monthly_view_mode = mode;
@@ -375,6 +376,7 @@ document.addEventListener('click', function(e) {
 
 // ---------- Инициализация ----------
 document.addEventListener("DOMContentLoaded", function() {
+    if (typeof updateViewToggleIcons === 'function') updateViewToggleIcons(document);
     document.querySelectorAll('#role-summary-tab').forEach(function(btn) {
         if (btn && btn.parentElement) btn.parentElement.removeChild(btn);
     });
