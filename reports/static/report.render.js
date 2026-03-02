@@ -673,7 +673,7 @@ function renderCombinedContainer(container, roleContents) {
     }
     combinedVacancies = dedupeVacanciesById(combinedVacancies);
     var period = computePublicationPeriod(combinedVacancies) || 'вЂ”';
-    var roleTitle = '[ID: ' + ids.join(', ') + '] РїРµСЂРёРѕРґ СЃР±РѕСЂР° РІР°РєР°РЅСЃРёР№ ' + period;
+    var roleTitle = '[ID: ' + ids.join(', ') + ']';
 
     var activityTabs = activityMonths.map((m, i) => (
         '<button class="tab-button month-button all-roles-period-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
@@ -915,12 +915,13 @@ function renderCombinedContainer(container, roleContents) {
 
     container.innerHTML =
         '<h2>' + roleTitle + '</h2>' +
+        '<div class="role-period-label">Период публикации: ' + period + '</div>' +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">РђРЅР°Р»РёР· Р°РєС‚РёРІРЅРѕСЃС‚Рё</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">РђРЅР°Р»РёР· РїРѕ РґРЅСЏРј РЅРµРґРµР»Рё</button>' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Анализ активности</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Анализ по дням недели</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Топ-навыки</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="skills-search-combined" onclick="switchAnalysis(event, \'skills-search-combined\')">Поиск по навыкам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">РђРЅР°Р»РёР· Р·Р°СЂРїР»Р°С‚</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Анализ зарплат</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="employer-analysis-combined" onclick="switchAnalysis(event, \'employer-analysis-combined\')">Анализ работодателей</button>' +
         '</div>' +
         '<div class="tabs month-tabs activity-only all-roles-period-tabs" style="justify-content: center;">' +
