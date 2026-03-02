@@ -352,7 +352,8 @@ function renderAllRolesContainer(container, roleContents) {
                     'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
                     'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
                     '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="activity">' +

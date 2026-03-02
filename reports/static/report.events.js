@@ -328,7 +328,7 @@ document.addEventListener('click', function(e) {
     if (container.dataset.analysis === 'activity-all') {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
-        if (mode === 'graph') {
+        if (mode !== 'table') {
             var rows = parseJsonDataset(container, 'entries', []);
             var mainId = container.dataset.graphMain;
             var ageId = container.dataset.graphAge;

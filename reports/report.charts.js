@@ -6,6 +6,15 @@ function plotIfChangedById(graphId, signature, data, layout) {
     el.dataset.plotReady = '1';
     Plotly.newPlot(graphId, data, layout);
 }
+function buildRoleAxisTick(roleId) {
+    var id = String(roleId || '').trim();
+    return id ? ('ID: ' + id) : 'ID: -';
+}
+function buildRoleFullLabel(role) {
+    var name = String((role && role.name) || '\u0420\u043e\u043b\u044c').trim();
+    var id = String((role && role.id) || '').trim();
+    return id ? (name + ' [ID: ' + id + ']') : name;
+}
 function buildActivityBarChart(graphId, entries) {
     var filteredEntries = entries.filter(e => e.experience !== 'Всего');
     var experiences = filteredEntries.map(e => e.experience);
@@ -148,7 +157,8 @@ function buildSalaryBarChart(graphId, entries) {
     }
 }
 function buildAllRolesActivityChart(rows, graphIdMain = 'activity-graph-all', graphIdAge = 'activity-age-graph-all') {
-    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
+    var labels = rows.map(r => buildRoleAxisTick(r.id));
+    var fullLabels = rows.map(buildRoleFullLabel);
     var activeVals = rows.map(r => r.active || 0);
     var archivedVals = rows.map(r => r.archived || 0);
     var ageVals = rows.map(r => (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : null));
@@ -157,37 +167,43 @@ function buildAllRolesActivityChart(rows, graphIdMain = 'activity-graph-all', gr
     var traceActive = {
         x: labels,
         y: activeVals,
+        customdata: fullLabels,
         type: 'scatter',
         mode: 'lines+markers',
-        name: 'Открытые',
-        line: { color: CHART_COLORS.light }
+        name: '\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0435',
+        line: { color: CHART_COLORS.light },
+        hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>'
     };
     var traceArchived = {
         x: labels,
         y: archivedVals,
+        customdata: fullLabels,
         type: 'scatter',
         mode: 'lines+markers',
-        name: 'Архивные',
-        line: { color: CHART_COLORS.dark }
+        name: '\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0435',
+        line: { color: CHART_COLORS.dark },
+        hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>'
     };
     var traceAge = {
         x: labels,
         y: ageVals,
+        customdata: fullLabels,
         type: 'bar',
-        name: 'Ср. возраст (дни)',
-        marker: { color: CHART_COLORS.medium }
+        name: '\u0421\u0440. \u0432\u043e\u0437\u0440\u0430\u0441\u0442 (\u0434\u043d\u0438)',
+        marker: { color: CHART_COLORS.medium },
+        hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>'
     };
     var layoutMain = {
-        title: 'Открытые и архивные вакансии по ролям',
+        title: '\u041e\u0442\u043a\u0440\u044b\u0442\u044b\u0435 \u0438 \u0430\u0440\u0445\u0438\u0432\u043d\u044b\u0435 \u0432\u0430\u043a\u0430\u043d\u0441\u0438\u0438 \u043f\u043e \u0440\u043e\u043b\u044f\u043c',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Количество вакансий' },
+        yaxis: { title: '\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e \u0432\u0430\u043a\u0430\u043d\u0441\u0438\u0439' },
         margin: { t: 50, b: 120, l: 50, r: 60 },
         height: 420
     };
     var layoutAge = {
-        title: 'Ср. возраст (дни) по ролям',
+        title: '\u0421\u0440. \u0432\u043e\u0437\u0440\u0430\u0441\u0442 (\u0434\u043d\u0438) \u043f\u043e \u0440\u043e\u043b\u044f\u043c',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Ср. возраст (дни)' },
+        yaxis: { title: '\u0421\u0440. \u0432\u043e\u0437\u0440\u0430\u0441\u0442 (\u0434\u043d\u0438)' },
         margin: { t: 50, b: 120, l: 50, r: 30 },
         height: 420
     };
@@ -196,30 +212,34 @@ function buildAllRolesActivityChart(rows, graphIdMain = 'activity-graph-all', gr
 }
 
 function buildAllRolesWeekdayChart(rows, graphId) {
-    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
+    var labels = rows.map(r => buildRoleAxisTick(r.id));
+    var fullLabels = rows.map(buildRoleFullLabel);
     var pubVals = rows.map(r => r.avg_pub || 0);
     var archVals = rows.map(r => r.avg_arch || 0);
     var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_pub || 0) + ':' + (r.avg_arch || 0)).join('|');
-
     var tracePub = {
         x: labels,
         y: pubVals,
+        customdata: fullLabels,
         type: 'bar',
-        name: 'Публикации/день',
-        marker: { color: CHART_COLORS.light }
+        name: '\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438/\u0434\u0435\u043d\u044c',
+        marker: { color: CHART_COLORS.light },
+        hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>'
     };
     var traceArch = {
         x: labels,
         y: archVals,
+        customdata: fullLabels,
         type: 'bar',
-        name: 'Архивы/день',
-        marker: { color: CHART_COLORS.dark }
+        name: '\u0410\u0440\u0445\u0438\u0432\u044b/\u0434\u0435\u043d\u044c',
+        marker: { color: CHART_COLORS.dark },
+        hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>'
     };
     var layout = {
         barmode: 'group',
-        title: 'Публикации и архивы по ролям',
+        title: '\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0438 \u0430\u0440\u0445\u0438\u0432\u044b \u043f\u043e \u0440\u043e\u043b\u044f\u043c',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Среднее в день' },
+        yaxis: { title: '\u0421\u0440\u0435\u0434\u043d\u0435\u0435 \u0432 \u0434\u0435\u043d\u044c' },
         margin: { t: 50, b: 120, l: 50, r: 60 },
         height: 420
     };
@@ -250,20 +270,23 @@ function buildAllRolesSkillsChart(rows, graphId) {
 }
 
 function buildAllRolesSalaryChart(rows, graphId) {
-    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
+    var labels = rows.map(r => buildRoleAxisTick(r.id));
+    var fullLabels = rows.map(buildRoleFullLabel);
     var vals = rows.map(r => (r.skills || []).reduce((s, x) => s + (x.count || 0), 0));
     var signature = rows.map(r => (r.name || '') + ':' + (r.id || '') + ':' + (r.skills || []).length + ':' + (r.skills || []).reduce((s, x) => s + (x.count || 0), 0)).join('|');
     var trace = {
         x: labels,
         y: vals,
+        customdata: fullLabels,
         type: 'bar',
-        name: 'Частота навыков',
-        marker: { color: CHART_COLORS.dark }
+        name: '\u0427\u0430\u0441\u0442\u043e\u0442\u0430 \u043d\u0430\u0432\u044b\u043a\u043e\u0432',
+        marker: { color: CHART_COLORS.dark },
+        hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>'
     };
     var layout = {
-        title: 'Суммарная частота навыков по ролям',
+        title: '\u0421\u0443\u043c\u043c\u0430\u0440\u043d\u0430\u044f \u0447\u0430\u0441\u0442\u043e\u0442\u0430 \u043d\u0430\u0432\u044b\u043a\u043e\u0432 \u043f\u043e \u0440\u043e\u043b\u044f\u043c',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Частота' },
+        yaxis: { title: '\u0427\u0430\u0441\u0442\u043e\u0442\u0430' },
         margin: { t: 50, b: 120, l: 50, r: 60 },
         height: 420
     };
