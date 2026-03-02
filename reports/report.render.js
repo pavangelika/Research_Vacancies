@@ -332,6 +332,12 @@ function renderAllRolesContainer(container, roleContents) {
         '</div>';
     }
 
+    function buildSharedPeriodTabs() {
+        return '<div class="all-roles-shared-period-panel" style="display:flex;align-items:flex-start;justify-content:center;gap:4px;flex-wrap:wrap;margin-top:4px;">' +
+            '<div class="all-roles-shared-filter-buttons" style="display:flex;align-items:flex-start;justify-content:center;gap:6px;flex-wrap:wrap;"></div>' +
+        '</div>';
+    }
+
     function buildActivityAllTable(rows) {
         var maxActive = Math.max(...rows.map(r => r.active || 0), 0);
         var maxRatio = Math.max(...rows.map(r => (r.active ? (r.archived / r.active) : 0)), 0);
@@ -540,6 +546,7 @@ function renderAllRolesContainer(container, roleContents) {
             '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
         '</div>' +
+        buildSharedPeriodTabs() +
         activityHtml +
         weekdayHtml +
         skillsHtml +
@@ -669,7 +676,7 @@ function renderCombinedContainer(container, roleContents) {
     var roleTitle = '[ID: ' + ids.join(', ') + '] РїРµСЂРёРѕРґ СЃР±РѕСЂР° РІР°РєР°РЅСЃРёР№ ' + period;
 
     var activityTabs = activityMonths.map((m, i) => (
-        '<button class="tab-button month-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+        '<button class="tab-button month-button all-roles-period-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
     )).join('');
 
     var activityBlocks = activityMonths.map((m, i) => (
@@ -729,9 +736,9 @@ function renderCombinedContainer(container, roleContents) {
     var skillsBlock = (
         '<div class="skills-monthly-content" data-analysis="skills-monthly-combined" style="display: none;" data-skills-monthly="">' +
             (skillsMonthly.length ? (
-                '<div class="tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">' +
+                '<div class="tabs month-tabs monthly-skills-month-tabs all-roles-period-tabs" style="justify-content: center; margin-top: 10px;">' +
                     skillsMonthly.map((m, i) => (
-                        '<button class="tab-button monthly-skills-month-button" onclick="openMonthlySkillsMonthTab(event, \'ms-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+                        '<button class="tab-button month-button monthly-skills-month-button all-roles-period-button" onclick="openMonthlySkillsMonthTab(event, \'ms-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
                     )).join('') +
                 '</div>' +
                 skillsMonthly.map((m, i) => (
@@ -811,9 +818,9 @@ function renderCombinedContainer(container, roleContents) {
     var salaryBlock = (
         '<div class="salary-content" data-analysis="salary-combined" style="display: none;" data-salary="">' +
             (salaryMonths.length ? (
-                '<div class="tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">' +
+                '<div class="tabs month-tabs salary-month-tabs all-roles-period-tabs" style="justify-content: center; margin-top: 10px;">' +
                     salaryMonths.map((m, i) => (
-                        '<button class="tab-button salary-month-button" onclick="openSalaryMonthTab(event, \'sal-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+                        '<button class="tab-button month-button salary-month-button all-roles-period-button" onclick="openSalaryMonthTab(event, \'sal-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
                     )).join('') +
                 '</div>' +
                 salaryMonths.map((m, i) => (
@@ -916,7 +923,7 @@ function renderCombinedContainer(container, roleContents) {
             '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">РђРЅР°Р»РёР· Р·Р°СЂРїР»Р°С‚</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="employer-analysis-combined" onclick="switchAnalysis(event, \'employer-analysis-combined\')">Анализ работодателей</button>' +
         '</div>' +
-        '<div class="tabs month-tabs activity-only" style="justify-content: center;">' +
+        '<div class="tabs month-tabs activity-only all-roles-period-tabs" style="justify-content: center;">' +
             activityTabs +
         '</div>' +
         activityBlocks +

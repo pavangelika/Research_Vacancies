@@ -292,11 +292,15 @@ function ensureSharedFilterPanel() {
         if (!document.body.dataset.globalFilterMenusBound) {
             document.addEventListener('click', function(e) {
                 var target = e.target;
-                if (target && target.closest && target.closest('#global-shared-filter-panel')) return;
-                document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(menu) {
+                if (target && target.closest && target.closest('.global-filter-dropdown')) return;
+                document.querySelectorAll('.global-filter-menu').forEach(function(menu) {
                     menu.style.display = 'none';
+                    if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
                 });
-                document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(arrow) {
+                document.querySelectorAll('.global-filter-trigger-arrow').forEach(function(arrow) {
+                    arrow.textContent = '\u25BE';
+                });
+                document.querySelectorAll('.summary-filter-trigger-arrow').forEach(function(arrow) {
                     arrow.textContent = '\u25BE';
                 });
             });
@@ -323,6 +327,9 @@ function hideSharedFilterSources(parentRole) {
             node.style.display = 'none';
         });
     });
+    parentRole.querySelectorAll('.all-roles-shared-period-tabs').forEach(function(node) {
+        node.style.display = '';
+    });
 }
 
 function getSummaryAnalysisButtons(activeRole) {
@@ -345,6 +352,51 @@ function getAllRolesPeriodButtons(activeRole) {
     var host = activeRole.querySelector('.' + (current === 'activity' ? 'activity-only' : current === 'weekday' ? 'weekday-content' : current === 'skills-monthly' ? 'skills-monthly-content' : 'salary-content'));
     if (!host) return [];
     return Array.from(host.querySelectorAll('.all-roles-period-tabs .all-roles-period-button'));
+}
+
+function syncAllRolesSharedFilterButtons(activeRole, analysisType) {
+    if (!activeRole || activeRole.id !== 'role-all') return;
+    var host = activeRole.querySelector('.all-roles-shared-filter-buttons');
+    if (!host) return;
+
+    var current = String(analysisType || activeRole.dataset.activeAnalysis || 'activity').replace(/-all$/, '');
+    host.innerHTML = '';
+    host.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
+    host.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
+}
+
+function syncAllRolesSharedPeriodTabs(activeRole, periodValue) {
+    if (!activeRole || activeRole.id !== 'role-all') return;
+    var sharedButtons = Array.from(activeRole.querySelectorAll('.all-roles-shared-period-tabs .all-roles-period-button'));
+    if (!sharedButtons.length) return;
+
+    var targetPeriod = periodValue;
+    if (!targetPeriod) {
+        var current = activeRole.dataset.activeAnalysis || 'activity';
+        var visibleContent = activeRole.querySelector('.all-roles-period-content[data-analysis="' + current + '-all"][style*="display: block"]');
+        if (visibleContent) targetPeriod = visibleContent.dataset.period || 'all';
+    }
+    if (!targetPeriod) targetPeriod = 'all';
+
+    sharedButtons.forEach(function(btn) {
+        btn.classList.toggle('active', (btn.dataset.period || 'all') === targetPeriod);
+    });
+}
+
+function openAllRolesSharedPeriodTab(evt, periodValue) {
+    var parentRole = evt.currentTarget.closest('.role-content');
+    if (!parentRole || parentRole.id !== 'role-all') return;
+    var buttons = getAllRolesPeriodButtons(parentRole);
+    if (!buttons.length) return;
+
+    var target = null;
+    buttons.forEach(function(btn) {
+        if ((btn.dataset.period || 'all') === String(periodValue || 'all')) {
+            target = btn;
+        }
+    });
+    if (!target) target = buttons[0];
+    if (target) target.click();
 }
 
 function createAllRolesPeriodControl(activeRole) {
@@ -882,8 +934,15 @@ function summarizeGlobalFilterSelection(filterKey, options, disabled) {
     var optionMap = {};
     (options || []).forEach(function(item) { optionMap[item.value] = item.label; });
     if (filterKey !== 'roles') {
-        var includeLabels = bucket.include.map(function(value) { return optionMap[value] || value; }).filter(Boolean);
-        var excludeLabels = bucket.exclude.map(function(value) { return optionMap[value] || value; }).filter(Boolean);
+        var mapValueToLabel = function(value) {
+            if (filterKey === 'periods') {
+                var formatted = formatPeriodSelectionValue(value);
+                if (formatted) return optionMap[formatted] || optionMap[value] || formatted;
+            }
+            return optionMap[value] || value;
+        };
+        var includeLabels = bucket.include.map(mapValueToLabel).filter(Boolean);
+        var excludeLabels = bucket.exclude.map(mapValueToLabel).filter(Boolean);
         if (includeLabels.length && !excludeLabels.length) return includeLabels.join(', ');
         if (!includeLabels.length && excludeLabels.length) return 'Все, кроме ' + excludeLabels.join(', ');
         if (includeLabels.length && excludeLabels.length) return includeLabels.join(', ');
@@ -896,33 +955,79 @@ function summarizeGlobalFilterSelection(filterKey, options, disabled) {
 }
 
 function closeGlobalFilterMenus(exceptMenu, exceptArrow) {
-    document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(other) {
-        if (other !== exceptMenu) other.style.display = 'none';
+    document.querySelectorAll('.global-filter-menu').forEach(function(other) {
+        if (other !== exceptMenu) {
+            other.style.display = 'none';
+            restoreGlobalFilterMenuHost(other);
+        }
     });
-    document.querySelectorAll('#global-shared-filter-panel .global-filter-trigger-arrow').forEach(function(arrow) {
+    document.querySelectorAll('.global-filter-trigger-arrow').forEach(function(arrow) {
         if (arrow !== exceptArrow) arrow.textContent = '\u25BE';
     });
 }
 
+function bindGlobalFilterMenuScrollLock(menu) {
+    if (!menu || menu.dataset.scrollLockBound === '1') return;
+    menu.addEventListener('wheel', function(e) {
+        var maxScroll = Math.max(0, menu.scrollHeight - menu.clientHeight);
+        if (maxScroll <= 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        var atTop = menu.scrollTop <= 0;
+        var atBottom = menu.scrollTop >= maxScroll - 1;
+        if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBottom)) {
+            e.preventDefault();
+        }
+        e.stopPropagation();
+    }, { passive: false });
+    menu.dataset.scrollLockBound = '1';
+}
+
+function restoreGlobalFilterMenuHost(menu) {
+    if (!menu || !menu.__host) return;
+    if (menu.parentElement !== menu.__host) {
+        menu.__host.appendChild(menu);
+    }
+}
+
 function positionGlobalFilterMenu(trigger, menu) {
     if (!trigger || !menu) return;
+    restoreGlobalFilterMenuHost(menu);
+    var host = menu.__host || menu.parentElement;
+    var isSharedPanelMenu = !!(host && host.closest && host.closest('#global-shared-filter-panel'));
+    if (host && !isSharedPanelMenu) {
+        host.style.position = 'relative';
+        host.style.overflow = 'visible';
+    }
     var rect = trigger.getBoundingClientRect();
-    var width = Math.max(220, Math.round(rect.width));
-    var maxHeight = Math.max(240, Math.min(window.innerHeight - Math.round(rect.bottom) - 12, Math.round(window.innerHeight * 0.72)));
-    var left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
-    menu.style.setProperty('position', 'fixed', 'important');
-    menu.style.setProperty('top', Math.round(rect.bottom + 6) + 'px', 'important');
-    menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+    var width = Math.max(220, Math.round((isSharedPanelMenu ? rect.width : (trigger.offsetWidth || 0))));
+    var viewportBottomSpace = window.innerHeight - Math.round(rect.bottom) - 12;
+    var maxHeight = Math.max(240, Math.min(viewportBottomSpace, Math.round(window.innerHeight * 0.72)));
+    if (isSharedPanelMenu) {
+        var left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+        menu.style.setProperty('position', 'fixed', 'important');
+        menu.style.setProperty('top', Math.round(rect.bottom + 2) + 'px', 'important');
+        menu.style.setProperty('left', Math.round(left) + 'px', 'important');
+    } else {
+        menu.style.setProperty('position', 'absolute', 'important');
+        menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
+        menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
+    }
     menu.style.setProperty('right', 'auto', 'important');
     menu.style.setProperty('bottom', 'auto', 'important');
     menu.style.setProperty('box-sizing', 'border-box', 'important');
     menu.style.setProperty('width', Math.round(width) + 'px', 'important');
     menu.style.setProperty('max-height', maxHeight + 'px', 'important');
     menu.style.setProperty('overflow-y', 'auto', 'important');
+    menu.style.setProperty('overscroll-behavior', 'contain', 'important');
+    menu.style.setProperty('-ms-scroll-chaining', 'none', 'important');
     menu.style.setProperty('margin', '0', 'important');
     menu.style.setProperty('transform', 'none', 'important');
     menu.style.setProperty('inset', 'auto auto auto auto', 'important');
     menu.style.setProperty('z-index', '5000', 'important');
+    bindGlobalFilterMenuScrollLock(menu);
 }
 
 function ensureGlobalFilterTooltip() {
@@ -1032,11 +1137,16 @@ function applyChartTitleContext(graphId, baseTitle, contextText) {
 function refreshExistingGlobalFilterUi(parentRole, analysisType) {
     var activeRole = getActiveRoleContent(parentRole);
     var panel = document.getElementById('global-shared-filter-panel');
-    if (!panel || !activeRole) return;
+    if (!activeRole) return;
 
     var current = analysisType || activeRole.dataset.activeAnalysis || '';
     var isAllRolesView = activeRole.id === 'role-all';
     if (isAllRolesView) syncAllRolesPeriodStateFromGlobalFilter(activeRole, current);
+    if (isAllRolesView) syncAllRolesSharedFilterButtons(activeRole, current);
+    if (!panel) {
+        applyGlobalFiltersToActiveAnalysis(activeRole, current);
+        return;
+    }
 
     panel.querySelectorAll('.global-filter-dropdown[data-filter-key]').forEach(function(wrap) {
         var key = wrap.dataset.filterKey || '';
@@ -1495,6 +1605,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '260px';
     menu.style.overflowY = 'auto';
+    menu.style.overscrollBehavior = 'contain';
+    bindGlobalFilterMenuScrollLock(menu);
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';
@@ -1631,15 +1743,22 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     }
 
     if (!disabled) {
-        trigger.addEventListener('click', function() {
+        trigger.addEventListener('click', function(e) {
+            e.stopPropagation();
             var nextState = menu.style.display === 'none' ? 'block' : 'none';
             closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
             menu.style.display = nextState;
-            if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-            triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
+            if (nextState === 'block') {
+                positionGlobalFilterMenu(trigger, menu);
+                triggerArrow.textContent = '\u25B4';
+            } else {
+                restoreGlobalFilterMenuHost(menu);
+                triggerArrow.textContent = '\u25BE';
+            }
         });
     }
     wrap.appendChild(menu);
+    menu.__host = wrap;
     return wrap;
 }
 
@@ -2040,6 +2159,7 @@ function syncSharedFilterPanel(parentRole, analysisType) {
     body.innerHTML = '';
 
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
+    if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, current);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, current);
     body.appendChild(createUnifiedRolesControl(activeRole, current));
     body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
@@ -2057,6 +2177,10 @@ function normalizeSalaryControls(parentRole) {
     if (uiState.salary_view_mode === 'together') uiState.salary_view_mode = 'table';
     var monthTabs = block.querySelector('.salary-month-tabs');
     if (!monthTabs) {
+        updateViewToggleIcons(block);
+        return;
+    }
+    if (monthTabs.classList.contains('all-roles-period-tabs')) {
         updateViewToggleIcons(block);
         return;
     }
@@ -3178,6 +3302,10 @@ function normalizeActivityControls(parentRole) {
     if (!parentRole) return;
     var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
     if (!monthTabs) return;
+    if (monthTabs.classList.contains('all-roles-period-tabs')) {
+        updateViewToggleIcons(parentRole);
+        return;
+    }
 
     if (!monthTabs.classList.contains('activity-month-tabs') && !monthTabs.classList.contains('activity-filter-tabs')) {
         monthTabs.classList.add('activity-month-tabs');
@@ -3298,6 +3426,10 @@ function normalizeSkillsMonthlyControls(parentRole) {
     if (!block) return;
     var monthTabs = block.querySelector('.monthly-skills-month-tabs');
     if (!monthTabs) {
+        updateViewToggleIcons(block);
+        return;
+    }
+    if (monthTabs.classList.contains('all-roles-period-tabs')) {
         updateViewToggleIcons(block);
         return;
     }
@@ -4223,6 +4355,7 @@ function getMonthWordForm(count) {
 function openAllRolesPeriodTab(evt, contentId, analysisType) {
     var wrapper = evt.currentTarget.closest('.all-roles-period-wrapper');
     if (!wrapper) return;
+    var parentRole = wrapper.closest('.role-content');
     var contents = wrapper.querySelectorAll('.all-roles-period-content');
     contents.forEach(c => c.style.display = 'none');
     var buttons = wrapper.querySelectorAll('.all-roles-period-button');
@@ -4233,6 +4366,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
     if (uiState.all_roles_periods) {
         uiState.all_roles_periods[analysisType] = evt.currentTarget.dataset.period || null;
     }
+    syncAllRolesSharedPeriodTabs(parentRole, evt.currentTarget.dataset.period || 'all');
 
     if (analysisType === 'activity' && target) {
         var mode = uiState.activity_view_mode || 'together';
