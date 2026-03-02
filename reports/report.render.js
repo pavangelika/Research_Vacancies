@@ -152,6 +152,50 @@ function buildAllRolesSkillsTableHtml(rows) {
         '</tbody>' +
     '</table>';
 }
+function buildCombinedEmployerRawRowsHtml(rows) {
+    var items = Array.isArray(rows) ? rows.slice() : [];
+    if (typeof sortEmployerAnalysisData === 'function') {
+        items = sortEmployerAnalysisData(items);
+    }
+    if (!items.length) {
+        return '<tr><td colspan="8">Нет данных по работодателям</td></tr>';
+    }
+
+    function asNumber(value) {
+        return (value !== null && value !== undefined && isFinite(value)) ? value : '';
+    }
+
+    return items.map(function(row) {
+        var factorLabel = row.factorLabel || (typeof getEmployerFactorLabel === 'function' ? getEmployerFactorLabel(row.factorKey || '') : (row.factorKey || ''));
+        var valueKey = row.valueKey || '';
+        var valueLabel = row.valueLabel || valueKey;
+        var valueHtml = typeof getEmployerValueHtml === 'function'
+            ? getEmployerValueHtml(valueKey)
+            : escapeHtml(valueLabel);
+        return '<tr class="employer-analysis-row" ' +
+            'data-month="' + escapeHtml(row.month || '') + '" ' +
+            'data-factor="' + escapeHtml(row.factorKey || '') + '" ' +
+            'data-factor-value="' + escapeHtml(valueKey) + '" ' +
+            'data-group-n="' + escapeHtml(row.groupN || 0) + '" ' +
+            'data-avg-rur-n="' + escapeHtml(row.avgRurN || 0) + '" ' +
+            'data-avg-rur="' + escapeHtml(asNumber(row.avgRur)) + '" ' +
+            'data-avg-usd-n="' + escapeHtml(row.avgUsdN || 0) + '" ' +
+            'data-avg-usd="' + escapeHtml(asNumber(row.avgUsd)) + '" ' +
+            'data-avg-eur-n="' + escapeHtml(row.avgEurN || 0) + '" ' +
+            'data-avg-eur="' + escapeHtml(asNumber(row.avgEur)) + '" ' +
+            'data-avg-other-n="' + escapeHtml(row.avgOtherN || 0) + '" ' +
+            'data-avg-other="' + escapeHtml(asNumber(row.avgOther)) + '">' +
+            '<td>' + escapeHtml(row.month || '') + '</td>' +
+            '<td>' + escapeHtml(factorLabel) + '</td>' +
+            '<td class="employer-factor-value-cell" data-raw-value="' + escapeHtml(valueKey) + '">' + valueHtml + '</td>' +
+            '<td>' + (row.groupN || 0) + '</td>' +
+            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgRur) : (row.avgRur || '—')) + '</td>' +
+            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgUsd) : (row.avgUsd || '—')) + '</td>' +
+            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgEur) : (row.avgEur || '—')) + '</td>' +
+            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgOther) : (row.avgOther || '—')) + '</td>' +
+        '</tr>';
+    }).join('');
+}
 function renderAllRolesContainer(container, roleContents) {
     if (!container) return;
     if (container.__renderingAllRoles) return;
@@ -596,13 +640,32 @@ function renderCombinedContainer(container, roleContents) {
     var weekdays = aggregateWeekdays(roleContents);
     var skillsMonthly = aggregateSkillsMonthly(roleContents);
     var salaryMonths = aggregateSalary(roleContents);
+    var combinedVacancies = [];
+    var combinedEmployerRows = [];
+
+    roleContents.forEach(function(roleContent) {
+        combinedVacancies = combinedVacancies.concat(getRoleVacancies(roleContent) || []);
+        var employerBlock = roleContent.querySelector('.employer-analysis-content');
+        if (!employerBlock) return;
+        if (employerBlock.__employerData && employerBlock.__employerData.length) {
+            combinedEmployerRows = combinedEmployerRows.concat(employerBlock.__employerData);
+            return;
+        }
+        if (typeof parseEmployerAnalysisData === 'function') {
+            combinedEmployerRows = combinedEmployerRows.concat(parseEmployerAnalysisData(employerBlock) || []);
+        }
+    });
+    combinedVacancies = dedupeVacanciesById(combinedVacancies);
 
     var lifetimeMaps = buildLifetimeMapsFromSalaryMonths(salaryMonths);
     applyLifetimeToActivityMonths(activityMonths, lifetimeMaps);
 
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
-    var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-    var period = computePublicationPeriod(allVacancies) || 'вЂ”';
+    if (!combinedVacancies.length) {
+        combinedVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+    }
+    combinedVacancies = dedupeVacanciesById(combinedVacancies);
+    var period = computePublicationPeriod(combinedVacancies) || 'вЂ”';
     var roleTitle = '[ID: ' + ids.join(', ') + '] РїРµСЂРёРѕРґ СЃР±РѕСЂР° РІР°РєР°РЅСЃРёР№ ' + period;
 
     var activityTabs = activityMonths.map((m, i) => (
@@ -707,6 +770,44 @@ function renderCombinedContainer(container, roleContents) {
         '</div>'
     );
 
+    var skillsSearchBlock = (
+        '<div class="skills-search-content" data-analysis="skills-search-combined" style="display: none;">' +
+            '<div class="skills-search-panel">' +
+                '<div class="skills-search-panel-header">' +
+                    '<div class="skills-search-summary-line"></div>' +
+                    '<button class="skills-search-toggle" type="button" aria-expanded="true">&#9650;</button>' +
+                    '<button class="skills-search-select-all" type="button">Выбрать все</button>' +
+                    '<button class="skills-search-reset-skills" type="button">Сбросить навыки</button>' +
+                    '<div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="or">Логика</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown skills-search-sort-inline" data-filter="sort">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="count">Сортировка</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="status">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="country">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<button class="skills-search-clear" type="button">&#10005;</button>' +
+                '</div>' +
+                '<div class="skills-search-buttons"></div>' +
+            '</div>' +
+            '<div class="skills-search-results">' +
+                '<div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div>' +
+            '</div>' +
+        '</div>'
+    );
+
     var salaryBlock = (
         '<div class="salary-content" data-analysis="salary-combined" style="display: none;" data-salary="">' +
             (salaryMonths.length ? (
@@ -767,13 +868,53 @@ function renderCombinedContainer(container, roleContents) {
         '</div>'
     );
 
+    var employerBlock = (
+        '<div class="employer-analysis-content" data-analysis="employer-analysis-combined" style="display: none;">' +
+            (combinedEmployerRows.length ? (
+                '<div class="employer-topbar">' +
+                    '<div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">' +
+                        '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">За период</button>' +
+                    '</div>' +
+                    '<div class="employer-view-toggle employer-side-toggle">' +
+                        '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                        '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">&#9684;</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="analysis-flex employer-analysis-view" style="justify-content: center; align-items: flex-start;">' +
+                    '<div class="employer-analysis-main">' +
+                        '<div class="table-container employer-analysis-table-container" style="margin: 0 auto;">' +
+                            '<table>' +
+                                '<thead>' +
+                                    '<tr>' +
+                                        '<th>Месяц</th>' +
+                                        '<th>Фактор</th>' +
+                                        '<th>Значение фактора</th>' +
+                                        '<th>Количество</th>' +
+                                        '<th>Средняя зарплата, RUR</th>' +
+                                        '<th>Средняя зарплата, USD</th>' +
+                                        '<th>Средняя зарплата, EUR</th>' +
+                                        '<th>Средняя зарплата, Другая валюта</th>' +
+                                    '</tr>' +
+                                '</thead>' +
+                                '<tbody>' + buildCombinedEmployerRawRowsHtml(combinedEmployerRows) + '</tbody>' +
+                            '</table>' +
+                        '</div>' +
+                        '<div class="plotly-graph employer-analysis-graph" style="display: none;"></div>' +
+                    '</div>' +
+                '</div>'
+            ) : '<p>Нет данных по работодателям</p>') +
+        '</div>'
+    );
+
     container.innerHTML =
         '<h2>' + roleTitle + '</h2>' +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">РђРЅР°Р»РёР· Р°РєС‚РёРІРЅРѕСЃС‚Рё</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">РђРЅР°Р»РёР· РїРѕ РґРЅСЏРј РЅРµРґРµР»Рё</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">РќР°РІС‹РєРё РїРѕ РјРµСЃСЏС†Р°Рј</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Топ-навыки</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-search-combined" onclick="switchAnalysis(event, \'skills-search-combined\')">Поиск по навыкам</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">РђРЅР°Р»РёР· Р·Р°СЂРїР»Р°С‚</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="employer-analysis-combined" onclick="switchAnalysis(event, \'employer-analysis-combined\')">Анализ работодателей</button>' +
         '</div>' +
         '<div class="tabs month-tabs activity-only" style="justify-content: center;">' +
             activityTabs +
@@ -781,7 +922,12 @@ function renderCombinedContainer(container, roleContents) {
         activityBlocks +
         weekdayBlock +
         skillsBlock +
-        salaryBlock;
+        skillsSearchBlock +
+        salaryBlock +
+        employerBlock;
+
+    container._data = container._data || {};
+    container._data.vacancies = combinedVacancies;
 
     var monthBlocks = container.querySelectorAll('.month-content');
     monthBlocks.forEach((block, i) => {
