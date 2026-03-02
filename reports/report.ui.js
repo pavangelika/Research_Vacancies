@@ -1036,6 +1036,7 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
 
     var current = analysisType || activeRole.dataset.activeAnalysis || '';
     var isAllRolesView = activeRole.id === 'role-all';
+    if (isAllRolesView) syncAllRolesPeriodStateFromGlobalFilter(activeRole, current);
 
     panel.querySelectorAll('.global-filter-dropdown[data-filter-key]').forEach(function(wrap) {
         var key = wrap.dataset.filterKey || '';
@@ -1043,9 +1044,8 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
         if (!labelNode) return;
 
         if (key === 'periods' && isAllRolesView) {
-            var periodButtons = getAllRolesPeriodButtons(activeRole);
-            var activeBtn = periodButtons.find(function(btn) { return btn.classList.contains('active'); }) || periodButtons[0];
-            labelNode.textContent = ((activeBtn && activeBtn.textContent) || '').trim() || 'Недоступно';
+            var periodOptions = getGlobalFilterOptions(activeRole, key, current);
+            labelNode.textContent = summarizeGlobalFilterSelection(key, periodOptions, false);
             return;
         }
 
@@ -1070,6 +1070,17 @@ function setSummaryModeActive(isActive) {
         return;
     }
     uiState.all_roles_active = !!isActive;
+}
+function syncAllRolesPeriodStateFromGlobalFilter(activeRole, analysisType) {
+    if (!activeRole || activeRole.id !== 'role-all' || !uiState.all_roles_periods) return;
+    var current = String(analysisType || activeRole.dataset.activeAnalysis || '').replace(/-all$/, '');
+    if (!current) return;
+    var options = getGlobalFilterOptions(activeRole, 'periods', current);
+    var selected = getResolvedGlobalFilterValues('periods', options);
+    if (selected.length !== 1) return;
+    var normalized = normalizeGlobalPeriodValue(selected[0]);
+    if (!normalized) return;
+    uiState.all_roles_periods[current] = normalized === 'summary' ? 'all' : normalized;
 }
 
 function applyGlobalRoleFilter() {
@@ -2029,6 +2040,7 @@ function syncSharedFilterPanel(parentRole, analysisType) {
     body.innerHTML = '';
 
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
+    if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, current);
     body.appendChild(createUnifiedRolesControl(activeRole, current));
     body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
