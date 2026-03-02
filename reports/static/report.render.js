@@ -125,16 +125,16 @@ function renderVacancyDetails(container, withList, withoutList) {
 function renderStatusIcon(status) {
     var raw = status === null || status === undefined ? '' : String(status);
     var normalized = raw.trim().toLowerCase();
-    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('Р°СЂС…РёРІ') !== -1;
-    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('РѕС‚РєСЂС‹') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('Р°РєС‚РёРІ') !== -1;
+    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('\u0430\u0440\u0445\u0438\u0432') !== -1;
+    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('\u043e\u0442\u043a\u0440\u044b') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('\u0430\u043a\u0442\u0438\u0432') !== -1;
 
     if (isArchived) {
-        return '<span class="status-icon status-icon-archived" title="РђСЂС…РёРІРЅР°СЏ" aria-label="РђСЂС…РёРІРЅР°СЏ"></span>';
+        return '<span class="status-icon status-icon-archived" title="\u0410\u0440\u0445\u0438\u0432\u043d\u0430\u044f" aria-label="\u0410\u0440\u0445\u0438\u0432\u043d\u0430\u044f"></span>';
     }
     if (isOpen) {
-        return '<span class="status-icon status-icon-open" title="РћС‚РєСЂС‹С‚Р°СЏ" aria-label="РћС‚РєСЂС‹С‚Р°СЏ"></span>';
+        return '<span class="status-icon status-icon-open" title="\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f" aria-label="\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f"></span>';
     }
-    return '<span class="status-icon" title="' + escapeHtml(raw || 'вЂ”') + '" aria-label="' + escapeHtml(raw || 'вЂ”') + '">' + escapeHtml(raw || 'вЂ”') + '</span>';
+    return '<span class="status-icon" title="' + escapeHtml(raw || '\u2014') + '" aria-label="' + escapeHtml(raw || '\u2014') + '">' + escapeHtml(raw || '\u2014') + '</span>';
 }
 function buildAllRolesSkillsTableHtml(rows) {
     return '<table class="skills-all-table">' +
@@ -352,8 +352,8 @@ function renderAllRolesContainer(container, roleContents) {
                     'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
                     'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                     buildActivityAllTable(rows) +
@@ -382,8 +382,8 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
@@ -414,8 +414,8 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container full-width-table">' +
@@ -443,8 +443,8 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">▦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
@@ -572,8 +572,8 @@ function addSummaryTabs(root) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
-                    '<button class="view-mode-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
+                    '<button class="view-mode-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
             '</div>';
         applySalaryTablesMarkup(expDiv, summaryExp.entries || []);
@@ -610,9 +610,9 @@ function renderCombinedContainer(container, roleContents) {
     var activityBlocks = activityMonths.map((m, i) => (
         '<div id="month-combined-' + (i + 1) + '" class="month-content activity-only" data-entries="" data-month="' + m.month + '">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉ•</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
+                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                 '<div class="table-container">' +
@@ -640,9 +640,9 @@ function renderCombinedContainer(container, roleContents) {
         '<div class="weekday-content" data-analysis="weekday-combined" style="display: none;" data-weekdays="">' +
             (weekdays.length ? (
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉ•</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                     '<div class="table-container">' +
@@ -679,9 +679,9 @@ function renderCombinedContainer(container, roleContents) {
                         m.experiences.map((exp, j) => (
                             '<div id="ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="monthly-skills-exp-content" data-exp="" style="display: none;">' +
                                 '<div class="view-toggle-horizontal">' +
-                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р’РјРµСЃС‚Рµ">вЉ•</button>' +
-                                    '<button class="view-mode-btn table-btn" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
-                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
+                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
                                 '</div>' +
                                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                                     '<div class="table-container">' +
@@ -753,8 +753,8 @@ function renderCombinedContainer(container, roleContents) {
                                         '</div>' +
                                     '</div>' +
                                     '<div class="salary-view-toggle">' +
-                                        '<button class="view-mode-btn active" data-view="table" title="РўР°Р±Р»РёС†Р°">в–¦</button>' +
-                                        '<button class="view-mode-btn" data-view="graph" title="Р“СЂР°С„РёРє">рџ“Љ</button>' +
+                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                                        '<button class="view-mode-btn" data-view="graph" title="График">&#9684;</button>' +
                                     '</div>' +
                                 '</div>' +
                             '</div>'
@@ -963,7 +963,8 @@ function openEmployerModal(data) {
     var name = data.name || 'вЂ”';
     var accredited = String(data.accredited || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
     var trusted = String(data.trusted || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
-    var rating = data.rating ? escapeHtml(String(data.rating)) : 'вЂ”';
+    var rawRating = String(data.rating || '').trim();
+    var rating = rawRating && rawRating.toLowerCase() !== 'unknown' ? escapeHtml(rawRating) : 'нет рейтинга';
     var url = data.url ? escapeHtml(String(data.url)) : '';
 
     var linkHtml = url ? ('<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">Открыть страницу компании</a>') : 'вЂ”';
@@ -986,3 +987,5 @@ function closeEmployerModal() {
     backdrop.style.display = 'none';
     document.body.style.overflow = '';
 }
+
+

@@ -14,7 +14,10 @@
     <script src="report.events.js?v=20260301v5"></script>
 </head>
 <body>
-    <h1>Анализ вакансий на {{ current_date }} {{ current_time }}</h1>
+    <div class="report-header">
+        <h1>Анализ Вакансий</h1>
+        <div class="report-updated-at">Время обновления: {{ current_date }} {{ current_time }}</div>
+    </div>
 
     <!-- Вкладки по ролям -->
     <div id="role-selector" class="role-selector"></div>

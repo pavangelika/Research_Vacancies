@@ -2,9 +2,14 @@
     var i, roleContent;
     roleContent = document.getElementsByClassName("role-content");
     for (i = 0; i < roleContent.length; i++) {
+        roleContent[i].classList.remove('role-switch-enter');
         roleContent[i].style.display = "none";
     }
-    document.getElementById(roleId).style.display = "block";
+    var targetRole = document.getElementById(roleId);
+    targetRole.style.display = "block";
+    targetRole.classList.remove('role-switch-enter');
+    targetRole.offsetWidth;
+    targetRole.classList.add('role-switch-enter');
     evt.currentTarget.className += " active";
 
     var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(roleId)];
@@ -20,9 +25,9 @@
     if (firstButton) firstButton.click();
 }
 
-var VIEW_ICON_TABLE = '▤';
-var VIEW_ICON_GRAPH = '◔';
-var VIEW_ICON_TOGETHER = '◫';
+var VIEW_ICON_TABLE = '\u25A4';
+var VIEW_ICON_GRAPH = '\u25D4';
+var VIEW_ICON_TOGETHER = '\u25EB';
 
 function updateViewToggleIcons(root) {
     if (!root) return;
@@ -292,7 +297,7 @@ function ensureSharedFilterPanel() {
                     menu.style.display = 'none';
                 });
                 document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(arrow) {
-                    arrow.textContent = '▾';
+                    arrow.textContent = '\u25BE';
                 });
             });
             document.body.dataset.globalFilterMenusBound = '1';
@@ -392,7 +397,7 @@ function createAllRolesPeriodControl(activeRole) {
 
     var arrow = document.createElement('span');
     arrow.className = 'summary-filter-trigger-arrow';
-    arrow.textContent = '▾';
+    arrow.textContent = '\u25BE';
     arrow.style.fontSize = '12px';
     arrow.style.opacity = '0.8';
     trigger.appendChild(arrow);
@@ -429,7 +434,7 @@ function createAllRolesPeriodControl(activeRole) {
         item.addEventListener('click', function() {
             sourceBtn.click();
             menu.style.display = 'none';
-            arrow.textContent = '▾';
+            arrow.textContent = '\u25BE';
             syncSharedFilterPanel(getActiveRoleContent(activeRole), activeRole.dataset.activeAnalysis || '');
         });
         menu.appendChild(item);
@@ -440,12 +445,12 @@ function createAllRolesPeriodControl(activeRole) {
             if (other !== menu) other.style.display = 'none';
         });
         document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(otherArrow) {
-            if (otherArrow !== arrow) otherArrow.textContent = '▾';
+            if (otherArrow !== arrow) otherArrow.textContent = '\u25BE';
         });
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         menu.style.display = nextState;
         if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        arrow.textContent = nextState === 'block' ? '▴' : '▾';
+        arrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
     });
 
     wrap.appendChild(menu);
@@ -497,7 +502,7 @@ function createSummaryAnalysisControl(activeRole) {
 
     var triggerArrow = document.createElement('span');
     triggerArrow.className = 'summary-filter-trigger-arrow';
-    triggerArrow.textContent = '▾';
+    triggerArrow.textContent = '\u25BE';
     triggerArrow.style.fontSize = '12px';
     triggerArrow.style.opacity = '0.8';
     trigger.appendChild(triggerArrow);
@@ -535,7 +540,7 @@ function createSummaryAnalysisControl(activeRole) {
         item.addEventListener('click', function() {
             sourceBtn.click();
             menu.style.display = 'none';
-            triggerArrow.textContent = '▾';
+            triggerArrow.textContent = '\u25BE';
             syncSharedFilterPanel(getActiveRoleContent(activeRole), activeRole.dataset.activeAnalysis || '');
         });
         menu.appendChild(item);
@@ -546,12 +551,12 @@ function createSummaryAnalysisControl(activeRole) {
             if (other !== menu) other.style.display = 'none';
         });
         document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(arrow) {
-            if (arrow !== triggerArrow) arrow.textContent = '▾';
+            if (arrow !== triggerArrow) arrow.textContent = '\u25BE';
         });
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         menu.style.display = nextState;
         if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
+        triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
     });
 
     wrap.appendChild(menu);
@@ -894,7 +899,7 @@ function closeGlobalFilterMenus(exceptMenu, exceptArrow) {
         if (other !== exceptMenu) other.style.display = 'none';
     });
     document.querySelectorAll('#global-shared-filter-panel .global-filter-trigger-arrow').forEach(function(arrow) {
-        if (arrow !== exceptArrow) arrow.textContent = '▾';
+        if (arrow !== exceptArrow) arrow.textContent = '\u25BE';
     });
 }
 
@@ -1162,7 +1167,7 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     var chip = document.createElement('div');
     var isExcluded = state === 'exclude';
     chip.className = 'active-role-filter-chip';
-    chip.title = 'ЛКМ: включить, ПКМ: исключить, ×: удалить';
+    chip.title = 'ЛКМ: включить, ПКМ: исключить, ?: удалить';
     chip.style.display = 'inline-flex';
     chip.style.alignItems = 'center';
     chip.style.gap = '6px';
@@ -1173,6 +1178,9 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     chip.style.userSelect = 'none';
     chip.style.background = isExcluded ? '#fee2e2' : '#eef2f6';
     chip.style.color = isExcluded ? '#991b1b' : 'inherit';
+    chip.style.transform = 'translateY(0)';
+    chip.style.boxShadow = 'none';
+    chip.style.transition = 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease';
 
     var label = document.createElement('span');
     label.textContent = labelText;
@@ -1181,7 +1189,7 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
 
     var removeBtn = document.createElement('button');
     removeBtn.type = 'button';
-    removeBtn.textContent = '×';
+    removeBtn.textContent = '\u00D7';
     removeBtn.title = 'Удалить роль из выбранных';
     removeBtn.style.padding = '0';
     removeBtn.style.border = '0';
@@ -1205,6 +1213,14 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
         e.preventDefault();
         if (e.target === removeBtn) return;
         updateGlobalFilterSelection(filterKey, value, 'exclude');
+    });
+    chip.addEventListener('mouseenter', function() {
+        chip.style.transform = 'translateY(-1px)';
+        chip.style.boxShadow = '0 6px 14px rgba(148, 163, 184, 0.14)';
+    });
+    chip.addEventListener('mouseleave', function() {
+        chip.style.transform = 'translateY(0)';
+        chip.style.boxShadow = 'none';
     });
     return chip;
 }
@@ -1253,7 +1269,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 
     var triggerArrow = document.createElement('span');
     triggerArrow.className = 'global-filter-trigger-arrow';
-    triggerArrow.textContent = '▾';
+    triggerArrow.textContent = '\u25BE';
     triggerArrow.style.fontSize = '12px';
     triggerArrow.style.opacity = '0.8';
     trigger.appendChild(triggerArrow);
@@ -1283,7 +1299,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     var allBtn = document.createElement('button');
     allBtn.type = 'button';
     allBtn.className = 'tab-button skills-search-dropdown-item';
-    allBtn.textContent = '✓';
+    allBtn.textContent = '\u2713';
     bindGlobalFilterTooltip(allBtn, 'Выбрать все');
     applyGlobalFilterIconButtonStyle(allBtn, false);
     allBtn.addEventListener('click', function() {
@@ -1295,7 +1311,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     var multiBtn = document.createElement('button');
     multiBtn.type = 'button';
     multiBtn.className = 'tab-button skills-search-dropdown-item';
-    multiBtn.textContent = '⧉';
+    multiBtn.textContent = '\u2611';
     bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
     applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled('roles'));
     multiBtn.addEventListener('click', function() {
@@ -1310,7 +1326,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     var clearExcludedBtn = document.createElement('button');
     clearExcludedBtn.type = 'button';
     clearExcludedBtn.className = 'tab-button skills-search-dropdown-item';
-    clearExcludedBtn.textContent = '⊘';
+    clearExcludedBtn.textContent = '\u2014';
     bindGlobalFilterTooltip(clearExcludedBtn, 'Очистить исключения');
     applyGlobalFilterIconButtonStyle(clearExcludedBtn, false);
     clearExcludedBtn.addEventListener('click', function() {
@@ -1322,7 +1338,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.className = 'tab-button skills-search-dropdown-item';
-    clearBtn.textContent = '✕';
+    clearBtn.textContent = '\u21BA';
     bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
     applyGlobalFilterIconButtonStyle(clearBtn, false);
     clearBtn.addEventListener('click', function() {
@@ -1395,7 +1411,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
         menu.style.display = nextState;
         if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
+        triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
     });
 
     wrap.appendChild(menu);
@@ -1447,7 +1463,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
 
     var triggerArrow = document.createElement('span');
     triggerArrow.className = 'global-filter-trigger-arrow';
-    triggerArrow.textContent = '▾';
+    triggerArrow.textContent = '\u25BE';
     triggerArrow.style.fontSize = '12px';
     triggerArrow.style.opacity = '0.8';
     if (disabled) triggerArrow.style.opacity = '0.35';
@@ -1477,7 +1493,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var allBtn = document.createElement('button');
     allBtn.type = 'button';
     allBtn.className = 'tab-button skills-search-dropdown-item';
-    allBtn.textContent = '✓';
+    allBtn.textContent = '\u2713';
     bindGlobalFilterTooltip(allBtn, 'Выбрать все');
     applyGlobalFilterIconButtonStyle(allBtn, false);
     allBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'all'); });
@@ -1486,7 +1502,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var multiBtn = document.createElement('button');
     multiBtn.type = 'button';
     multiBtn.className = 'tab-button skills-search-dropdown-item';
-    multiBtn.textContent = '⧉';
+    multiBtn.textContent = '\u2611';
     bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
     applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled(filterKey));
     multiBtn.addEventListener('click', function() {
@@ -1501,7 +1517,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         var clearExcludedBtn = document.createElement('button');
         clearExcludedBtn.type = 'button';
         clearExcludedBtn.className = 'tab-button skills-search-dropdown-item';
-        clearExcludedBtn.textContent = '⊘';
+        clearExcludedBtn.textContent = '\u2014';
         bindGlobalFilterTooltip(clearExcludedBtn, 'Очистить исключения');
         applyGlobalFilterIconButtonStyle(clearExcludedBtn, false);
         clearExcludedBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear_excluded'); });
@@ -1511,7 +1527,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.className = 'tab-button skills-search-dropdown-item';
-    clearBtn.textContent = '✕';
+    clearBtn.textContent = '\u21BA';
     bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
     applyGlobalFilterIconButtonStyle(clearBtn, false);
     clearBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear'); });
@@ -1557,6 +1573,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             row.style.padding = '5px 8px';
             row.style.borderRadius = '8px';
             row.style.cursor = 'pointer';
+            row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
             row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
             row.addEventListener('click', function() {
                 var isIncluded = bucket.include.indexOf(option.value) >= 0;
@@ -1574,6 +1591,18 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
             label.style.fontSize = '12px';
             row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
+            row.addEventListener('mouseenter', function() {
+                row.style.transform = 'translateX(4px) translateY(-1px)';
+                row.style.boxShadow = '0 6px 14px rgba(148, 163, 184, 0.12)';
+                if (!isIncludedNow && !isExcludedNow) {
+                    row.style.background = 'rgba(248, 250, 252, 0.98)';
+                }
+            });
+            row.addEventListener('mouseleave', function() {
+                row.style.transform = 'translateX(0) translateY(0)';
+                row.style.boxShadow = 'none';
+                row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
+            });
             row.appendChild(label);
             menu.appendChild(row);
         });
@@ -1595,7 +1624,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
             menu.style.display = nextState;
             if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-            triggerArrow.textContent = nextState === 'block' ? '▴' : '▾';
+            triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
         });
     }
     wrap.appendChild(menu);
@@ -1784,9 +1813,9 @@ function renderGlobalSkillsFiltered(parentRole) {
         expDiv.id = 'ms-exp-global-' + parentRole.id;
         expDiv.innerHTML =
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">▦</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container"></div>' +
@@ -2035,8 +2064,8 @@ function normalizeSalaryControls(parentRole) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal salary-mode-toggle-inline';
         inlineToggle.innerHTML =
-            '<button class="view-mode-btn salary-inline-mode-btn" data-view="table" title="Таблица">▦</button>' +
-            '<button class="view-mode-btn salary-inline-mode-btn" data-view="graph" title="График">📊</button>';
+            '<button class="view-mode-btn salary-inline-mode-btn" data-view="table" title="Таблица">&#9636;</button>' +
+            '<button class="view-mode-btn salary-inline-mode-btn" data-view="graph" title="График">&#9684;</button>';
         controlRow.appendChild(inlineToggle);
     }
 
@@ -2191,19 +2220,23 @@ function buildSalaryTablesHtml(entries) {
         '</tr>';
     }).join('');
     return '<div class="salary-split-tables">' +
-        '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
-            '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
-            '<table class="vacancy-table salary-table">' +
+        '<div class="salary-table-block">' +
+            '<h4 class="salary-table-title">Сводка вакансий по валютам</h4>' +
+            '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
+            '<table class="vacancy-table salary-table salary-summary-table">' +
                 '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
+            '</div>' +
         '</div>' +
-        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
-            '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
-            '<table class="vacancy-table salary-table">' +
+        '<div class="salary-table-block">' +
+            '<h4 class="salary-table-title">Статистика зарплат</h4>' +
+            '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+            '<table class="vacancy-table salary-table salary-stats-table">' +
                 '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                 '<tbody>' + statsRows + '</tbody>' +
             '</table>' +
+            '</div>' +
         '</div>' +
     '</div>';
 }
@@ -2250,8 +2283,8 @@ function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="Таблица">▦</button>' +
-                    '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
             '</div>';
 
@@ -2739,7 +2772,7 @@ function updateSkillsSearchSummaryLine(block) {
         var buttons = items.map(s => (
             '<button class="skills-search-summary-skill ' + mode + '" type="button" data-mode="' + mode + '" data-skill="' + escapeHtml(s) + '">' +
                 '<span class="skills-search-summary-skill-label">' + escapeHtml(s) + '</span>' +
-                '<span class="skills-search-summary-remove" aria-hidden="true">×</span>' +
+                '<span class="skills-search-summary-remove" aria-hidden="true">&times;</span>' +
             '</button>'
         )).join('');
         return '<span class="skills-search-summary-group">' +
@@ -2878,9 +2911,9 @@ function buildActivityBlock(parentRole, blockId, label, entries) {
     block._data = { entries: entries || [], month: label };
     block.innerHTML =
         '<div class="view-toggle-horizontal">' +
-            '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
-            '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-            '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+            '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+            '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+            '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
         '</div>' +
         '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
             '<div class="table-container">' +
@@ -3155,9 +3188,9 @@ function normalizeActivityControls(parentRole) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal activity-mode-toggle-inline';
         inlineToggle.innerHTML =
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">▦</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">📊</button>';
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">&#9707;</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">&#9636;</button>' +
+            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">&#9684;</button>';
         controlRow.appendChild(inlineToggle);
     }
     inlineToggle.classList.add('skills-mode-toggle-inline');
@@ -3277,10 +3310,13 @@ function normalizeSkillsMonthlyControls(parentRole) {
         if (!multiToggle) {
             multiToggle = document.createElement('label');
             multiToggle.className = 'skills-multi-toggle';
-            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"> Мультивыбор';
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"><span class="skills-multi-toggle-label">Мультивыбор</span>';
             expTabs.appendChild(multiToggle);
         } else if (multiToggle.parentElement !== expTabs) {
             expTabs.appendChild(multiToggle);
+        }
+        if (!multiToggle.querySelector('.skills-multi-toggle-label')) {
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"><span class="skills-multi-toggle-label">Мультивыбор</span>';
         }
         var multiInput = multiToggle.querySelector('.skills-multi-toggle-input');
         if (!block.dataset.skillsMultiEnabled) block.dataset.skillsMultiEnabled = '0';
@@ -3323,9 +3359,9 @@ function normalizeSkillsMonthlyControls(parentRole) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal skills-mode-toggle-inline';
         inlineToggle.innerHTML =
-            '<button class="view-mode-btn skills-inline-mode-btn" data-view="together" title="Вместе">⊞</button>' +
-            '<button class="view-mode-btn skills-inline-mode-btn" data-view="table" title="Таблица">▦</button>' +
-            '<button class="view-mode-btn skills-inline-mode-btn" data-view="graph" title="График">📊</button>';
+            '<button class="view-mode-btn skills-inline-mode-btn" data-view="together" title="Вместе">&#9707;</button>' +
+            '<button class="view-mode-btn skills-inline-mode-btn" data-view="table" title="Таблица">&#9636;</button>' +
+            '<button class="view-mode-btn skills-inline-mode-btn" data-view="graph" title="График">&#9684;</button>';
         controlRow.appendChild(inlineToggle);
     }
 
@@ -3500,9 +3536,9 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
 
             expDiv.innerHTML =
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                     '<div class="table-container">' +
@@ -3746,8 +3782,9 @@ function renderEmployerAnalysisChart(block) {
     });
     var borderByCategory = categories.map(function() { return palette.dark; });
 
-    graph.style.width = '100%';
-    graph.style.maxWidth = '100%';
+    graph.style.width = '80vw';
+    graph.style.maxWidth = '80vw';
+    graph.style.margin = '0 auto';
     graph.style.height = 'auto';
     graph.style.display = 'block';
     graph.style.overflow = 'visible';
@@ -3869,6 +3906,7 @@ function normalizeEmployerValueKey(rawValue) {
 }
 
 function getEmployerValueLabel(factorKey, valueKey) {
+    if (valueKey === 'unknown') return 'нет рейтинга';
     if (valueKey === 'true' || valueKey === 'false') return valueKey;
     return valueKey;
 }
@@ -3876,6 +3914,7 @@ function getEmployerValueLabel(factorKey, valueKey) {
 function getEmployerValueHtml(valueKey) {
     if (valueKey === 'true') return '<span class="bool-check bool-true" aria-label="Да"></span>';
     if (valueKey === 'false') return '<span class="bool-check bool-false" aria-label="Нет"></span>';
+    if (valueKey === 'unknown') return 'нет рейтинга';
     return valueKey;
 }
 
@@ -4061,7 +4100,8 @@ function initEmployerAnalysisFilter(block) {
     if (!tableContainer) return;
     tableContainer.classList.add('employer-analysis-table-container');
     tableContainer.style.margin = '0 auto';
-    tableContainer.style.width = 'auto';
+    tableContainer.style.width = '80%';
+    tableContainer.style.maxWidth = '80%';
 
     var analysisView = block.querySelector('.employer-analysis-view');
     if (!analysisView) {
@@ -4083,8 +4123,8 @@ function initEmployerAnalysisFilter(block) {
     if (!viewToggle) {
         viewToggle = document.createElement('div');
         viewToggle.className = 'employer-view-toggle employer-side-toggle';
-        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">▦</button>' +
-            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">📊</button>';
+        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">&#9636;</button>' +
+            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">&#9684;</button>';
     }
 
     var graph = block.querySelector('.employer-analysis-graph');
@@ -4540,9 +4580,9 @@ function openMonthlySkillsExpTab(evt, expId) {
             multiDiv.style.display = 'none';
             multiDiv.innerHTML =
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                     '<div class="table-container"></div>' +
@@ -4814,9 +4854,10 @@ function applySkillsModeSizing(container, mode) {
             table.style.setProperty('min-width', '900px', 'important');
         } else if (mode === 'graph') {
             container.style.overflowX = 'auto';
-            graph.style.setProperty('width', '100%', 'important');
-            graph.style.setProperty('max-width', 'none', 'important');
-            graph.style.setProperty('min-width', '980px', 'important');
+            graph.style.setProperty('width', '80vw', 'important');
+            graph.style.setProperty('max-width', '80vw', 'important');
+            graph.style.setProperty('min-width', '0', 'important');
+            graph.style.margin = '0 auto';
         }
     }
 
@@ -4827,9 +4868,9 @@ function applySkillsModeSizing(container, mode) {
             table.style.maxWidth = 'min(100%, 980px)';
             table.style.margin = '0 auto';
         } else if (mode === 'graph') {
-            graph.style.flex = '0 1 min(100%, 1180px)';
-            graph.style.width = 'min(100%, 1180px)';
-            graph.style.maxWidth = 'min(100%, 1180px)';
+            graph.style.flex = '0 1 80vw';
+            graph.style.width = '80vw';
+            graph.style.maxWidth = '80vw';
             graph.style.margin = '0 auto';
         } else {
             table.style.flex = '0 1 40%';
@@ -4895,9 +4936,10 @@ function applyActivityModeSizing(container, mode) {
             table.style.setProperty('min-width', '900px', 'important');
         } else if (mode === 'graph') {
             container.style.overflowX = 'auto';
-            graph.style.setProperty('width', '100%', 'important');
-            graph.style.setProperty('max-width', 'none', 'important');
-            graph.style.setProperty('min-width', '980px', 'important');
+            graph.style.setProperty('width', '80vw', 'important');
+            graph.style.setProperty('max-width', '80vw', 'important');
+            graph.style.setProperty('min-width', '0', 'important');
+            graph.style.margin = '0 auto';
         }
     }
 
@@ -4911,9 +4953,9 @@ function applyActivityModeSizing(container, mode) {
         table.style.margin = '0 auto';
     } else if (mode === 'graph') {
         container.style.alignItems = 'center';
-        graph.style.flex = '0 1 min(100%, 1180px)';
-        graph.style.width = 'min(100%, 1180px)';
-        graph.style.maxWidth = 'min(100%, 1180px)';
+        graph.style.flex = '0 1 80vw';
+        graph.style.width = '80vw';
+        graph.style.maxWidth = '80vw';
         graph.style.margin = '0 auto';
         requestAnimationFrame(function() {
             var gh = Math.round(graph.getBoundingClientRect().height || 0);
@@ -4982,9 +5024,10 @@ function applyWeekdayModeSizing(container, mode) {
             table.style.setProperty('min-width', '900px', 'important');
         } else if (mode === 'graph') {
             container.style.overflowX = 'auto';
-            graph.style.setProperty('width', '100%', 'important');
-            graph.style.setProperty('max-width', 'none', 'important');
-            graph.style.setProperty('min-width', '980px', 'important');
+            graph.style.setProperty('width', '80vw', 'important');
+            graph.style.setProperty('max-width', '80vw', 'important');
+            graph.style.setProperty('min-width', '0', 'important');
+            graph.style.margin = '0 auto';
         }
     }
 
@@ -4999,9 +5042,9 @@ function applyWeekdayModeSizing(container, mode) {
         table.style.margin = '0 auto';
     } else if (mode === 'graph') {
         container.style.alignItems = 'center';
-        graph.style.flex = '0 1 min(100%, 1180px)';
-        graph.style.width = 'min(100%, 1180px)';
-        graph.style.maxWidth = 'min(100%, 1180px)';
+        graph.style.flex = '0 1 80vw';
+        graph.style.width = '80vw';
+        graph.style.maxWidth = '80vw';
         graph.style.margin = '0 auto';
         syncContainerToGraphHeight(container, graph);
     } else {
@@ -5046,11 +5089,11 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
     if (!container) return;
     var list = Array.isArray(entries) ? entries : [];
     var metricDefs = [
-        { key: 'avg_salary', label: 'AVG' },
-        { key: 'median_salary', label: 'MED' },
-        { key: 'mode_salary', label: 'MODE' },
-        { key: 'min_salary', label: 'MIN' },
-        { key: 'max_salary', label: 'MAX' }
+        { key: 'avg_salary', label: 'Средняя' },
+        { key: 'median_salary', label: 'Медиана' },
+        { key: 'mode_salary', label: 'Мода' },
+        { key: 'min_salary', label: 'Минимум' },
+        { key: 'max_salary', label: 'Максимум' }
     ];
     var preferredCurrencies = ['RUR', 'USD', 'EUR', '%USD'];
     var currencies = [];
@@ -5078,8 +5121,8 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
     if (statuses.length > 2) statuses = statuses.slice(0, 2);
     var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
     var chartHeight = viewportWidth <= 720
-        ? Math.max(220, Math.min(300, Math.round(viewportWidth * 0.58)))
-        : (viewportWidth <= 960 ? 280 : 300);
+        ? Math.max(300, Math.min(360, Math.round(viewportWidth * 0.76)))
+        : (viewportWidth <= 960 ? 340 : 380);
 
     var signature = list.map(function(entry) {
         return [
@@ -5124,13 +5167,20 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
             };
         });
 
-        var title = 'Salary · ' + currency;
+        var title = 'Зарплаты · ' + currency;
         if (contextLabel) title += ' · ' + contextLabel;
         var layout = {
             title: title,
-            xaxis: { title: 'Metrics' },
-            yaxis: { title: 'Value' },
-            margin: { t: 56, b: 60, l: 50, r: 20 },
+            xaxis: {
+                title: '',
+                tickangle: -18,
+                automargin: true
+            },
+            yaxis: {
+                title: 'Значение',
+                automargin: true
+            },
+            margin: { t: 64, b: 96, l: 64, r: 24 },
             height: chartHeight,
             barmode: 'group',
             showlegend: currencyIdx === 0,
@@ -5155,6 +5205,7 @@ function applySalaryViewMode(expDiv, entries) {
     mainContent.style.flexDirection = 'row';
     mainContent.style.flexWrap = 'wrap';
     mainContent.style.overflowX = '';
+    mainContent.style.minHeight = '';
     tableContainer.style.display = 'block';
     graphContainer.style.display = 'block';
     tableContainer.style.flex = '';
@@ -5176,33 +5227,40 @@ function applySalaryViewMode(expDiv, entries) {
 
     if (mode === 'table') {
         graphContainer.style.display = 'none';
-        if (compact) {
-            mainContent.style.overflowX = 'auto';
-            tableContainer.style.setProperty('width', '100%', 'important');
-            tableContainer.style.setProperty('max-width', 'none', 'important');
-            tableContainer.style.setProperty('min-width', '1120px', 'important');
-        } else {
-            tableContainer.style.width = 'min(100%, 1280px)';
-            tableContainer.style.maxWidth = 'min(100%, 1280px)';
-        }
+        tableContainer.style.setProperty('width', '100%', 'important');
+        tableContainer.style.setProperty('max-width', '100%', 'important');
+        tableContainer.style.setProperty('min-width', '0', 'important');
         tableContainer.style.margin = '0 auto';
     } else if (mode === 'graph') {
         tableContainer.style.display = 'none';
-        if (compact) {
-            mainContent.style.overflowX = 'auto';
-            graphContainer.style.setProperty('width', '100%', 'important');
-            graphContainer.style.setProperty('max-width', 'none', 'important');
-            graphContainer.style.setProperty('min-width', '1180px', 'important');
-        } else {
-            graphContainer.style.width = 'min(100%, 1320px)';
-            graphContainer.style.maxWidth = 'min(100%, 1320px)';
-        }
+        mainContent.style.overflowX = 'visible';
+        graphContainer.style.setProperty('width', '100%', 'important');
+        graphContainer.style.setProperty('max-width', '100%', 'important');
+        graphContainer.style.setProperty('min-width', '0', 'important');
+        graphContainer.style.flex = '1 1 100%';
         graphContainer.style.margin = '0 auto';
         renderSalaryChartsFromEntries(graphId, entries, expDiv.dataset.chartContext || '');
+        requestAnimationFrame(function() {
+            var graphHeight = Math.max(
+                Math.round(graphContainer.getBoundingClientRect().height || 0),
+                Math.round(graphContainer.scrollHeight || 0)
+            );
+            if (graphHeight > 0) mainContent.style.minHeight = graphHeight + 'px';
+        });
     } else {
         graphContainer.style.display = 'none';
-        tableContainer.style.width = compact ? '100%' : 'min(100%, 1120px)';
-        tableContainer.style.maxWidth = compact ? '100%' : 'min(100%, 1120px)';
+        tableContainer.style.width = '100%';
+        tableContainer.style.maxWidth = '100%';
         tableContainer.style.margin = '0 auto';
     }
 }
+
+
+
+
+
+
+
+
+
+

@@ -60,6 +60,27 @@ h1 {
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-light);
 }
+.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.report-header h1 {
+    margin: 0;
+    flex: 1 1 auto;
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+.report-updated-at {
+    flex: 0 0 auto;
+    padding-top: 3px;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    text-align: right;
+    white-space: nowrap;
+}
 
 /* Вкладки */
 .tabs {
@@ -145,6 +166,29 @@ h1 {
     animation: fadeIn 0.2s;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.role-switch-enter {
+    animation: roleSwitchIn 0.3s ease;
+    transform-origin: top center;
+}
+@keyframes roleSwitchIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.992);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+#role-selector .tab-button {
+    transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+#role-selector .tab-button:hover {
+    transform: translateY(-1px);
+}
+#role-selector .tab-button.active {
+    transform: translateY(-1px);
+}
 .role-content h2 { font-size: 1.5rem; font-weight: 400; margin-top: 0; margin-bottom: 12px; }
 .role-period-label {
     margin: -6px 0 12px;
@@ -570,12 +614,19 @@ tr:hover { background-color: #f0f4f9; }
 }
 .salary-graphs-3 {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
     width: 100%;
 }
 .salary-graphs-3 .plotly-graph {
-    height: 300px;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    height: 380px;
+}
+.salary-graph-container {
+    width: 100%;
+    max-width: 100%;
 }
 .salary-view-toggle {
     display: flex;
@@ -703,9 +754,9 @@ tr:hover { background-color: #f0f4f9; }
     min-width: 0;
 }
 .all-roles-period-content .analysis-flex:has(.table-container[style*="display: none"]) .all-roles-graph {
-    flex: 1 1 100%;
-    max-width: 100%;
-    width: 100%;
+    flex: 0 1 80vw;
+    max-width: 80vw;
+    width: 80vw;
 }
 .all-roles-role-filter {
     display: flex;
@@ -986,13 +1037,76 @@ tr:hover { background-color: #f0f4f9; }
     margin: 4px 0 8px;
 }
 .skills-multi-toggle {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
     margin-right: 10px;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
     white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+.skills-multi-toggle-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+}
+.skills-multi-toggle-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px 0 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.2;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.skills-multi-toggle-label::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 24px;
+    height: 14px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.25);
+    transform: translateY(-50%);
+    transition: background 0.18s ease;
+}
+.skills-multi-toggle-label::after {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+    transform: translateY(-50%);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.skills-multi-toggle:hover .skills-multi-toggle-label {
+    transform: translateY(-1px);
+    color: var(--text-primary);
+    border-color: rgba(148, 163, 184, 0.22);
+    background: rgba(248, 250, 252, 0.98);
+}
+.skills-multi-toggle-input:checked + .skills-multi-toggle-label::before {
+    background: #34c759;
+}
+.skills-multi-toggle-input:checked + .skills-multi-toggle-label::after {
+    transform: translate(10px, -50%);
+}
+.skills-multi-toggle-input:focus-visible + .skills-multi-toggle-label {
+    outline: 2px solid rgba(52, 199, 89, 0.14);
+    outline-offset: 2px;
 }
 .skills-monthly-content .monthly-skills-exp-content .view-toggle-horizontal {
     display: none;
@@ -1044,7 +1158,8 @@ tr:hover { background-color: #f0f4f9; }
 .employer-analysis-table-container {
     margin-left: auto;
     margin-right: auto;
-    max-width: 100%;
+    width: 80%;
+    max-width: 80%;
 }
 .employer-analysis-table-container table {
     margin-left: auto;
@@ -1292,10 +1407,11 @@ tr:hover { background-color: #f0f4f9; }
     user-select: none;
 }
 .skills-search-bool-option span {
+    position: relative;
     display: inline-flex;
     align-items: center;
     min-height: 32px;
-    padding: 0 12px;
+    padding: 0 12px 0 44px;
     border-radius: 999px;
     border: 1px solid rgba(148, 163, 184, 0.14);
     background: rgba(255, 255, 255, 0.96);
@@ -1322,23 +1438,36 @@ tr:hover { background-color: #f0f4f9; }
     color: var(--text-secondary);
     box-shadow: none;
 }
-.skills-search-bool-option .skills-search-bool-checkbox:checked + span::before {
+.skills-search-bool-option span::before {
     content: "";
-    width: 8px;
-    height: 8px;
-    margin-right: 8px;
-    border-radius: 50%;
-    background: #22c55e;
-    box-shadow: 0 0 0 2px rgba(187, 247, 208, 0.16);
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 24px;
+    height: 14px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.25);
+    transform: translateY(-50%);
+    transition: background 0.18s ease;
 }
-.skills-search-bool-option .skills-search-bool-checkbox:not(:checked) + span::before {
+.skills-search-bool-option span::after {
     content: "";
-    width: 8px;
-    height: 8px;
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
-    margin-right: 8px;
-    background: rgba(148, 163, 184, 0.55);
-    box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.08);
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+    transform: translateY(-50%);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.skills-search-bool-option .skills-search-bool-checkbox:checked + span::before {
+    background: #34c759;
+}
+.skills-search-bool-option .skills-search-bool-checkbox:checked + span::after {
+    transform: translate(10px, -50%);
 }
 .skills-search-bool-checkbox {
     position: absolute;
@@ -1511,15 +1640,79 @@ tr:hover { background-color: #f0f4f9; }
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.96);
 }
-.salary-table-container .vacancy-table {
+.salary-table-container .salary-table-block {
     width: 100%;
-    table-layout: fixed;
+}
+.salary-table-container .salary-table-title {
+    margin: 0 0 8px;
+    padding: 0 2px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #475569;
+}
+.salary-table-container .vacancy-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
     border: 0 !important;
     border-radius: 0;
     border-collapse: separate;
     border-spacing: 0;
     background: transparent;
     box-shadow: none !important;
+}
+.salary-table-container .salary-summary-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+}
+.salary-table-container .salary-stats-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+}
+.salary-table-container .salary-summary-table th,
+.salary-table-container .salary-summary-table td,
+.salary-table-container .salary-stats-table th,
+.salary-table-container .salary-stats-table td {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+.salary-table-container .salary-stats-table th:first-child,
+.salary-table-container .salary-stats-table td:first-child {
+    width: 48px;
+    min-width: 48px;
+    text-align: center;
+}
+.salary-table-container .salary-stats-table th:nth-child(2),
+.salary-table-container .salary-stats-table td:nth-child(2) {
+    min-width: 72px;
+}
+.salary-table-container .salary-stats-table th:nth-child(3),
+.salary-table-container .salary-stats-table td:nth-child(3),
+.salary-table-container .salary-stats-table th:nth-child(4),
+.salary-table-container .salary-stats-table td:nth-child(4),
+.salary-table-container .salary-stats-table th:nth-child(5),
+.salary-table-container .salary-stats-table td:nth-child(5),
+.salary-table-container .salary-stats-table th:nth-child(6),
+.salary-table-container .salary-stats-table td:nth-child(6),
+.salary-table-container .salary-stats-table th:nth-child(7),
+.salary-table-container .salary-stats-table td:nth-child(7),
+.salary-table-container .salary-stats-table th:nth-child(8),
+.salary-table-container .salary-stats-table td:nth-child(8) {
+    min-width: 88px;
+    text-align: center;
+}
+.salary-table-container .salary-summary-table th,
+.salary-table-container .salary-summary-table td {
+    text-align: center;
+}
+.salary-table-container .salary-stats-table th:last-child,
+.salary-table-container .salary-stats-table td:last-child {
+    white-space: normal;
+    width: 42%;
+    min-width: 360px;
 }
 .salary-table-container .vacancy-table th,
 .salary-table-container .vacancy-table td {
@@ -1594,9 +1787,13 @@ tr:hover { background-color: #f0f4f9; }
     border-radius: 8px;
     cursor: pointer;
     color: var(--text-primary);
+    transform: translateX(0);
+    transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 .skills-search-dropdown-item:hover {
     background: rgba(241, 245, 249, 0.95);
+    transform: translateX(4px) translateY(-1px);
+    box-shadow: 0 6px 14px rgba(148, 163, 184, 0.12);
 }
 .skills-search-dropdown-item.active {
     background: rgba(240, 253, 244, 0.96);
@@ -1719,30 +1916,31 @@ body {
 .status-icon.status-icon-archived {
     display: inline-block;
     position: relative;
-    width: 18px;
-    height: 18px;
-    min-width: 18px;
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
     border-radius: 999px;
     font-size: 0;
     color: transparent;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 .status-icon.status-icon-open {
-    background: rgba(52, 199, 89, 0.16);
-    border: 1px solid rgba(52, 199, 89, 0.28);
+    background: rgba(52, 199, 89, 0.12);
+    border: 1px solid rgba(52, 199, 89, 0.22);
 }
 
 .status-icon.status-icon-open::before {
     content: "";
     position: absolute;
-    inset: 4px;
+    inset: 3px;
     border-radius: 999px;
     background: #34c759;
 }
 
 .status-icon.status-icon-archived {
-    background: rgba(100, 116, 139, 0.1);
-    border: 1px solid rgba(100, 116, 139, 0.24);
+    background: rgba(100, 116, 139, 0.06);
+    border: 1px solid rgba(100, 116, 139, 0.18);
 }
 
 .status-icon.status-icon-archived::before {
@@ -1750,7 +1948,8 @@ body {
     position: absolute;
     inset: 3px;
     border-radius: 999px;
-    border: 2px solid #64748b;
+    border: 1.5px solid #64748b;
+    background: rgba(255, 255, 255, 0.8);
 }
 
 .salary-table-container .vacancy-table .status-icon-cell {
@@ -2029,6 +2228,7 @@ tbody tr:hover {
     margin-bottom: 2px !important;
     padding: 7px 10px !important;
     border-radius: 12px !important;
+    transform: translateX(0);
     transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -2036,8 +2236,8 @@ tbody tr:hover {
 .shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .summary-filter-item:hover {
     background: rgba(248, 250, 252, 0.98) !important;
     color: #2c3e50 !important;
-    transform: translateY(-1px);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateX(4px) translateY(-1px) scale(1.01);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 6px 14px rgba(148, 163, 184, 0.12);
 }
 
 .view-mode-btn {
@@ -2211,8 +2411,8 @@ tbody tr:hover {
 
 .analysis-flex:has(.table-container[style*="display: none"]) .plotly-graph,
 .analysis-flex:has(.table-container[style*="display: none"]) .all-roles-graph {
-    max-width: min(100%, 940px);
-    width: min(100%, 940px);
+    max-width: 80vw;
+    width: 80vw;
 }
 
 .view-mode-btn:disabled,
@@ -2293,12 +2493,8 @@ tbody tr:hover {
         height: 320px;
     }
 
-    .salary-graphs-3 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .salary-graphs-3 .plotly-graph {
-        height: 280px;
+        height: 360px;
     }
 
     .shared-filter-panel .global-filter-dropdown,
@@ -2359,6 +2555,17 @@ tbody tr:hover {
 @media (max-width: 720px) {
     h1 {
         font-size: 1.45rem;
+    }
+
+    .report-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    .report-updated-at {
+        text-align: left;
+        white-space: normal;
     }
 
     .role-content {
@@ -2431,6 +2638,6 @@ tbody tr:hover {
     }
 
     .salary-graphs-3 .plotly-graph {
-        height: clamp(220px, 58vw, 300px);
+        height: clamp(300px, 78vw, 380px);
     }
 }
