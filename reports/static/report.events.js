@@ -198,6 +198,7 @@ document.addEventListener('click', function(e) {
     if (sortDd) setSkillsSearchDropdownValue(sortDd, 'count');
     var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, 'or');
+    setSkillsSearchBooleanFilterValues(block, []);
     updateSkillsSearchData(block);
 });
 

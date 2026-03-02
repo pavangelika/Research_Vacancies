@@ -2358,6 +2358,7 @@ function initSkillsSearch(parentRole) {
     block.querySelectorAll('.skills-search-dropdown[data-filter="period"], .skills-search-dropdown[data-filter="exp"]').forEach(function(node) {
         if (node && node.parentElement) node.parentElement.removeChild(node);
     });
+    ensureSkillsSearchBooleanFilters(block);
 
     var statusDropdown = block.querySelector('.skills-search-dropdown[data-filter="status"]');
     if (statusDropdown && !statusDropdown.dataset.ready) {
@@ -2496,6 +2497,81 @@ function getSkillsSearchFilterValue(block, filterName) {
     return btn ? (btn.dataset.value || 'all') : 'all';
 }
 
+function getSkillsSearchBooleanFilterDefs() {
+    return [
+        { key: 'accreditation', label: getEmployerFactorLabel('accreditation') },
+        { key: 'cover_letter_required', label: getEmployerFactorLabel('cover_letter_required') },
+        { key: 'has_test', label: getEmployerFactorLabel('has_test') }
+    ];
+}
+
+function ensureSkillsSearchBooleanFilters(block) {
+    if (!block) return;
+    var header = block.querySelector('.skills-search-panel-header');
+    if (!header) return;
+
+    var wrap = header.querySelector('.skills-search-bool-filters');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'skills-search-bool-filters';
+        var clearBtn = header.querySelector('.skills-search-clear');
+        if (clearBtn) header.insertBefore(wrap, clearBtn);
+        else header.appendChild(wrap);
+    }
+
+    if (!wrap.dataset.ready) {
+        var defs = getSkillsSearchBooleanFilterDefs();
+        wrap.innerHTML =
+            '<span class="skills-search-bool-title">Опции:</span>' +
+            defs.map(function(item) {
+                return '<label class="skills-search-bool-option">' +
+                    '<input class="skills-search-bool-checkbox" type="checkbox" data-factor="' + escapeHtml(item.key) + '">' +
+                    '<span>' + escapeHtml(item.label) + '</span>' +
+                '</label>';
+            }).join('');
+        wrap.dataset.ready = '1';
+    }
+
+    if (!wrap.dataset.bound) {
+        wrap.addEventListener('change', function(e) {
+            var checkbox = e.target && e.target.closest ? e.target.closest('.skills-search-bool-checkbox') : null;
+            if (!checkbox) return;
+            updateSkillsSearchData(block);
+        });
+        wrap.dataset.bound = '1';
+    }
+}
+
+function getSkillsSearchBooleanFilterValues(block) {
+    if (!block) return [];
+    return Array.from(block.querySelectorAll('.skills-search-bool-checkbox:checked'))
+        .map(function(input) { return (input.dataset.factor || '').trim(); })
+        .filter(Boolean);
+}
+
+function setSkillsSearchBooleanFilterValues(block, values) {
+    if (!block) return;
+    var selected = new Set((values || []).map(function(value) {
+        return String(value || '').trim();
+    }).filter(Boolean));
+    block.querySelectorAll('.skills-search-bool-checkbox').forEach(function(input) {
+        input.checked = selected.has((input.dataset.factor || '').trim());
+    });
+}
+
+function getSkillsSearchVacancyBooleanValue(vacancy, factorKey) {
+    if (!vacancy) return false;
+    var rawValue = null;
+    if (factorKey === 'accreditation') rawValue = vacancy.employer_accredited;
+    else if (factorKey === 'cover_letter_required') rawValue = vacancy.response_letter_required !== undefined ? vacancy.response_letter_required : vacancy.cover_letter_required;
+    else if (factorKey === 'has_test') rawValue = vacancy.has_test;
+
+    if (typeof rawValue === 'boolean') return rawValue;
+    if (typeof rawValue === 'number') return rawValue > 0;
+    var text = String(rawValue || '').trim().toLowerCase();
+    return text === 'true' || text === '1' || text === 'да' || text === 'yes';
+}
+
 function updateSkillsSearchData(block) {
     if (!block || !block._data) return;
     var parentRole = block.closest('.role-content');
@@ -2522,6 +2598,7 @@ function updateSkillsSearchData(block) {
         }
     }
     var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
+    var selectedBooleanFactors = getSkillsSearchBooleanFilterValues(block);
 
     var filteredBase = baseVacancies.filter(v => {
         if (!v) return false;
@@ -2530,6 +2607,11 @@ function updateSkillsSearchData(block) {
         if (allowedGlobal.length && allowedGlobal.indexOf(vExpGlobal) < 0) return false;
         if (globalExpOptions.length && selectedExps.length && allowedGlobal.length === 0) {
             return false;
+        }
+        if (selectedBooleanFactors.length) {
+            for (var i = 0; i < selectedBooleanFactors.length; i += 1) {
+                if (!getSkillsSearchVacancyBooleanValue(v, selectedBooleanFactors[i])) return false;
+            }
         }
         if (statusVal !== 'all') {
             var status = v._status || (v.archived_at ? '????????' : '????????');
@@ -2676,6 +2758,7 @@ function saveSkillsSearchState(block) {
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
         sort: getSkillsSearchFilterValue(block, 'sort') || 'count',
         logic: getSkillsSearchFilterValue(block, 'logic') || 'or',
+        employerFlags: getSkillsSearchBooleanFilterValues(block),
         includeSkills: Array.from(block.querySelectorAll('.skills-search-skill.active')).map(b => b.dataset.skill || b.textContent.trim()),
         excludeSkills: Array.from(block.querySelectorAll('.skills-search-skill.excluded')).map(b => b.dataset.skill || b.textContent.trim()),
         collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
@@ -2698,6 +2781,7 @@ function applySkillsSearchState(block, state) {
     }
     if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
+    setSkillsSearchBooleanFilterValues(block, state.employerFlags || []);
 
     if (state.collapsed) {
         var panel = block.querySelector('.skills-search-panel');

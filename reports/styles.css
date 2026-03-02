@@ -1187,34 +1187,40 @@ tr:hover { background-color: #f0f4f9; }
     color: var(--text-secondary);
 }
 .skills-search-summary-skill {
-    border: 1px solid var(--border-light);
-    background: var(--surface-variant);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.96);
     border-radius: 999px;
-    padding: 2px 8px;
+    padding: 3px 10px;
     font-size: 0.72rem;
     line-height: 1.2;
-    color: var(--text-primary);
+    color: #334155;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    box-shadow: none;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 .skills-search-summary-skill.include {
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: rgba(34, 197, 94, 0.22);
+    background: rgba(240, 253, 244, 0.96);
+    color: #15803d;
 }
 .skills-search-summary-skill.exclude {
-    background: #fce8e8;
-    border-color: #e08a8a;
-    color: #8c2f2f;
+    border-color: rgba(239, 68, 68, 0.2);
+    background: rgba(254, 242, 242, 0.96);
+    color: #b91c1c;
 }
 .skills-search-summary-skill:hover {
-    background: var(--tab-hover-bg);
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(248, 250, 252, 0.98);
+    box-shadow: none;
+    transform: none;
 }
 .skills-search-summary-remove {
     font-size: 0.75rem;
-    opacity: 0.7;
+    opacity: 0.55;
+    color: #64748b;
 }
 .skills-search-summary-line {
     margin-left: 8px;
@@ -1225,7 +1231,7 @@ tr:hover { background-color: #f0f4f9; }
     text-align: right;
 }
 .skills-search-panel.collapsed .skills-search-summary-line {
-    display: block;
+    display: flex;
 }
 .skills-search-logic-inline {
     align-self: center;
@@ -1238,12 +1244,13 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-reset-skills,
 .skills-search-clear,
 .skills-search-dropdown-btn {
-    background: var(--surface-variant);
-    border: 1px solid var(--border-light);
-    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: #475569;
     border-radius: 999px;
     cursor: pointer;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    box-shadow: none;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 .skills-search-toggle {
     width: 30px;
@@ -1258,8 +1265,93 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-reset-skills:hover,
 .skills-search-clear:hover,
 .skills-search-dropdown-btn:hover {
-    background: var(--tab-hover-bg);
+    background: rgba(248, 250, 252, 0.98);
+    border-color: rgba(148, 163, 184, 0.34);
     color: var(--text-primary);
+    box-shadow: none;
+    transform: none;
+}
+.skills-search-toggle:active,
+.skills-search-select-all:active,
+.skills-search-reset-skills:active,
+.skills-search-clear:active,
+.skills-search-dropdown-btn:active {
+    transform: none;
+    box-shadow: none;
+}
+.skills-search-bool-filters {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    padding: 0;
+}
+.skills-search-bool-title {
+    display: none;
+}
+.skills-search-bool-option {
+    position: relative;
+    display: inline-block;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}
+.skills-search-bool-option span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: none;
+    font-size: 0.78rem;
+    line-height: 1.2;
+    color: var(--text-secondary);
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.skills-search-bool-option:hover span {
+    border-color: rgba(148, 163, 184, 0.32);
+    color: var(--text-primary);
+    background: rgba(248, 250, 252, 0.98);
+    transform: none;
+    box-shadow: none;
+}
+.skills-search-bool-option .skills-search-bool-checkbox:focus-visible + span {
+    outline: 2px solid rgba(134, 239, 172, 0.2);
+    outline-offset: 2px;
+}
+.skills-search-bool-option .skills-search-bool-checkbox:checked + span {
+    border-color: rgba(148, 163, 184, 0.2);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+.skills-search-bool-option .skills-search-bool-checkbox:checked + span::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(187, 247, 208, 0.16);
+}
+.skills-search-bool-option .skills-search-bool-checkbox:not(:checked) + span::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background: rgba(148, 163, 184, 0.55);
+    box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.08);
+}
+.skills-search-bool-checkbox {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    margin: 0;
 }
 .skills-search-filters {
     display: flex;
@@ -1288,6 +1380,7 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-select-all,
 .skills-search-reset-skills {
     padding: 6px 12px;
+    font-weight: 500;
 }
 .skills-search-buttons {
     display: flex;
@@ -1295,32 +1388,40 @@ tr:hover { background-color: #f0f4f9; }
     gap: 8px;
 }
 .skills-search-skill {
-    border: 1px solid var(--border-light);
-    background: var(--surface-variant);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.96);
     border-radius: 999px;
     padding: 6px 12px;
     font-size: 0.85rem;
-    color: var(--text-primary);
+    color: #334155;
     cursor: pointer;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: none;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 .skills-search-skill:hover {
-    background: var(--tab-hover-bg);
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(248, 250, 252, 0.98);
+    box-shadow: none;
+    transform: none;
 }
 .skills-search-skill.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #ffffff;
+    background: rgba(240, 253, 244, 0.96);
+    border-color: rgba(34, 197, 94, 0.22);
+    color: #15803d;
+    box-shadow: none;
 }
 .skills-search-skill.excluded {
-    background: #fce8e8;
-    border-color: #e08a8a;
-    color: #8c2f2f;
+    background: rgba(254, 242, 242, 0.96);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #b91c1c;
+    box-shadow: none;
 }
 .skills-search-count {
     margin-left: 6px;
     font-size: 0.75rem;
-    opacity: 0.8;
+    opacity: 0.7;
 }
 .skills-search-hint,
 .skills-search-empty {
@@ -1331,6 +1432,53 @@ tr:hover { background-color: #f0f4f9; }
     margin-bottom: 8px;
     font-weight: 600;
     color: var(--text-primary);
+}
+.skills-search-results .vacancy-table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+.skills-search-results .vacancy-table {
+    width: 100%;
+    table-layout: fixed;
+}
+.skills-search-results .vacancy-table th,
+.skills-search-results .vacancy-table td {
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    vertical-align: top;
+    text-align: left;
+}
+.skills-search-results .vacancy-table th,
+.skills-search-results .vacancy-table td {
+    font-size: 0.78rem;
+}
+.skills-search-results .vacancy-table th:nth-child(1),
+.skills-search-results .vacancy-table td:nth-child(1),
+.skills-search-results .vacancy-table th:last-child,
+.skills-search-results .vacancy-table td:last-child {
+    width: 72px;
+}
+.skills-search-results .vacancy-table th:nth-child(5),
+.skills-search-results .vacancy-table td:nth-child(5),
+.skills-search-results .vacancy-table th:nth-child(6),
+.skills-search-results .vacancy-table td:nth-child(6),
+.skills-search-results .vacancy-table th:nth-child(7),
+.skills-search-results .vacancy-table td:nth-child(7) {
+    width: 84px;
+}
+.skills-search-results .vacancy-table th:nth-child(1),
+.skills-search-results .vacancy-table td:nth-child(1),
+.skills-search-results .vacancy-table th:nth-child(5),
+.skills-search-results .vacancy-table td:nth-child(5),
+.skills-search-results .vacancy-table th:nth-child(6),
+.skills-search-results .vacancy-table td:nth-child(6),
+.skills-search-results .vacancy-table th:nth-child(7),
+.skills-search-results .vacancy-table td:nth-child(7),
+.skills-search-results .vacancy-table th:last-child,
+.skills-search-results .vacancy-table td:last-child {
+    text-align: center;
 }
 .skills-search-filter-bar {
     display: flex;
@@ -1345,6 +1493,7 @@ tr:hover { background-color: #f0f4f9; }
     padding: 6px 12px;
     font-size: 0.85rem;
     white-space: nowrap;
+    font-weight: 500;
 }
 .skills-search-dropdown-menu {
     position: absolute;
@@ -1353,13 +1502,14 @@ tr:hover { background-color: #f0f4f9; }
     min-width: 220px;
     max-height: 260px;
     overflow: auto;
-    background: var(--surface);
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    box-shadow: var(--shadow-medium);
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
     padding: 6px;
     display: none;
     z-index: 10;
+    backdrop-filter: blur(14px);
 }
 .skills-search-dropdown.open .skills-search-dropdown-menu {
     display: flex;
@@ -1376,10 +1526,11 @@ tr:hover { background-color: #f0f4f9; }
     color: var(--text-primary);
 }
 .skills-search-dropdown-item:hover {
-    background: var(--tab-hover-bg);
+    background: rgba(241, 245, 249, 0.95);
 }
 .skills-search-dropdown-item.active {
-    background: var(--surface-variant);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.14), rgba(37, 99, 235, 0.08));
+    color: #1d4ed8;
     font-weight: 600;
 }
 
@@ -1867,6 +2018,25 @@ tbody tr:hover {
 
     .skills-search-dropdown {
         width: 100%;
+    }
+
+    .skills-search-bool-filters {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 0;
+    }
+
+    .skills-search-bool-title {
+        display: none;
+    }
+
+    .skills-search-bool-option {
+        width: 100%;
+    }
+
+    .skills-search-bool-option span {
+        width: 100%;
+        justify-content: flex-start;
     }
 
     .skills-search-dropdown-btn {
