@@ -332,6 +332,20 @@ document.addEventListener('click', function(e) {
         return;
     }
 
+    if (analysisType === 'skills-monthly' && container.classList.contains('monthly-skills-exp-content')) {
+        var skillsExpData = (container._data && container._data.exp) ? container._data.exp : parseJsonDataset(container, 'exp', {});
+        var skillsViewContainer = container.querySelector('.view-mode-container');
+        applyViewMode(skillsViewContainer, mode);
+        if (mode !== 'table') {
+            var skillsGraph = container.querySelector('.plotly-graph');
+            if (skillsGraph) {
+                buildHorizontalBarChart(skillsGraph.id, skillsExpData.skills || [], skillsExpData.experience || '');
+                resizePlotlyScope(skillsGraph);
+            }
+        }
+        return;
+    }
+
     if (container.dataset.analysis === 'activity-all') {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
@@ -361,7 +375,10 @@ document.addEventListener('click', function(e) {
         if (mode !== 'table') {
             var rows = parseJsonDataset(container, 'entries', []);
             var graphId = container.dataset.graphId;
-            if (graphId) buildAllRolesSkillsChart(rows, graphId);
+            if (graphId) {
+                buildAllRolesSkillsChart(rows, graphId);
+                resizePlotlyScope(document.getElementById(graphId));
+            }
         }
         return;
     }

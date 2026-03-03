@@ -42,7 +42,7 @@ function buildActivityBarChart(graphId, entries) {
         title: 'Количество вакансий по опыту',
         margin: { t: 50, b: 80, l: 50, r: 120 },
         height: 340,
-        legend: { x: 1, y: 1, xanchor: 'left' }
+        showlegend: false
     };
     plotIfChangedById(graphId, signature, [traceActive, traceArchived], layout);
 }
@@ -77,7 +77,7 @@ function buildWeekdayBarChart(roleId, weekdayBlock) {
         title: 'Распределение по дням недели',
         margin: { t: 50, b: 80, l: 50, r: 120 },
         height: 400,
-        legend: { x: 1, y: 1, xanchor: 'left' }
+        showlegend: false
     };
     plotIfChangedById('weekday-graph-' + roleId, signature, [tracePubs, traceArchs], layout);
 }
@@ -108,7 +108,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
         margin: { l: 200, r: 50, t: 50, b: 50 },
         height: 400,
         bargap: 0.15,
-        legend: { x: 1, y: 1, xanchor: 'left' }
+        showlegend: false
     };
     plotIfChangedById(graphId, signature, [trace], layout);
 }
@@ -252,6 +252,15 @@ function buildAllRolesSkillsChart(rows, graphId) {
     var labels = top.map(r => r.skill || '�');
     var vals = top.map(r => r.mention_count || 0);
     var signature = top.map(r => (r.skill || '') + ':' + (r.mention_count || 0)).join('|');
+    var graphEl = document.getElementById(graphId);
+    if (!top.length) {
+        if (graphEl) {
+            graphEl.dataset.plotSignature = signature;
+            graphEl.dataset.plotReady = '';
+            graphEl.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">��� ������ ��� �������</div>';
+        }
+        return;
+    }
     var trace = {
         x: labels,
         y: vals,
@@ -292,6 +301,7 @@ function buildAllRolesSalaryChart(rows, graphId) {
     };
     plotIfChangedById(graphId, signature, [trace], layout);
 }
+
 
 
 

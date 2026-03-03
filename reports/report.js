@@ -202,7 +202,7 @@ function buildActivityBarChart(graphId, entries) {
         title: 'Количество вакансий по опыту',
         margin: { t: 50, b: 80, l: 50, r: 120 },
         height: 340,
-        legend: { x: 1, y: 1, xanchor: 'left' }
+        showlegend: false
     };
     Plotly.newPlot(graphId, [traceActive, traceArchived], layout);
 }
@@ -236,7 +236,7 @@ function buildWeekdayBarChart(roleId, weekdayBlock) {
         title: 'Распределение по дням недели',
         margin: { t: 50, b: 80, l: 50, r: 120 },
         height: 400,
-        legend: { x: 1, y: 1, xanchor: 'left' }
+        showlegend: false
     };
     Plotly.newPlot('weekday-graph-' + roleId, [tracePubs, traceArchs], layout);
 }
@@ -562,7 +562,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
         margin: { l: 200, r: 50, t: 50, b: 50 },
         height: 400,
         bargap: 0.15,
-        legend: { x: 1, y: 1, xanchor: 'left' }
+        showlegend: false
     };
     Plotly.newPlot(graphId, [trace], layout);
 }

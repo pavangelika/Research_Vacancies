@@ -278,20 +278,23 @@ function renderAllRolesContainer(container, roleContents) {
             var vacancies = getRoleFilteredVacancies(roleContent, periodValue);
             vacancies.forEach(function(vacancy) {
                 if (!vacancy || !vacancy.skills) return;
-                if (vacancy.currency !== 'RUR') return;
+                var avg = null;
                 var from = vacancy.salary_from;
                 var to = vacancy.salary_to;
                 if (from === null || from === undefined) from = null;
                 if (to === null || to === undefined) to = null;
-                if (from === null && to === null) return;
-                var a = from !== null ? Number(from) : Number(to);
-                var b = to !== null ? Number(to) : Number(from);
-                if (isNaN(a) || isNaN(b)) return;
-                var avg = (a + b) / 2.0;
+                if (vacancy.currency === 'RUR' && !(from === null && to === null)) {
+                    var a = from !== null ? Number(from) : Number(to);
+                    var b = to !== null ? Number(to) : Number(from);
+                    if (!isNaN(a) && !isNaN(b)) avg = (a + b) / 2.0;
+                }
                 String(vacancy.skills).split(',').map(function(skill) { return normalizeSkillName(skill); }).filter(Boolean).forEach(function(skill) {
-                    var entry = totals.get(skill) || { count: 0, sum: 0 };
+                    var entry = totals.get(skill) || { count: 0, sum: 0, salaryCount: 0 };
                     entry.count += 1;
-                    entry.sum += avg;
+                    if (avg !== null) {
+                        entry.sum += avg;
+                        entry.salaryCount += 1;
+                    }
                     totals.set(skill, entry);
                     var roleKey = skill + '||' + roleName;
                     roleCounts.set(roleKey, (roleCounts.get(roleKey) || 0) + 1);
@@ -301,12 +304,12 @@ function renderAllRolesContainer(container, roleContents) {
 
         var rows = Array.from(totals.entries()).map(function(pair) {
             var skill = pair[0];
-            var entry = pair[1] || { count: 0, sum: 0 };
+            var entry = pair[1] || { count: 0, sum: 0, salaryCount: 0 };
             return {
                 skill: skill,
                 mention_count: entry.count,
-                avg_skill_cost_rur: entry.count ? Math.round((entry.sum / entry.count) * 100) / 100 : 0,
-                median_skill_cost_rur: 0
+                avg_skill_cost_rur: entry.salaryCount ? Math.round((entry.sum / entry.salaryCount) * 100) / 100 : null,
+                median_skill_cost_rur: null
             };
         });
         rows.sort(function(a, b) {

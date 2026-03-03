@@ -1985,16 +1985,35 @@ function renderGlobalSkillsFiltered(parentRole) {
     }
 
     var hostExp = host.querySelector('.monthly-skills-exp-content');
+    if (hostExp && !hostExp.querySelector('.view-mode-container')) {
+        hostExp.innerHTML =
+            '<div class="view-toggle-horizontal">' +
+                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
+            '</div>' +
+            '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
+                '<div class="table-container"></div>' +
+                '<div class="plotly-graph" id="skills-monthly-graph-global-' + parentRole.id + '"></div>' +
+            '</div>';
+    } else if (hostExp && !hostExp.querySelector('.plotly-graph')) {
+        var hostContainer = hostExp.querySelector('.view-mode-container');
+        if (hostContainer) {
+            hostContainer.insertAdjacentHTML('beforeend', '<div class="plotly-graph" id="skills-monthly-graph-global-' + parentRole.id + '"></div>');
+        }
+    }
     var agg = buildSkillsExpDataFromVacancies(vacancies, periodLabel);
     renderSkillsExpContent(hostExp, agg);
     host.style.display = 'block';
-    setActiveViewButton(hostExp.querySelectorAll('.view-mode-btn'), uiState.skills_monthly_view_mode);
+    var skillsMode = uiState.skills_monthly_view_mode || 'together';
+    setActiveViewButton(hostExp.querySelectorAll('.view-mode-btn'), skillsMode);
     var container = hostExp.querySelector('.view-mode-container');
-    applyViewMode(container, uiState.skills_monthly_view_mode);
+    applyViewMode(container, skillsMode);
     var globalSkillsGraphId = 'skills-monthly-graph-global-' + parentRole.id;
-    buildHorizontalBarChart(globalSkillsGraphId, agg.skills || [], agg.experience || periodLabel);
-    applyChartTitleContext(globalSkillsGraphId, 'Топ-15 навыков', buildChartContextLabel(chartPeriodLabel, chartExperienceLabel));
-    applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
+    if (skillsMode !== 'table') {
+        buildHorizontalBarChart(globalSkillsGraphId, agg.skills || [], agg.experience || periodLabel);
+        applyChartTitleContext(globalSkillsGraphId, 'Топ-15 навыков', buildChartContextLabel(chartPeriodLabel, chartExperienceLabel));
+        resizePlotlyScope(document.getElementById(globalSkillsGraphId));
+    }
+    applySkillsModeSizing(container, skillsMode);
 }
 
 function renderGlobalSalaryFiltered(parentRole) {
@@ -4301,7 +4320,7 @@ function initEmployerAnalysisFilter(block) {
     if (!block) return;
     if (block.dataset.employerInited === '1') {
         applyEmployerAnalysisMonthFilter(block, block.dataset.employerActiveMonth || 'all');
-        applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+        applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'together');
         return;
     }
     var tableContainer = block.querySelector('.table-container');
@@ -4395,7 +4414,7 @@ function initEmployerAnalysisFilter(block) {
     }
 
     applyEmployerAnalysisMonthFilter(block, 'all');
-    applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'table');
+    applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'together');
     updateViewToggleIcons(block);
     block.dataset.employerInited = '1';
 }
@@ -4485,7 +4504,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
 }
 
 function restoreAllRolesPeriodState(parentRole, analysisType) {
-    var analysisId = analysisType + '-all';
+    var analysisId = analysisType === 'skills' ? 'skills-monthly-all' : (analysisType + '-all');
     var wrapper = parentRole.querySelector('.all-roles-period-wrapper[data-analysis="' + analysisId + '"]');
     if (!wrapper) return;
     var buttons = wrapper.querySelectorAll('.all-roles-period-button');
@@ -5324,8 +5343,7 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
             margin: { t: 64, b: 96, l: 64, r: 24 },
             height: chartHeight,
             barmode: 'group',
-            showlegend: currencyIdx === 0,
-            legend: { orientation: 'h', x: 0, y: 1.16 }
+            showlegend: false,
         };
         var traceSignature = currency + '|' + traces.map(function(trace) {
             return trace.name + ':' + trace.y.join(',');
