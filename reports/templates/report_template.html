@@ -3,26 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <title>Анализ вакансий с HH - {{ current_date }} {{ current_time }}</title>
-    <link rel="stylesheet" href="styles.css?v=20260303v5">
-    <script src="plotly-2.27.0.min.js?v=20260303v5" charset="utf-8"></script>
+    <link rel="stylesheet" href="styles.css?v=20260303v6">
+    <script src="plotly-2.27.0.min.js?v=20260303v6" charset="utf-8"></script>
     <script>
         if (typeof Plotly === 'undefined') {
             document.write('<script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"><\/script>');
         }
     </script>
-    <script src="report.state.js?v=20260303v5"></script>
-    <script src="report.utils.js?v=20260303v5"></script>
-    <script src="report.data.js?v=20260303v5"></script>
-    <script src="report.charts.js?v=20260303v5"></script>
-    <script src="report.render.js?v=20260303v5"></script>
-    <script src="report.ui.js?v=20260303v5"></script>
-    <script src="report.events.js?v=20260303v5"></script>
+    <script src="report.state.js?v=20260303v6"></script>
+    <script src="report.utils.js?v=20260303v6"></script>
+    <script src="report.data.js?v=20260303v6"></script>
+    <script src="report.charts.js?v=20260303v6"></script>
+    <script src="report.render.js?v=20260303v6"></script>
+    <script src="report.ui.js?v=20260303v6"></script>
+    <script src="report.events.js?v=20260303v6"></script>
 </head>
 <body>
     <div class="report-header">
         <h1>Анализ вакансий с HH</h1>
         <div class="report-updated-at">Время обновления: {{ current_date }} {{ current_time }}</div>
-        <div class="report-updated-at">Сборка UI: 20260303v5</div>
+        <div class="report-updated-at">Сборка UI: 20260303v6</div>
     </div>
 
     <!-- Вкладки по ролям -->
@@ -202,8 +202,9 @@
                     <button type="button" class="tab-button month-button employer-period-chip active" data-month="all">За период</button>
                 </div>
                 <div class="employer-view-toggle employer-side-toggle">
-                    <button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">☷</button>
-                    <button class="view-mode-btn employer-view-btn" data-view="graph" title="График">📈</button>
+                    <button class="view-mode-btn together-btn employer-view-btn active" data-view="together" title="Вместе">◫</button>
+                    <button class="view-mode-btn table-btn employer-view-btn" data-view="table" title="Таблица">▤</button>
+                    <button class="view-mode-btn graph-btn employer-view-btn" data-view="graph" title="График">◔</button>
                 </div>
             </div>
             <div class="analysis-flex employer-analysis-view" style="justify-content: center; align-items: flex-start;">

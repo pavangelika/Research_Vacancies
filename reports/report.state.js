@@ -1,11 +1,9 @@
-// Цветовая палитра графиков (исходная)
 const CHART_COLORS = {
-    light: '#B0BEC5',   // светло-серый для активных, публикаций, открытых
-    medium: '#90A4AE',  // средне-серый для навыков
-    dark: '#607D8B'     // тёмно-серый для архивных, архиваций
+    light: '#B0BEC5',
+    medium: '#90A4AE',
+    dark: '#607D8B'
 };
 
-// Состояние интерфейса
 let uiState = {
     global_analysis_type: null,
     global_filters: {
@@ -23,17 +21,17 @@ let uiState = {
     all_roles_active: false,
     all_roles_periods: { activity: null, weekday: null, skills: null, salary: null },
     all_roles_excluded: [],
-    // Режимы отображения для разных типов анализа
-    activity_view_mode: 'together',    // по умолчанию вместе
+    activity_view_mode: 'together',
     weekday_view_mode: 'together',
     skills_monthly_view_mode: 'together',
-    salary_view_mode: 'table'           // по умолчанию таблица
+    salary_view_mode: 'together',
+    employer_analysis_view_mode: 'together'
 };
+
 function getAnalysisStateKey(roleId) {
     return roleId + '_analysis';
 }
+
 function getStateKey(roleId, analysisType) {
     return roleId + '_' + analysisType;
 }
-
-// ---------- Переключение ролей ----------

@@ -2700,7 +2700,7 @@ tbody tr:hover {
         gap: 10px;
     }
 
-    .salary-graphs-3 .plotly-graph {
+.salary-graphs-3 .plotly-graph {
         height: clamp(300px, 78vw, 380px);
     }
 }

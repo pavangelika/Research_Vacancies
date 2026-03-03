@@ -434,8 +434,7 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.weekday_view_mode || 'together') +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
@@ -466,8 +465,7 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container full-width-table">' +
@@ -495,8 +493,7 @@ function renderAllRolesContainer(container, roleContents) {
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn table-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
@@ -626,8 +623,7 @@ function addSummaryTabs(root) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                    '<button class="view-mode-btn" data-view="graph" title="График">&#9684;</button>' +
+                    buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
                 '</div>' +
             '</div>';
         applySalaryTablesMarkup(expDiv, summaryExp.entries || []);
@@ -864,8 +860,7 @@ function renderCombinedContainer(container, roleContents) {
                                         '</div>' +
                                     '</div>' +
                                     '<div class="salary-view-toggle">' +
-                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                                        '<button class="view-mode-btn" data-view="graph" title="График">&#9684;</button>' +
+                                        buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
                                     '</div>' +
                                 '</div>' +
                             '</div>'
@@ -884,8 +879,7 @@ function renderCombinedContainer(container, roleContents) {
                         '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">За период</button>' +
                     '</div>' +
                     '<div class="employer-view-toggle employer-side-toggle">' +
-                        '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                        '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">&#9684;</button>' +
+                        buildViewModeButtonsHtml(['together', 'table', 'graph'], 'employer-view-btn', uiState.employer_analysis_view_mode || 'together') +
                     '</div>' +
                 '</div>' +
                 '<div class="analysis-flex employer-analysis-view" style="justify-content: center; align-items: flex-start;">' +

@@ -29,21 +29,30 @@ var VIEW_ICON_TABLE = '\u25A4';
 var VIEW_ICON_GRAPH = '\u25D4';
 var VIEW_ICON_TOGETHER = '\u25EB';
 
+function getViewModeMeta(mode) {
+    if (mode === 'table') return { title: 'Таблица', icon: VIEW_ICON_TABLE, className: 'table-btn' };
+    if (mode === 'graph') return { title: 'График', icon: VIEW_ICON_GRAPH, className: 'graph-btn' };
+    return { title: 'Вместе', icon: VIEW_ICON_TOGETHER, className: 'together-btn' };
+}
+
+function buildViewModeButtonsHtml(modes, buttonClass, activeMode) {
+    var list = Array.isArray(modes) && modes.length ? modes : ['together', 'table', 'graph'];
+    var extraClass = buttonClass ? (' ' + buttonClass) : '';
+    var selected = normalizeResponsiveViewMode(activeMode || list[0]);
+    return list.map(function(mode) {
+        var meta = getViewModeMeta(mode);
+        var className = 'view-mode-btn ' + meta.className + extraClass + (mode === selected ? ' active' : '');
+        return '<button class="' + className + '" data-view="' + mode + '" title="' + meta.title + '">' + meta.icon + '</button>';
+    }).join('');
+}
+
 function updateViewToggleIcons(root) {
     if (!root) return;
     var buttons = root.querySelectorAll('.view-mode-btn');
     buttons.forEach(function(btn) {
-        var view = btn.dataset.view || '';
-        if (view === 'table') {
-            btn.textContent = VIEW_ICON_TABLE;
-            btn.title = 'Таблица';
-        } else if (view === 'graph') {
-            btn.textContent = VIEW_ICON_GRAPH;
-            btn.title = 'График';
-        } else if (view === 'together') {
-            btn.textContent = VIEW_ICON_TOGETHER;
-            btn.title = 'Вместе';
-        }
+        var meta = getViewModeMeta(btn.dataset.view || '');
+        btn.textContent = meta.icon;
+        btn.title = meta.title;
     });
     syncResponsiveViewModeButtons(root);
 }
@@ -1948,9 +1957,7 @@ function renderGlobalSkillsFiltered(parentRole) {
         expDiv.id = 'ms-exp-global-' + parentRole.id;
         expDiv.innerHTML =
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container"></div>' +
@@ -2141,6 +2148,7 @@ function renderGlobalEmployerFiltered(parentRole) {
 function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     if (!parentRole) return;
     if (parentRole.id === 'role-all') {
+        if (parentRole.__renderingAllRoles) return;
         renderAllRolesContainer(parentRole, parentRole.__selectedRoleContents || getAllRoleContents());
         return;
     }
@@ -2178,7 +2186,6 @@ function normalizeSalaryControls(parentRole) {
     var block = parentRole.querySelector('.salary-content');
     if (!block) return;
     rebuildSalaryFromVacancies(parentRole, block);
-    if (uiState.salary_view_mode === 'together') uiState.salary_view_mode = 'table';
     var monthTabs = block.querySelector('.salary-month-tabs');
     if (!monthTabs) {
         updateViewToggleIcons(block);
@@ -2204,9 +2211,7 @@ function normalizeSalaryControls(parentRole) {
     if (!inlineToggle) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal salary-mode-toggle-inline';
-        inlineToggle.innerHTML =
-            '<button class="view-mode-btn salary-inline-mode-btn" data-view="table" title="Таблица">&#9636;</button>' +
-            '<button class="view-mode-btn salary-inline-mode-btn" data-view="graph" title="График">&#9684;</button>';
+        inlineToggle.innerHTML = buildViewModeButtonsHtml(['together', 'table', 'graph'], 'salary-inline-mode-btn', uiState.salary_view_mode || 'together');
         controlRow.appendChild(inlineToggle);
     }
 
@@ -2214,7 +2219,7 @@ function normalizeSalaryControls(parentRole) {
         inlineToggle.addEventListener('click', function(e) {
             var btn = e.target.closest('.salary-inline-mode-btn');
             if (!btn) return;
-            var view = btn.dataset.view || 'table';
+            var view = btn.dataset.view || 'together';
             uiState.salary_view_mode = view;
             setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), view);
 
@@ -2228,7 +2233,7 @@ function normalizeSalaryControls(parentRole) {
         inlineToggle.dataset.bound = '1';
     }
 
-    setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'table');
+    setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'together');
     updateViewToggleIcons(block);
 }
 
@@ -2424,8 +2429,7 @@ function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-                    '<button class="view-mode-btn" data-view="graph" title="График">&#9684;</button>' +
+                    buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
                 '</div>' +
             '</div>';
 
@@ -3052,9 +3056,7 @@ function buildActivityBlock(parentRole, blockId, label, entries) {
     block._data = { entries: entries || [], month: label };
     block.innerHTML =
         '<div class="view-toggle-horizontal">' +
-            '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
-            '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
-            '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+            buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.activity_view_mode || 'together') +
         '</div>' +
         '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
             '<div class="table-container">' +
@@ -3332,10 +3334,7 @@ function normalizeActivityControls(parentRole) {
     if (!inlineToggle) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal activity-mode-toggle-inline';
-        inlineToggle.innerHTML =
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="together" title="Вместе">&#9707;</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="table" title="Таблица">&#9636;</button>' +
-            '<button class="view-mode-btn activity-inline-mode-btn" data-view="graph" title="График">&#9684;</button>';
+        inlineToggle.innerHTML = buildViewModeButtonsHtml(['together', 'table', 'graph'], 'activity-inline-mode-btn', uiState.activity_view_mode || 'together');
         controlRow.appendChild(inlineToggle);
     }
     inlineToggle.classList.add('skills-mode-toggle-inline');
@@ -3507,10 +3506,7 @@ function normalizeSkillsMonthlyControls(parentRole) {
     if (!inlineToggle) {
         inlineToggle = document.createElement('div');
         inlineToggle.className = 'view-toggle-horizontal skills-mode-toggle-inline';
-        inlineToggle.innerHTML =
-            '<button class="view-mode-btn skills-inline-mode-btn" data-view="together" title="Вместе">&#9707;</button>' +
-            '<button class="view-mode-btn skills-inline-mode-btn" data-view="table" title="Таблица">&#9636;</button>' +
-            '<button class="view-mode-btn skills-inline-mode-btn" data-view="graph" title="График">&#9684;</button>';
+        inlineToggle.innerHTML = buildViewModeButtonsHtml(['together', 'table', 'graph'], 'skills-inline-mode-btn', uiState.skills_monthly_view_mode || 'together');
         controlRow.appendChild(inlineToggle);
     }
 
@@ -3685,9 +3681,7 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
 
             expDiv.innerHTML =
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+                    buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                     '<div class="table-container">' +
@@ -3769,23 +3763,30 @@ function applyEmployerAnalysisMonthFilter(block, month) {
 
 function applyEmployerAnalysisViewMode(block, mode) {
     if (!block) return;
+    mode = normalizeResponsiveViewMode(mode || uiState.employer_analysis_view_mode || 'together');
     var table = block.querySelector('.employer-analysis-table-container') || block.querySelector('.table-container');
     var graph = block.querySelector('.employer-analysis-graph');
+    var layoutRoot = block.querySelector('.employer-analysis-main') || block.querySelector('.employer-analysis-view');
     if (!table || !graph) return;
 
+    uiState.employer_analysis_view_mode = mode;
     block.dataset.employerViewMode = mode;
     var btns = block.querySelectorAll('.employer-view-btn');
     btns.forEach(function(btn) {
         btn.classList.toggle('active', (btn.dataset.view || '') === mode);
     });
 
-    if (mode === 'graph') {
-        table.style.display = 'none';
-        graph.style.display = 'block';
+    if (layoutRoot) {
+        applyCompositeViewMode(layoutRoot, table, graph, mode, {
+            tableOnlyWidth: '100%',
+            splitTableWidth: '46%',
+            splitGraphWidth: '54%'
+        });
+    }
+
+    if (mode !== 'table') {
         renderEmployerAnalysisChart(block);
-    } else {
-        table.style.display = 'block';
-        graph.style.display = 'none';
+        resizePlotlyScope(graph);
     }
 }
 
@@ -3794,8 +3795,8 @@ function renderEmployerAnalysisChart(block) {
     var graph = block.querySelector('.employer-analysis-graph');
     if (!graph) return;
     var chartContext = block.dataset.chartContext || '';
-    var mode = block.dataset.employerViewMode || 'table';
-    if (mode !== 'graph') return;
+    var mode = block.dataset.employerViewMode || uiState.employer_analysis_view_mode || 'together';
+    if (mode === 'table') return;
 
     var rows = Array.from(block.querySelectorAll('.table-container tbody tr')).filter(function(row) {
         return row.style.display !== 'none';
@@ -4271,9 +4272,10 @@ function initEmployerAnalysisFilter(block) {
     var viewToggle = block.querySelector('.employer-view-toggle');
     if (!viewToggle) {
         viewToggle = document.createElement('div');
-        viewToggle.className = 'employer-view-toggle employer-side-toggle';
-        viewToggle.innerHTML = '<button class="view-mode-btn employer-view-btn active" data-view="table" title="Таблица">&#9636;</button>' +
-            '<button class="view-mode-btn employer-view-btn" data-view="graph" title="График">&#9684;</button>';
+    }
+    viewToggle.className = 'employer-view-toggle employer-side-toggle';
+    if (viewToggle.querySelectorAll('.employer-view-btn').length !== 3) {
+        viewToggle.innerHTML = buildViewModeButtonsHtml(['together', 'table', 'graph'], 'employer-view-btn', uiState.employer_analysis_view_mode || 'together');
     }
 
     var graph = block.querySelector('.employer-analysis-graph');
@@ -4286,14 +4288,7 @@ function initEmployerAnalysisFilter(block) {
         mainWrap.appendChild(graph);
     }
 
-    if (!viewToggle.dataset.bound) {
-        viewToggle.addEventListener('click', function(e) {
-            var btn = e.target.closest('.employer-view-btn');
-            if (!btn) return;
-            applyEmployerAnalysisViewMode(block, btn.dataset.view || 'table');
-        });
-        viewToggle.dataset.bound = '1';
-    }
+    if (!viewToggle.dataset.bound) viewToggle.dataset.bound = '1';
 
     var parsedRows = parseEmployerAnalysisData(block);
     if (!parsedRows.length) return;
@@ -4404,7 +4399,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         }
         applyWeekdayModeSizing(viewContainer, mode);
     } else if (analysisType === 'skills' && target) {
-        var mode = uiState.skills_monthly_view_mode === 'together' ? 'table' : uiState.skills_monthly_view_mode;
+        var mode = uiState.skills_monthly_view_mode || 'together';
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
@@ -4412,12 +4407,12 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
         var allRolesSkillsContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        if (mode === 'graph' && graphId) {
+        if (mode !== 'table' && graphId) {
             buildAllRolesSkillsChart(rows, graphId);
             applyChartTitleContext(graphId, 'Топ навыков по упоминаниям', allRolesSkillsContext);
         }
     } else if (analysisType === 'salary' && target) {
-        var mode = uiState.salary_view_mode === 'together' ? 'table' : uiState.salary_view_mode;
+        var mode = uiState.salary_view_mode || 'together';
         var viewBtns = target.querySelectorAll('.view-mode-btn');
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
@@ -4428,7 +4423,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
         var allRolesSalaryContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        if (mode === 'graph' && graphId) {
+        if (mode !== 'table' && graphId) {
             buildAllRolesSalaryChart(rows, graphId);
             applyChartTitleContext(graphId, 'Суммарная частота навыков по ролям', allRolesSalaryContext);
         }
@@ -4734,9 +4729,7 @@ function openMonthlySkillsExpTab(evt, expId) {
             multiDiv.style.display = 'none';
             multiDiv.innerHTML =
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">&#9707;</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">&#9636;</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">&#9684;</button>' +
+                    buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                     '<div class="table-container"></div>' +
@@ -4768,8 +4761,8 @@ function openMonthlySkillsExpTab(evt, expId) {
     syncSharedFilterPanel(parentRole, 'skills-monthly');
 }
 function restoreSalaryState(parentRole, roleId) {
-    if (uiState.salary_view_mode === 'together') uiState.salary_view_mode = 'table';
-    var viewBtns = parentRole.querySelectorAll('.view-mode-btn');
+    var salaryBlock = parentRole.querySelector('.salary-content');
+    var viewBtns = salaryBlock ? salaryBlock.querySelectorAll('.view-mode-btn') : [];
     setActiveViewButton(viewBtns, uiState.salary_view_mode);
 
     var monthButtons = parentRole.querySelectorAll('.salary-month-button');
@@ -4936,8 +4929,12 @@ function refreshResponsiveViewModes(root) {
 
     scope.querySelectorAll('.salary-exp-content').forEach(function(expDiv) {
         var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', {});
-        setActiveViewButton(expDiv.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'table');
+        setActiveViewButton(expDiv.querySelectorAll('.salary-inline-mode-btn'), uiState.salary_view_mode || 'together');
         applySalaryViewMode(expDiv, expData.entries || []);
+    });
+
+    scope.querySelectorAll('.employer-analysis-content').forEach(function(block) {
+        applyEmployerAnalysisViewMode(block, uiState.employer_analysis_view_mode || block.dataset.employerViewMode || 'together');
     });
 }
 if (typeof window !== 'undefined' && !window.__responsiveViewModesResizeBound) {
@@ -4990,6 +4987,105 @@ function applyViewMode(container, mode) {
         applySkillsModeSizing(container, mode);
     }
     if (mode === 'graph') resizePlotlyScope(graph);
+}
+
+function resetCompositeViewStyles(layoutRoot, table, graph) {
+    if (!layoutRoot || !table || !graph) return;
+    layoutRoot.style.display = 'flex';
+    layoutRoot.style.flexDirection = 'row';
+    layoutRoot.style.flexWrap = 'wrap';
+    layoutRoot.style.alignItems = 'stretch';
+    layoutRoot.style.justifyContent = 'center';
+    layoutRoot.style.overflow = '';
+    layoutRoot.style.overflowX = '';
+    layoutRoot.style.minHeight = '';
+    layoutRoot.style.height = '';
+
+    table.style.display = 'block';
+    table.style.flex = '';
+    table.style.width = '';
+    table.style.maxWidth = '';
+    table.style.margin = '';
+    table.style.minWidth = '';
+    table.style.height = '';
+    table.style.maxHeight = '';
+    table.style.overflow = '';
+    table.style.removeProperty('width');
+    table.style.removeProperty('max-width');
+    table.style.removeProperty('min-width');
+
+    graph.style.display = 'block';
+    graph.style.flex = '';
+    graph.style.width = '';
+    graph.style.maxWidth = '';
+    graph.style.margin = '';
+    graph.style.minWidth = '';
+    graph.style.height = '';
+    graph.style.removeProperty('width');
+    graph.style.removeProperty('max-width');
+    graph.style.removeProperty('min-width');
+}
+
+function applyCompositeViewMode(layoutRoot, table, graph, mode, options) {
+    if (!layoutRoot || !table || !graph) return;
+    var opts = options || {};
+    var compact = isCompactViewport();
+    var normalizedMode = normalizeResponsiveViewMode(mode || 'together');
+    var tableOnlyWidth = opts.tableOnlyWidth || '100%';
+    var splitTableWidth = opts.splitTableWidth || '40%';
+    var splitGraphWidth = opts.splitGraphWidth || '60%';
+    var compactTableMinWidth = opts.compactTableMinWidth || '900px';
+
+    resetCompositeViewStyles(layoutRoot, table, graph);
+
+    if (normalizedMode === 'table') {
+        graph.style.display = 'none';
+        if (compact) {
+            layoutRoot.style.overflowX = 'auto';
+            table.style.setProperty('width', '100%', 'important');
+            table.style.setProperty('max-width', 'none', 'important');
+            table.style.setProperty('min-width', compactTableMinWidth, 'important');
+        } else {
+            table.style.setProperty('width', tableOnlyWidth, 'important');
+            table.style.setProperty('max-width', tableOnlyWidth, 'important');
+            table.style.setProperty('min-width', '0', 'important');
+            table.style.margin = '0 auto';
+        }
+        return normalizedMode;
+    }
+
+    if (normalizedMode === 'graph') {
+        table.style.display = 'none';
+        graph.style.setProperty('width', '100%', 'important');
+        graph.style.setProperty('max-width', '100%', 'important');
+        graph.style.setProperty('min-width', '0', 'important');
+        graph.style.flex = '1 1 100%';
+        graph.style.margin = '0 auto';
+        return normalizedMode;
+    }
+
+    if (compact) {
+        layoutRoot.style.flexDirection = 'column';
+        table.style.setProperty('width', '100%', 'important');
+        table.style.setProperty('max-width', '100%', 'important');
+        table.style.setProperty('min-width', '0', 'important');
+        graph.style.setProperty('width', '100%', 'important');
+        graph.style.setProperty('max-width', '100%', 'important');
+        graph.style.setProperty('min-width', '0', 'important');
+        table.style.margin = '0 auto';
+        graph.style.margin = '0 auto';
+        return normalizedMode;
+    }
+
+    table.style.flex = '0 1 ' + splitTableWidth;
+    table.style.width = splitTableWidth;
+    table.style.maxWidth = splitTableWidth;
+    table.style.margin = '0 auto';
+    graph.style.flex = '0 1 ' + splitGraphWidth;
+    graph.style.width = splitGraphWidth;
+    graph.style.maxWidth = splitGraphWidth;
+    graph.style.margin = '0 auto';
+    return normalizedMode;
 }
 
 function resolveSummaryTableWidth(container, defaultWidth) {
@@ -5398,53 +5494,25 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
     });
 }
 function applySalaryViewMode(expDiv, entries) {
-    var mode = uiState.salary_view_mode === 'together' ? 'table' : uiState.salary_view_mode;
+    var mode = normalizeResponsiveViewMode(uiState.salary_view_mode || 'together');
     var mainContent = expDiv.querySelector('.salary-main-content');
     var tableContainer = expDiv.querySelector('.salary-table-container');
     var graphContainer = expDiv.querySelector('.salary-graph-container');
     var graphId = expDiv.querySelector('.plotly-graph').id;
-    var compact = isCompactViewport();
+    if (!mainContent || !tableContainer || !graphContainer) return;
 
-    // Сброс стилей
-    mainContent.style.display = 'flex';
-    mainContent.style.flexDirection = 'row';
-    mainContent.style.flexWrap = 'wrap';
-    mainContent.style.overflowX = '';
-    mainContent.style.minHeight = '';
-    tableContainer.style.display = 'block';
-    graphContainer.style.display = 'block';
-    tableContainer.style.flex = '';
-    tableContainer.style.width = '';
-    tableContainer.style.maxWidth = '';
-    tableContainer.style.margin = '';
-    tableContainer.style.minWidth = '';
-    tableContainer.style.removeProperty('width');
-    tableContainer.style.removeProperty('max-width');
-    tableContainer.style.removeProperty('min-width');
-    graphContainer.style.flex = '';
-    graphContainer.style.width = '';
-    graphContainer.style.maxWidth = '';
-    graphContainer.style.margin = '';
-    graphContainer.style.minWidth = '';
-    graphContainer.style.removeProperty('width');
-    graphContainer.style.removeProperty('max-width');
-    graphContainer.style.removeProperty('min-width');
+    applyCompositeViewMode(mainContent, tableContainer, graphContainer, mode, {
+        tableOnlyWidth: '100%',
+        splitTableWidth: '42%',
+        splitGraphWidth: '58%'
+    });
 
-    if (mode === 'table') {
-        graphContainer.style.display = 'none';
-        tableContainer.style.setProperty('width', '100%', 'important');
-        tableContainer.style.setProperty('max-width', '100%', 'important');
-        tableContainer.style.setProperty('min-width', '0', 'important');
-        tableContainer.style.margin = '0 auto';
-    } else if (mode === 'graph') {
-        tableContainer.style.display = 'none';
-        mainContent.style.overflowX = 'visible';
-        graphContainer.style.setProperty('width', '100%', 'important');
-        graphContainer.style.setProperty('max-width', '100%', 'important');
-        graphContainer.style.setProperty('min-width', '0', 'important');
-        graphContainer.style.flex = '1 1 100%';
-        graphContainer.style.margin = '0 auto';
+    if (mode !== 'table') {
         renderSalaryChartsFromEntries(graphId, entries, expDiv.dataset.chartContext || '');
+        resizePlotlyScope(graphContainer);
+    }
+
+    if (mode === 'graph') {
         requestAnimationFrame(function() {
             var graphHeight = Math.max(
                 Math.round(graphContainer.getBoundingClientRect().height || 0),
@@ -5452,11 +5520,21 @@ function applySalaryViewMode(expDiv, entries) {
             );
             if (graphHeight > 0) mainContent.style.minHeight = graphHeight + 'px';
         });
-    } else {
-        graphContainer.style.display = 'none';
-        tableContainer.style.width = '100%';
-        tableContainer.style.maxWidth = '100%';
-        tableContainer.style.margin = '0 auto';
+        return;
+    }
+
+    if (mode === 'together' && !isCompactViewport()) {
+        requestAnimationFrame(function() {
+            var graphHeight = Math.max(
+                Math.round(graphContainer.getBoundingClientRect().height || 0),
+                Math.round(graphContainer.scrollHeight || 0)
+            );
+            if (graphHeight > 0) {
+                mainContent.style.minHeight = graphHeight + 'px';
+                tableContainer.style.maxHeight = graphHeight + 'px';
+                tableContainer.style.overflow = 'auto';
+            }
+        });
     }
 }
 
