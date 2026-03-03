@@ -481,6 +481,23 @@ document.addEventListener("DOMContentLoaded", function() {
         if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel();
     }
 
+    function exitAllRolesMode(nextSelected, nextOrder) {
+        if (nextSelected) {
+            selected = new Set(nextSelected);
+            selectionOrder = (nextOrder || Array.from(selected)).slice();
+            syncRoleFilterState();
+        }
+        uiState.all_roles_active = false;
+        updateRoleSelectionUI(selected);
+        updateRoleView(selected);
+        ensureSummaryAnalysisTabs();
+        if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel();
+    }
+
+    uiState.roleSelectionContext.exitAllRolesMode = function(nextSelected, nextOrder) {
+        exitAllRolesMode(nextSelected, nextOrder);
+    };
+
     addSummaryTabs(document);
     ensureSummaryAnalysisTabs();
     if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel();

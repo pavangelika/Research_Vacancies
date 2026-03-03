@@ -213,7 +213,7 @@ function switchAnalysis(evt, analysisId) {
 }
 
 function switchFromSummaryToAnalysis(analysisType) {
-    setSummaryModeActive(false);
+    var ctx = uiState.roleSelectionContext;
 
     function findTargetButton(roleContent) {
         if (!roleContent) return null;
@@ -223,20 +223,30 @@ function switchFromSummaryToAnalysis(analysisType) {
         }) || null;
     }
 
-    var targetRole = getActiveRoleContent();
-    var targetButton = findTargetButton(targetRole);
-    if (!targetButton) {
-        var ctx = uiState.roleSelectionContext;
-        if (ctx && typeof ctx.getOrder === 'function' && typeof ctx.applySelection === 'function') {
-            var order = ctx.getOrder();
-            var selected = typeof ctx.getSelected === 'function' ? Array.from(ctx.getSelected()) : [];
-            var first = order[0] || selected[0];
-            if (first !== undefined && first !== null) {
-                ctx.applySelection(new Set([first]), [first]);
-                targetRole = getActiveRoleContent();
-                targetButton = findTargetButton(targetRole);
+    var targetRole = null;
+    var targetButton = null;
+    if (ctx && typeof ctx.getOrder === 'function') {
+        var order = ctx.getOrder();
+        var selected = typeof ctx.getSelected === 'function' ? Array.from(ctx.getSelected()) : [];
+        var first = order[0] || selected[0];
+        if (first !== undefined && first !== null) {
+            if (typeof ctx.exitAllRolesMode === 'function') {
+                ctx.exitAllRolesMode(new Set([first]), [first]);
+            } else {
+                if (typeof ctx.applySelection === 'function') {
+                    ctx.applySelection(new Set([first]), [first]);
+                }
+                setSummaryModeActive(false);
             }
+            targetRole = getActiveRoleContent();
+            targetButton = findTargetButton(targetRole);
         }
+    }
+
+    if (!targetButton) {
+        setSummaryModeActive(false);
+        targetRole = getActiveRoleContent();
+        targetButton = findTargetButton(targetRole);
     }
 
     if (targetButton) targetButton.click();

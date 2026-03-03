@@ -215,6 +215,8 @@ function renderAllRolesContainer(container, roleContents) {
     var normalizedSelectedExperiences = selectedExperiences.map(function(value) {
         return normalizeExperience(value);
     }).filter(Boolean);
+    var baseRoleVacanciesCache = new Map();
+    var rolePeriodVacanciesCache = new Map();
 
     var allVacancies = [];
     filteredRoleContents.forEach(function(roleContent) {
@@ -238,20 +240,33 @@ function renderAllRolesContainer(container, roleContents) {
     ]);
 
     function getRoleFilteredVacancies(roleContent, periodValue) {
-        var vacancies = dedupeVacanciesById((getRoleVacancies(roleContent) || []).slice());
-        if (selectedPeriods.length && typeof filterVacanciesBySelectedPeriods === 'function') {
-            vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
+        var roleKey = roleContent && (roleContent.dataset.roleId || roleContent.id || roleContent.dataset.roleName) || 'role';
+        var baseVacancies = baseRoleVacanciesCache.get(roleKey);
+        if (!baseVacancies) {
+            baseVacancies = dedupeVacanciesById((getRoleVacancies(roleContent) || []).slice());
+            if (selectedPeriods.length && typeof filterVacanciesBySelectedPeriods === 'function') {
+                baseVacancies = filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods);
+            }
+            if (normalizedSelectedExperiences.length) {
+                baseVacancies = baseVacancies.filter(function(vacancy) {
+                    var exp = normalizeExperience(vacancy && (vacancy._experience || vacancy.experience) || '');
+                    return normalizedSelectedExperiences.indexOf(exp) >= 0;
+                });
+            }
+            baseRoleVacanciesCache.set(roleKey, baseVacancies);
         }
-        if (periodValue && typeof filterVacanciesBySelectedPeriods === 'function') {
-            vacancies = filterVacanciesBySelectedPeriods(vacancies, [periodValue]);
+
+        if (!periodValue || typeof filterVacanciesBySelectedPeriods !== 'function') {
+            return baseVacancies;
         }
-        if (normalizedSelectedExperiences.length) {
-            vacancies = vacancies.filter(function(vacancy) {
-                var exp = normalizeExperience(vacancy && (vacancy._experience || vacancy.experience) || '');
-                return normalizedSelectedExperiences.indexOf(exp) >= 0;
-            });
+
+        var cacheKey = roleKey + '::' + periodValue;
+        var periodVacancies = rolePeriodVacanciesCache.get(cacheKey);
+        if (!periodVacancies) {
+            periodVacancies = filterVacanciesBySelectedPeriods(baseVacancies, [periodValue]);
+            rolePeriodVacanciesCache.set(cacheKey, periodVacancies);
         }
-        return vacancies;
+        return periodVacancies;
     }
 
     function computeAllRolesSkillCostSummaryFromVacancies(periodValue) {
