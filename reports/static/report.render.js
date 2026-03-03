@@ -341,7 +341,7 @@ function renderAllRolesContainer(container, roleContents) {
     function buildActivityAllTable(rows) {
         var maxActive = Math.max(...rows.map(r => r.active || 0), 0);
         var maxRatio = Math.max(...rows.map(r => (r.active ? (r.archived / r.active) : 0)), 0);
-        return '<div class="table-container activity-all-table-container">' +
+        return '<div class="table-container">' +
             '<table class="activity-all-table">' +
                 '<colgroup><col><col><col><col><col><col></colgroup>' +
                 '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
@@ -353,7 +353,7 @@ function renderAllRolesContainer(container, roleContents) {
                         var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
                             '<tr class="activity-all-details" style="display: none;">' +
                                 '<td colspan="6">' +
-                                    '<div class="table-container activity-all-table-container">' +
+                                    '<div class="table-container">' +
                                         '<table class="details-table align-activity">' +
                                             '<colgroup><col><col><col><col><col><col></colgroup>' +
                                             '<thead><tr><th>Опыт</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
@@ -531,6 +531,7 @@ function renderAllRolesContainer(container, roleContents) {
 
     container.innerHTML =
         '<h2>Сводно по всем ролям</h2>' +
+        '<div class="role-period-label">Период публикации: 19.01.2026 - 03.03.2026</div>' +
         '<div class="tabs summary-return-tabs">' +
             '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'activity\')">Анализ активности</button>' +
             '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'weekday\')">Анализ по дням недели</button>' +

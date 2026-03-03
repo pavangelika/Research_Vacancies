@@ -237,11 +237,6 @@ h1 {
     max-width: 60%;
     min-width: 0;
 }
-.activity-all-table-container {
-    width: 60%;
-    max-width: 60%;
-    margin: 0 auto;
-}
 .activity-all-details .table-container {
     width: 100%;
     max-width: 100%;
@@ -768,10 +763,10 @@ tr:hover { background-color: #f0f4f9; }
     min-height: 940px;
     align-items: stretch;
 }
-.all-roles-period-content[data-analysis="activity-all"] .activity-all-table-container {
+.all-roles-period-content[data-analysis="activity-all"] > .analysis-flex > .table-container {
     min-height: 940px;
 }
-.all-roles-period-content[data-analysis="activity-all"] .activity-all-table-container > div {
+.all-roles-period-content[data-analysis="activity-all"] > .analysis-flex > .table-container > div {
     overflow-y: visible;
     max-height: none;
 }
@@ -2395,7 +2390,6 @@ tbody tr:hover {
 }
 
 .analysis-flex .table-container > div,
-.activity-all-table-container > div,
 .salary-table-container > div {
     overflow-x: hidden;
     overflow-y: auto;
@@ -2410,7 +2404,6 @@ tbody tr:hover {
 }
 
 .table-container table,
-.activity-all-table-container table,
 .salary-table-container .vacancy-table {
     width: 100%;
     table-layout: fixed;
@@ -2418,8 +2411,6 @@ tbody tr:hover {
 
 .table-container th,
 .table-container td,
-.activity-all-table-container th,
-.activity-all-table-container td,
 .salary-table-container .vacancy-table th,
 .salary-table-container .vacancy-table td {
     padding: 8px 6px;
@@ -2440,6 +2431,53 @@ tbody tr:hover {
 .analysis-flex:has(.table-container[style*="display: none"]) .all-roles-graph {
     max-width: 80vw;
     width: 80vw;
+}
+
+.all-roles-period-content .analysis-flex:has(.plotly-graph[style*="display: none"]) .table-container {
+    flex: 0 1 min(100%, 1180px) !important;
+    width: min(100%, 1180px) !important;
+    max-width: min(100%, 1180px) !important;
+    margin: 0 auto !important;
+}
+
+#role-combined .analysis-flex:has(.plotly-graph[style*="display: none"]) .table-container {
+    flex: 0 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+}
+
+.all-roles-period-content[data-analysis="weekday-all"] .table-container,
+.all-roles-period-content[data-analysis="salary-all"] .table-container {
+    min-width: 0;
+}
+
+.all-roles-period-content[data-analysis="weekday-all"] .analysis-flex,
+.weekday-content[data-analysis="weekday-combined"] .analysis-flex {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.all-roles-period-content[data-analysis="weekday-all"] .table-container,
+.all-roles-period-content[data-analysis="weekday-all"] .plotly-graph,
+.all-roles-period-content[data-analysis="weekday-all"] .all-roles-graph,
+.weekday-content[data-analysis="weekday-combined"] .table-container,
+.weekday-content[data-analysis="weekday-combined"] .plotly-graph {
+    flex: 0 1 100%;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.all-roles-period-content[data-analysis="weekday-all"] .table-container > div,
+.all-roles-period-content[data-analysis="salary-all"] .table-container > div {
+    overflow-x: auto;
+}
+
+.all-roles-period-content[data-analysis="weekday-all"] .table-container table,
+.all-roles-period-content[data-analysis="salary-all"] .table-container table,
+.weekday-content[data-analysis="weekday-combined"] .table-container table {
+    table-layout: auto;
 }
 
 .view-mode-btn:disabled,
@@ -2495,7 +2533,6 @@ tbody tr:hover {
     }
 
     .table-container,
-    .activity-all-table-container,
     .plotly-graph,
     .all-roles-graph,
     .activity-graph-item,
@@ -2510,7 +2547,6 @@ tbody tr:hover {
     }
 
     .analysis-flex .table-container > div,
-    .activity-all-table-container > div,
     .salary-table-container > div {
         overflow-x: auto;
     }

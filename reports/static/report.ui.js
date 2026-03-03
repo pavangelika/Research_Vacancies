@@ -1187,6 +1187,10 @@ function syncAllRolesPeriodStateFromGlobalFilter(activeRole, analysisType) {
     if (!current) return;
     var options = getGlobalFilterOptions(activeRole, 'periods', current);
     var selected = getResolvedGlobalFilterValues('periods', options);
+    if (!selected.length || selected.length === (options || []).length) {
+        uiState.all_roles_periods[current] = 'all';
+        return;
+    }
     if (selected.length !== 1) return;
     var normalized = normalizeGlobalPeriodValue(selected[0]);
     if (!normalized) return;
@@ -4418,6 +4422,9 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         setActiveViewButton(viewBtns, mode);
         var viewContainer = target.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
+        if (mode === 'table' && viewContainer) {
+            applyStandardTableModeWidth(viewContainer.querySelector('.table-container'), viewContainer, 'min(100%, 980px)');
+        }
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
         var allRolesSalaryContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
@@ -4985,6 +4992,22 @@ function applyViewMode(container, mode) {
     if (mode === 'graph') resizePlotlyScope(graph);
 }
 
+function resolveSummaryTableWidth(container, defaultWidth) {
+    if (!container || !container.closest) return defaultWidth;
+    if (container.closest('#role-combined')) return '100%';
+    if (container.closest('.all-roles-period-content')) return 'min(100%, 1180px)';
+    return defaultWidth;
+}
+
+function applyStandardTableModeWidth(table, container, defaultWidth) {
+    if (!table) return;
+    var width = resolveSummaryTableWidth(container, defaultWidth || 'min(100%, 980px)');
+    table.style.flex = '0 1 ' + width;
+    table.style.width = width;
+    table.style.maxWidth = width;
+    table.style.margin = '0 auto';
+}
+
 function applySkillsModeSizing(container, mode) {
     if (!container) return;
     mode = normalizeResponsiveViewMode(mode);
@@ -5030,10 +5053,7 @@ function applySkillsModeSizing(container, mode) {
 
     if (!compact) {
         if (mode === 'table') {
-            table.style.flex = '0 1 min(100%, 980px)';
-            table.style.width = 'min(100%, 980px)';
-            table.style.maxWidth = 'min(100%, 980px)';
-            table.style.margin = '0 auto';
+            applyStandardTableModeWidth(table, container, 'min(100%, 980px)');
         } else if (mode === 'graph') {
             graph.style.flex = '1 1 100%';
             graph.style.width = '100%';
@@ -5115,10 +5135,7 @@ function applyActivityModeSizing(container, mode) {
 
     if (mode === 'table') {
         container.style.alignItems = 'center';
-        table.style.flex = '0 1 min(100%, 980px)';
-        table.style.width = 'min(100%, 980px)';
-        table.style.maxWidth = 'min(100%, 980px)';
-        table.style.margin = '0 auto';
+        applyStandardTableModeWidth(table, container, 'min(100%, 980px)');
     } else if (mode === 'graph') {
         container.style.alignItems = 'center';
         graph.style.flex = '1 1 100%';
@@ -5160,6 +5177,7 @@ function applyWeekdayModeSizing(container, mode) {
     if (!table || !graph) return;
     mode = normalizeResponsiveViewMode(mode);
     var compact = isCompactViewport();
+    var summaryWeekday = !!(container.closest('.all-roles-period-content[data-analysis="weekday-all"]') || container.closest('#role-combined'));
 
     container.style.justifyContent = 'center';
     container.style.alignItems = 'stretch';
@@ -5210,10 +5228,7 @@ function applyWeekdayModeSizing(container, mode) {
     if (mode === 'table') {
         container.style.alignItems = 'center';
         container.style.height = 'auto';
-        table.style.flex = '0 1 min(100%, 980px)';
-        table.style.width = 'min(100%, 980px)';
-        table.style.maxWidth = 'min(100%, 980px)';
-        table.style.margin = '0 auto';
+        applyStandardTableModeWidth(table, container, 'min(100%, 980px)');
     } else if (mode === 'graph') {
         container.style.alignItems = 'center';
         graph.style.flex = '1 1 100%';
@@ -5222,6 +5237,19 @@ function applyWeekdayModeSizing(container, mode) {
         graph.style.margin = '0 auto';
         syncContainerToGraphHeight(container, graph);
     } else {
+        if (summaryWeekday) {
+            container.style.flexDirection = 'column';
+            container.style.alignItems = 'stretch';
+            table.style.flex = '0 1 100%';
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            table.style.margin = '0 auto';
+            graph.style.flex = '0 1 100%';
+            graph.style.width = '100%';
+            graph.style.maxWidth = '100%';
+            graph.style.margin = '0 auto';
+            return;
+        }
         table.style.flex = '0 1 40%';
         table.style.width = '40%';
         table.style.maxWidth = '40%';
