@@ -616,13 +616,11 @@ tr:hover { background-color: #f0f4f9; }
 }
 .salary-view-toggle {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 32px;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 8px;
+    width: auto;
     flex-shrink: 0;
-}
-.salary-view-toggle .view-mode-btn[data-view="together"] {
-    display: none;
 }
 .salary-control-row {
     position: relative;
@@ -649,6 +647,7 @@ tr:hover { background-color: #f0f4f9; }
     gap: 8px;
     margin: 0 0 8px;
 }
+.salary-view-toggle .view-mode-btn,
 .salary-mode-toggle-inline .view-mode-btn,
 .activity-control-row .view-toggle-horizontal .view-mode-btn,
 .skills-mode-toggle-inline .view-mode-btn {
@@ -678,9 +677,6 @@ tr:hover { background-color: #f0f4f9; }
     flex: 0 0 auto;
     width: auto;
     white-space: nowrap;
-}
-.salary-content .salary-view-toggle {
-    display: none;
 }
 .view-mode-button {
     background: var(--surface-variant);
@@ -913,14 +909,16 @@ tr:hover { background-color: #f0f4f9; }
 }
 .weekday-content .view-toggle-horizontal,
 .all-roles-period-content[data-analysis="activity-all"] .view-toggle-horizontal,
-.all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal {
+.all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal,
+.all-roles-period-content[data-analysis="salary-all"] .view-toggle-horizontal {
     gap: 8px;
     margin: 0;
     padding: 0;
 }
 .weekday-content .view-toggle-horizontal .view-mode-btn,
 .all-roles-period-content[data-analysis="activity-all"] .view-toggle-horizontal .view-mode-btn,
-.all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal .view-mode-btn {
+.all-roles-period-content[data-analysis="weekday-all"] .view-toggle-horizontal .view-mode-btn,
+.all-roles-period-content[data-analysis="salary-all"] .view-toggle-horizontal .view-mode-btn {
     width: 31px;
     height: 31px;
     padding: 0;
