@@ -56,6 +56,7 @@ services:
     - ./data/professional_roles.json:/app/data/professional_roles.json
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASS}@postgres:5432/${DB_NAME}
+      REPORTS_OUTPUT_DIR: /reports
       ROLES_JSON_PATH: /app/data/professional_roles.json   # опционально
     depends_on:
       - postgres

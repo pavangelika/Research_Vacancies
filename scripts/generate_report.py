@@ -5,7 +5,7 @@ import psycopg2
 import shutil
 import logging
 import urllib.request
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +15,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 REPORTS_DIR = os.path.join(PROJECT_ROOT, 'reports')
 REPORT_TEMPLATES_DIR = os.path.join(REPORTS_DIR, 'templates')
 REPORT_STATIC_DIR = os.path.join(REPORTS_DIR, 'static')
+REPORT_OUTPUT_DIR = os.environ.get('REPORTS_OUTPUT_DIR', REPORTS_DIR)
+PLOTLY_BUNDLE = 'plotly-2.27.0.min.js'
+PLOTLY_CDN_URL = f'https://cdn.plot.ly/{PLOTLY_BUNDLE}'
 
 
 def compact_text(value, max_len=240):
@@ -1563,7 +1566,10 @@ def fetch_employer_analysis_data(mapping):
     return result
 
 def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data, vacancies_by_role):
-    env = Environment(loader=FileSystemLoader(REPORT_TEMPLATES_DIR))
+    env = Environment(
+        loader=FileSystemLoader(REPORT_TEMPLATES_DIR),
+        autoescape=select_autoescape(['html', 'xml'])
+    )
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
     current_time = datetime.now().strftime("%H:%M")
@@ -1580,15 +1586,15 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
 
 
 def save_report(html_content):
-    os.makedirs(REPORTS_DIR, exist_ok=True)
-    output_file = os.path.join(REPORTS_DIR, 'report.html')
+    os.makedirs(REPORT_OUTPUT_DIR, exist_ok=True)
+    output_file = os.path.join(REPORT_OUTPUT_DIR, 'report.html')
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     logging.info(f"Report saved to {output_file}")
 
 def copy_styles():
     src = os.path.join(REPORT_STATIC_DIR, 'styles.css')
-    dst = os.path.join(REPORTS_DIR, 'styles.css')
+    dst = os.path.join(REPORT_OUTPUT_DIR, 'styles.css')
     shutil.copy2(src, dst)
     logging.info(f"Styles copied to {dst}")
 
@@ -1604,9 +1610,29 @@ def copy_js():
     ]
     for filename in js_files:
         src = os.path.join(REPORT_STATIC_DIR, filename)
-        dst = os.path.join(REPORTS_DIR, filename)
+        dst = os.path.join(REPORT_OUTPUT_DIR, filename)
         shutil.copy2(src, dst)
         logging.info(f"JS copied to {dst}")
+
+def ensure_plotly_bundle():
+    os.makedirs(REPORT_OUTPUT_DIR, exist_ok=True)
+    bundled_src = os.path.join(REPORT_STATIC_DIR, PLOTLY_BUNDLE)
+    output_dst = os.path.join(REPORT_OUTPUT_DIR, PLOTLY_BUNDLE)
+
+    if os.path.exists(bundled_src):
+        shutil.copy2(bundled_src, output_dst)
+        logging.info(f"Plotly bundle copied to {output_dst}")
+        return
+
+    if os.path.exists(output_dst):
+        logging.info(f"Using existing Plotly bundle at {output_dst}")
+        return
+
+    try:
+        urllib.request.urlretrieve(PLOTLY_CDN_URL, output_dst)
+        logging.info(f"Plotly bundle downloaded to {output_dst}")
+    except Exception as exc:
+        logging.warning(f"Failed to download Plotly bundle from {PLOTLY_CDN_URL}: {exc}")
 
 def main():
     json_path = os.environ.get('ROLES_JSON_PATH', '/app/data/professional_roles.json')
@@ -1635,6 +1661,7 @@ def main():
     save_report(html)
     copy_styles()
     copy_js()
+    ensure_plotly_bundle()
 
 if __name__ == '__main__':
     main()
