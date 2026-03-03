@@ -112,11 +112,18 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
         if (!el) return;
         if (el.dataset.plotSignature === signature && el.dataset.plotReady === '1') return;
         el.dataset.plotSignature = signature;
+        if (el.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
+            Plotly.react(el, data, layout, {
+                responsive: true,
+                displayModeBar: false
+            });
+        } else {
+            Plotly.newPlot(graphId, data, layout, {
+                responsive: true,
+                displayModeBar: false
+            });
+        }
         el.dataset.plotReady = '1';
-        Plotly.newPlot(graphId, data, layout, {
-            responsive: true,
-            displayModeBar: false
-        });
     };
 }
 
@@ -201,7 +208,7 @@ function switchAnalysis(evt, analysisId) {
         }
     }
     parentRole.dataset.activeAnalysis = analysisType || '';
-    syncSharedFilterPanel(parentRole, analysisType);
+    syncSharedFilterPanel(parentRole, analysisType, true);
     updateViewToggleIcons(parentRole);
 }
 
@@ -2161,7 +2168,7 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     else if (current === 'employer-analysis') renderGlobalEmployerFiltered(parentRole);
 }
 
-function syncSharedFilterPanel(parentRole, analysisType) {
+function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     var activeRole = getActiveRoleContent(parentRole);
     hideSharedFilterSources(activeRole);
     var panel = ensureSharedFilterPanel();
@@ -2178,7 +2185,7 @@ function syncSharedFilterPanel(parentRole, analysisType) {
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
     panel.style.display = body.children.length ? 'block' : 'none';
     renderActiveGlobalFilterChips(panel, activeRole, current);
-    applyGlobalFiltersToActiveAnalysis(activeRole, current);
+    if (!skipActiveApply) applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
 
 function normalizeSalaryControls(parentRole) {
@@ -3778,15 +3785,15 @@ function applyEmployerAnalysisViewMode(block, mode) {
 
     if (layoutRoot) {
         applyCompositeViewMode(layoutRoot, table, graph, mode, {
-            tableOnlyWidth: '100%',
-            splitTableWidth: '46%',
-            splitGraphWidth: '54%'
+            tableOnlyWidth: 'min(100%, 980px)',
+            splitTableWidth: '40%',
+            splitGraphWidth: '60%',
+            compactTableMinWidth: '900px'
         });
     }
 
     if (mode !== 'table') {
         renderEmployerAnalysisChart(block);
-        resizePlotlyScope(graph);
     }
 }
 
@@ -3810,6 +3817,8 @@ function renderEmployerAnalysisChart(block) {
         graph.__avgUsdChartEl = null;
         graph.__avgEurChartEl = null;
         graph.__avgOtherChartEl = null;
+        graph.dataset.plotSignature = '';
+        graph.dataset.plotReady = '';
         graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
         return;
     }
@@ -3921,6 +3930,15 @@ function renderEmployerAnalysisChart(block) {
         var b = buckets[c.key];
         return b.wOther ? (b.sumOther / b.wOther) : null;
     });
+    var signature = chartContext + '|' + categories.map(function(c, idx) {
+        return [
+            c.key,
+            avgRur[idx] == null ? '' : avgRur[idx],
+            avgUsd[idx] == null ? '' : avgUsd[idx],
+            avgEur[idx] == null ? '' : avgEur[idx],
+            avgOther[idx] == null ? '' : avgOther[idx]
+        ].join(':');
+    }).join('|');
 
     var palette = (typeof CHART_COLORS !== 'undefined')
         ? CHART_COLORS
@@ -3949,8 +3967,19 @@ function renderEmployerAnalysisChart(block) {
         graph.__avgEurChartEl = graph.querySelector('.employer-analysis-avg-eur-graph');
         graph.__avgOtherChartEl = graph.querySelector('.employer-analysis-avg-other-graph');
     }
+    if (graph.dataset.plotSignature === signature && graph.dataset.plotReady === '1') return;
 
-    Plotly.newPlot(graph.__avgRurChartEl, [{
+    function renderEmployerSubplot(target, data, layout) {
+        if (!target) return;
+        if (target.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
+            Plotly.react(target, data, layout, { responsive: true, displayModeBar: false });
+        } else {
+            Plotly.newPlot(target, data, layout, { responsive: true, displayModeBar: false });
+        }
+        target.dataset.plotReady = '1';
+    }
+
+    renderEmployerSubplot(graph.__avgRurChartEl, [{
         type: 'bar',
         name: 'Средняя (RUR)',
         x: labels,
@@ -3962,9 +3991,9 @@ function renderEmployerAnalysisChart(block) {
         yaxis: { title: 'Зарплата, RUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
-    }, { responsive: true, displayModeBar: false });
+    });
 
-    Plotly.newPlot(graph.__avgUsdChartEl, [{
+    renderEmployerSubplot(graph.__avgUsdChartEl, [{
         type: 'bar',
         name: 'Средняя (USD)',
         x: labels,
@@ -3976,9 +4005,9 @@ function renderEmployerAnalysisChart(block) {
         yaxis: { title: 'Зарплата, USD' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
-    }, { responsive: true, displayModeBar: false });
+    });
 
-    Plotly.newPlot(graph.__avgEurChartEl, [{
+    renderEmployerSubplot(graph.__avgEurChartEl, [{
         type: 'bar',
         name: 'Средняя (EUR)',
         x: labels,
@@ -3990,9 +4019,9 @@ function renderEmployerAnalysisChart(block) {
         yaxis: { title: 'Зарплата, EUR' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
-    }, { responsive: true, displayModeBar: false });
+    });
 
-    Plotly.newPlot(graph.__avgOtherChartEl, [{
+    renderEmployerSubplot(graph.__avgOtherChartEl, [{
         type: 'bar',
         name: 'Средняя (Другая валюта)',
         x: labels,
@@ -4004,7 +4033,9 @@ function renderEmployerAnalysisChart(block) {
         yaxis: { title: 'Зарплата, Другая валюта' },
         margin: { t: 60, r: 20, b: 120, l: 80 },
         height: 420
-    }, { responsive: true, displayModeBar: false });
+    });
+    graph.dataset.plotSignature = signature;
+    graph.dataset.plotReady = '1';
 }
 
 function getEmployerFactorOrder(factorKey) {
@@ -4887,27 +4918,19 @@ function setActiveViewButton(buttons, mode) {
     }
 }
 function normalizeResponsiveViewMode(mode) {
-    var resolved = mode || 'table';
-    if (isCompactViewport() && resolved === 'together') return 'table';
-    return resolved;
+    return mode || 'table';
 }
 function isCompactViewport() {
     return Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) <= 960;
 }
 function syncResponsiveViewModeButtons(root) {
     var scope = root || document;
-    var compact = isCompactViewport();
     var buttons = scope.querySelectorAll('.view-mode-btn[data-view="together"], .view-mode-button[data-view="together"]');
     buttons.forEach(function(btn) {
-        btn.disabled = compact;
-        btn.classList.toggle('is-disabled', compact);
-        if (compact) {
-            btn.setAttribute('aria-disabled', 'true');
-            btn.tabIndex = -1;
-        } else {
-            btn.removeAttribute('aria-disabled');
-            btn.removeAttribute('tabindex');
-        }
+        btn.disabled = false;
+        btn.classList.remove('is-disabled');
+        btn.removeAttribute('aria-disabled');
+        btn.removeAttribute('tabindex');
     });
 }
 function refreshResponsiveViewModes(root) {
@@ -4986,7 +5009,7 @@ function applyViewMode(container, mode) {
     } else if ((container.dataset.analysis || '') === 'skills-monthly') {
         applySkillsModeSizing(container, mode);
     }
-    if (mode === 'graph') resizePlotlyScope(graph);
+    if (mode !== 'table') resizePlotlyScope(graph);
 }
 
 function resetCompositeViewStyles(layoutRoot, table, graph) {
@@ -5107,74 +5130,14 @@ function applyStandardTableModeWidth(table, container, defaultWidth) {
 function applySkillsModeSizing(container, mode) {
     if (!container) return;
     mode = normalizeResponsiveViewMode(mode);
-    var compact = isCompactViewport();
     var table = container.querySelector('.table-container');
     var graph = container.querySelector('.plotly-graph');
     if (!table || !graph) return;
-
-    container.style.minHeight = '';
-    container.style.overflowX = '';
-    graph.style.height = '';
-    table.style.flex = '';
-    table.style.width = '';
-    table.style.maxWidth = '';
-    table.style.margin = '';
-    table.style.minWidth = '';
-    table.style.removeProperty('width');
-    table.style.removeProperty('max-width');
-    table.style.removeProperty('min-width');
-    graph.style.flex = '';
-    graph.style.width = '';
-    graph.style.maxWidth = '';
-    graph.style.margin = '';
-    graph.style.minWidth = '';
-    graph.style.removeProperty('width');
-    graph.style.removeProperty('max-width');
-    graph.style.removeProperty('min-width');
-
-    if (compact) {
-        if (mode === 'table') {
-            container.style.overflowX = 'auto';
-            table.style.setProperty('width', '100%', 'important');
-            table.style.setProperty('max-width', 'none', 'important');
-            table.style.setProperty('min-width', '900px', 'important');
-        } else if (mode === 'graph') {
-            container.style.overflowX = 'visible';
-            graph.style.setProperty('width', '100%', 'important');
-            graph.style.setProperty('max-width', '100%', 'important');
-            graph.style.setProperty('min-width', '0', 'important');
-            graph.style.margin = '0 auto';
-        }
-    }
-
-    if (!compact) {
-        if (mode === 'table') {
-            applyStandardTableModeWidth(table, container, 'min(100%, 980px)');
-        } else if (mode === 'graph') {
-            graph.style.flex = '1 1 100%';
-            graph.style.width = '100%';
-            graph.style.maxWidth = '100%';
-            graph.style.margin = '0 auto';
-        } else {
-            table.style.flex = '0 1 40%';
-            table.style.width = '40%';
-            table.style.maxWidth = '40%';
-            graph.style.flex = '0 1 60%';
-            graph.style.width = '60%';
-            graph.style.maxWidth = '60%';
-        }
-    }
-
-    if (mode === 'table') return;
-
-    requestAnimationFrame(function() {
-        var th = Math.round(table.getBoundingClientRect().height || 0);
-        var gh = Math.round(graph.getBoundingClientRect().height || 0);
-        var maxh = Math.max(th, gh);
-        if (maxh > 0) {
-            container.style.minHeight = maxh + 'px';
-            if (gh < maxh) graph.style.height = maxh + 'px';
-        }
+    applyCompositeViewMode(container, table, graph, mode, {
+        tableOnlyWidth: 'min(100%, 980px)',
+        splitTableWidth: '40%',
+        splitGraphWidth: '60%',
+        compactTableMinWidth: '900px'
     });
 }
 function applyActivityModeSizing(container, mode) {
@@ -5182,89 +5145,12 @@ function applyActivityModeSizing(container, mode) {
     var graph = container.querySelector('.plotly-graph');
     if (!table || !graph) return;
     mode = normalizeResponsiveViewMode(mode);
-    var compact = isCompactViewport();
-    var isAllRolesActivity = !!(container.closest && container.closest('.all-roles-period-content[data-analysis="activity-all"]'));
-
-    container.style.justifyContent = 'center';
-    container.style.alignItems = 'stretch';
-    container.style.minHeight = '';
-    container.style.overflowX = '';
-
-    table.style.flex = '';
-    table.style.width = '';
-    table.style.maxWidth = '';
-    table.style.margin = '';
-    table.style.height = '';
-    table.style.maxHeight = '';
-    table.style.overflow = '';
-    table.style.minWidth = '';
-    table.style.removeProperty('width');
-    table.style.removeProperty('max-width');
-    table.style.removeProperty('min-width');
-
-    graph.style.flex = '';
-    graph.style.width = '';
-    graph.style.maxWidth = '';
-    graph.style.margin = '';
-    graph.style.height = '';
-    graph.style.minWidth = '';
-    graph.style.removeProperty('width');
-    graph.style.removeProperty('max-width');
-    graph.style.removeProperty('min-width');
-
-    if (compact) {
-        if (mode === 'table') {
-            container.style.overflowX = 'auto';
-            table.style.setProperty('width', '100%', 'important');
-            table.style.setProperty('max-width', 'none', 'important');
-            table.style.setProperty('min-width', '900px', 'important');
-        } else if (mode === 'graph') {
-            container.style.overflowX = 'visible';
-            graph.style.setProperty('width', '100%', 'important');
-            graph.style.setProperty('max-width', '100%', 'important');
-            graph.style.setProperty('min-width', '0', 'important');
-            graph.style.margin = '0 auto';
-        }
-    }
-
-    if (compact) return;
-
-    if (mode === 'table') {
-        container.style.alignItems = 'center';
-        applyStandardTableModeWidth(table, container, 'min(100%, 980px)');
-    } else if (mode === 'graph') {
-        container.style.alignItems = 'center';
-        graph.style.flex = '1 1 100%';
-        graph.style.width = '100%';
-        graph.style.maxWidth = '100%';
-        graph.style.margin = '0 auto';
-        requestAnimationFrame(function() {
-            var gh = Math.round(graph.getBoundingClientRect().height || 0);
-            if (gh > 0) container.style.minHeight = gh + 'px';
-        });
-    } else {
-        table.style.flex = '0 1 40%';
-        table.style.width = '40%';
-        table.style.maxWidth = '40%';
-        graph.style.flex = '0 1 60%';
-        graph.style.width = '60%';
-        graph.style.maxWidth = '60%';
-        requestAnimationFrame(function() {
-            var gh = Math.round(graph.getBoundingClientRect().height || 0);
-            if (gh > 0) {
-                if (isAllRolesActivity) {
-                    table.style.height = '';
-                    table.style.maxHeight = '';
-                    table.style.overflow = 'visible';
-                } else {
-                    table.style.height = gh + 'px';
-                    table.style.maxHeight = gh + 'px';
-                    table.style.overflow = 'auto';
-                }
-                container.style.minHeight = gh + 'px';
-            }
-        });
-    }
+    applyCompositeViewMode(container, table, graph, mode, {
+        tableOnlyWidth: 'min(100%, 980px)',
+        splitTableWidth: '40%',
+        splitGraphWidth: '60%',
+        compactTableMinWidth: '900px'
+    });
 }
 
 function applyWeekdayModeSizing(container, mode) {
@@ -5272,116 +5158,14 @@ function applyWeekdayModeSizing(container, mode) {
     var graph = container.querySelector('.plotly-graph');
     if (!table || !graph) return;
     mode = normalizeResponsiveViewMode(mode);
-    var compact = isCompactViewport();
-    var summaryWeekday = !!(container.closest('.all-roles-period-content[data-analysis="weekday-all"]') || container.closest('#role-combined'));
-
-    container.style.justifyContent = 'center';
-    container.style.alignItems = 'stretch';
-    container.style.height = 'auto';
-    container.style.minHeight = '0';
-    container.style.overflow = 'visible';
-    container.style.overflowX = '';
-
-    table.style.flex = '';
-    table.style.width = '';
-    table.style.maxWidth = '';
-    table.style.margin = '';
-    table.style.height = '';
-    table.style.maxHeight = '';
-    table.style.overflow = '';
-    table.style.minWidth = '';
-    table.style.removeProperty('width');
-    table.style.removeProperty('max-width');
-    table.style.removeProperty('min-width');
-
-    graph.style.flex = '';
-    graph.style.width = '';
-    graph.style.maxWidth = '';
-    graph.style.margin = '';
-    graph.style.height = '';
-    graph.style.minWidth = '';
-    graph.style.removeProperty('width');
-    graph.style.removeProperty('max-width');
-    graph.style.removeProperty('min-width');
-
-    if (compact) {
-        if (mode === 'table') {
-            container.style.overflowX = 'auto';
-            table.style.setProperty('width', '100%', 'important');
-            table.style.setProperty('max-width', 'none', 'important');
-            table.style.setProperty('min-width', '900px', 'important');
-        } else if (mode === 'graph') {
-            container.style.overflowX = 'visible';
-            graph.style.setProperty('width', '100%', 'important');
-            graph.style.setProperty('max-width', '100%', 'important');
-            graph.style.setProperty('min-width', '0', 'important');
-            graph.style.margin = '0 auto';
-        }
-    }
-
-    if (compact) return;
-
-    if (mode === 'table') {
-        container.style.alignItems = 'center';
-        container.style.height = 'auto';
-        applyStandardTableModeWidth(table, container, 'min(100%, 980px)');
-    } else if (mode === 'graph') {
-        container.style.alignItems = 'center';
-        graph.style.flex = '1 1 100%';
-        graph.style.width = '100%';
-        graph.style.maxWidth = '100%';
-        graph.style.margin = '0 auto';
-        syncContainerToGraphHeight(container, graph);
-    } else {
-        if (summaryWeekday) {
-            container.style.flexDirection = 'column';
-            container.style.alignItems = 'stretch';
-            table.style.flex = '0 1 100%';
-            table.style.width = '100%';
-            table.style.maxWidth = '100%';
-            table.style.margin = '0 auto';
-            graph.style.flex = '0 1 100%';
-            graph.style.width = '100%';
-            graph.style.maxWidth = '100%';
-            graph.style.margin = '0 auto';
-            return;
-        }
-        table.style.flex = '0 1 40%';
-        table.style.width = '40%';
-        table.style.maxWidth = '40%';
-        graph.style.flex = '0 1 60%';
-        graph.style.width = '60%';
-        graph.style.maxWidth = '60%';
-        requestAnimationFrame(function() {
-            var gh = Math.max(
-                Math.round(graph.getBoundingClientRect().height || 0),
-                Math.round(graph.scrollHeight || 0)
-            );
-            if (gh > 0) {
-                table.style.height = gh + 'px';
-                table.style.maxHeight = gh + 'px';
-                table.style.overflow = 'auto';
-            }
-            syncContainerToGraphHeight(container, graph);
-        });
-    }
+    applyCompositeViewMode(container, table, graph, mode, {
+        tableOnlyWidth: 'min(100%, 980px)',
+        splitTableWidth: '40%',
+        splitGraphWidth: '60%',
+        compactTableMinWidth: '900px'
+    });
 }
 
-function syncContainerToGraphHeight(container, graph) {
-    if (!container || !graph) return;
-    var apply = function() {
-        var gh = Math.max(
-            Math.round(graph.getBoundingClientRect().height || 0),
-            Math.round(graph.scrollHeight || 0)
-        );
-        if (gh > 0) {
-            container.style.height = gh + 'px';
-            container.style.minHeight = gh + 'px';
-        }
-    };
-    requestAnimationFrame(apply);
-    setTimeout(apply, 120);
-}
 function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
     var container = document.getElementById(containerId);
     if (!container) return;
@@ -5502,40 +5286,16 @@ function applySalaryViewMode(expDiv, entries) {
     if (!mainContent || !tableContainer || !graphContainer) return;
 
     applyCompositeViewMode(mainContent, tableContainer, graphContainer, mode, {
-        tableOnlyWidth: '100%',
-        splitTableWidth: '42%',
-        splitGraphWidth: '58%'
+        tableOnlyWidth: 'min(100%, 980px)',
+        splitTableWidth: '40%',
+        splitGraphWidth: '60%',
+        compactTableMinWidth: '900px'
     });
 
     if (mode !== 'table') {
         renderSalaryChartsFromEntries(graphId, entries, expDiv.dataset.chartContext || '');
-        resizePlotlyScope(graphContainer);
     }
 
-    if (mode === 'graph') {
-        requestAnimationFrame(function() {
-            var graphHeight = Math.max(
-                Math.round(graphContainer.getBoundingClientRect().height || 0),
-                Math.round(graphContainer.scrollHeight || 0)
-            );
-            if (graphHeight > 0) mainContent.style.minHeight = graphHeight + 'px';
-        });
-        return;
-    }
-
-    if (mode === 'together' && !isCompactViewport()) {
-        requestAnimationFrame(function() {
-            var graphHeight = Math.max(
-                Math.round(graphContainer.getBoundingClientRect().height || 0),
-                Math.round(graphContainer.scrollHeight || 0)
-            );
-            if (graphHeight > 0) {
-                mainContent.style.minHeight = graphHeight + 'px';
-                tableContainer.style.maxHeight = graphHeight + 'px';
-                tableContainer.style.overflow = 'auto';
-            }
-        });
-    }
 }
 
 

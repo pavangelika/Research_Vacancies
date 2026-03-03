@@ -554,7 +554,7 @@ function renderAllRolesContainer(container, roleContents) {
     var preferredButton = container.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
     if (preferredButton) preferredButton.click();
     else {
-        var analysisButton = container.querySelector('.analysis-button');
+        var analysisButton = container.querySelector('.analysis-tabs .analysis-button');
         if (analysisButton) analysisButton.click();
     }
     } finally {
@@ -985,7 +985,7 @@ function renderCombinedContainer(container, roleContents) {
     var targetButton = container.querySelector(".analysis-button[data-analysis-id='" + savedType + "-combined']");
     if (targetButton) targetButton.click();
     else {
-        var analysisButton = container.querySelector('.analysis-button');
+        var analysisButton = container.querySelector('.analysis-tabs .analysis-button');
         if (analysisButton) analysisButton.click();
     }
 }
