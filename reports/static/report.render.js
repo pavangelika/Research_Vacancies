@@ -564,6 +564,12 @@ function renderAllRolesContainer(container, roleContents) {
         skillsHtml +
         salaryHtml;
 
+    var allRolesPeriodBlocks = container.querySelectorAll('.all-roles-period-content');
+    allRolesPeriodBlocks.forEach(function(block) {
+        block._data = block._data || {};
+        block._data.entries = parseJsonDataset(block, 'entries', []);
+    });
+
     var preferred = uiState.global_analysis_type || 'activity';
     var preferredButton = container.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
     if (preferredButton) preferredButton.click();
