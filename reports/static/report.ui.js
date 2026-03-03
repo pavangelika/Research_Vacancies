@@ -3998,6 +3998,7 @@ function renderEmployerAnalysisChart(block) {
 
     graph.style.width = '100%';
     graph.style.maxWidth = '100%';
+    graph.style.minWidth = '0';
     graph.style.margin = '0 auto';
     graph.style.height = 'auto';
     graph.style.display = 'block';
@@ -4017,12 +4018,16 @@ function renderEmployerAnalysisChart(block) {
 
     function renderEmployerSubplot(target, data, layout) {
         if (!target) return;
+        target.style.width = '100%';
+        target.style.maxWidth = '100%';
+        target.style.minWidth = '0';
         if (target.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
             Plotly.react(target, data, layout, { responsive: true, displayModeBar: false });
         } else {
             Plotly.newPlot(target, data, layout, { responsive: true, displayModeBar: false });
         }
         target.dataset.plotReady = '1';
+        resizePlotlyScope(target);
     }
 
     renderEmployerSubplot(graph.__avgRurChartEl, [{
@@ -4034,8 +4039,8 @@ function renderEmployerAnalysisChart(block) {
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (RUR)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, RUR' },
-        margin: { t: 60, r: 20, b: 120, l: 80 },
+        yaxis: { title: 'Зарплата, RUR', automargin: true },
+        margin: { t: 56, r: 16, b: 96, l: 64 },
         height: 420
     });
 
@@ -4048,8 +4053,8 @@ function renderEmployerAnalysisChart(block) {
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (USD)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, USD' },
-        margin: { t: 60, r: 20, b: 120, l: 80 },
+        yaxis: { title: 'Зарплата, USD', automargin: true },
+        margin: { t: 56, r: 16, b: 96, l: 64 },
         height: 420
     });
 
@@ -4062,8 +4067,8 @@ function renderEmployerAnalysisChart(block) {
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (EUR)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, EUR' },
-        margin: { t: 60, r: 20, b: 120, l: 80 },
+        yaxis: { title: 'Зарплата, EUR', automargin: true },
+        margin: { t: 56, r: 16, b: 96, l: 64 },
         height: 420
     });
 
@@ -4076,8 +4081,8 @@ function renderEmployerAnalysisChart(block) {
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (Другая валюта)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, Другая валюта' },
-        margin: { t: 60, r: 20, b: 120, l: 80 },
+        yaxis: { title: 'Зарплата, Другая валюта', automargin: true },
+        margin: { t: 56, r: 16, b: 96, l: 64 },
         height: 420
     });
     graph.dataset.plotSignature = signature;
@@ -4358,7 +4363,7 @@ function initEmployerAnalysisFilter(block) {
     var graph = block.querySelector('.employer-analysis-graph');
     if (!graph) {
         graph = document.createElement('div');
-        graph.className = 'plotly-graph employer-analysis-graph';
+        graph.className = 'employer-analysis-graph';
         graph.style.display = 'none';
     }
     if (graph.parentElement !== mainWrap) {

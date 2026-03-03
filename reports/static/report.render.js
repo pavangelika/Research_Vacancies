@@ -909,7 +909,7 @@ function renderCombinedContainer(container, roleContents) {
                                 '<tbody>' + buildCombinedEmployerRawRowsHtml(combinedEmployerRows) + '</tbody>' +
                             '</table>' +
                         '</div>' +
-                        '<div class="plotly-graph employer-analysis-graph" style="display: none;"></div>' +
+                        '<div class="employer-analysis-graph" style="display: none;"></div>' +
                     '</div>' +
                 '</div>'
             ) : '<p>Нет данных по работодателям</p>') +

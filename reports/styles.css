@@ -1192,17 +1192,30 @@ tr:hover { background-color: #f0f4f9; }
     font-weight: 700;
 }
 .employer-analysis-graph {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    aspect-ratio: auto;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     height: auto;
     min-height: 0;
 }
 .employer-analysis-subgraph {
+    display: block;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
     aspect-ratio: var(--analysis-graph-ratio);
     min-height: 0;
-    margin-bottom: 14px;
+    margin-bottom: 0;
+}
+.employer-analysis-subgraph .js-plotly-plot,
+.employer-analysis-subgraph .plot-container,
+.employer-analysis-subgraph .svg-container {
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .employer-analysis-content.employer-aggregated-mode .employer-analysis-table-container table {
