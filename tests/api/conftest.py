@@ -4,7 +4,7 @@ import allure
 import time
 import json
 from datetime import datetime
-from utils.api_client import HHAPIClient
+from tests.api.utils.api_client import HHAPIClient
 
 
 @pytest.fixture(scope="session")
