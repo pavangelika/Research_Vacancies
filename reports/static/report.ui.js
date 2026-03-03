@@ -3811,10 +3811,11 @@ function applyEmployerAnalysisViewMode(block, mode) {
 
     if (layoutRoot) {
         applyCompositeViewMode(layoutRoot, table, graph, mode, {
-            tableOnlyWidth: 'min(100%, 980px)',
-            splitTableWidth: '40%',
-            splitGraphWidth: '60%',
-            compactTableMinWidth: '900px'
+            layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+            tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+            splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+            splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+            splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
         });
     }
 
@@ -4469,6 +4470,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         if (mode !== 'table' && graphId) {
             buildAllRolesSkillsChart(rows, graphId);
             applyChartTitleContext(graphId, 'Топ навыков по упоминаниям', allRolesSkillsContext);
+            resizePlotlyScope(document.getElementById(graphId));
         }
     } else if (analysisType === 'salary' && target) {
         var mode = applyAllRolesViewMode(target, analysisType);
@@ -5072,17 +5074,28 @@ function resetCompositeViewStyles(layoutRoot, table, graph) {
     graph.style.removeProperty('min-width');
 }
 
+var UNIFIED_ANALYSIS_LAYOUT_WIDTH = '100%';
+var UNIFIED_ANALYSIS_SINGLE_WIDTH = '100%';
+var UNIFIED_ANALYSIS_TABLE_WIDTH = 'calc(40% - (var(--analysis-gap) / 2))';
+var UNIFIED_ANALYSIS_GRAPH_WIDTH = 'calc(60% - (var(--analysis-gap) / 2))';
+var UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH = '0';
+
 function applyCompositeViewMode(layoutRoot, table, graph, mode, options) {
     if (!layoutRoot || !table || !graph) return;
     var opts = options || {};
     var compact = isCompactViewport();
     var normalizedMode = normalizeResponsiveViewMode(mode || 'together');
-    var tableOnlyWidth = opts.tableOnlyWidth || '100%';
-    var splitTableWidth = opts.splitTableWidth || '40%';
-    var splitGraphWidth = opts.splitGraphWidth || '60%';
-    var compactTableMinWidth = opts.compactTableMinWidth || '900px';
+    var layoutWidth = opts.layoutWidth || UNIFIED_ANALYSIS_LAYOUT_WIDTH;
+    var tableOnlyWidth = opts.tableOnlyWidth || UNIFIED_ANALYSIS_SINGLE_WIDTH;
+    var splitTableWidth = opts.splitTableWidth || UNIFIED_ANALYSIS_TABLE_WIDTH;
+    var splitGraphWidth = opts.splitGraphWidth || UNIFIED_ANALYSIS_GRAPH_WIDTH;
+    var splitMinWidth = opts.splitMinWidth || UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH;
+    var compactTableMinWidth = opts.compactTableMinWidth || '0';
 
     resetCompositeViewStyles(layoutRoot, table, graph);
+    layoutRoot.style.width = '100%';
+    layoutRoot.style.maxWidth = layoutWidth;
+    layoutRoot.style.margin = '0 auto';
 
     if (normalizedMode === 'table') {
         graph.style.display = 'none';
@@ -5123,13 +5136,15 @@ function applyCompositeViewMode(layoutRoot, table, graph, mode, options) {
         return normalizedMode;
     }
 
-    table.style.flex = '0 1 ' + splitTableWidth;
-    table.style.width = splitTableWidth;
-    table.style.maxWidth = splitTableWidth;
+    table.style.flex = '1 1 ' + splitTableWidth;
+    table.style.width = '';
+    table.style.maxWidth = '';
+    table.style.minWidth = splitMinWidth;
     table.style.margin = '0 auto';
-    graph.style.flex = '0 1 ' + splitGraphWidth;
-    graph.style.width = splitGraphWidth;
-    graph.style.maxWidth = splitGraphWidth;
+    graph.style.flex = '1 1 ' + splitGraphWidth;
+    graph.style.width = '';
+    graph.style.maxWidth = '';
+    graph.style.minWidth = splitMinWidth;
     graph.style.margin = '0 auto';
     return normalizedMode;
 }
@@ -5143,7 +5158,7 @@ function resolveSummaryTableWidth(container, defaultWidth) {
 
 function applyStandardTableModeWidth(table, container, defaultWidth) {
     if (!table) return;
-    var width = resolveSummaryTableWidth(container, defaultWidth || 'min(100%, 980px)');
+    var width = resolveSummaryTableWidth(container, defaultWidth || UNIFIED_ANALYSIS_LAYOUT_WIDTH);
     table.style.flex = '0 1 ' + width;
     table.style.width = width;
     table.style.maxWidth = width;
@@ -5157,10 +5172,11 @@ function applySkillsModeSizing(container, mode) {
     var graph = container.querySelector('.plotly-graph');
     if (!table || !graph) return;
     applyCompositeViewMode(container, table, graph, mode, {
-        tableOnlyWidth: 'min(100%, 980px)',
-        splitTableWidth: '40%',
-        splitGraphWidth: '60%',
-        compactTableMinWidth: '900px'
+        layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+        tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+        splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+        splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+        splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
     });
 }
 function applyActivityModeSizing(container, mode) {
@@ -5169,10 +5185,11 @@ function applyActivityModeSizing(container, mode) {
     if (!table || !graph) return;
     mode = normalizeResponsiveViewMode(mode);
     applyCompositeViewMode(container, table, graph, mode, {
-        tableOnlyWidth: 'min(100%, 980px)',
-        splitTableWidth: '40%',
-        splitGraphWidth: '60%',
-        compactTableMinWidth: '900px'
+        layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+        tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+        splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+        splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+        splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
     });
 }
 
@@ -5182,10 +5199,11 @@ function applyWeekdayModeSizing(container, mode) {
     if (!table || !graph) return;
     mode = normalizeResponsiveViewMode(mode);
     applyCompositeViewMode(container, table, graph, mode, {
-        tableOnlyWidth: 'min(100%, 980px)',
-        splitTableWidth: '40%',
-        splitGraphWidth: '60%',
-        compactTableMinWidth: '900px'
+        layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+        tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+        splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+        splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+        splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
     });
 }
 
@@ -5196,10 +5214,11 @@ function applySalaryModeSizing(container, mode) {
     var graph = container.querySelector('.plotly-graph');
     if (!table || !graph) return;
     applyCompositeViewMode(container, table, graph, mode, {
-        tableOnlyWidth: 'min(100%, 980px)',
-        splitTableWidth: '40%',
-        splitGraphWidth: '60%',
-        compactTableMinWidth: '900px'
+        layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+        tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+        splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+        splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+        splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
     });
 }
 
@@ -5323,10 +5342,11 @@ function applySalaryViewMode(expDiv, entries) {
     if (!mainContent || !tableContainer || !graphContainer) return;
 
     applyCompositeViewMode(mainContent, tableContainer, graphContainer, mode, {
-        tableOnlyWidth: 'min(100%, 980px)',
-        splitTableWidth: '40%',
-        splitGraphWidth: '60%',
-        compactTableMinWidth: '900px'
+        layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+        tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+        splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+        splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+        splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
     });
 
     if (mode !== 'table') {
