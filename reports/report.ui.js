@@ -4942,7 +4942,7 @@ function normalizeResponsiveViewMode(mode) {
     return mode || 'table';
 }
 function isCompactViewport() {
-    return Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) <= 960;
+    return false;
 }
 function syncResponsiveViewModeButtons(root) {
     var scope = root || document;
@@ -5241,7 +5241,7 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
     var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
     var chartHeight = viewportWidth <= 720
         ? Math.max(300, Math.min(360, Math.round(viewportWidth * 0.76)))
-        : (viewportWidth <= 960 ? 340 : 380);
+        : 380;
 
     var signature = list.map(function(entry) {
         return [
