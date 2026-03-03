@@ -1046,6 +1046,18 @@ function showSingleRole(idx) {
     if (firstButton) firstButton.click();
     updateRoleSelectionUI(new Set([String(idx)]));
 }
+function buildAllRolesRenderSignature(selectedIndices) {
+    var roleIds = Array.from(selectedIndices || []).map(function(idx) {
+        var roleContent = getRoleContentByIndex(idx);
+        return roleContent && (roleContent.dataset.roleId || roleContent.id || String(idx)) || String(idx);
+    }).sort();
+    var filters = uiState.global_filters || {};
+    return JSON.stringify({
+        roles: roleIds,
+        periods: filters.periods || null,
+        experiences: filters.experiences || null
+    });
+}
 function updateRoleView(selectedIndices) {
     var combined = document.getElementById('role-combined');
     var allRoles = document.getElementById('role-all');
@@ -1056,7 +1068,15 @@ function updateRoleView(selectedIndices) {
         if (allRoles) {
             allRoles.style.display = 'block';
             var selectedContents = Array.from(selectedIndices || []).map(i => getRoleContentByIndex(i)).filter(Boolean);
-            renderAllRolesContainer(allRoles, selectedContents.length ? selectedContents : getAllRoleContents());
+            var renderSignature = buildAllRolesRenderSignature(selectedIndices);
+            if (allRoles.dataset.renderSignature !== renderSignature) {
+                renderAllRolesContainer(allRoles, selectedContents.length ? selectedContents : getAllRoleContents());
+                allRoles.dataset.renderSignature = renderSignature;
+            } else {
+                var preferred = uiState.global_analysis_type || 'activity';
+                var targetButton = allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
+                if (targetButton) targetButton.click();
+            }
         }
         return;
     }
