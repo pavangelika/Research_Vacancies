@@ -481,10 +481,8 @@ function renderAllRolesContainer(container, roleContents) {
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
-                '<div class="table-container full-width-table">' +
-                    '<div class="skills-all-table-wrap">' +
-                        buildAllRolesSkillsTableHtml(rows) +
-                    '</div>' +
+                '<div class="table-container">' +
+                    buildAllRolesSkillsTableHtml(rows) +
                 '</div>' +
                 '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +

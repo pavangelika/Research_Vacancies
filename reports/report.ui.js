@@ -3413,8 +3413,24 @@ function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
 
 function normalizeWeekdayControls(parentRole) {
     if (!parentRole) return;
+    if (parentRole.id === 'role-all') {
+        parentRole.querySelectorAll(
+            '.weekday-content, .all-roles-period-content[data-analysis="weekday-all"]'
+        ).forEach(function(section) {
+            updateViewToggleIcons(section);
+        });
+        var allRolesCells = parentRole.querySelectorAll(
+            '.weekday-content td, .all-roles-period-content[data-analysis="weekday-all"] td'
+        );
+        allRolesCells.forEach(function(cell) {
+            if ((cell.textContent || '').trim() === 'None') {
+                cell.textContent = 'нет архивных';
+            }
+        });
+        return;
+    }
     var sections = parentRole.querySelectorAll(
-        '.weekday-content, .all-roles-period-content[data-analysis="weekday-all"]'
+        '.weekday-content'
     );
     sections.forEach(function(section) {
         var toggle = section.querySelector('.view-toggle-horizontal');
@@ -3431,7 +3447,7 @@ function normalizeWeekdayControls(parentRole) {
         updateViewToggleIcons(section);
     });
     var noneCells = parentRole.querySelectorAll(
-        '.weekday-content td, .all-roles-period-content[data-analysis="weekday-all"] td'
+        '.weekday-content td'
     );
     noneCells.forEach(function(cell) {
         if ((cell.textContent || '').trim() === 'None') {
@@ -4392,6 +4408,22 @@ function getMonthWordForm(count) {
     return 'месяцев';
 }
 
+function getAllRolesViewMode(analysisType) {
+    if (analysisType === 'activity') return uiState.activity_view_mode || 'together';
+    if (analysisType === 'weekday') return uiState.weekday_view_mode || 'together';
+    if (analysisType === 'skills') return uiState.skills_monthly_view_mode || 'together';
+    if (analysisType === 'salary') return uiState.salary_view_mode || 'together';
+    return 'together';
+}
+
+function applyAllRolesViewMode(target, analysisType) {
+    if (!target) return 'together';
+    var mode = getAllRolesViewMode(analysisType);
+    setActiveViewButton(target.querySelectorAll('.view-mode-btn'), mode);
+    applyViewMode(target.querySelector('.view-mode-container'), mode);
+    return mode;
+}
+
 function openAllRolesPeriodTab(evt, contentId, analysisType) {
     var wrapper = evt.currentTarget.closest('.all-roles-period-wrapper');
     if (!wrapper) return;
@@ -4409,11 +4441,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
     syncAllRolesSharedPeriodTabs(parentRole, evt.currentTarget.dataset.period || 'all');
 
     if (analysisType === 'activity' && target) {
-        var mode = uiState.activity_view_mode || 'together';
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
+        var mode = applyAllRolesViewMode(target, analysisType);
         var rows = parseJsonDataset(target, 'entries', []);
         var mainId = target.dataset.graphMain;
         var ageId = target.dataset.graphAge;
@@ -4423,14 +4451,9 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
             applyChartTitleContext(mainId, 'Открытые и архивные вакансии по ролям', allRolesContext);
             applyChartTitleContext(ageId, 'Ср. возраст (дни) по ролям', allRolesContext);
         }
-        applyActivityModeSizing(viewContainer, mode);
     } else if (analysisType === 'weekday' && target) {
         normalizeWeekdayControls(target.closest('.role-content'));
-        var mode = uiState.weekday_view_mode || 'together';
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
+        var mode = applyAllRolesViewMode(target, analysisType);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
         var allRolesWeekdayContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
@@ -4438,13 +4461,8 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
             buildAllRolesWeekdayChart(rows, graphId);
             applyChartTitleContext(graphId, 'Публикации и архивы по ролям', allRolesWeekdayContext);
         }
-        applyWeekdayModeSizing(viewContainer, mode);
     } else if (analysisType === 'skills' && target) {
-        var mode = uiState.skills_monthly_view_mode || 'together';
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
+        var mode = applyAllRolesViewMode(target, analysisType);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
         var allRolesSkillsContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
@@ -4453,14 +4471,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
             applyChartTitleContext(graphId, 'Топ навыков по упоминаниям', allRolesSkillsContext);
         }
     } else if (analysisType === 'salary' && target) {
-        var mode = uiState.salary_view_mode || 'together';
-        var viewBtns = target.querySelectorAll('.view-mode-btn');
-        setActiveViewButton(viewBtns, mode);
-        var viewContainer = target.querySelector('.view-mode-container');
-        applyViewMode(viewContainer, mode);
-        if (mode === 'table' && viewContainer) {
-            applyStandardTableModeWidth(viewContainer.querySelector('.table-container'), viewContainer, 'min(100%, 980px)');
-        }
+        var mode = applyAllRolesViewMode(target, analysisType);
         var rows = parseJsonDataset(target, 'entries', []);
         var graphId = target.dataset.graphId;
         var allRolesSalaryContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
@@ -5018,6 +5029,8 @@ function applyViewMode(container, mode) {
         applyWeekdayModeSizing(container, mode);
     } else if ((container.dataset.analysis || '') === 'skills-monthly') {
         applySkillsModeSizing(container, mode);
+    } else if ((container.dataset.analysis || '') === 'salary') {
+        applySalaryModeSizing(container, mode);
     }
     if (mode !== 'table') resizePlotlyScope(graph);
 }
@@ -5168,6 +5181,20 @@ function applyWeekdayModeSizing(container, mode) {
     var graph = container.querySelector('.plotly-graph');
     if (!table || !graph) return;
     mode = normalizeResponsiveViewMode(mode);
+    applyCompositeViewMode(container, table, graph, mode, {
+        tableOnlyWidth: 'min(100%, 980px)',
+        splitTableWidth: '40%',
+        splitGraphWidth: '60%',
+        compactTableMinWidth: '900px'
+    });
+}
+
+function applySalaryModeSizing(container, mode) {
+    if (!container) return;
+    mode = normalizeResponsiveViewMode(mode);
+    var table = container.querySelector('.table-container');
+    var graph = container.querySelector('.plotly-graph');
+    if (!table || !graph) return;
     applyCompositeViewMode(container, table, graph, mode, {
         tableOnlyWidth: 'min(100%, 980px)',
         splitTableWidth: '40%',
