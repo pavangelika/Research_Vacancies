@@ -1032,6 +1032,9 @@ tr:hover { background-color: #f0f4f9; }
 .employer-analysis-graph > .chart-switch ~ .chart-switch-target {
     margin-top: calc(var(--chart-title-bottom-gap) + 0.75rem - var(--chart-stack-gap));
 }
+.all-roles-graph-stack > .chart-switch ~ .activity-graph-item {
+    margin-top: calc(var(--chart-title-bottom-gap) + 0.75rem - var(--chart-stack-gap));
+}
 .chart-switch ~ .chart-switch-target .unified-chart-shell,
 .chart-switch ~ .chart-switch-target .skills-all-html-card {
     padding-top: 0;
