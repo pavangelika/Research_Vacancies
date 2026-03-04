@@ -792,13 +792,14 @@ function switchFromSummaryToAnalysis(analysisType) {
     if (ctx && typeof ctx.getOrder === 'function') {
         var order = ctx.getOrder();
         var selected = typeof ctx.getSelected === 'function' ? Array.from(ctx.getSelected()) : [];
-        var first = order[0] || selected[0];
+        var preferredOrder = order.length ? order.slice() : selected.slice();
+        var first = preferredOrder[0];
         if (first !== undefined && first !== null) {
             if (typeof ctx.exitAllRolesMode === 'function') {
-                ctx.exitAllRolesMode(new Set([first]), [first]);
+                ctx.exitAllRolesMode(new Set(selected), preferredOrder);
             } else {
                 if (typeof ctx.applySelection === 'function') {
-                    ctx.applySelection(new Set([first]), [first]);
+                    ctx.applySelection(new Set(selected), preferredOrder);
                 }
                 setSummaryModeActive(false);
             }

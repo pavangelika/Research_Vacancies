@@ -496,10 +496,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function setAllRolesMode(isActive) {
         if (isActive) {
-            var allIndices = buttons.map(function(btn) { return btn.dataset.roleIndex; }).filter(Boolean);
-            if (allIndices.length) {
-                selected = new Set(allIndices);
-                selectionOrder = allIndices.slice();
+            if (!selected.size) {
+                var allIndices = buttons.map(function(btn) { return btn.dataset.roleIndex; }).filter(Boolean);
+                if (allIndices.length) {
+                    selected = new Set(allIndices);
+                    selectionOrder = allIndices.slice();
+                }
+            }
+            if (selected.size) {
                 syncRoleFilterState();
             }
         }
