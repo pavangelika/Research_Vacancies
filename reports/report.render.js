@@ -272,6 +272,7 @@ function renderAllRolesContainer(container, roleContents) {
     function computeAllRolesSkillCostSummaryFromVacancies(periodValue) {
         var roleCounts = new Map();
         var totals = new Map();
+        var displayNames = new Map();
 
         filteredRoleContents.forEach(function(roleContent) {
             var roleName = roleContent.dataset.roleName || roleContent.dataset.roleId || 'UNKNOWN_ROLE';
@@ -288,7 +289,17 @@ function renderAllRolesContainer(container, roleContents) {
                     var b = to !== null ? Number(to) : Number(from);
                     if (!isNaN(a) && !isNaN(b)) avg = (a + b) / 2.0;
                 }
-                String(vacancy.skills).split(',').map(function(skill) { return normalizeSkillName(skill); }).filter(Boolean).forEach(function(skill) {
+                String(vacancy.skills).split(',').forEach(function(rawSkill) {
+                    var label = String(rawSkill || '')
+                        .replace(/\u200e/g, '')
+                        .trim()
+                        .replace(/\s+/g, ' ');
+                    var skill = normalizeSkillName(rawSkill);
+                    if (!skill) return;
+                    var savedLabel = displayNames.get(skill);
+                    if (!savedLabel || (savedLabel === savedLabel.toLowerCase() && label !== label.toLowerCase())) {
+                        displayNames.set(skill, label || skill);
+                    }
                     var entry = totals.get(skill) || { count: 0, sum: 0, salaryCount: 0 };
                     entry.count += 1;
                     if (avg !== null) {
@@ -303,10 +314,11 @@ function renderAllRolesContainer(container, roleContents) {
         });
 
         var rows = Array.from(totals.entries()).map(function(pair) {
-            var skill = pair[0];
+            var skillKey = pair[0];
             var entry = pair[1] || { count: 0, sum: 0, salaryCount: 0 };
             return {
-                skill: skill,
+                skill: displayNames.get(skillKey) || skillKey,
+                _skill_key: skillKey,
                 mention_count: entry.count,
                 avg_skill_cost_rur: entry.salaryCount ? Math.round((entry.sum / entry.salaryCount) * 100) / 100 : null,
                 median_skill_cost_rur: null
@@ -326,7 +338,7 @@ function renderAllRolesContainer(container, roleContents) {
             roleMapBySkill.set(skill, list);
         });
         rows.forEach(function(row) {
-            var list = roleMapBySkill.get(row.skill) || [];
+            var list = roleMapBySkill.get(row._skill_key) || [];
             list.sort(function(a, b) {
                 return (b.count - a.count) || a.role.localeCompare(b.role);
             });
@@ -334,6 +346,7 @@ function renderAllRolesContainer(container, roleContents) {
                 var pct = row.mention_count ? (item.count * 100.0 / row.mention_count) : 0;
                 return item.role + ' (' + pct.toFixed(2) + '%)';
             }).join(', ');
+            delete row._skill_key;
         });
         return { rows: rows };
     }

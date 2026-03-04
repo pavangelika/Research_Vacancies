@@ -373,11 +373,13 @@ document.addEventListener('click', function(e) {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
         if (mode !== 'table') {
-            var rows = parseJsonDataset(container, 'entries', []);
             var graphId = container.dataset.graphId;
             if (graphId) {
-                buildAllRolesSkillsChart(rows, graphId);
-                resizePlotlyScope(document.getElementById(graphId));
+                var activePeriodBtn = container.closest('.all-roles-period-wrapper')
+                    ? container.closest('.all-roles-period-wrapper').querySelector('.all-roles-period-button.active')
+                    : null;
+                var contextText = buildChartContextLabel(((activePeriodBtn || {}).textContent || '').trim(), null);
+                renderAllRolesSkillsChartFromTable(container, graphId, contextText);
             }
         }
         return;

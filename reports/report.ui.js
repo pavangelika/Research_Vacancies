@@ -189,20 +189,33 @@ function switchAnalysis(evt, analysisId) {
         skillsMonthlyBlock.style.display = 'block';
         normalizeSkillsMonthlyControls(parentRole);
         if (roleId === 'role-all') {
+            uiState.skills_monthly_view_mode = uiState.skills_monthly_view_mode || 'together';
             restoreAllRolesPeriodState(parentRole, 'skills');
-            var visibleSkillsPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="skills-monthly-all"]')).find(function(node) {
-                return (node.style.display || '') === 'block';
-            });
-            if (visibleSkillsPeriod && (uiState.skills_monthly_view_mode || 'together') !== 'table') {
+            var forceAllRolesSkillsRender = function() {
+                var visibleSkillsPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="skills-monthly-all"]')).find(function(node) {
+                    return (node.style.display || '') === 'block';
+                }) || parentRole.querySelector('.all-roles-period-content[data-analysis="skills-monthly-all"]');
+                if (!visibleSkillsPeriod || (uiState.skills_monthly_view_mode || 'together') === 'table') return;
                 var forcedGraphId = visibleSkillsPeriod.dataset.graphId;
-                if (forcedGraphId) {
-                    var forcedContext = buildChartContextLabel(
-                        ((parentRole.querySelector('.all-roles-period-button.active') || {}).textContent || '').trim(),
-                        null
-                    );
-                    renderAllRolesSkillsChartFromTable(visibleSkillsPeriod, forcedGraphId, forcedContext);
+                if (!forcedGraphId) return;
+                var forcedContext = buildChartContextLabel(
+                    ((parentRole.querySelector('.all-roles-period-button.active') || {}).textContent || '').trim(),
+                    null
+                );
+                var viewContainer = visibleSkillsPeriod.querySelector('.view-mode-container');
+                if (viewContainer) {
+                    viewContainer.style.display = 'flex';
+                    var forcedTable = viewContainer.querySelector('.table-container');
+                    var forcedGraph = document.getElementById(forcedGraphId);
+                    if (forcedTable && (uiState.skills_monthly_view_mode || 'together') !== 'graph') forcedTable.style.display = 'block';
+                    if (forcedGraph) forcedGraph.style.display = 'block';
                 }
-            }
+                renderAllRolesSkillsChartFromTable(visibleSkillsPeriod, forcedGraphId, forcedContext);
+            };
+            forceAllRolesSkillsRender();
+            requestAnimationFrame(forceAllRolesSkillsRender);
+            setTimeout(forceAllRolesSkillsRender, 60);
+            setTimeout(forceAllRolesSkillsRender, 180);
         } else restoreSkillsMonthlyState(parentRole, roleId);
     } else if (analysisType === 'skills-search') {
         if (skillsSearchBlock) {
@@ -4463,10 +4476,15 @@ function applyAllRolesViewMode(target, analysisType) {
     return mode;
 }
 
-function renderAllRolesSkillsChartFromTable(target, graphId, contextText) {
-    if (!target || !graphId || typeof Plotly === 'undefined') return;
+function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attempt) {
+    if (!target || !graphId) return;
+    attempt = attempt || 0;
     var graphEl = document.getElementById(graphId);
     if (!graphEl) return;
+    target.style.display = 'block';
+    var layoutWrap = target.querySelector('.view-mode-container');
+    if (layoutWrap) layoutWrap.style.display = 'flex';
+    graphEl.style.display = 'block';
 
     var rows = Array.from(target.querySelectorAll('.skills-all-table tbody tr')).map(function(row) {
         var cells = row.querySelectorAll('td');
@@ -4489,33 +4507,144 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText) {
 
     var top = rows.slice().sort(function(a, b) {
         return (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
-    }).slice(0, 15);
+    }).slice(0, 30);
+    var subtitleText = '';
+    var activeRole = target.closest('.role-content');
+    if (activeRole) {
+        var periodOptions = getGlobalFilterOptions(activeRole, 'periods', 'skills-monthly');
+        var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+        var expOptions = getGlobalFilterOptions(activeRole, 'experiences', 'skills-monthly');
+        var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+        var periodLabel = resolveChartPeriodLabel(selectedPeriods);
+        var normalizedPeriodLabel = String(periodLabel || '').trim();
+        if (normalizedPeriodLabel === 'Все' || normalizedPeriodLabel === 'По выбранному периоду' || normalizedPeriodLabel === 'За все время') {
+            periodLabel = 'Весь период';
+        }
+        var experienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
+        subtitleText = buildChartContextLabel(periodLabel, experienceLabel);
+    }
+    if (!subtitleText) {
+        subtitleText = String(contextText || '').trim();
+    }
+    if (!subtitleText) {
+        var periodSource = target.dataset.period || '';
+        subtitleText = 'Период: ' + String(formatPeriodSelectionValue(periodSource) || periodSource || 'За весь период').trim();
+    } else if (subtitleText.indexOf('Период:') !== 0) {
+        subtitleText = 'Период: ' + subtitleText;
+    }
+    var renderHtmlFallback = function() {
+        var maxCount = top.reduce(function(max, item) {
+            return Math.max(max, item.mention_count || 0);
+        }, 0) || 1;
+        graphEl.classList.add('skills-all-html-chart');
+        graphEl.dataset.plotSignature = top.map(function(item) {
+            return (item.skill || '') + ':' + (item.mention_count || 0);
+        }).join('|') + '|' + (contextText || '') + '|html';
+        graphEl.dataset.plotReady = '';
+        graphEl.style.minHeight = '480px';
+        graphEl.innerHTML =
+            '<div class="skills-all-html-card">' +
+                '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
+                '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
+                top.map(function(item) {
+                    var width = Math.max(4, Math.round(((item.mention_count || 0) / maxCount) * 100));
+                    return '' +
+                        '<div class="skills-all-html-row">' +
+                            '<div class="skills-all-html-label">' + escapeHtml(item.skill || '—') + '</div>' +
+                            '<div class="skills-all-html-track">' +
+                                '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE') + ';"></div>' +
+                            '</div>' +
+                            '<div class="skills-all-html-value">' + (item.mention_count || 0) + '</div>' +
+                        '</div>';
+                }).join('') +
+            '</div>';
+    };
+
+    var graphWidth = Math.max(
+        graphEl.clientWidth || 0,
+        Math.round((graphEl.getBoundingClientRect ? graphEl.getBoundingClientRect().width : 0) || 0)
+    );
+    var targetVisible = target.offsetParent !== null;
+    var graphVisible = graphEl.offsetParent !== null || graphEl.style.display === 'block';
+    if ((!targetVisible || !graphVisible || graphWidth === 0) && attempt < 4) {
+        var retry = function() {
+            renderAllRolesSkillsChartFromTable(target, graphId, contextText, attempt + 1);
+        };
+        requestAnimationFrame(retry);
+        setTimeout(retry, 80 * (attempt + 1));
+        return;
+    }
+    if (!targetVisible || !graphVisible || graphWidth === 0) {
+        renderHtmlFallback();
+        return;
+    }
+    if (typeof Plotly === 'undefined') {
+        renderHtmlFallback();
+        return;
+    }
     var signature = top.map(function(item) {
         return (item.skill || '') + ':' + (item.mention_count || 0);
     }).join('|') + '|' + (contextText || '');
+    graphEl.classList.add('skills-all-html-chart');
+    graphEl.dataset.plotReady = '';
+    graphEl.innerHTML =
+        '<div class="skills-all-html-card">' +
+            '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
+            '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
+            '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
+        '</div>';
+    var plotHost = document.getElementById(graphId + '-plotly-host');
+    if (!plotHost) {
+        renderHtmlFallback();
+        return;
+    }
     var data = [{
-        x: top.map(function(item) { return item.skill || '—'; }),
-        y: top.map(function(item) { return item.mention_count || 0; }),
+        x: top.map(function(item) { return item.mention_count || 0; }),
+        y: top.map(function(item) { return item.skill || '—'; }),
         type: 'bar',
-        marker: { color: (typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE') }
+        orientation: 'h',
+        marker: {
+            color: (typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE'),
+            line: { width: 0 }
+        },
+        hovertemplate: '<b>%{y}</b><br>Упоминаний: %{x}<extra></extra>'
     }];
     var layout = {
-        title: { text: composeChartTitle('Топ навыков по упоминаниям', contextText), x: 0.5, xanchor: 'center' },
-        xaxis: { tickangle: -35, title: '', automargin: true },
-        yaxis: { title: 'Упоминаний', automargin: true },
-        margin: { t: 56, b: 180, l: 60, r: 24 },
-        height: 480,
+        margin: { t: 2, b: 8, l: 8, r: 8 },
+        height: Math.max(520, top.length * 26 + 24),
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
         showlegend: false
     };
+    layout.xaxis = {
+        visible: false,
+        showgrid: false,
+        zeroline: false,
+        fixedrange: true
+    };
+    layout.yaxis = {
+        automargin: true,
+        autorange: 'reversed',
+        tickfont: { size: 12, color: '#0f172a' },
+        fixedrange: true
+    };
+    plotHost.style.minHeight = layout.height + 'px';
+    graphEl.style.minHeight = (layout.height + 56) + 'px';
 
-    if (graphEl.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
-        Plotly.react(graphEl, data, layout, { responsive: true, displayModeBar: false });
-    } else {
-        Plotly.newPlot(graphEl, data, layout, { responsive: true, displayModeBar: false });
+    try {
+        if (plotHost.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
+            Plotly.react(plotHost, data, layout, { responsive: true, displayModeBar: false });
+        } else {
+            Plotly.newPlot(plotHost, data, layout, { responsive: true, displayModeBar: false });
+        }
+    } catch (err) {
+        renderHtmlFallback();
+        return;
     }
     graphEl.dataset.plotSignature = signature;
     graphEl.dataset.plotReady = '1';
-    resizePlotlyScope(graphEl);
+    plotHost.dataset.plotReady = '1';
+    resizePlotlyScope(plotHost);
 }
 
 function openAllRolesPeriodTab(evt, contentId, analysisType) {

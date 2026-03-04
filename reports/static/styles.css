@@ -976,6 +976,74 @@ tr:hover { background-color: #f0f4f9; }
 .all-roles-period-content[data-analysis="skills-monthly-all"] .table-container .skills-all-table td:first-child {
     width: 42%;
 }
+.all-roles-period-content[data-analysis="skills-monthly-all"] .plotly-graph.skills-all-html-chart {
+    aspect-ratio: auto;
+    min-width: 0;
+    width: 100%;
+    height: auto;
+}
+.skills-all-html-card {
+    padding: 8px 0 0;
+    box-sizing: border-box;
+}
+.skills-all-html-title {
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-primary);
+}
+.skills-all-html-subtitle {
+    margin: -4px 0 14px;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--text-secondary);
+}
+.skills-all-html-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 36%) 1fr auto;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.skills-all-html-row:last-child {
+    margin-bottom: 0;
+}
+.skills-all-html-label {
+    font-size: 0.78rem;
+    line-height: 1.3;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+.skills-all-html-track {
+    height: 18px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(148, 163, 184, 0.1);
+}
+.skills-all-html-fill {
+    height: 100%;
+    min-width: 6px;
+    border-radius: 999px;
+}
+.skills-all-html-value {
+    min-width: 30px;
+    text-align: right;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.skills-all-plotly-host {
+    width: 100%;
+    min-width: 0;
+}
+.skills-all-plotly-host .js-plotly-plot,
+.skills-all-plotly-host .plot-container,
+.skills-all-plotly-host .svg-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}
 .skills-all-skill-name {
     font-weight: 600;
 }
