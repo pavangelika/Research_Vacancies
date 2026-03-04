@@ -56,6 +56,189 @@ function updateViewToggleIcons(root) {
     });
     syncResponsiveViewModeButtons(root);
 }
+function stripChartTitleText(value) {
+    return String(value || '')
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function getDirectChildByClass(parent, className) {
+    if (!parent) return null;
+    for (var i = 0; i < parent.children.length; i++) {
+        var child = parent.children[i];
+        if (child.classList && child.classList.contains(className)) return child;
+    }
+    return null;
+}
+function resolvePlotlyContainer(target) {
+    var el = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!el) return { outer: null, host: null };
+    if (el.classList && el.classList.contains('js-plotly-plot')) return { outer: el, host: el };
+    if (el.classList && el.classList.contains('skills-all-plotly-host')) {
+        var skillsOuter = el.closest('.skills-all-html-chart');
+        return { outer: skillsOuter || el, host: el };
+    }
+    if (el.classList && el.classList.contains('unified-chart-host')) {
+        var unifiedOuter = el.closest('.unified-chart-frame');
+        return { outer: unifiedOuter || el, host: el };
+    }
+
+    var shell = getDirectChildByClass(el, 'unified-chart-shell');
+    if (!shell) {
+        el.classList.add('unified-chart-frame');
+        shell = document.createElement('div');
+        shell.className = 'unified-chart-shell';
+
+        var heading = document.createElement('div');
+        heading.className = 'unified-chart-heading';
+        heading.style.display = 'none';
+
+        var title = document.createElement('div');
+        title.className = 'unified-chart-title';
+
+        var subtitle = document.createElement('div');
+        subtitle.className = 'unified-chart-subtitle';
+
+        var host = document.createElement('div');
+        host.className = 'unified-chart-host';
+        if (el.id) host.id = el.id + '-plot-host';
+
+        heading.appendChild(title);
+        heading.appendChild(subtitle);
+        shell.appendChild(heading);
+        shell.appendChild(host);
+        el.appendChild(shell);
+    }
+
+    var hostNode = shell.querySelector('.unified-chart-host');
+    return { outer: el, host: hostNode || el };
+}
+function setUnifiedChartHeader(target, baseTitle, contextText) {
+    var container = resolvePlotlyContainer(target);
+    var outer = container.outer;
+    if (!outer || !outer.classList || outer.classList.contains('skills-all-html-chart')) return container;
+    var shell = getDirectChildByClass(outer, 'unified-chart-shell');
+    if (!shell) return container;
+    var heading = shell.querySelector('.unified-chart-heading');
+    var title = shell.querySelector('.unified-chart-title');
+    var subtitle = shell.querySelector('.unified-chart-subtitle');
+    if (!heading || !title || !subtitle) return container;
+
+    var base = stripChartTitleText(baseTitle);
+    var context = resolveUnifiedChartContext(target, contextText);
+    if (!base && !context) {
+        heading.style.display = 'none';
+        title.textContent = '';
+        subtitle.textContent = '';
+        return container;
+    }
+
+    heading.style.display = 'block';
+    title.textContent = base;
+    subtitle.textContent = context;
+    subtitle.style.display = context ? 'block' : 'none';
+    return container;
+}
+function extractLayoutTitleParts(layout) {
+    if (!layout) return { base: '', context: '' };
+    var title = layout.title;
+    var text = '';
+    if (typeof title === 'string') text = title;
+    else if (title && typeof title.text !== 'undefined') text = title.text;
+    text = String(text || '');
+    if (!text) return { base: '', context: '' };
+    var parts = text.split(/<br\s*\/?>/i);
+    return {
+        base: stripChartTitleText(parts[0] || ''),
+        context: stripChartTitleText(parts.slice(1).join(' '))
+    };
+}
+function isHorizontalBarChartData(data) {
+    if (!Array.isArray(data) || !data.length) return false;
+    return data.every(function(trace) {
+        return trace && trace.type === 'bar' && trace.orientation === 'h';
+    });
+}
+function normalizeHorizontalBarChartLayout(data, layout) {
+    if (!isHorizontalBarChartData(data) || !layout) return;
+    var maxItems = data.reduce(function(max, trace) {
+        var count = Array.isArray(trace.y) ? trace.y.length : 0;
+        return Math.max(max, count);
+    }, 0);
+    var recommendedHeight = Math.max(260, Math.min(980, 110 + maxItems * 26));
+    layout.height = Math.max(Number(layout.height) || 0, recommendedHeight);
+    layout.bargap = 0.42;
+    layout.margin = layout.margin || {};
+    layout.margin.t = 8;
+    layout.margin.b = 12;
+    layout.margin.l = Math.max(Number(layout.margin.l) || 0, 170);
+    layout.margin.r = Math.max(Number(layout.margin.r) || 0, 24);
+    layout.xaxis = layout.xaxis || {};
+    layout.yaxis = layout.yaxis || {};
+    layout.xaxis.automargin = true;
+    layout.yaxis.automargin = true;
+    layout.yaxis.autorange = 'reversed';
+}
+function stripAxisTitles(layout) {
+    if (!layout || typeof layout !== 'object') return;
+    Object.keys(layout).forEach(function(key) {
+        if (!/^(x|y)axis\d*$/.test(key)) return;
+        var axis = layout[key];
+        if (!axis || typeof axis !== 'object') return;
+        if (typeof axis.title === 'string') {
+            axis.title = '';
+            return;
+        }
+        if (axis.title && typeof axis.title === 'object') {
+            axis.title.text = '';
+        }
+    });
+}
+function detectChartAnalysisType(target) {
+    var el = typeof target === 'string' ? document.getElementById(target) : target;
+    if (!el || !el.closest) return '';
+    var vm = el.closest('.view-mode-container');
+    var vmType = vm && vm.dataset ? String(vm.dataset.analysis || '').trim() : '';
+    if (vmType) return vmType;
+    var periodBlock = el.closest('.all-roles-period-content');
+    var blockType = periodBlock && periodBlock.dataset ? String(periodBlock.dataset.analysis || '').trim() : '';
+    if (blockType) {
+        if (blockType.indexOf('activity') === 0) return 'activity';
+        if (blockType.indexOf('weekday') === 0) return 'weekday';
+        if (blockType.indexOf('skills') === 0) return 'skills-monthly';
+        if (blockType.indexOf('salary') === 0) return 'salary';
+    }
+    if (el.closest('.employer-analysis-content')) return 'employer-analysis';
+    return '';
+}
+function normalizeUnifiedPeriodLabel(label) {
+    var text = String(label || '').trim();
+    if (!text) return '';
+    if (text === 'Все' || text === 'По выбранному периоду' || text === 'За все время') return 'Весь период';
+    return text;
+}
+function resolveUnifiedChartContext(target, fallbackContext) {
+    var el = typeof target === 'string' ? document.getElementById(target) : target;
+    var activeRole = el && el.closest ? el.closest('.role-content') : null;
+    var analysisType = detectChartAnalysisType(el);
+    if (activeRole && analysisType) {
+        var periodOptions = getGlobalFilterOptions(activeRole, 'periods', analysisType);
+        var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+        var expOptions = getGlobalFilterOptions(activeRole, 'experiences', analysisType);
+        var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+        var periodLabel = normalizeUnifiedPeriodLabel(resolveChartPeriodLabel(selectedPeriods)) || normalizeUnifiedPeriodLabel(summarizeSelectedPeriodsLabel(selectedPeriods));
+        var experienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
+        if (String(experienceLabel || '').trim() === 'Все') experienceLabel = 'все категории';
+        var built = buildChartContextLabel(periodLabel, experienceLabel);
+        if (built) return built;
+    }
+    var fallback = stripChartTitleText(fallbackContext);
+    if (!fallback) return 'Период: Весь период · Опыт: все категории';
+    if (fallback.indexOf('Период:') !== -1 && fallback.indexOf('Опыт:') !== -1) return fallback;
+    if (fallback.indexOf('Период:') === 0) return fallback + ' · Опыт: все категории';
+    return 'Период: ' + fallback + ' · Опыт: все категории';
+}
 function registerSkillDisplayName(rawSkill) {
     var raw = String(rawSkill || '').trim();
     if (!raw) return '';
@@ -105,25 +288,251 @@ function bindSalaryRowData(container, entries) {
         };
     });
 }
-if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && !window.__plotlyResponsivePatchApplied) {
+if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && typeof Plotly !== 'undefined' && !window.__plotlyResponsivePatchApplied) {
     window.__plotlyResponsivePatchApplied = true;
+    var __origPlotlyNewPlot = typeof Plotly.newPlot === 'function' ? Plotly.newPlot.bind(Plotly) : null;
+    var __origPlotlyReact = typeof Plotly.react === 'function' ? Plotly.react.bind(Plotly) : null;
+    if (__origPlotlyNewPlot) {
+        Plotly.newPlot = function(target, data, layout, config) {
+            var container = resolvePlotlyContainer(target);
+            var parts = extractLayoutTitleParts(layout);
+            setUnifiedChartHeader(container.outer || target, parts.base, parts.context);
+            if (layout) {
+                normalizeHorizontalBarChartLayout(data, layout);
+                stripAxisTitles(layout);
+                layout.paper_bgcolor = 'rgba(0,0,0,0)';
+                layout.plot_bgcolor = 'rgba(0,0,0,0)';
+                layout.showlegend = false;
+                if (layout.legend) layout.legend = undefined;
+                if (typeof layout.title === 'string') layout.title = '';
+                else if (layout.title && typeof layout.title === 'object') layout.title.text = '';
+            }
+            return __origPlotlyNewPlot(container.host || target, data, layout, config);
+        };
+    }
+    if (__origPlotlyReact) {
+        Plotly.react = function(target, data, layout, config) {
+            var container = resolvePlotlyContainer(target);
+            var parts = extractLayoutTitleParts(layout);
+            setUnifiedChartHeader(container.outer || target, parts.base, parts.context);
+            if (layout) {
+                normalizeHorizontalBarChartLayout(data, layout);
+                stripAxisTitles(layout);
+                layout.paper_bgcolor = 'rgba(0,0,0,0)';
+                layout.plot_bgcolor = 'rgba(0,0,0,0)';
+                layout.showlegend = false;
+                if (layout.legend) layout.legend = undefined;
+                if (typeof layout.title === 'string') layout.title = '';
+                else if (layout.title && typeof layout.title === 'object') layout.title.text = '';
+            }
+            return __origPlotlyReact(container.host || target, data, layout, config);
+        };
+    }
     plotIfChangedById = function(graphId, signature, data, layout) {
-        var el = document.getElementById(graphId);
-        if (!el) return;
+        var container = resolvePlotlyContainer(graphId);
+        var el = container.outer;
+        var host = container.host;
+        if (!el || !host) return;
         if (el.dataset.plotSignature === signature && el.dataset.plotReady === '1') return;
         el.dataset.plotSignature = signature;
-        if (el.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
-            Plotly.react(el, data, layout, {
+        if (host.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
+            Plotly.react(host, data, layout, {
                 responsive: true,
                 displayModeBar: false
             });
         } else {
-            Plotly.newPlot(graphId, data, layout, {
+            Plotly.newPlot(host, data, layout, {
                 responsive: true,
                 displayModeBar: false
             });
         }
         el.dataset.plotReady = '1';
+        host.dataset.plotReady = '1';
+    };
+}
+if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
+    buildActivityBarChart = function(graphId, entries) {
+        var filteredEntries = (entries || []).filter(function(e) { return e.experience !== 'Всего'; });
+        var experiences = filteredEntries.map(function(e) { return e.experience; });
+        var activeData = filteredEntries.map(function(e) { return e.active; });
+        var archivedData = filteredEntries.map(function(e) { return e.archived; });
+        var signature = filteredEntries.map(function(e) { return e.experience + ':' + e.active + ':' + e.archived; }).join('|');
+        plotIfChangedById(graphId, signature, [
+            { x: activeData, y: experiences, name: 'Активные', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.light } },
+            { x: archivedData, y: experiences, name: 'Архивные', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.dark } }
+        ], {
+            barmode: 'group',
+            title: 'Количество вакансий по опыту',
+            xaxis: { title: 'Количество вакансий', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 50, b: 40, l: 150, r: 40 },
+            height: 340,
+            showlegend: false
+        });
+    };
+    buildWeekdayBarChart = function(roleId, weekdayBlock) {
+        var weekdaysData = parseJsonDataset(weekdayBlock, 'weekdays', []);
+        if (!weekdaysData || !weekdaysData.length) return;
+        var days = weekdaysData.map(function(d) { return d.weekday; });
+        var pubs = weekdaysData.map(function(d) { return d.publications; });
+        var archs = weekdaysData.map(function(d) { return d.archives; });
+        var signature = weekdaysData.map(function(d) { return d.weekday + ':' + d.publications + ':' + d.archives; }).join('|');
+        plotIfChangedById('weekday-graph-' + roleId, signature, [
+            { x: pubs, y: days, name: 'Публикации', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.light } },
+            { x: archs, y: days, name: 'Архивации', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.dark } }
+        ], {
+            barmode: 'group',
+            title: 'Распределение по дням недели',
+            xaxis: { title: 'Количество', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 50, b: 40, l: 130, r: 40 },
+            height: 400,
+            showlegend: false
+        });
+    };
+    buildSalaryBarChart = function(graphId, entries) {
+        var container = document.getElementById(graphId);
+        if (!container) return;
+        var signature = (entries || []).map(function(e) {
+            return [e.status, e.currency, e.avg_salary, e.median_salary, e.mode_salary, e.min_salary, e.max_salary].join(':');
+        }).sort().join('|');
+        if (container.dataset.plotSignature === signature && container.dataset.plotReady === '1') return;
+        container.dataset.plotSignature = signature;
+        container.dataset.plotReady = '1';
+        var currencies = ['RUR', 'USD', '%USD'];
+        container.innerHTML = '<div class="salary-graphs-3">' +
+            currencies.map(function(c) { return '<div class="salary-graph-item"><div class="plotly-graph" id="' + graphId + '-' + c.replace('%', 'p') + '"></div></div>'; }).join('') +
+        '</div>';
+        var statuses = ['Открытая', 'Архивная'];
+        currencies.forEach(function(curr) {
+            var graphElId = graphId + '-' + curr.replace('%', 'p');
+            var values = statuses.map(function(status) {
+                var entry = (entries || []).find(function(e) { return e.currency === curr && e.status === status; });
+                return entry ? entry.avg_salary : 0;
+            });
+            plotIfChangedById(graphElId, curr + '|' + values.join(','), [{
+                x: values,
+                y: statuses,
+                name: curr,
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: [CHART_COLORS.light, CHART_COLORS.dark] }
+            }], {
+                title: 'Средняя зарплата · ' + curr,
+                xaxis: { title: 'Средняя зарплата', automargin: true },
+                yaxis: { title: '', automargin: true, autorange: 'reversed' },
+                margin: { t: 40, b: 40, l: 110, r: 20 },
+                height: 300,
+                showlegend: false
+            });
+        });
+    };
+    buildAllRolesActivityChart = function(rows, graphIdMain, graphIdAge) {
+        graphIdMain = graphIdMain || 'activity-graph-all';
+        graphIdAge = graphIdAge || 'activity-age-graph-all';
+        var labels = (rows || []).map(function(r) { return buildRoleAxisTick(r.id); });
+        var fullLabels = (rows || []).map(buildRoleFullLabel);
+        var activeVals = (rows || []).map(function(r) { return r.active || 0; });
+        var archivedVals = (rows || []).map(function(r) { return r.archived || 0; });
+        var ageVals = (rows || []).map(function(r) { return (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : null); });
+        var signatureMain = (rows || []).map(function(r) { return (r.name || '') + ':' + (r.id || '') + ':' + (r.active || 0) + ':' + (r.archived || 0); }).join('|');
+        var signatureAge = (rows || []).map(function(r) { return (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : ''); }).join('|');
+        plotIfChangedById(graphIdMain, signatureMain, [
+            { x: labels, y: activeVals, customdata: fullLabels, type: 'scatter', mode: 'lines+markers', name: 'Открытые', line: { color: CHART_COLORS.light }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>' },
+            { x: labels, y: archivedVals, customdata: fullLabels, type: 'scatter', mode: 'lines+markers', name: 'Архивные', line: { color: CHART_COLORS.dark }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>' }
+        ], {
+            title: 'Открытые и архивные вакансии по ролям',
+            xaxis: { tickangle: -35, title: '' },
+            yaxis: { title: 'Количество вакансий' },
+            margin: { t: 50, b: 120, l: 50, r: 60 },
+            height: 420
+        });
+        plotIfChangedById(graphIdAge, signatureAge, [{
+            x: ageVals,
+            y: labels,
+            customdata: fullLabels,
+            type: 'bar',
+            orientation: 'h',
+            name: 'Ср. возраст (дни)',
+            marker: { color: CHART_COLORS.medium },
+            hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>'
+        }], {
+            title: 'Ср. возраст (дни) по ролям',
+            xaxis: { title: 'Ср. возраст (дни)', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 50, b: 40, l: 110, r: 30 },
+            height: 420
+        });
+    };
+    buildAllRolesWeekdayChart = function(rows, graphId) {
+        var labels = (rows || []).map(function(r) { return buildRoleAxisTick(r.id); });
+        var fullLabels = (rows || []).map(buildRoleFullLabel);
+        var pubVals = (rows || []).map(function(r) { return r.avg_pub || 0; });
+        var archVals = (rows || []).map(function(r) { return r.avg_arch || 0; });
+        var signature = (rows || []).map(function(r) { return (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_pub || 0) + ':' + (r.avg_arch || 0); }).join('|');
+        plotIfChangedById(graphId, signature, [
+            { x: pubVals, y: labels, customdata: fullLabels, type: 'bar', orientation: 'h', name: 'Публикации/день', marker: { color: CHART_COLORS.light }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>' },
+            { x: archVals, y: labels, customdata: fullLabels, type: 'bar', orientation: 'h', name: 'Архивы/день', marker: { color: CHART_COLORS.dark }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>' }
+        ], {
+            barmode: 'group',
+            title: 'Публикации и архивы по ролям',
+            xaxis: { title: 'Среднее в день', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 50, b: 40, l: 110, r: 60 },
+            height: 420
+        });
+    };
+    buildAllRolesSkillsChart = function(rows, graphId) {
+        var sorted = (rows || []).slice().sort(function(a, b) {
+            return (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
+        });
+        var top = sorted.slice(0, 30);
+        var graphEl = document.getElementById(graphId);
+        var signature = top.map(function(r) { return (r.skill || '') + ':' + (r.mention_count || 0); }).join('|');
+        if (!top.length) {
+            if (graphEl) {
+                graphEl.dataset.plotSignature = signature;
+                graphEl.dataset.plotReady = '';
+                graphEl.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для графика</div>';
+            }
+            return;
+        }
+        plotIfChangedById(graphId, signature, [{
+            x: top.map(function(r) { return r.mention_count || 0; }),
+            y: top.map(function(r) { return r.skill || '—'; }),
+            type: 'bar',
+            orientation: 'h',
+            name: 'Упоминания',
+            marker: { color: CHART_COLORS.medium }
+        }], {
+            title: 'Топ навыков по упоминаниям',
+            xaxis: { title: 'Упоминаний', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 50, b: 40, l: 200, r: 40 },
+            height: 520
+        });
+    };
+    buildAllRolesSalaryChart = function(rows, graphId) {
+        var labels = (rows || []).map(function(r) { return buildRoleAxisTick(r.id); });
+        var fullLabels = (rows || []).map(buildRoleFullLabel);
+        var vals = (rows || []).map(function(r) { return (r.skills || []).reduce(function(s, x) { return s + (x.count || 0); }, 0); });
+        var signature = (rows || []).map(function(r, idx) { return (r.name || '') + ':' + (r.id || '') + ':' + vals[idx]; }).join('|');
+        plotIfChangedById(graphId, signature, [{
+            x: vals,
+            y: labels,
+            customdata: fullLabels,
+            type: 'bar',
+            orientation: 'h',
+            name: 'Частота навыков',
+            marker: { color: CHART_COLORS.dark },
+            hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>'
+        }], {
+            title: 'Суммарная частота навыков по ролям',
+            xaxis: { title: 'Частота', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 50, b: 40, l: 110, r: 60 },
+            height: 420
+        });
     };
 }
 
@@ -1170,13 +1579,16 @@ function buildChartContextLabel(periodValue, experienceValue) {
 
 function applyChartTitleContext(graphId, baseTitle, contextText) {
     if (!graphId || typeof Plotly === 'undefined') return;
-    var el = document.getElementById(graphId);
+    var container = setUnifiedChartHeader(graphId, baseTitle, contextText);
+    var el = container.host || (typeof graphId === 'string' ? document.getElementById(graphId) : graphId);
     if (!el) return;
-    var titleText = composeChartTitle(baseTitle, contextText);
     var layoutUpdate = {
-        'title.text': titleText,
+        'title.text': '',
         'title.x': 0.5,
-        'title.xanchor': 'center'
+        'title.xanchor': 'center',
+        'paper_bgcolor': 'rgba(0,0,0,0)',
+        'plot_bgcolor': 'rgba(0,0,0,0)',
+        'showlegend': false
     };
     var apply = function() {
         if (!el || !el.isConnected) return;
@@ -4060,56 +4472,60 @@ function renderEmployerAnalysisChart(block) {
     renderEmployerSubplot(graph.__avgRurChartEl, [{
         type: 'bar',
         name: 'Средняя (RUR)',
-        x: labels,
-        y: avgRur,
+        x: avgRur,
+        y: labels,
+        orientation: 'h',
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (RUR)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, RUR', automargin: true },
-        margin: { t: 56, r: 16, b: 96, l: 64 },
+        xaxis: { title: 'Зарплата, RUR', automargin: true },
+        yaxis: { title: '', automargin: true, autorange: 'reversed' },
+        margin: { t: 56, r: 16, b: 40, l: 160 },
         height: 420
     });
 
     renderEmployerSubplot(graph.__avgUsdChartEl, [{
         type: 'bar',
         name: 'Средняя (USD)',
-        x: labels,
-        y: avgUsd,
+        x: avgUsd,
+        y: labels,
+        orientation: 'h',
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (USD)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, USD', automargin: true },
-        margin: { t: 56, r: 16, b: 96, l: 64 },
+        xaxis: { title: 'Зарплата, USD', automargin: true },
+        yaxis: { title: '', automargin: true, autorange: 'reversed' },
+        margin: { t: 56, r: 16, b: 40, l: 160 },
         height: 420
     });
 
     renderEmployerSubplot(graph.__avgEurChartEl, [{
         type: 'bar',
         name: 'Средняя (EUR)',
-        x: labels,
-        y: avgEur,
+        x: avgEur,
+        y: labels,
+        orientation: 'h',
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (EUR)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, EUR', automargin: true },
-        margin: { t: 56, r: 16, b: 96, l: 64 },
+        xaxis: { title: 'Зарплата, EUR', automargin: true },
+        yaxis: { title: '', automargin: true, autorange: 'reversed' },
+        margin: { t: 56, r: 16, b: 40, l: 160 },
         height: 420
     });
 
     renderEmployerSubplot(graph.__avgOtherChartEl, [{
         type: 'bar',
         name: 'Средняя (Другая валюта)',
-        x: labels,
-        y: avgOther,
+        x: avgOther,
+        y: labels,
+        orientation: 'h',
         marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (Другая валюта)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { automargin: true, tickangle: -25 },
-        yaxis: { title: 'Зарплата, Другая валюта', automargin: true },
-        margin: { t: 56, r: 16, b: 96, l: 64 },
+        xaxis: { title: 'Зарплата, Другая валюта', automargin: true },
+        yaxis: { title: '', automargin: true, autorange: 'reversed' },
+        margin: { t: 56, r: 16, b: 40, l: 160 },
         height: 420
     });
     graph.dataset.plotSignature = signature;
@@ -5513,13 +5929,14 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
         var traces = statuses.map(function(status, statusIdx) {
             var row = rowsByStatus[status] || null;
             return {
-                x: metricDefs.map(function(metric) { return metric.label; }),
-                y: metricDefs.map(function(metric) {
+                x: metricDefs.map(function(metric) {
                     var value = row ? Number(row[metric.key]) : 0;
                     return isFinite(value) ? value : 0;
                 }),
+                y: metricDefs.map(function(metric) { return metric.label; }),
                 name: status || ('Status ' + (statusIdx + 1)),
                 type: 'bar',
+                orientation: 'h',
                 marker: { color: statusIdx === 0 ? CHART_COLORS.light : CHART_COLORS.dark }
             };
         });
@@ -5532,15 +5949,15 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
                 xanchor: 'center'
             },
             xaxis: {
-                title: '',
-                tickangle: -18,
-                automargin: true
-            },
-            yaxis: {
                 title: 'Значение',
                 automargin: true
             },
-            margin: { t: 64, b: 96, l: 64, r: 24 },
+            yaxis: {
+                title: '',
+                automargin: true,
+                autorange: 'reversed'
+            },
+            margin: { t: 64, b: 40, l: 150, r: 24 },
             height: chartHeight,
             barmode: 'group',
             showlegend: false,

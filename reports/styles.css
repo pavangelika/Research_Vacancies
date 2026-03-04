@@ -22,6 +22,7 @@
     --analysis-layout-max-width: 100%;
     --analysis-column-min-width: 0;
     --analysis-gap: clamp(0.75rem, 1.2vw, 1rem);
+    --stacked-chart-gap: var(--analysis-gap);
     --analysis-half-gap: calc(var(--analysis-gap) / 2);
     --analysis-graph-ratio: 16 / 10;
 }
@@ -628,7 +629,7 @@ tr:hover { background-color: #f0f4f9; }
 .salary-graphs-3 {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--analysis-gap);
+    gap: var(--stacked-chart-gap);
     width: 100%;
 }
 .salary-graphs-3 .plotly-graph {
@@ -752,7 +753,7 @@ tr:hover { background-color: #f0f4f9; }
 .all-roles-graph-stack {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--stacked-chart-gap);
     align-items: stretch;
 }
 .all-roles-graph-stack .activity-graph-item,
@@ -1262,7 +1263,7 @@ tr:hover { background-color: #f0f4f9; }
 .employer-analysis-graph {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 14px;
+    gap: var(--stacked-chart-gap);
     aspect-ratio: auto;
     width: 100%;
     max-width: 100%;
@@ -2465,6 +2466,70 @@ tbody tr:hover {
     max-width: none;
     min-width: var(--analysis-column-min-width);
 }
+.unified-chart-frame {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    aspect-ratio: auto !important;
+    height: auto !important;
+    min-height: 0;
+}
+.unified-chart-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding-top: 8px;
+    width: 100%;
+    min-width: 0;
+    align-items: stretch;
+}
+.unified-chart-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding-top: 0;
+}
+.unified-chart-title {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    color: var(--text-primary);
+}
+.unified-chart-subtitle {
+    margin: -4px 0 14px;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    text-align: center;
+    color: var(--text-secondary);
+}
+.unified-chart-host {
+    width: 100%;
+    min-width: 0;
+    min-height: 260px;
+}
+.unified-chart-host .js-plotly-plot,
+.unified-chart-host .plot-container,
+.unified-chart-host .svg-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+.plotly-graph.unified-chart-frame,
+.all-roles-graph.unified-chart-frame,
+.employer-analysis-subgraph.unified-chart-frame,
+.salary-graphs-3 .plotly-graph.unified-chart-frame {
+    aspect-ratio: auto !important;
+    height: auto !important;
+    min-height: 0;
+}
+.plotly-graph.unified-chart-frame .unified-chart-host,
+.all-roles-graph.unified-chart-frame .unified-chart-host,
+.employer-analysis-subgraph.unified-chart-frame .unified-chart-host {
+    min-height: 280px;
+}
 
 .view-mode-btn:disabled,
 .view-mode-btn.is-disabled,
@@ -2579,13 +2644,26 @@ tbody tr:hover {
     .plotly-graph {
         height: 280px;
     }
+    .plotly-graph.unified-chart-frame,
+    .all-roles-graph.unified-chart-frame,
+    .employer-analysis-subgraph.unified-chart-frame {
+        height: auto !important;
+    }
+    .plotly-graph.unified-chart-frame .unified-chart-host,
+    .all-roles-graph.unified-chart-frame .unified-chart-host,
+    .employer-analysis-subgraph.unified-chart-frame .unified-chart-host {
+        min-height: 220px;
+    }
 
     .salary-graphs-3 {
         grid-template-columns: 1fr;
-        gap: 10px;
+        gap: var(--stacked-chart-gap);
     }
 
 .salary-graphs-3 .plotly-graph {
         height: clamp(300px, 78vw, 380px);
+    }
+.salary-graphs-3 .plotly-graph.unified-chart-frame {
+        height: auto !important;
     }
 }
