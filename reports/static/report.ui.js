@@ -2721,9 +2721,13 @@ function renderGlobalActivityFiltered(parentRole) {
     if (!parentRole) return;
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'activity');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'activity');
+    var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
+    var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
+    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
     var entries = computeActivityEntriesFromVacancies(vacancies);
 
     Array.from(parentRole.querySelectorAll('.month-content.activity-only')).forEach(function(monthDiv) {
@@ -2749,7 +2753,7 @@ function renderGlobalActivityFiltered(parentRole) {
     applyViewMode(container, mode);
     var globalActivityGraphId = 'activity-graph-' + host.id.replace('month-', '');
     buildActivityBarChart(globalActivityGraphId, entries || []);
-    applyChartTitleContext(globalActivityGraphId, 'Количество вакансий по опыту', buildChartContextLabel(chartPeriodLabel, null));
+    applyChartTitleContext(globalActivityGraphId, 'Количество вакансий по опыту', buildChartContextLabel(chartPeriodLabel, chartExperienceLabel));
     applyActivityModeSizing(container, mode);
 }
 
