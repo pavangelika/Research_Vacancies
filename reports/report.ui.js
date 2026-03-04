@@ -75,6 +75,7 @@ function resolvePlotlyContainer(target) {
     var el = typeof target === 'string' ? document.getElementById(target) : target;
     if (!el) return { outer: null, host: null };
     if (el.classList && el.classList.contains('js-plotly-plot')) return { outer: el, host: el };
+    if (el.classList && el.classList.contains('employer-analysis-subgraph')) return { outer: el, host: el };
     if (el.classList && el.classList.contains('skills-all-plotly-host')) {
         var skillsOuter = el.closest('.skills-all-html-chart');
         return { outer: skillsOuter || el, host: el };
@@ -117,7 +118,7 @@ function resolvePlotlyContainer(target) {
 function setUnifiedChartHeader(target, baseTitle, contextText) {
     var container = resolvePlotlyContainer(target);
     var outer = container.outer;
-    if (!outer || !outer.classList || outer.classList.contains('skills-all-html-chart')) return container;
+    if (!outer || !outer.classList || outer.classList.contains('skills-all-html-chart') || outer.classList.contains('employer-analysis-subgraph-host')) return container;
     var shell = getDirectChildByClass(outer, 'unified-chart-shell');
     if (!shell) return container;
     var heading = shell.querySelector('.unified-chart-heading');
@@ -183,12 +184,30 @@ function resolveUnifiedChartHeight(data) {
         return trace.type === 'bar';
     });
     if (allHorizontalBars) {
-        return Math.max(280, Math.min(1200, 140 + maxItems * 28));
+        var horizontalTraceCount = Math.max(1, traces.length);
+        var categoryBand = horizontalTraceCount * 28 + 20;
+        var chartPadding = 36;
+        return Math.max(240, chartPadding + maxItems * categoryBand);
     }
     if (allBars) {
-        return Math.max(320, Math.min(900, 260 + Math.max(0, maxItems - 4) * 14));
+        var barTraceCount = Math.max(1, traces.length);
+        return Math.max(320, Math.min(1100, 260 + Math.max(0, maxItems - 4) * (10 + barTraceCount * 6)));
     }
     return Math.max(320, Math.min(760, 320 + Math.max(0, maxItems - 6) * 8));
+}
+function normalizeUnifiedTraceStyles(data) {
+    var traces = Array.isArray(data) ? data : [];
+    traces.forEach(function(trace) {
+        if (!trace || typeof trace !== 'object') return;
+        if (trace.type === 'scatter' && String(trace.mode || '').indexOf('lines') !== -1) {
+            trace.line = trace.line || {};
+            trace.line.width = 3;
+            if (String(trace.mode || '').indexOf('markers') !== -1) {
+                trace.marker = trace.marker || {};
+                if (!isFinite(Number(trace.marker.size))) trace.marker.size = 7;
+            }
+        }
+    });
 }
 function normalizeUnifiedChartLayout(data, layout) {
     if (!layout || typeof layout !== 'object') return;
@@ -198,10 +217,13 @@ function normalizeUnifiedChartLayout(data, layout) {
     layout.autosize = true;
     layout.margin = layout.margin || {};
     layout.margin.t = 8;
-    layout.margin.b = Math.max(Number(layout.margin.b) || 0, 20);
+    layout.margin.b = isHorizontal ? 28 : Math.max(Number(layout.margin.b) || 0, 20);
     layout.margin.l = Math.max(Number(layout.margin.l) || 0, isHorizontal ? 170 : 56);
     layout.margin.r = Math.max(Number(layout.margin.r) || 0, 20);
-    if (isHorizontal) layout.bargap = 0.42;
+    if (isHorizontal) {
+        layout.bargap = 0.28;
+        layout.bargroupgap = 0.04;
+    }
     Object.keys(layout).forEach(function(key) {
         if (!/^(x|y)axis\d*$/.test(key)) return;
         var axis = layout[key];
@@ -331,6 +353,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
             var container = resolvePlotlyContainer(target);
             var parts = extractLayoutTitleParts(layout);
             setUnifiedChartHeader(container.outer || target, parts.base, parts.context);
+            normalizeUnifiedTraceStyles(data);
             if (layout) {
                 normalizeUnifiedChartLayout(data, layout);
                 stripAxisTitles(layout);
@@ -349,6 +372,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
             var container = resolvePlotlyContainer(target);
             var parts = extractLayoutTitleParts(layout);
             setUnifiedChartHeader(container.outer || target, parts.base, parts.context);
+            normalizeUnifiedTraceStyles(data);
             if (layout) {
                 normalizeUnifiedChartLayout(data, layout);
                 stripAxisTitles(layout);
@@ -4498,7 +4522,6 @@ function renderEmployerAnalysisChart(block) {
         if (c.key.indexOf('_false') !== -1) return palette.dark;
         return palette.medium;
     });
-    var borderByCategory = categories.map(function() { return palette.dark; });
 
     graph.style.width = '100%';
     graph.style.maxWidth = '100%';
@@ -4522,16 +4545,61 @@ function renderEmployerAnalysisChart(block) {
 
     function renderEmployerSubplot(target, data, layout) {
         if (!target) return;
+        var plotHeight = Number(layout && layout.height) || 0;
+        var parts = extractLayoutTitleParts(layout);
+        var titleText = parts.base;
+        var subtitleText = resolveUnifiedChartContext(target, parts.context);
+        var header = target.querySelector('.employer-analysis-subgraph-heading');
+        var titleEl = target.querySelector('.employer-analysis-subgraph-title');
+        var subtitleEl = target.querySelector('.employer-analysis-subgraph-subtitle');
+        var plotHost = target.querySelector('.employer-analysis-subgraph-host');
+        if (!header || !titleEl || !subtitleEl || !plotHost) {
+            target.innerHTML =
+                '<div class="employer-analysis-subgraph-heading">' +
+                    '<div class="unified-chart-title employer-analysis-subgraph-title"></div>' +
+                    '<div class="unified-chart-subtitle employer-analysis-subgraph-subtitle"></div>' +
+                '</div>' +
+                '<div class="employer-analysis-subgraph-host"></div>';
+            header = target.querySelector('.employer-analysis-subgraph-heading');
+            titleEl = target.querySelector('.employer-analysis-subgraph-title');
+            subtitleEl = target.querySelector('.employer-analysis-subgraph-subtitle');
+            plotHost = target.querySelector('.employer-analysis-subgraph-host');
+        }
+        if (header && titleEl && subtitleEl) {
+            header.style.display = (titleText || subtitleText) ? 'block' : 'none';
+            titleEl.textContent = titleText || '';
+            subtitleEl.textContent = subtitleText || '';
+            subtitleEl.style.display = subtitleText ? 'block' : 'none';
+        }
         target.style.width = '100%';
         target.style.maxWidth = '100%';
         target.style.minWidth = '0';
-        if (target.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
-            Plotly.react(target, data, layout, { responsive: true, displayModeBar: false });
+        target.style.display = 'flex';
+        target.style.flexDirection = 'column';
+        target.style.alignItems = 'stretch';
+        target.style.height = 'auto';
+        target.style.minHeight = '0';
+        target.style.flex = '0 0 auto';
+        target.style.position = 'relative';
+        target.style.overflow = 'visible';
+        if (plotHost) {
+            plotHost.className = 'employer-analysis-subgraph-host';
+            plotHost.style.height = plotHeight + 'px';
+            plotHost.style.minHeight = plotHeight + 'px';
+            plotHost.style.flex = '0 0 auto';
+        }
+        if (layout) {
+            if (typeof layout.title === 'string') layout.title = '';
+            else if (layout.title && typeof layout.title === 'object') layout.title.text = '';
+        }
+        if (plotHost && plotHost.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
+            Plotly.react(plotHost, data, layout, { responsive: true, displayModeBar: false });
         } else {
-            Plotly.newPlot(target, data, layout, { responsive: true, displayModeBar: false });
+            Plotly.newPlot(plotHost || target, data, layout, { responsive: true, displayModeBar: false });
         }
         target.dataset.plotReady = '1';
-        resizePlotlyScope(target);
+        if (plotHost) plotHost.dataset.plotReady = '1';
+        resizePlotlyScope(plotHost || target);
     }
 
     renderEmployerSubplot(graph.__avgRurChartEl, [{
@@ -4540,7 +4608,7 @@ function renderEmployerAnalysisChart(block) {
         x: avgRur,
         y: labels,
         orientation: 'h',
-        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+        marker: { color: colorByCategory, line: { width: 0 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (RUR)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { title: 'Зарплата, RUR', automargin: true },
@@ -4555,7 +4623,7 @@ function renderEmployerAnalysisChart(block) {
         x: avgUsd,
         y: labels,
         orientation: 'h',
-        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+        marker: { color: colorByCategory, line: { width: 0 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (USD)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { title: 'Зарплата, USD', automargin: true },
@@ -4570,7 +4638,7 @@ function renderEmployerAnalysisChart(block) {
         x: avgEur,
         y: labels,
         orientation: 'h',
-        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+        marker: { color: colorByCategory, line: { width: 0 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (EUR)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { title: 'Зарплата, EUR', automargin: true },
@@ -4585,7 +4653,7 @@ function renderEmployerAnalysisChart(block) {
         x: avgOther,
         y: labels,
         orientation: 'h',
-        marker: { color: colorByCategory, line: { color: borderByCategory, width: 1 } }
+        marker: { color: colorByCategory, line: { width: 0 } }
     }], {
         title: { text: composeChartTitle('Средняя зарплата по параметрам (Другая валюта)', chartContext), x: 0.5, xanchor: 'center' },
         xaxis: { title: 'Зарплата, Другая валюта', automargin: true },

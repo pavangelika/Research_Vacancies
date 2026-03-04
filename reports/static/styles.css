@@ -22,7 +22,12 @@
     --analysis-layout-max-width: 100%;
     --analysis-column-min-width: 0;
     --analysis-gap: clamp(0.75rem, 1.2vw, 1rem);
-    --stacked-chart-gap: var(--analysis-gap);
+    --chart-stack-gap: var(--analysis-gap);
+    --chart-shell-top-gap: 8px;
+    --chart-title-bottom-gap: 12px;
+    --chart-subtitle-overlap: -4px;
+    --chart-subtitle-bottom-gap: 14px;
+    --chart-controls-gap: 12px;
     --analysis-half-gap: calc(var(--analysis-gap) / 2);
     --analysis-graph-ratio: 16 / 10;
 }
@@ -629,7 +634,7 @@ tr:hover { background-color: #f0f4f9; }
 .salary-graphs-3 {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--stacked-chart-gap);
+    gap: var(--chart-stack-gap);
     width: 100%;
 }
 .salary-graphs-3 .plotly-graph {
@@ -659,7 +664,7 @@ tr:hover { background-color: #f0f4f9; }
     justify-content: center;
     width: 100%;
     min-height: 40px;
-    margin: 4px 0 8px;
+    margin: calc(var(--chart-controls-gap) / 3) 0 var(--chart-controls-gap);
 }
 .salary-mode-toggle-inline,
 .skills-mode-toggle-inline,
@@ -675,7 +680,7 @@ tr:hover { background-color: #f0f4f9; }
 .skills-mode-toggle-inline {
     justify-content: flex-end;
     gap: 8px;
-    margin: 0 0 8px;
+    margin: 0 0 var(--chart-controls-gap);
 }
 .salary-view-toggle .view-mode-btn,
 .salary-mode-toggle-inline .view-mode-btn,
@@ -753,7 +758,7 @@ tr:hover { background-color: #f0f4f9; }
 .all-roles-graph-stack {
     display: flex;
     flex-direction: column;
-    gap: var(--stacked-chart-gap);
+    gap: var(--chart-stack-gap);
     align-items: stretch;
 }
 .all-roles-graph-stack .activity-graph-item,
@@ -767,7 +772,7 @@ tr:hover { background-color: #f0f4f9; }
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 12px;
+    margin-bottom: var(--chart-controls-gap);
     padding: 12px 16px;
     background: var(--surface);
     border: 1px solid var(--border-light);
@@ -984,18 +989,18 @@ tr:hover { background-color: #f0f4f9; }
     height: auto;
 }
 .skills-all-html-card {
-    padding: 8px 0 0;
+    padding: var(--chart-shell-top-gap) 0 0;
     box-sizing: border-box;
 }
 .skills-all-html-title {
-    margin-bottom: 12px;
+    margin-bottom: var(--chart-title-bottom-gap);
     font-size: 0.9rem;
     font-weight: 700;
     text-align: center;
     color: var(--text-primary);
 }
 .skills-all-html-subtitle {
-    margin: -4px 0 14px;
+    margin: var(--chart-subtitle-overlap) 0 var(--chart-subtitle-bottom-gap);
     font-size: 0.75rem;
     line-height: 1.35;
     text-align: center;
@@ -1263,7 +1268,7 @@ tr:hover { background-color: #f0f4f9; }
 .employer-analysis-graph {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--stacked-chart-gap);
+    gap: var(--chart-stack-gap);
     aspect-ratio: auto;
     width: 100%;
     max-width: 100%;
@@ -1280,9 +1285,19 @@ tr:hover { background-color: #f0f4f9; }
     min-height: 0;
     margin-bottom: 0;
 }
+.employer-analysis-subgraph-heading {
+    display: block;
+}
+.employer-analysis-subgraph-host {
+    width: 100%;
+    min-width: 0;
+}
 .employer-analysis-subgraph .js-plotly-plot,
 .employer-analysis-subgraph .plot-container,
-.employer-analysis-subgraph .svg-container {
+.employer-analysis-subgraph .svg-container,
+.employer-analysis-subgraph-host .js-plotly-plot,
+.employer-analysis-subgraph-host .plot-container,
+.employer-analysis-subgraph-host .svg-container {
     width: 100% !important;
     max-width: 100% !important;
 }
@@ -2479,7 +2494,7 @@ tbody tr:hover {
     display: flex;
     flex-direction: column;
     gap: 0;
-    padding-top: 8px;
+    padding-top: var(--chart-shell-top-gap);
     width: 100%;
     min-width: 0;
     align-items: stretch;
@@ -2491,7 +2506,7 @@ tbody tr:hover {
     padding-top: 0;
 }
 .unified-chart-title {
-    margin: 0 0 12px;
+    margin: 0 0 var(--chart-title-bottom-gap);
     font-size: 0.9rem;
     font-weight: 700;
     line-height: 1.2;
@@ -2499,7 +2514,7 @@ tbody tr:hover {
     color: var(--text-primary);
 }
 .unified-chart-subtitle {
-    margin: -4px 0 14px;
+    margin: var(--chart-subtitle-overlap) 0 var(--chart-subtitle-bottom-gap);
     font-size: 0.75rem;
     line-height: 1.35;
     text-align: center;
@@ -2657,7 +2672,7 @@ tbody tr:hover {
 
     .salary-graphs-3 {
         grid-template-columns: 1fr;
-        gap: var(--stacked-chart-gap);
+        gap: var(--chart-stack-gap);
     }
 
     .salary-graphs-3 .plotly-graph {
