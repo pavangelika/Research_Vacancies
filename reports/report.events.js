@@ -435,7 +435,7 @@ document.addEventListener("DOMContentLoaded", function() {
         updateRoleView(selected);
         ensureSummaryAnalysisTabs();
         if (typeof syncSharedFilterPanel === 'function') {
-            syncSharedFilterPanel();
+            syncSharedFilterPanel(null, null, true);
         }
     }
     uiState.roleSelectionContext = {
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function() {
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
         ensureSummaryAnalysisTabs();
-        if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel();
+        if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(null, null, true);
     }
 
     function exitAllRolesMode(nextSelected, nextOrder) {
@@ -515,7 +515,7 @@ document.addEventListener("DOMContentLoaded", function() {
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
         ensureSummaryAnalysisTabs();
-        if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel();
+        if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(null, null, true);
     }
 
     uiState.roleSelectionContext.exitAllRolesMode = function(nextSelected, nextOrder) {
