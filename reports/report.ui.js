@@ -5313,13 +5313,16 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
 
     var rows = Array.from(target.querySelectorAll('.skills-all-table tbody tr')).map(function(row) {
         var cells = row.querySelectorAll('td');
-        if (!cells || cells.length < 2) return null;
+        if (!cells || cells.length < 3) return null;
         var skill = (cells[0].textContent || '').trim();
         var count = parseInt((cells[1].textContent || '0').replace(/\s/g, ''), 10);
+        var avgText = (cells[2].textContent || '').trim().replace(/\s/g, '').replace(',', '.');
+        var avgValue = avgText && avgText !== '—' ? Number(avgText) : null;
         if (!skill) return null;
         return {
             skill: skill,
-            mention_count: isFinite(count) ? count : 0
+            mention_count: isFinite(count) ? count : 0,
+            avg_skill_cost_rur: isFinite(avgValue) ? avgValue : null
         };
     }).filter(Boolean);
 
@@ -5332,6 +5335,11 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
 
     var top = rows.slice().sort(function(a, b) {
         return (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
+    }).slice(0, 30);
+    var topByAvgSalary = rows.filter(function(item) {
+        return item.avg_skill_cost_rur !== null && item.avg_skill_cost_rur !== undefined;
+    }).sort(function(a, b) {
+        return (b.avg_skill_cost_rur || 0) - (a.avg_skill_cost_rur || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
     }).slice(0, 30);
     var subtitleText = '';
     var activeRole = target.closest('.role-content');
@@ -5361,27 +5369,49 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         var maxCount = top.reduce(function(max, item) {
             return Math.max(max, item.mention_count || 0);
         }, 0) || 1;
+        var maxAvg = topByAvgSalary.reduce(function(max, item) {
+            return Math.max(max, item.avg_skill_cost_rur || 0);
+        }, 0) || 1;
         graphEl.classList.add('skills-all-html-chart');
         graphEl.dataset.plotSignature = top.map(function(item) {
             return (item.skill || '') + ':' + (item.mention_count || 0);
+        }).join('|') + '|' + topByAvgSalary.map(function(item) {
+            return (item.skill || '') + ':' + (item.avg_skill_cost_rur || 0);
         }).join('|') + '|' + (contextText || '') + '|html';
         graphEl.dataset.plotReady = '';
-        graphEl.style.minHeight = '480px';
+        graphEl.style.minHeight = topByAvgSalary.length ? '960px' : '480px';
         graphEl.innerHTML =
             '<div class="skills-all-html-card">' +
-                '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
-                '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
-                top.map(function(item) {
-                    var width = Math.max(4, Math.round(((item.mention_count || 0) / maxCount) * 100));
-                    return '' +
-                        '<div class="skills-all-html-row">' +
-                            '<div class="skills-all-html-label">' + escapeHtml(item.skill || '—') + '</div>' +
-                            '<div class="skills-all-html-track">' +
-                                '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE') + ';"></div>' +
-                            '</div>' +
-                            '<div class="skills-all-html-value">' + (item.mention_count || 0) + '</div>' +
-                        '</div>';
-                }).join('') +
+                '<div class="skills-all-chart-section">' +
+                    '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
+                    '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
+                    top.map(function(item) {
+                        var width = Math.max(4, Math.round(((item.mention_count || 0) / maxCount) * 100));
+                        return '' +
+                            '<div class="skills-all-html-row">' +
+                                '<div class="skills-all-html-label">' + escapeHtml(item.skill || '—') + '</div>' +
+                                '<div class="skills-all-html-track">' +
+                                    '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE') + ';"></div>' +
+                                '</div>' +
+                                '<div class="skills-all-html-value">' + (item.mention_count || 0) + '</div>' +
+                            '</div>';
+                    }).join('') +
+                '</div>' +
+                '<div class="skills-all-chart-section">' +
+                    '<div class="skills-all-html-title">Топ навыков по средней зарплате</div>' +
+                    '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
+                    (topByAvgSalary.length ? topByAvgSalary.map(function(item) {
+                        var width = Math.max(4, Math.round(((item.avg_skill_cost_rur || 0) / maxAvg) * 100));
+                        return '' +
+                            '<div class="skills-all-html-row">' +
+                                '<div class="skills-all-html-label">' + escapeHtml(item.skill || '—') + '</div>' +
+                                '<div class="skills-all-html-track">' +
+                                    '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.dark : '#546E7A') + ';"></div>' +
+                                '</div>' +
+                                '<div class="skills-all-html-value">' + (item.avg_skill_cost_rur !== null && item.avg_skill_cost_rur !== undefined ? item.avg_skill_cost_rur.toFixed(2) : '—') + '</div>' +
+                            '</div>';
+                    }).join('') : '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по средней зарплате</div>') +
+                '</div>' +
             '</div>';
     };
 
@@ -5409,17 +5439,27 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     }
     var signature = top.map(function(item) {
         return (item.skill || '') + ':' + (item.mention_count || 0);
+    }).join('|') + '|' + topByAvgSalary.map(function(item) {
+        return (item.skill || '') + ':' + (item.avg_skill_cost_rur || 0);
     }).join('|') + '|' + (contextText || '');
     graphEl.classList.add('skills-all-html-chart');
     graphEl.dataset.plotReady = '';
     graphEl.innerHTML =
         '<div class="skills-all-html-card">' +
-            '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
-            '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
-            '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
+            '<div class="skills-all-chart-section">' +
+                '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
+                '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
+                '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
+            '</div>' +
+            '<div class="skills-all-chart-section">' +
+                '<div class="skills-all-html-title">Топ навыков по средней зарплате</div>' +
+                '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
+                '<div class="skills-all-plotly-host" id="' + graphId + '-avg-plotly-host"></div>' +
+            '</div>' +
         '</div>';
     var plotHost = document.getElementById(graphId + '-plotly-host');
-    if (!plotHost) {
+    var avgPlotHost = document.getElementById(graphId + '-avg-plotly-host');
+    if (!plotHost || !avgPlotHost) {
         renderHtmlFallback();
         return;
     }
@@ -5434,9 +5474,27 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         },
         hovertemplate: '<b>%{y}</b><br>Упоминаний: %{x}<extra></extra>'
     }];
+    var avgData = [{
+        x: topByAvgSalary.map(function(item) { return item.avg_skill_cost_rur || 0; }),
+        y: topByAvgSalary.map(function(item) { return item.skill || '—'; }),
+        type: 'bar',
+        orientation: 'h',
+        marker: {
+            color: (typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.dark : '#546E7A'),
+            line: { width: 0 }
+        },
+        hovertemplate: '<b>%{y}</b><br>Средняя з/п: %{x:.2f}<extra></extra>'
+    }];
     var layout = {
         margin: { t: 2, b: 8, l: 8, r: 8 },
         height: resolveUnifiedChartHeight(data),
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        showlegend: false
+    };
+    var avgLayout = {
+        margin: { t: 2, b: 8, l: 8, r: 8 },
+        height: resolveUnifiedChartHeight(avgData),
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
         showlegend: false
@@ -5453,7 +5511,20 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         tickfont: { size: 12, color: '#0f172a' },
         fixedrange: true
     };
+    avgLayout.xaxis = {
+        visible: false,
+        showgrid: false,
+        zeroline: false,
+        fixedrange: true
+    };
+    avgLayout.yaxis = {
+        automargin: true,
+        autorange: 'reversed',
+        tickfont: { size: 12, color: '#0f172a' },
+        fixedrange: true
+    };
     plotHost.style.minHeight = '0';
+    avgPlotHost.style.minHeight = '0';
     graphEl.style.minHeight = '0';
 
     try {
@@ -5462,6 +5533,16 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         } else {
             Plotly.newPlot(plotHost, data, layout, { responsive: true, displayModeBar: false });
         }
+        if (topByAvgSalary.length) {
+            if (avgPlotHost.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
+                Plotly.react(avgPlotHost, avgData, avgLayout, { responsive: true, displayModeBar: false });
+            } else {
+                Plotly.newPlot(avgPlotHost, avgData, avgLayout, { responsive: true, displayModeBar: false });
+            }
+        } else {
+            avgPlotHost.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по средней зарплате</div>';
+            avgPlotHost.dataset.plotReady = '';
+        }
     } catch (err) {
         renderHtmlFallback();
         return;
@@ -5469,7 +5550,9 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     graphEl.dataset.plotSignature = signature;
     graphEl.dataset.plotReady = '1';
     plotHost.dataset.plotReady = '1';
+    if (topByAvgSalary.length) avgPlotHost.dataset.plotReady = '1';
     resizePlotlyScope(plotHost);
+    if (topByAvgSalary.length) resizePlotlyScope(avgPlotHost);
 }
 
 function openAllRolesPeriodTab(evt, contentId, analysisType) {

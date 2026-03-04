@@ -1005,6 +1005,9 @@ tr:hover { background-color: #f0f4f9; }
     padding: var(--chart-shell-top-gap) 0 0;
     box-sizing: border-box;
 }
+.skills-all-chart-section + .skills-all-chart-section {
+    margin-top: var(--chart-stack-gap);
+}
 .skills-all-html-title {
     margin-bottom: var(--chart-title-bottom-gap);
     font-size: 0.9rem;
