@@ -1018,7 +1018,7 @@ tr:hover { background-color: #f0f4f9; }
     display: flex;
     justify-content: center;
     gap: 8px;
-    margin: 0 0 var(--chart-subtitle-bottom-gap);
+    margin: 0 0 var(--chart-title-bottom-gap);
     flex-wrap: wrap;
 }
 .skills-all-chart-switch-btn {
@@ -1035,6 +1035,7 @@ tr:hover { background-color: #f0f4f9; }
     gap: 8px;
     flex-wrap: wrap;
     width: 100%;
+    margin: 0 0 var(--chart-title-bottom-gap);
 }
 .stacked-chart-switch-btn {
     flex: 0 0 auto;

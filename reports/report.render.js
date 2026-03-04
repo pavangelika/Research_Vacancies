@@ -675,45 +675,72 @@ function addSummaryTabs(root) {
     });
 }
 function renderCombinedContainer(container, roleContents) {
-    var activityMonths = aggregateActivity(roleContents);
-    var weekdays = aggregateWeekdays(roleContents);
-    var skillsMonthly = aggregateSkillsMonthly(roleContents);
-    var salaryMonths = aggregateSalary(roleContents);
     var combinedVacancies = [];
-    var combinedEmployerRows = [];
 
     roleContents.forEach(function(roleContent) {
         combinedVacancies = combinedVacancies.concat(getRoleVacancies(roleContent) || []);
-        var employerBlock = roleContent.querySelector('.employer-analysis-content');
-        if (!employerBlock) return;
-        if (employerBlock.__employerData && employerBlock.__employerData.length) {
-            combinedEmployerRows = combinedEmployerRows.concat(employerBlock.__employerData);
-            return;
-        }
-        if (typeof parseEmployerAnalysisData === 'function') {
-            combinedEmployerRows = combinedEmployerRows.concat(parseEmployerAnalysisData(employerBlock) || []);
-        }
     });
     combinedVacancies = dedupeVacanciesById(combinedVacancies);
-    var combinedEmployerPeriods = Array.from(new Set(combinedEmployerRows.map(function(row) {
-        return row && row.month ? String(row.month).trim() : '';
+    var combinedMonths = Array.from(new Set(combinedVacancies.map(function(vacancy) {
+        var published = typeof parsePublishedAtDate === 'function' ? parsePublishedAtDate(vacancy && vacancy.published_at) : null;
+        if (!published) return '';
+        return published.getFullYear() + '-' + String(published.getMonth() + 1).padStart(2, '0');
     }).filter(Boolean))).sort().reverse();
+    var combinedEmployerPeriods = combinedMonths.slice();
     var combinedEmployerAllLabel = combinedEmployerPeriods.length && typeof formatMonthTitle === 'function'
         ? formatMonthTitle(combinedEmployerPeriods.length)
         : 'За период';
 
-    var lifetimeMaps = buildLifetimeMapsFromSalaryMonths(salaryMonths);
-    applyLifetimeToActivityMonths(activityMonths, lifetimeMaps);
-
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
-    if (!combinedVacancies.length) {
-        combinedVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-    }
-    combinedVacancies = dedupeVacanciesById(combinedVacancies);
     var period = computePublicationPeriod(combinedVacancies) || '—';
     var roleTitle = '[ID: ' + ids.join(', ') + ']';
-
-    var combinedActivity = activityMonths.length ? activityMonths[0] : { month: 'За период', entries: [] };
+    var combinedSummaryLabel = combinedMonths.length && typeof formatMonthTitle === 'function'
+        ? formatMonthTitle(combinedMonths.length)
+        : 'За период';
+    var combinedActivity = {
+        month: combinedSummaryLabel,
+        entries: typeof computeActivityEntriesFromVacancies === 'function' ? computeActivityEntriesFromVacancies(combinedVacancies) : []
+    };
+    var weekdays = typeof computeWeekdayStatsFromVacancies === 'function' ? computeWeekdayStatsFromVacancies(combinedVacancies) : [];
+    var skillsMonthly = [];
+    if (typeof buildSkillsExpDataFromVacancies === 'function') {
+        var combinedSkillsSummary = buildSkillsExpDataFromVacancies(combinedVacancies, combinedSummaryLabel);
+        if (combinedSkillsSummary && combinedSkillsSummary.experiences && combinedSkillsSummary.experiences.length) {
+            skillsMonthly.push(combinedSkillsSummary);
+        }
+        combinedMonths.forEach(function(month) {
+            var monthVacancies = filterVacanciesBySelectedPeriods(combinedVacancies, [month]);
+            var monthSkills = buildSkillsExpDataFromVacancies(monthVacancies, month);
+            if (monthSkills && monthSkills.experiences && monthSkills.experiences.length) {
+                skillsMonthly.push(monthSkills);
+            }
+        });
+    } else {
+        skillsMonthly = aggregateSkillsMonthly(roleContents);
+    }
+    var salaryMonths = [];
+    if (typeof buildSalaryMonthFromVacancies === 'function') {
+        var combinedSalarySummary = buildSalaryMonthFromVacancies(combinedVacancies, combinedSummaryLabel);
+        if (combinedSalarySummary && combinedSalarySummary.experiences && combinedSalarySummary.experiences.length) {
+            salaryMonths.push(combinedSalarySummary);
+        }
+        combinedMonths.forEach(function(month) {
+            var monthVacancies = filterVacanciesBySelectedPeriods(combinedVacancies, [month]);
+            var monthSalary = buildSalaryMonthFromVacancies(monthVacancies, month);
+            if (monthSalary && monthSalary.experiences && monthSalary.experiences.length) {
+                salaryMonths.push(monthSalary);
+            }
+        });
+    } else {
+        salaryMonths = aggregateSalary(roleContents);
+    }
+    var combinedEmployerRows = [];
+    if (typeof buildEmployerAnalysisRowsFromVacancies === 'function') {
+        combinedMonths.forEach(function(month) {
+            var monthVacancies = filterVacanciesBySelectedPeriods(combinedVacancies, [month]);
+            combinedEmployerRows = combinedEmployerRows.concat(buildEmployerAnalysisRowsFromVacancies(monthVacancies, month));
+        });
+    }
     var activityBlocks =
         '<div id="month-combined-summary" class="month-content activity-only" data-entries="' + encodeURIComponent(JSON.stringify(combinedActivity.entries || [])) + '" data-month="' + combinedActivity.month + '">' +
             '<div class="view-toggle-horizontal">' +
