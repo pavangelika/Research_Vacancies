@@ -1338,7 +1338,7 @@ function ensureGlobalFilterBucket(filterKey) {
 function ensureGlobalFilterModeState() {
     if (!uiState.global_filter_modes) uiState.global_filter_modes = {};
     ['roles', 'periods', 'experiences'].forEach(function(key) {
-        if (typeof uiState.global_filter_modes[key] !== 'boolean') uiState.global_filter_modes[key] = false;
+        if (typeof uiState.global_filter_modes[key] !== 'boolean') uiState.global_filter_modes[key] = (key === 'roles');
     });
     return uiState.global_filter_modes;
 }
@@ -1348,6 +1348,7 @@ function isGlobalFilterMultiEnabled(filterKey) {
 }
 
 function setGlobalFilterMultiEnabled(filterKey, enabled) {
+    if (filterKey === 'roles') enabled = true;
     ensureGlobalFilterModeState()[filterKey] = !!enabled;
     if (!enabled) {
         var bucket = ensureGlobalFilterBucket(filterKey);
@@ -1775,7 +1776,6 @@ function syncAllRolesPeriodStateFromGlobalFilter(activeRole, analysisType) {
 function applyGlobalRoleFilter() {
     var ctx = uiState.roleSelectionContext;
     if (!ctx) return;
-    if (isSummaryModeActive()) setSummaryModeActive(false);
     var allOptions = getGlobalFilterOptions(null, 'roles', null);
     var allIds = allOptions.map(function(item) { return item.value; });
     var bucket = ensureGlobalFilterBucket('roles');
@@ -1785,6 +1785,10 @@ function applyGlobalRoleFilter() {
     if (include.length) next = include.filter(function(v) { return exclude.indexOf(v) < 0; });
     else if (exclude.length) next = allIds.filter(function(v) { return exclude.indexOf(v) < 0; });
     else next = [];
+    if (isSummaryModeActive() && next.length <= 1 && typeof ctx.exitAllRolesMode === 'function') {
+        ctx.exitAllRolesMode(new Set(next), next);
+        return;
+    }
     ctx.applySelection(new Set(next), next);
 }
 
@@ -1827,7 +1831,10 @@ function updateGlobalFilterSelection(filterKey, value, action) {
         if (action === 'clear') {
             var ctx = uiState.roleSelectionContext;
             if (ctx && typeof ctx.applySelection === 'function') {
-                if (isSummaryModeActive()) setSummaryModeActive(false);
+                if (isSummaryModeActive() && typeof ctx.exitAllRolesMode === 'function') {
+                    ctx.exitAllRolesMode(new Set(), []);
+                    return;
+                }
                 ctx.applySelection(new Set(), []);
                 return;
             }
