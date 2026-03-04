@@ -351,6 +351,37 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
     };
 }
 if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
+    buildHorizontalBarChart = function(graphId, skills, experience, barColor) {
+        var list = (Array.isArray(skills) ? skills : []).slice().sort(function(a, b) {
+            return (Number(b && b.count) || 0) - (Number(a && a.count) || 0) || String(a && a.skill || '').localeCompare(String(b && b.skill || ''));
+        });
+        var color = barColor || CHART_COLORS.medium;
+        var skillNames = list.map(function(s) { return s.skill; });
+        var counts = list.map(function(s) { return s.count; });
+        var coverages = list.map(function(s) { return s.coverage; });
+        var signature = String(experience || '') + '|' + list.map(function(s) {
+            return (s.skill || '') + ':' + (s.count || 0) + ':' + (s.coverage || 0);
+        }).join('|');
+
+        plotIfChangedById(graphId, signature, [{
+            x: counts,
+            y: skillNames,
+            customdata: coverages,
+            name: 'Упоминания',
+            type: 'bar',
+            orientation: 'h',
+            marker: { color: color },
+            hovertemplate: '%{y}<br>Упоминаний: %{x}<br>Доля: %{customdata}%<extra></extra>'
+        }], {
+            title: 'Топ-30 навыков · ' + experience,
+            xaxis: { title: 'Количество упоминаний', automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { l: 200, r: 50, t: 50, b: 50 },
+            height: 400,
+            bargap: 0.15,
+            showlegend: false
+        });
+    };
     buildActivityBarChart = function(graphId, entries) {
         var filteredEntries = (entries || []).filter(function(e) { return e.experience !== 'Всего'; });
         var experiences = filteredEntries.map(function(e) { return e.experience; });
@@ -2367,7 +2398,7 @@ function buildWeekdayTableHtml(days) {
 function buildSkillsExpDataFromVacancies(vacancies, label) {
     var filtered = (vacancies || []).filter(function(v) { return !!(v && v.skills); });
     var totalVacancies = filtered.length;
-    var skills = computeSalarySkillsFromVacancies(filtered, 15).map(function(item, idx) {
+    var skills = computeSalarySkillsFromVacancies(filtered, 30).map(function(item, idx) {
         return {
             skill: item.skill,
             count: item.count || 0,
@@ -2449,7 +2480,7 @@ function renderGlobalSkillsFiltered(parentRole) {
     var globalSkillsGraphId = 'skills-monthly-graph-global-' + parentRole.id;
     if (skillsMode !== 'table') {
         buildHorizontalBarChart(globalSkillsGraphId, agg.skills || [], agg.experience || periodLabel);
-        applyChartTitleContext(globalSkillsGraphId, 'Топ-15 навыков', buildChartContextLabel(chartPeriodLabel, chartExperienceLabel));
+        applyChartTitleContext(globalSkillsGraphId, 'Топ-30 навыков', buildChartContextLabel(chartPeriodLabel, chartExperienceLabel));
         resizePlotlyScope(document.getElementById(globalSkillsGraphId));
     }
     applySkillsModeSizing(container, skillsMode);
@@ -4025,7 +4056,7 @@ function normalizeSkillsMonthlyControls(parentRole) {
                 var visibleMonthData = (visibleMonth._data && visibleMonth._data.month) ? visibleMonth._data.month : parseJsonDataset(visibleMonth, 'month', {});
                 var visibleMonthLabel = visibleMonthData && visibleMonthData.month ? visibleMonthData.month : '';
                 buildHorizontalBarChart(graphId, expData.skills, expData.experience);
-                applyChartTitleContext(graphId, 'Топ-15 навыков', buildChartContextLabel(visibleMonthLabel, expData.experience));
+                applyChartTitleContext(graphId, 'Топ-30 навыков', buildChartContextLabel(visibleMonthLabel, expData.experience));
             }
             applySkillsModeSizing(container, view);
         });
@@ -4060,7 +4091,7 @@ function aggregateSkillsExpData(expDivs, label) {
         };
     });
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
-    skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
+    skills = skills.slice(0, 30).map(function(s, i) { s.rank = i + 1; return s; });
     return { experience: label || 'По выбранному периоду', total_vacancies: totalVac, skills: skills };
 }
 
@@ -4131,7 +4162,7 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
                 return { skill: getSkillDisplayName(pair[0]), count: pair[1], coverage: b.total_vacancies ? Math.round((pair[1] * 10000) / b.total_vacancies) / 100 : 0, rank: 0 };
             });
             skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
-            skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
+            skills = skills.slice(0, 30).map(function(s, i) { s.rank = i + 1; return s; });
             return { experience: b.experience, total_vacancies: b.total_vacancies, skills: skills };
         });
         exps.sort((a, b) => (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99));
@@ -5444,7 +5475,7 @@ function openMonthlySkillsExpTab(evt, expId) {
         finalGraphId = 'skills-monthly-graph-' + expDiv.id.replace('ms-exp-', '');
     }
     buildHorizontalBarChart(finalGraphId, liveExp.skills || [], liveExp.experience || experience);
-    applyChartTitleContext(finalGraphId, 'Топ-15 навыков', buildChartContextLabel(monthStr, liveExp.experience || experience));
+    applyChartTitleContext(finalGraphId, 'Топ-30 навыков', buildChartContextLabel(monthStr, liveExp.experience || experience));
     applySkillsModeSizing(container, uiState.skills_monthly_view_mode);
     normalizeSkillsMonthlyControls(parentRole);
     syncSharedFilterPanel(parentRole, 'skills-monthly');
