@@ -693,6 +693,12 @@ function renderCombinedContainer(container, roleContents) {
         }
     });
     combinedVacancies = dedupeVacanciesById(combinedVacancies);
+    var combinedEmployerPeriods = Array.from(new Set(combinedEmployerRows.map(function(row) {
+        return row && row.month ? String(row.month).trim() : '';
+    }).filter(Boolean))).sort().reverse();
+    var combinedEmployerAllLabel = combinedEmployerPeriods.length && typeof formatMonthTitle === 'function'
+        ? formatMonthTitle(combinedEmployerPeriods.length)
+        : 'За период';
 
     var lifetimeMaps = buildLifetimeMapsFromSalaryMonths(salaryMonths);
     applyLifetimeToActivityMonths(activityMonths, lifetimeMaps);
@@ -903,7 +909,10 @@ function renderCombinedContainer(container, roleContents) {
             (combinedEmployerRows.length ? (
                 '<div class="employer-topbar">' +
                     '<div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">' +
-                        '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">За период</button>' +
+                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_3">За 3 дня</button>' +
+                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_7">За 7 дней</button>' +
+                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_14">За 14 дней</button>' +
+                        '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + combinedEmployerAllLabel + '</button>' +
                     '</div>' +
                     '<div class="employer-view-toggle employer-side-toggle">' +
                         buildViewModeButtonsHtml(['together', 'table', 'graph'], 'employer-view-btn', uiState.employer_analysis_view_mode || 'together') +

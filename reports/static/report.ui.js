@@ -275,18 +275,38 @@ function normalizeUnifiedPeriodLabel(label) {
     if (text === 'Все' || text === 'По выбранному периоду' || text === 'За все время') return 'Весь период';
     return text;
 }
+function getResolvedAnalysisExperienceLabel(activeRole, analysisType) {
+    if (!activeRole || !analysisType) return 'все категории';
+    var expOptions = getGlobalFilterOptions(activeRole, 'experiences', analysisType);
+    var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var experienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
+    if (String(experienceLabel || '').trim() === 'Все') experienceLabel = 'все категории';
+    return String(experienceLabel || '').trim() || 'все категории';
+}
+function getResolvedAnalysisExperienceValues(activeRole, analysisType) {
+    if (!activeRole || !analysisType) return [];
+    var expOptions = getGlobalFilterOptions(activeRole, 'experiences', analysisType);
+    return getResolvedGlobalFilterValues('experiences', expOptions);
+}
 function resolveUnifiedChartContext(target, fallbackContext) {
     var el = typeof target === 'string' ? document.getElementById(target) : target;
     var activeRole = el && el.closest ? el.closest('.role-content') : null;
     var analysisType = detectChartAnalysisType(el);
+    var explicitHost = el && el.closest ? el.closest('[data-chart-context]') : null;
+    var explicitContext = explicitHost && explicitHost.dataset
+        ? stripChartTitleText(explicitHost.dataset.chartContext || '')
+        : '';
+    if (explicitContext) {
+        var explicitExperience = getResolvedAnalysisExperienceLabel(activeRole, analysisType);
+        if (explicitContext.indexOf('Период:') !== -1 && explicitContext.indexOf('Опыт:') !== -1) return explicitContext;
+        if (explicitContext.indexOf('Период:') === 0) return explicitContext + ' · Опыт: ' + explicitExperience;
+        return 'Период: ' + explicitContext + ' · Опыт: ' + explicitExperience;
+    }
     if (activeRole && analysisType) {
         var periodOptions = getGlobalFilterOptions(activeRole, 'periods', analysisType);
         var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
-        var expOptions = getGlobalFilterOptions(activeRole, 'experiences', analysisType);
-        var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
         var periodLabel = normalizeUnifiedPeriodLabel(resolveChartPeriodLabel(selectedPeriods)) || normalizeUnifiedPeriodLabel(summarizeSelectedPeriodsLabel(selectedPeriods));
-        var experienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-        if (String(experienceLabel || '').trim() === 'Все') experienceLabel = 'все категории';
+        var experienceLabel = getResolvedAnalysisExperienceLabel(activeRole, analysisType);
         var built = buildChartContextLabel(periodLabel, experienceLabel);
         if (built) return built;
     }
@@ -2682,14 +2702,16 @@ function renderGlobalEmployerFiltered(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.employer-analysis-content');
     if (!block) return;
-    initEmployerAnalysisFilter(block);
+    if (block.dataset.employerInited !== '1') initEmployerAnalysisFilter(block);
     if (!block.__employerData || !block.__employerData.length) return;
 
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'employer-analysis');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var selectedExps = getResolvedAnalysisExperienceValues(parentRole, 'employer-analysis');
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
-    block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, null);
+    block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, getResolvedAnalysisExperienceLabel(parentRole, 'employer-analysis'));
+    var baseVacancies = filterVacanciesBySelectedExperiences(dedupeVacanciesById(getRoleVacancies(parentRole) || []), selectedExps);
     var rows;
     var effectivePeriods = selectedPeriods.filter(function(label) {
         var text = String(label || '').trim();
@@ -2697,12 +2719,9 @@ function renderGlobalEmployerFiltered(parentRole) {
     });
     var allPeriod = !selectedPeriods.length || !effectivePeriods.length;
     if (allPeriod) {
-        rows = block.__employerAllRows || aggregateEmployerAnalysisRows(block.__employerData);
+        rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'filtered');
     } else {
-        var allowed = new Set(effectivePeriods);
-        rows = aggregateEmployerAnalysisRows(block.__employerData.filter(function(row) {
-            return row && allowed.has(row.month);
-        }));
+        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods), 'filtered');
     }
 
     renderEmployerAnalysisTable(block, rows, periodLabel);
@@ -4324,17 +4343,36 @@ function sortSkillsMonthlyMonths(monthTabs) {
 function applyEmployerAnalysisMonthFilter(block, month) {
     if (!block) return;
     if (!block.__employerData || !block.__employerData.length) return;
+    if (month === 'global') {
+        renderGlobalEmployerFiltered(block.closest('.role-content'));
+        return;
+    }
     if (block.dataset.employerActiveMonth === month) return;
+    var parentRole = block.closest('.role-content');
+    var baseVacancies = filterVacanciesBySelectedExperiences(
+        dedupeVacanciesById((parentRole ? getRoleVacancies(parentRole) : []) || []),
+        getResolvedAnalysisExperienceValues(parentRole, 'employer-analysis')
+    );
     var periodLabel = block.dataset.employerAllLabel || '';
     var rows = [];
+    var explicitLabel = '';
     if (month === 'all') {
-        rows = block.__employerAllRows || aggregateEmployerAnalysisRows(block.__employerData);
+        rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'all');
+        explicitLabel = periodLabel;
+    } else if (block.__employerRowsByPeriod && block.__employerRowsByPeriod[month]) {
+        var daysMatch = String(month).match(/^last_(\d+)$/);
+        var days = daysMatch ? Number(daysMatch[1]) : 0;
+        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, days), month);
+        explicitLabel = (block.__employerLabelsByPeriod && block.__employerLabelsByPeriod[month]) || '';
     } else {
-        rows = (block.__employerRowsByMonth && block.__employerRowsByMonth[month])
-            ? block.__employerRowsByMonth[month]
-            : block.__employerData.filter(function(row) { return row.month === month; });
+        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, [month]), month);
+        explicitLabel = month;
     }
-    renderEmployerAnalysisTable(block, rows, month === 'all' ? periodLabel : null);
+    block.dataset.chartContext = buildChartContextLabel(
+        normalizeUnifiedPeriodLabel(explicitLabel || month),
+        getResolvedAnalysisExperienceLabel(block.closest('.role-content'), 'employer-analysis')
+    );
+    renderEmployerAnalysisTable(block, rows, explicitLabel || null);
     var chips = block.querySelectorAll('.employer-period-chip');
     chips.forEach(function(chip) {
         var isActive = (chip.dataset.month || '') === month;
@@ -4731,6 +4769,135 @@ function getEmployerValueHtml(valueKey) {
     return valueKey;
 }
 
+function filterVacanciesByRecentDays(vacancies, days) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var totalDays = Number(days) || 0;
+    if (!totalDays || totalDays < 1) return list;
+    var maxDate = null;
+    list.forEach(function(vacancy) {
+        var published = parsePublishedAtDate(vacancy && vacancy.published_at);
+        if (!published) return;
+        if (!maxDate || published > maxDate) maxDate = published;
+    });
+    if (!maxDate) return [];
+    var cutoff = new Date(maxDate.getTime() - totalDays * 24 * 60 * 60 * 1000);
+    return list.filter(function(vacancy) {
+        var published = parsePublishedAtDate(vacancy && vacancy.published_at);
+        return published && published >= cutoff;
+    });
+}
+
+function getEmployerRatingBucketFromVacancy(vacancy) {
+    if (!vacancy) return 'unknown';
+    var raw = vacancy.employer_rating;
+    if (raw === null || raw === undefined || raw === '') raw = vacancy.rating;
+    if (raw === null || raw === undefined || raw === '') raw = vacancy.employer_reviews_rating;
+    if (raw === null || raw === undefined || raw === '') raw = vacancy.reviews_rating;
+    if (raw === null || raw === undefined || raw === '') return 'unknown';
+    var rating = Number(String(raw).replace(',', '.'));
+    if (!isFinite(rating)) return 'unknown';
+    if (rating < 3.5) return '<3.5';
+    if (rating < 4.0) return '3.5-3.99';
+    if (rating < 4.5) return '4.0-4.49';
+    return '>=4.5';
+}
+
+function buildEmployerAnalysisRowsFromVacancies(vacancies, periodKey) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var buckets = {};
+
+    function ensureBucket(factorKey, valueKey) {
+        var key = factorKey + '||' + valueKey;
+        if (!buckets[key]) {
+            buckets[key] = {
+                month: periodKey || 'all',
+                factorKey: factorKey,
+                factorLabel: getEmployerFactorLabel(factorKey),
+                valueKey: valueKey,
+                valueLabel: getEmployerValueLabel(factorKey, valueKey),
+                groupN: 0,
+                avgRurN: 0,
+                avgRurSum: 0,
+                avgUsdN: 0,
+                avgUsdSum: 0,
+                avgEurN: 0,
+                avgEurSum: 0,
+                avgOtherN: 0,
+                avgOtherSum: 0
+            };
+        }
+        return buckets[key];
+    }
+
+    function appendSalary(bucket, vacancy) {
+        var currency = String(vacancy && (vacancy.salary_currency || vacancy.currency) || '').trim().toUpperCase();
+        var salary = null;
+        if (currency === 'RUR') {
+            salary = computeSalaryValue(vacancy, 'RUR');
+            if (salary !== null && isFinite(salary)) {
+                bucket.avgRurSum += salary;
+                bucket.avgRurN += 1;
+            }
+            return;
+        }
+        if (currency === 'USD') {
+            salary = computeSalaryValue(vacancy, 'USD');
+            if (salary !== null && isFinite(salary)) {
+                bucket.avgUsdSum += salary;
+                bucket.avgUsdN += 1;
+            }
+            return;
+        }
+        if (currency === 'EUR') {
+            salary = computeSalaryValue(vacancy, 'EUR');
+            if (salary !== null && isFinite(salary)) {
+                bucket.avgEurSum += salary;
+                bucket.avgEurN += 1;
+            }
+            return;
+        }
+        if (!currency) return;
+        salary = computeSalaryValue(vacancy, 'Другая');
+        if (salary !== null && isFinite(salary)) {
+            bucket.avgOtherSum += salary;
+            bucket.avgOtherN += 1;
+        }
+    }
+
+    function addVacancy(factorKey, valueKey, vacancy) {
+        var bucket = ensureBucket(factorKey, valueKey);
+        bucket.groupN += 1;
+        appendSalary(bucket, vacancy);
+    }
+
+    list.forEach(function(vacancy) {
+        addVacancy('accreditation', getSkillsSearchVacancyBooleanValue(vacancy, 'accreditation') ? 'true' : 'false', vacancy);
+        addVacancy('has_test', getSkillsSearchVacancyBooleanValue(vacancy, 'has_test') ? 'true' : 'false', vacancy);
+        addVacancy('cover_letter_required', getSkillsSearchVacancyBooleanValue(vacancy, 'cover_letter_required') ? 'true' : 'false', vacancy);
+        addVacancy('rating_bucket', getEmployerRatingBucketFromVacancy(vacancy), vacancy);
+    });
+
+    return Object.keys(buckets).map(function(key) {
+        var bucket = buckets[key];
+        return {
+            month: bucket.month,
+            factorKey: bucket.factorKey,
+            factorLabel: bucket.factorLabel,
+            valueKey: bucket.valueKey,
+            valueLabel: bucket.valueLabel,
+            groupN: bucket.groupN,
+            avgRurN: bucket.avgRurN,
+            avgRur: bucket.avgRurN ? (bucket.avgRurSum / bucket.avgRurN) : null,
+            avgUsdN: bucket.avgUsdN,
+            avgUsd: bucket.avgUsdN ? (bucket.avgUsdSum / bucket.avgUsdN) : null,
+            avgEurN: bucket.avgEurN,
+            avgEur: bucket.avgEurN ? (bucket.avgEurSum / bucket.avgEurN) : null,
+            avgOtherN: bucket.avgOtherN,
+            avgOther: bucket.avgOtherN ? (bucket.avgOtherSum / bucket.avgOtherN) : null
+        };
+    });
+}
+
 function parseEmployerAnalysisData(block) {
     var parsed = [];
     var rows = Array.from(block.querySelectorAll('.table-container tbody tr'));
@@ -4905,7 +5072,11 @@ function toggleEmployerMonthColumn(block, showColumn) {
 function initEmployerAnalysisFilter(block) {
     if (!block) return;
     if (block.dataset.employerInited === '1') {
-        applyEmployerAnalysisMonthFilter(block, block.dataset.employerActiveMonth || 'all');
+        if ((block.dataset.employerActiveMonth || '') === 'global') {
+            renderGlobalEmployerFiltered(block.closest('.role-content'));
+        } else {
+            applyEmployerAnalysisMonthFilter(block, block.dataset.employerActiveMonth || 'all');
+        }
         applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'together');
         return;
     }
@@ -4982,13 +5153,32 @@ function initEmployerAnalysisFilter(block) {
 
     var months = Array.from(new Set(parsedRows.map(function(row) { return row.month; }).filter(Boolean))).sort();
     months.reverse();
-    var allLabel = 'За ' + months.length + ' ' + getMonthWordForm(months.length);
+    var allLabel = months.length && typeof formatMonthTitle === 'function'
+        ? formatMonthTitle(months.length)
+        : 'За период';
     block.dataset.employerAllLabel = allLabel;
+    block.__employerRowsByPeriod = {};
+    block.__employerLabelsByPeriod = {};
+    var parentRole = block.closest('.role-content');
+    var baseVacancies = parentRole ? dedupeVacanciesById(getRoleVacancies(parentRole) || []) : [];
+    var quickPeriods = [
+        { key: 'last_3', label: 'За 3 дня', days: 3 },
+        { key: 'last_7', label: 'За 7 дней', days: 7 },
+        { key: 'last_14', label: 'За 14 дней', days: 14 }
+    ];
+    quickPeriods.forEach(function(item) {
+        block.__employerRowsByPeriod[item.key] = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, item.days), item.key);
+        block.__employerLabelsByPeriod[item.key] = item.label;
+    });
 
-    chipsWrap.innerHTML = '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + allLabel + '</button>' +
+    chipsWrap.innerHTML =
+        quickPeriods.map(function(item) {
+            return '<button type="button" class="tab-button month-button employer-period-chip" data-month="' + item.key + '">' + item.label + '</button>';
+        }).join('') +
         months.map(function(m) {
             return '<button type="button" class="tab-button month-button employer-period-chip" data-month="' + m + '">' + m + '</button>';
-        }).join('');
+        }).join('') +
+        '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + allLabel + '</button>';
 
     if (!chipsWrap.dataset.bound) {
         chipsWrap.addEventListener('click', function(e) {
@@ -5003,15 +5193,6 @@ function initEmployerAnalysisFilter(block) {
     applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'together');
     updateViewToggleIcons(block);
     block.dataset.employerInited = '1';
-}
-
-function getMonthWordForm(count) {
-    var n = Math.abs(count) % 100;
-    var n1 = n % 10;
-    if (n > 10 && n < 20) return 'месяцев';
-    if (n1 > 1 && n1 < 5) return 'месяца';
-    if (n1 === 1) return 'месяц';
-    return 'месяцев';
 }
 
 function getAllRolesViewMode(analysisType) {
@@ -5849,8 +6030,8 @@ function resetCompositeViewStyles(layoutRoot, table, graph) {
 
 var UNIFIED_ANALYSIS_LAYOUT_WIDTH = '100%';
 var UNIFIED_ANALYSIS_SINGLE_WIDTH = '100%';
-var UNIFIED_ANALYSIS_TABLE_WIDTH = 'calc(40% - (var(--analysis-gap) / 2))';
-var UNIFIED_ANALYSIS_GRAPH_WIDTH = 'calc(60% - (var(--analysis-gap) / 2))';
+var UNIFIED_ANALYSIS_TABLE_WIDTH = 'calc(50% - (var(--analysis-gap) / 2))';
+var UNIFIED_ANALYSIS_GRAPH_WIDTH = 'calc(50% - (var(--analysis-gap) / 2))';
 var UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH = '0';
 
 function applyCompositeViewMode(layoutRoot, table, graph, mode, options) {
