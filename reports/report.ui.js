@@ -1274,14 +1274,16 @@ function dedupeFilterOptions(options) {
 function normalizePeriodOptionValue(value) {
     var text = String(value || '').trim();
     if (!text) return '';
+    if (text === 'Сегодня' || /^today$/i.test(text)) return 'today';
     var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) return 'last_' + String(Number(quick[1]) || 0);
     return text;
 }
 
 function formatPeriodSelectionValue(value) {
-    var text = String(value || '').trim();
+    var text = normalizePeriodOptionValue(value);
     if (!text) return '';
+    if (text === 'today') return 'Сегодня';
     var quick = text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) return 'За ' + String(Number(quick[1]) || 0) + ' дня';
     return text;
@@ -1435,6 +1437,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
                 ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
                 : 'За период';
             return dedupeFilterOptions([
+                { value: 'Сегодня', label: 'Сегодня' },
                 { value: 'За 3 дня', label: 'За 3 дня' },
                 { value: 'За 7 дней', label: 'За 7 дней' },
                 { value: 'За 14 дней', label: 'За 14 дней' }
@@ -2422,6 +2425,7 @@ function getResolvedGlobalFilterValues(filterKey, options) {
 function normalizeGlobalPeriodValue(value) {
     var text = normalizePeriodOptionValue(value);
     if (!text) return '';
+    if (text === 'today') return 'today';
     var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) return 'last_' + String(Number(quick[1]) || 0);
     if (/^\d{4}-\d{2}$/.test(text)) return text;
@@ -2449,6 +2453,34 @@ function parsePublishedAtDate(value) {
     return isNaN(parsed) ? null : parsed;
 }
 
+function getLatestPublishedAtDate(vacancies) {
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var maxDate = null;
+    list.forEach(function(vacancy) {
+        var published = parsePublishedAtDate(vacancy && vacancy.published_at);
+        if (!published) return;
+        if (!maxDate || published > maxDate) maxDate = published;
+    });
+    return maxDate;
+}
+
+function isSameCalendarDay(left, right) {
+    if (!left || !right) return false;
+    return left.getFullYear() === right.getFullYear()
+        && left.getMonth() === right.getMonth()
+        && left.getDate() === right.getDate();
+}
+
+function filterVacanciesByLatestDay(vacancies) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var maxDate = getLatestPublishedAtDate(list);
+    if (!maxDate) return [];
+    return list.filter(function(vacancy) {
+        var published = parsePublishedAtDate(vacancy && vacancy.published_at);
+        return published && isSameCalendarDay(published, maxDate);
+    });
+}
+
 function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
     var list = dedupeVacanciesById((vacancies || []).slice());
     var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean) : [];
@@ -2461,8 +2493,13 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
 
     var monthSet = new Set();
     var maxQuickDays = 0;
+    var useToday = false;
     effectiveLabels.forEach(function(label) {
         var text = String(label || '').trim();
+        if (text === 'Сегодня' || /^today$/i.test(text)) {
+            useToday = true;
+            return;
+        }
         if (/^\d{4}-\d{2}$/.test(text)) {
             monthSet.add(text);
             return;
@@ -2475,18 +2512,13 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
     });
 
     var quickCutoff = null;
-    if (maxQuickDays > 0) {
-        var maxDate = null;
-        list.forEach(function(v) {
-            if (!v || !v.published_at) return;
-            var d = parsePublishedAtDate(v.published_at);
-            if (!d) return;
-            if (!maxDate || d > maxDate) maxDate = d;
-        });
-        if (maxDate) quickCutoff = new Date(maxDate.getTime() - maxQuickDays * 24 * 60 * 60 * 1000);
+    var maxDate = null;
+    if (maxQuickDays > 0 || useToday) {
+        maxDate = getLatestPublishedAtDate(list);
+        if (maxDate && maxQuickDays > 0) quickCutoff = new Date(maxDate.getTime() - maxQuickDays * 24 * 60 * 60 * 1000);
     }
 
-    if (!monthSet.size && !quickCutoff) return list;
+    if (!monthSet.size && !quickCutoff && !useToday) return list;
 
     return list.filter(function(v) {
         if (!v || !v.published_at) return false;
@@ -2494,6 +2526,7 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
         if (!d) return false;
         var month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         if (monthSet.has(month)) return true;
+        if (useToday && maxDate && isSameCalendarDay(d, maxDate)) return true;
         if (quickCutoff && d >= quickCutoff) return true;
         return false;
     });
@@ -3099,13 +3132,7 @@ function ensureSalaryQuickFilters(parentRole, block, monthTabs) {
     }
 
     function filterVacanciesByDays(days) {
-        var now = new Date();
-        var since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        return (vacancies || []).filter(function(v) {
-            if (!v || !v.published_at) return false;
-            var d = new Date(v.published_at);
-            return !isNaN(d) && d >= since;
-        });
+        return filterVacanciesByRecentDays(vacancies || [], days);
     }
 
     function addQuickButton(label, suffix, list) {
@@ -3121,6 +3148,7 @@ function ensureSalaryQuickFilters(parentRole, block, monthTabs) {
     addQuickButton('За 14 дней', '14d', filterVacanciesByDays(14));
     addQuickButton('За 7 дней', '7d', filterVacanciesByDays(7));
     addQuickButton('За 3 дня', '3d', filterVacanciesByDays(3));
+    addQuickButton('Сегодня', 'today', filterVacanciesByLatestDay(vacancies || []));
 
     block.dataset.salaryFiltersReady = '1';
 }
@@ -3129,7 +3157,7 @@ function sortSalaryMonths(monthTabs) {
     if (!monthTabs) return;
     var buttons = Array.from(monthTabs.querySelectorAll('.salary-month-button'));
     if (!buttons.length) return;
-    var quickOrder = { 'За 3 дня': 1, 'За 7 дней': 2, 'За 14 дней': 3 };
+    var quickOrder = { 'Сегодня': 1, 'За 3 дня': 2, 'За 7 дней': 3, 'За 14 дней': 4 };
     var quick = buttons.filter(b => b.classList.contains('salary-quick-filter'))
         .sort((a, b) => (quickOrder[(a.textContent || '').trim()] || 99) - (quickOrder[(b.textContent || '').trim()] || 99));
     var months = buttons.filter(b => /^\d{4}-\d{2}$/.test((b.textContent || '').trim()))
@@ -3179,6 +3207,7 @@ function initSkillsSearch(parentRole) {
         var lastMonth = monthsDesc.length ? monthsDesc[0] : null;
         var prevMonths = monthsDesc.length > 1 ? monthsDesc.slice(1) : [];
         var periodItems = [
+            { key: 'today', label: 'Сегодня', month: 'today' },
             { key: 'd3', label: 'За 3 дня', month: 'last_3' },
             { key: 'd7', label: 'За 7 дней', month: 'last_7' },
             { key: 'd14', label: 'За 14 дней', month: 'last_14' }
@@ -3901,18 +3930,14 @@ function ensureActivityQuickFilters(parentRole, controlRow) {
 
     var vacancies = getRoleVacancies(parentRole);
     function filterVacanciesByDays(days) {
-        var now = new Date();
-        var since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        return (vacancies || []).filter(function(v) {
-            if (!v || !v.published_at) return false;
-            var d = new Date(v.published_at);
-            return !isNaN(d) && d >= since;
-        });
+        return filterVacanciesByRecentDays(vacancies || [], days);
     }
 
+    var entriesToday = computeActivityEntriesFromVacancies(filterVacanciesByLatestDay(vacancies || []));
     var entries3 = computeActivityEntriesFromVacancies(filterVacanciesByDays(3));
     var entries7 = computeActivityEntriesFromVacancies(filterVacanciesByDays(7));
     var entries14 = computeActivityEntriesFromVacancies(filterVacanciesByDays(14));
+    addFilter('Сегодня', monthByLabel['Сегодня'], 'today', entriesToday);
     addFilter('За 14 дней', monthByLabel['За 14 дней'], '14d', entries14);
     addFilter('За 7 дней', monthByLabel['За 7 дней'], '7d', entries7);
     addFilter('За 3 дня', monthByLabel['За 3 дня'], '3d', entries3);
@@ -4025,7 +4050,7 @@ function sortActivityMonthsNewestFirst(parentRole, monthTabs) {
     var months = buttons.filter(b => /^\d{4}-\d{2}$/.test((b.textContent || '').trim()));
     var other = buttons.filter(b => quick.indexOf(b) < 0 && summary.indexOf(b) < 0 && months.indexOf(b) < 0);
 
-    var quickOrder = { 'За 3 дня': 1, 'За 7 дней': 2, 'За 14 дней': 3 };
+    var quickOrder = { 'Сегодня': 1, 'За 3 дня': 2, 'За 7 дней': 3, 'За 14 дней': 4 };
     quick.sort(function(a, b) {
         var am = (a.textContent || '').trim();
         var bm = (b.textContent || '').trim();
@@ -4276,13 +4301,7 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
     });
 
     function filterVacanciesByDays(days) {
-        var now = new Date();
-        var since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        return (vacancies || []).filter(function(v) {
-            if (!v || !v.published_at) return false;
-            var d = new Date(v.published_at);
-            return !isNaN(d) && d >= since;
-        });
+        return filterVacanciesByRecentDays(vacancies || [], days);
     }
 
     function buildSkillsMonthFromVacancies(list, label) {
@@ -4385,6 +4404,7 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
     addQuickButton('За 14 дней', '14d', filterVacanciesByDays(14));
     addQuickButton('За 7 дней', '7d', filterVacanciesByDays(7));
     addQuickButton('За 3 дня', '3d', filterVacanciesByDays(3));
+    addQuickButton('Сегодня', 'today', filterVacanciesByLatestDay(vacancies || []));
 
     block.dataset.skillsFiltersReady = '1';
 }
@@ -4393,7 +4413,7 @@ function sortSkillsMonthlyMonths(monthTabs) {
     if (!monthTabs) return;
     var buttons = Array.from(monthTabs.querySelectorAll('.monthly-skills-month-button'));
     if (!buttons.length) return;
-    var quickOrder = { 'За 3 дня': 1, 'За 7 дней': 2, 'За 14 дней': 3 };
+    var quickOrder = { 'Сегодня': 1, 'За 3 дня': 2, 'За 7 дней': 3, 'За 14 дней': 4 };
     var quick = buttons.filter(b => b.classList.contains('skills-quick-filter'))
         .sort((a, b) => (quickOrder[(a.textContent || '').trim()] || 99) - (quickOrder[(b.textContent || '').trim()] || 99));
     var months = buttons.filter(b => /^\d{4}-\d{2}$/.test((b.textContent || '').trim()))
@@ -4424,9 +4444,10 @@ function applyEmployerAnalysisMonthFilter(block, month) {
         rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'all');
         explicitLabel = periodLabel;
     } else if (block.__employerRowsByPeriod && block.__employerRowsByPeriod[month]) {
-        var daysMatch = String(month).match(/^last_(\d+)$/);
-        var days = daysMatch ? Number(daysMatch[1]) : 0;
-        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, days), month);
+        var periodKey = String(month || '').trim();
+        var daysMatch = periodKey.match(/^last_(\d+)$/);
+        if (periodKey === 'today') rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByLatestDay(baseVacancies), month);
+        else rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, daysMatch ? Number(daysMatch[1]) : 0), month);
         explicitLabel = (block.__employerLabelsByPeriod && block.__employerLabelsByPeriod[month]) || '';
     } else {
         rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, [month]), month);
@@ -5227,12 +5248,16 @@ function initEmployerAnalysisFilter(block) {
     var parentRole = block.closest('.role-content');
     var baseVacancies = parentRole ? dedupeVacanciesById(getRoleVacancies(parentRole) || []) : [];
     var quickPeriods = [
+        { key: 'today', label: 'Сегодня' },
         { key: 'last_3', label: 'За 3 дня', days: 3 },
         { key: 'last_7', label: 'За 7 дней', days: 7 },
         { key: 'last_14', label: 'За 14 дней', days: 14 }
     ];
     quickPeriods.forEach(function(item) {
-        block.__employerRowsByPeriod[item.key] = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, item.days), item.key);
+        var quickVacancies = item.key === 'today'
+            ? filterVacanciesByLatestDay(baseVacancies)
+            : filterVacanciesByRecentDays(baseVacancies, item.days);
+        block.__employerRowsByPeriod[item.key] = buildEmployerAnalysisRowsFromVacancies(quickVacancies, item.key);
         block.__employerLabelsByPeriod[item.key] = item.label;
     });
 

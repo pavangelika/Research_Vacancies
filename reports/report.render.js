@@ -230,6 +230,7 @@ function renderAllRolesContainer(container, roleContents) {
     }).filter(Boolean))).sort().reverse();
     var allLabel = periods.length && typeof formatMonthTitle === 'function' ? formatMonthTitle(periods.length) : 'За период';
     var periodItems = [
+        { key: 'today', label: 'Сегодня', period: 'today' },
         { key: 'd3', label: 'За 3 дня', period: 'last_3' },
         { key: 'd7', label: 'За 7 дней', period: 'last_7' },
         { key: 'd14', label: 'За 14 дней', period: 'last_14' }
@@ -906,6 +907,7 @@ function renderCombinedContainer(container, roleContents) {
             (combinedEmployerRows.length ? (
                 '<div class="employer-topbar">' +
                     '<div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">' +
+                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="today">Сегодня</button>' +
                         '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_3">За 3 дня</button>' +
                         '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_7">За 7 дней</button>' +
                         '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_14">За 14 дней</button>' +
