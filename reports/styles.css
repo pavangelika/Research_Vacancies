@@ -290,7 +290,7 @@ h1 {
 }
 .activity-graph-item > div {
     width: 100%;
-    aspect-ratio: var(--analysis-graph-ratio);
+    aspect-ratio: auto;
     min-height: 0;
     height: auto;
 }
@@ -300,7 +300,7 @@ h1 {
     width: auto;
     max-width: none;
     min-width: var(--analysis-column-min-width);
-    aspect-ratio: var(--analysis-graph-ratio);
+    aspect-ratio: auto;
     min-height: 0;
     height: auto;
 }
@@ -636,7 +636,7 @@ tr:hover { background-color: #f0f4f9; }
     flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
-    aspect-ratio: var(--analysis-graph-ratio);
+    aspect-ratio: auto;
     min-height: 0;
     height: auto;
 }
@@ -1276,7 +1276,7 @@ tr:hover { background-color: #f0f4f9; }
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    aspect-ratio: var(--analysis-graph-ratio);
+    aspect-ratio: auto;
     min-height: 0;
     margin-bottom: 0;
 }
@@ -2508,7 +2508,7 @@ tbody tr:hover {
 .unified-chart-host {
     width: 100%;
     min-width: 0;
-    min-height: 260px;
+    min-height: 0;
 }
 .unified-chart-host .js-plotly-plot,
 .unified-chart-host .plot-container,
@@ -2528,7 +2528,7 @@ tbody tr:hover {
 .plotly-graph.unified-chart-frame .unified-chart-host,
 .all-roles-graph.unified-chart-frame .unified-chart-host,
 .employer-analysis-subgraph.unified-chart-frame .unified-chart-host {
-    min-height: 280px;
+    min-height: 0;
 }
 
 .view-mode-btn:disabled,
@@ -2642,7 +2642,7 @@ tbody tr:hover {
 
     .activity-graph-item > div,
     .plotly-graph {
-        height: 280px;
+        height: auto;
     }
     .plotly-graph.unified-chart-frame,
     .all-roles-graph.unified-chart-frame,
@@ -2652,7 +2652,7 @@ tbody tr:hover {
     .plotly-graph.unified-chart-frame .unified-chart-host,
     .all-roles-graph.unified-chart-frame .unified-chart-host,
     .employer-analysis-subgraph.unified-chart-frame .unified-chart-host {
-        min-height: 220px;
+        min-height: 0;
     }
 
     .salary-graphs-3 {
@@ -2660,8 +2660,8 @@ tbody tr:hover {
         gap: var(--stacked-chart-gap);
     }
 
-.salary-graphs-3 .plotly-graph {
-        height: clamp(300px, 78vw, 380px);
+    .salary-graphs-3 .plotly-graph {
+        height: auto;
     }
 .salary-graphs-3 .plotly-graph.unified-chart-frame {
         height: auto !important;

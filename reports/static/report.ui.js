@@ -160,25 +160,59 @@ function isHorizontalBarChartData(data) {
         return trace && trace.type === 'bar' && trace.orientation === 'h';
     });
 }
-function normalizeHorizontalBarChartLayout(data, layout) {
-    if (!isHorizontalBarChartData(data) || !layout) return;
-    var maxItems = data.reduce(function(max, trace) {
-        var count = Array.isArray(trace.y) ? trace.y.length : 0;
-        return Math.max(max, count);
+function getTracePointCount(trace) {
+    if (!trace || typeof trace !== 'object') return 0;
+    var counts = [];
+    if (Array.isArray(trace.x)) counts.push(trace.x.length);
+    if (Array.isArray(trace.y)) counts.push(trace.y.length);
+    if (Array.isArray(trace.labels)) counts.push(trace.labels.length);
+    if (Array.isArray(trace.values)) counts.push(trace.values.length);
+    if (Array.isArray(trace.text)) counts.push(trace.text.length);
+    return counts.length ? Math.max.apply(Math, counts) : 0;
+}
+function resolveUnifiedChartHeight(data) {
+    var traces = Array.isArray(data) ? data.filter(Boolean) : [];
+    if (!traces.length) return 320;
+    var maxItems = traces.reduce(function(max, trace) {
+        return Math.max(max, getTracePointCount(trace));
     }, 0);
-    var recommendedHeight = Math.max(260, Math.min(980, 110 + maxItems * 26));
-    layout.height = Math.max(Number(layout.height) || 0, recommendedHeight);
-    layout.bargap = 0.42;
+    var allHorizontalBars = traces.every(function(trace) {
+        return trace.type === 'bar' && trace.orientation === 'h';
+    });
+    var allBars = traces.every(function(trace) {
+        return trace.type === 'bar';
+    });
+    if (allHorizontalBars) {
+        return Math.max(280, Math.min(1200, 140 + maxItems * 28));
+    }
+    if (allBars) {
+        return Math.max(320, Math.min(900, 260 + Math.max(0, maxItems - 4) * 14));
+    }
+    return Math.max(320, Math.min(760, 320 + Math.max(0, maxItems - 6) * 8));
+}
+function normalizeUnifiedChartLayout(data, layout) {
+    if (!layout || typeof layout !== 'object') return;
+    var traces = Array.isArray(data) ? data.filter(Boolean) : [];
+    var isHorizontal = isHorizontalBarChartData(traces);
+    layout.height = resolveUnifiedChartHeight(traces);
+    layout.autosize = true;
     layout.margin = layout.margin || {};
     layout.margin.t = 8;
-    layout.margin.b = 12;
-    layout.margin.l = Math.max(Number(layout.margin.l) || 0, 170);
-    layout.margin.r = Math.max(Number(layout.margin.r) || 0, 24);
+    layout.margin.b = Math.max(Number(layout.margin.b) || 0, 20);
+    layout.margin.l = Math.max(Number(layout.margin.l) || 0, isHorizontal ? 170 : 56);
+    layout.margin.r = Math.max(Number(layout.margin.r) || 0, 20);
+    if (isHorizontal) layout.bargap = 0.42;
+    Object.keys(layout).forEach(function(key) {
+        if (!/^(x|y)axis\d*$/.test(key)) return;
+        var axis = layout[key];
+        if (!axis || typeof axis !== 'object') return;
+        axis.automargin = true;
+    });
     layout.xaxis = layout.xaxis || {};
     layout.yaxis = layout.yaxis || {};
     layout.xaxis.automargin = true;
     layout.yaxis.automargin = true;
-    layout.yaxis.autorange = 'reversed';
+    if (isHorizontal) layout.yaxis.autorange = 'reversed';
 }
 function stripAxisTitles(layout) {
     if (!layout || typeof layout !== 'object') return;
@@ -298,7 +332,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
             var parts = extractLayoutTitleParts(layout);
             setUnifiedChartHeader(container.outer || target, parts.base, parts.context);
             if (layout) {
-                normalizeHorizontalBarChartLayout(data, layout);
+                normalizeUnifiedChartLayout(data, layout);
                 stripAxisTitles(layout);
                 layout.paper_bgcolor = 'rgba(0,0,0,0)';
                 layout.plot_bgcolor = 'rgba(0,0,0,0)';
@@ -316,7 +350,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
             var parts = extractLayoutTitleParts(layout);
             setUnifiedChartHeader(container.outer || target, parts.base, parts.context);
             if (layout) {
-                normalizeHorizontalBarChartLayout(data, layout);
+                normalizeUnifiedChartLayout(data, layout);
                 stripAxisTitles(layout);
                 layout.paper_bgcolor = 'rgba(0,0,0,0)';
                 layout.plot_bgcolor = 'rgba(0,0,0,0)';
@@ -5058,7 +5092,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     }];
     var layout = {
         margin: { t: 2, b: 8, l: 8, r: 8 },
-        height: Math.max(520, top.length * 26 + 24),
+        height: resolveUnifiedChartHeight(data),
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
         showlegend: false
@@ -5075,8 +5109,8 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         tickfont: { size: 12, color: '#0f172a' },
         fixedrange: true
     };
-    plotHost.style.minHeight = layout.height + 'px';
-    graphEl.style.minHeight = (layout.height + 56) + 'px';
+    plotHost.style.minHeight = '0';
+    graphEl.style.minHeight = '0';
 
     try {
         if (plotHost.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
