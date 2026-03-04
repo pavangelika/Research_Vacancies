@@ -573,6 +573,13 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
             margin: { t: 50, b: 40, l: 110, r: 30 },
             height: 420
         });
+        var mainGraph = document.getElementById(graphIdMain);
+        var ageGraph = document.getElementById(graphIdAge);
+        var activityStack = mainGraph ? mainGraph.closest('.all-roles-graph-stack') : null;
+        ensureStackedChartSwitch(activityStack, [
+            { key: 'main', label: 'Вакансии', el: mainGraph ? mainGraph.parentElement : null },
+            { key: 'age', label: 'Ср. возраст', el: ageGraph ? ageGraph.parentElement : null }
+        ]);
     };
     buildAllRolesWeekdayChart = function(rows, graphId) {
         var labels = (rows || []).map(function(r) { return buildRoleAxisTick(r.id); });
@@ -4790,6 +4797,12 @@ function renderEmployerAnalysisChart(block) {
         margin: { t: 56, r: 16, b: 40, l: 160 },
         height: 420
     });
+    ensureStackedChartSwitch(graph, [
+        { key: 'rur', label: 'RUR', el: graph.__avgRurChartEl || null },
+        { key: 'usd', label: 'USD', el: graph.__avgUsdChartEl || null },
+        { key: 'eur', label: 'EUR', el: graph.__avgEurChartEl || null },
+        { key: 'other', label: 'Другая валюта', el: graph.__avgOtherChartEl || null }
+    ]);
     graph.dataset.plotSignature = signature;
     graph.dataset.plotReady = '1';
 }
@@ -5335,12 +5348,22 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
 
     var top = rows.slice().sort(function(a, b) {
         return (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
-    }).slice(0, 30);
+    }).slice(0, 100);
     var topByAvgSalary = rows.filter(function(item) {
         return item.avg_skill_cost_rur !== null && item.avg_skill_cost_rur !== undefined;
     }).sort(function(a, b) {
         return (b.avg_skill_cost_rur || 0) - (a.avg_skill_cost_rur || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
-    }).slice(0, 30);
+    }).slice(0, 100);
+    var hasAvgSalaryChart = !!topByAvgSalary.length;
+    var activeChartKey = (graphEl.dataset.activeSkillsChart === 'avg' && hasAvgSalaryChart) ? 'avg' : 'mentions';
+    var buildChartSwitchHtml = function(activeKey) {
+        if (!hasAvgSalaryChart) return '';
+        return '' +
+            '<div class="skills-all-chart-switch">' +
+                '<button type="button" class="tab-button skills-all-chart-switch-btn' + (activeKey === 'mentions' ? ' active' : '') + '" data-chart="mentions">По упоминаниям</button>' +
+                '<button type="button" class="tab-button skills-all-chart-switch-btn' + (activeKey === 'avg' ? ' active' : '') + '" data-chart="avg">По средней з/п</button>' +
+            '</div>';
+    };
     var subtitleText = '';
     var activeRole = target.closest('.role-content');
     if (activeRole) {
@@ -5379,11 +5402,12 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
             return (item.skill || '') + ':' + (item.avg_skill_cost_rur || 0);
         }).join('|') + '|' + (contextText || '') + '|html';
         graphEl.dataset.plotReady = '';
-        graphEl.style.minHeight = topByAvgSalary.length ? '960px' : '480px';
+        graphEl.style.minHeight = '480px';
         graphEl.innerHTML =
             '<div class="skills-all-html-card">' +
-                '<div class="skills-all-chart-section">' +
-                    '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
+                buildChartSwitchHtml(activeChartKey) +
+                '<div class="skills-all-chart-section' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
+                    '<div class="skills-all-html-title">Топ-100 навыков по упоминаниям</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     top.map(function(item) {
                         var width = Math.max(4, Math.round(((item.mention_count || 0) / maxCount) * 100));
@@ -5397,8 +5421,8 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                             '</div>';
                     }).join('') +
                 '</div>' +
-                '<div class="skills-all-chart-section">' +
-                    '<div class="skills-all-html-title">Топ навыков по средней зарплате</div>' +
+                '<div class="skills-all-chart-section' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
+                    '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     (topByAvgSalary.length ? topByAvgSalary.map(function(item) {
                         var width = Math.max(4, Math.round(((item.avg_skill_cost_rur || 0) / maxAvg) * 100));
@@ -5413,6 +5437,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                     }).join('') : '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по средней зарплате</div>') +
                 '</div>' +
             '</div>';
+        bindSkillsAllChartSwitch(graphEl);
     };
 
     var graphWidth = Math.max(
@@ -5446,13 +5471,14 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     graphEl.dataset.plotReady = '';
     graphEl.innerHTML =
         '<div class="skills-all-html-card">' +
-            '<div class="skills-all-chart-section">' +
-                '<div class="skills-all-html-title">Топ навыков по упоминаниям</div>' +
+            buildChartSwitchHtml(activeChartKey) +
+            '<div class="skills-all-chart-section' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
+                '<div class="skills-all-html-title">Топ-100 навыков по упоминаниям</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
             '</div>' +
-            '<div class="skills-all-chart-section">' +
-                '<div class="skills-all-html-title">Топ навыков по средней зарплате</div>' +
+            '<div class="skills-all-chart-section' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
+                '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-avg-plotly-host"></div>' +
             '</div>' +
@@ -5533,7 +5559,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         } else {
             Plotly.newPlot(plotHost, data, layout, { responsive: true, displayModeBar: false });
         }
-        if (topByAvgSalary.length) {
+        if (hasAvgSalaryChart) {
             if (avgPlotHost.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
                 Plotly.react(avgPlotHost, avgData, avgLayout, { responsive: true, displayModeBar: false });
             } else {
@@ -5550,9 +5576,98 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     graphEl.dataset.plotSignature = signature;
     graphEl.dataset.plotReady = '1';
     plotHost.dataset.plotReady = '1';
-    if (topByAvgSalary.length) avgPlotHost.dataset.plotReady = '1';
+    if (hasAvgSalaryChart) avgPlotHost.dataset.plotReady = '1';
+    graphEl.dataset.activeSkillsChart = activeChartKey;
+    bindSkillsAllChartSwitch(graphEl);
     resizePlotlyScope(plotHost);
-    if (topByAvgSalary.length) resizePlotlyScope(avgPlotHost);
+    if (hasAvgSalaryChart) resizePlotlyScope(avgPlotHost);
+}
+
+function bindSkillsAllChartSwitch(graphEl) {
+    if (!graphEl) return;
+    var buttons = Array.from(graphEl.querySelectorAll('.skills-all-chart-switch-btn'));
+    var sections = Array.from(graphEl.querySelectorAll('.skills-all-chart-section[data-chart-section]'));
+    if (!buttons.length || !sections.length) return;
+    var activateChart = function(chartKey) {
+        var normalized = chartKey === 'avg' ? 'avg' : 'mentions';
+        graphEl.dataset.activeSkillsChart = normalized;
+        buttons.forEach(function(btn) {
+            btn.classList.toggle('active', (btn.dataset.chart || 'mentions') === normalized);
+        });
+        sections.forEach(function(section) {
+            var match = (section.dataset.chartSection || 'mentions') === normalized;
+            section.classList.toggle('active', match);
+            section.style.display = match ? 'block' : 'none';
+        });
+        var activeHosts = graphEl.querySelectorAll('.skills-all-chart-section.active .skills-all-plotly-host');
+        activeHosts.forEach(function(host) {
+            resizePlotlyScope(host);
+        });
+    };
+    buttons.forEach(function(btn) {
+        if (btn.dataset.bound === '1') return;
+        btn.addEventListener('click', function() {
+            activateChart(btn.dataset.chart || 'mentions');
+        });
+        btn.dataset.bound = '1';
+    });
+    activateChart(graphEl.dataset.activeSkillsChart || 'mentions');
+}
+
+function ensureStackedChartSwitch(container, items, preferredKey) {
+    if (!container) return;
+    var visibleItems = (Array.isArray(items) ? items : []).filter(function(item) {
+        return item && item.el;
+    });
+    visibleItems.forEach(function(item) {
+        item.el.classList.add('stacked-chart-switchable');
+        item.el.dataset.chartSection = item.key || '';
+    });
+    var switchWrap = getDirectChildByClass(container, 'stacked-chart-switch');
+    if (visibleItems.length <= 1) {
+        if (switchWrap && switchWrap.parentElement) switchWrap.parentElement.removeChild(switchWrap);
+        visibleItems.forEach(function(item) {
+            item.el.classList.add('active');
+            item.el.style.display = '';
+        });
+        return;
+    }
+    if (!switchWrap) {
+        switchWrap = document.createElement('div');
+        switchWrap.className = 'stacked-chart-switch';
+        container.insertBefore(switchWrap, container.firstChild);
+    }
+    switchWrap.innerHTML = visibleItems.map(function(item) {
+        var isActive = String(item.key || '') === String(preferredKey || container.dataset.activeChartKey || visibleItems[0].key || '');
+        return '<button type="button" class="tab-button stacked-chart-switch-btn' + (isActive ? ' active' : '') + '" data-chart="' + escapeHtml(item.key || '') + '">' + escapeHtml(item.label || '') + '</button>';
+    }).join('');
+    var activate = function(chartKey) {
+        var nextKey = visibleItems.some(function(item) { return item.key === chartKey; }) ? chartKey : (visibleItems[0].key || '');
+        container.dataset.activeChartKey = nextKey;
+        Array.from(switchWrap.querySelectorAll('.stacked-chart-switch-btn')).forEach(function(btn) {
+            btn.classList.toggle('active', (btn.dataset.chart || '') === nextKey);
+        });
+        visibleItems.forEach(function(item) {
+            var isMatch = item.key === nextKey;
+            item.el.classList.toggle('active', isMatch);
+            item.el.style.display = isMatch ? '' : 'none';
+            if (!isMatch) return;
+            var resizeTargets = item.el.querySelectorAll('.plotly-graph, .employer-analysis-subgraph-host, .unified-chart-host, .js-plotly-plot');
+            if (!resizeTargets.length) {
+                resizePlotlyScope(item.el);
+                return;
+            }
+            resizeTargets.forEach(function(node) {
+                resizePlotlyScope(node);
+            });
+        });
+    };
+    Array.from(switchWrap.querySelectorAll('.stacked-chart-switch-btn')).forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            activate(btn.dataset.chart || '');
+        });
+    });
+    activate(preferredKey || container.dataset.activeChartKey || visibleItems[0].key || '');
 }
 
 function openAllRolesPeriodTab(evt, contentId, analysisType) {
@@ -6459,6 +6574,17 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
         }).join('|') + '|' + (contextLabel || '');
         plotIfChangedById(graphElId, traceSignature, traces, layout);
     });
+    var salaryStack = container.querySelector('.salary-graphs-3');
+    if (salaryStack) {
+        ensureStackedChartSwitch(salaryStack, currencies.map(function(currency) {
+            var graphNode = document.getElementById(containerId + '-' + currency.replace('%', 'p'));
+            return {
+                key: currency,
+                label: currency,
+                el: graphNode ? graphNode.closest('.salary-graph-item') : null
+            };
+        }));
+    }
 }
 function applySalaryViewMode(expDiv, entries) {
     var mode = normalizeResponsiveViewMode(uiState.salary_view_mode || 'together');
