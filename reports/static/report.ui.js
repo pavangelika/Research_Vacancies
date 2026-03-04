@@ -76,6 +76,7 @@ function resolvePlotlyContainer(target) {
     if (!el) return { outer: null, host: null };
     if (el.classList && el.classList.contains('js-plotly-plot')) return { outer: el, host: el };
     if (el.classList && el.classList.contains('employer-analysis-subgraph')) return { outer: el, host: el };
+    if (el.classList && el.classList.contains('employer-analysis-subgraph-host')) return { outer: el, host: el };
     if (el.classList && el.classList.contains('skills-all-plotly-host')) {
         var skillsOuter = el.closest('.skills-all-html-chart');
         return { outer: skillsOuter || el, host: el };
@@ -2785,6 +2786,7 @@ function normalizeSalaryControls(parentRole) {
             if (!btn) return;
             var view = btn.dataset.view || 'together';
             uiState.salary_view_mode = view;
+            if (typeof persistViewModes === 'function') persistViewModes();
             setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), view);
 
             var visibleMonth = block.querySelector('.salary-month-content[style*="display: block"]');
@@ -3908,6 +3910,7 @@ function normalizeActivityControls(parentRole) {
             if (!btn) return;
             var view = btn.dataset.view || 'together';
             uiState.activity_view_mode = view;
+            if (typeof persistViewModes === 'function') persistViewModes();
             setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), view);
 
             var visibleMonth = parentRole.querySelector('.month-content.activity-only[style*="display: block"]');
@@ -4096,6 +4099,7 @@ function normalizeSkillsMonthlyControls(parentRole) {
             if (!btn) return;
             var view = btn.dataset.view || 'together';
             uiState.skills_monthly_view_mode = view;
+            if (typeof persistViewModes === 'function') persistViewModes();
             setActiveViewButton(inlineToggle.querySelectorAll('.skills-inline-mode-btn'), view);
 
             var visibleMonth = block.querySelector('.monthly-skills-month-content[style*="display: block"]');
@@ -4351,6 +4355,7 @@ function applyEmployerAnalysisViewMode(block, mode) {
 
     uiState.employer_analysis_view_mode = mode;
     block.dataset.employerViewMode = mode;
+    if (typeof persistViewModes === 'function') persistViewModes();
     var btns = block.querySelectorAll('.employer-view-btn');
     btns.forEach(function(btn) {
         btn.classList.toggle('active', (btn.dataset.view || '') === mode);

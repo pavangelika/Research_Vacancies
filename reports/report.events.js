@@ -317,6 +317,7 @@ document.addEventListener('click', function(e) {
     else if (analysisType === 'skills-monthly') uiState.skills_monthly_view_mode = mode;
     else if (analysisType === 'salary') uiState.salary_view_mode = mode;
     else if (analysisType === 'employer-analysis') uiState.employer_analysis_view_mode = mode;
+    if (typeof persistViewModes === 'function') persistViewModes();
 
     var allBtns = container.querySelectorAll('.view-mode-btn, .view-mode-button');
     setActiveViewButton(allBtns, mode);
@@ -451,6 +452,7 @@ document.addEventListener("DOMContentLoaded", function() {
     updateRoleSelectionUI(selected);
     updateRoleView(selected);
     if (typeof applySalaryStatusIcons === 'function') applySalaryStatusIcons(document);
+    if (typeof refreshResponsiveViewModes === 'function') refreshResponsiveViewModes(document);
 
     function enforceSingle(idx) {
         commitSelection(new Set([idx]), [idx]);

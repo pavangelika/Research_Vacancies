@@ -28,6 +28,48 @@ let uiState = {
     employer_analysis_view_mode: 'together'
 };
 
+var VIEW_MODE_STORAGE_KEY = 'research_vacancies_view_modes';
+var VIEW_MODE_STATE_KEYS = [
+    'activity_view_mode',
+    'weekday_view_mode',
+    'skills_monthly_view_mode',
+    'salary_view_mode',
+    'employer_analysis_view_mode'
+];
+
+function loadPersistedViewModes() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        var raw = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+        if (!raw) return;
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+        VIEW_MODE_STATE_KEYS.forEach(function(key) {
+            var value = parsed[key];
+            if (value === 'together' || value === 'table' || value === 'graph') {
+                uiState[key] = value;
+            }
+        });
+    } catch (err) {
+        // Ignore malformed or unavailable localStorage state.
+    }
+}
+
+function persistViewModes() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        var payload = {};
+        VIEW_MODE_STATE_KEYS.forEach(function(key) {
+            payload[key] = uiState[key];
+        });
+        window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+        // Ignore storage write failures.
+    }
+}
+
+loadPersistedViewModes();
+
 function getAnalysisStateKey(roleId) {
     return roleId + '_analysis';
 }
