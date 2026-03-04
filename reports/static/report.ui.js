@@ -2965,7 +2965,7 @@ function buildSalaryTablesHtml(entries) {
     return '<div class="salary-split-tables">' +
         '<div class="salary-table-block">' +
             '<h4 class="salary-table-title">Сводка вакансий по валютам</h4>' +
-            '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
+            '<div class="vacancy-table-wrap" style="margin-bottom: 16px;">' +
             '<table class="vacancy-table salary-table salary-summary-table">' +
                 '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
@@ -2974,7 +2974,7 @@ function buildSalaryTablesHtml(entries) {
         '</div>' +
         '<div class="salary-table-block">' +
             '<h4 class="salary-table-title">Статистика зарплат</h4>' +
-            '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+            '<div class="vacancy-table-wrap">' +
             '<table class="vacancy-table salary-table salary-stats-table">' +
                 '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                 '<tbody>' + statsRows + '</tbody>' +

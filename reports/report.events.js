@@ -425,7 +425,17 @@ document.addEventListener("DOMContentLoaded", function() {
     var selectionOrder = [buttons[0].dataset.roleIndex];
     function syncRoleFilterState() {
         if (!uiState.global_filters) return;
-        uiState.global_filters.roles.include = Array.from(selected);
+        if (!uiState.global_filters.roles) uiState.global_filters.roles = { include: [], exclude: [] };
+        var selectedList = Array.from(selected);
+        uiState.global_filters.roles.include = selectedList;
+        if (uiState.all_roles_active) {
+            var allRoleIds = buttons.map(function(btn) { return btn.dataset.roleIndex; }).filter(Boolean);
+            uiState.global_filters.roles.exclude = allRoleIds.filter(function(id) {
+                return selectedList.indexOf(id) < 0;
+            });
+        } else {
+            uiState.global_filters.roles.exclude = [];
+        }
     }
     function commitSelection(nextSelected, nextOrder) {
         selected = new Set(nextSelected);

@@ -629,7 +629,7 @@ tr:hover { background-color: #f0f4f9; }
 }
 .salary-table-container > div {
     max-width: 100%;
-    overflow-x: auto;
+    overflow-x: visible;
 }
 .salary-graphs-3 {
     display: grid;
@@ -1728,9 +1728,9 @@ tr:hover { background-color: #f0f4f9; }
     color: #475569;
 }
 .salary-table-container .vacancy-table {
-    width: max-content;
-    min-width: 100%;
-    table-layout: auto;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
     border: 0 !important;
     border-radius: 0;
     border-collapse: separate;
@@ -1739,32 +1739,35 @@ tr:hover { background-color: #f0f4f9; }
     box-shadow: none !important;
 }
 .salary-table-container .salary-summary-table {
-    width: max-content;
-    min-width: 100%;
-    table-layout: auto;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
 }
 .salary-table-container .salary-stats-table {
-    width: max-content;
-    min-width: 100%;
-    table-layout: auto;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
 }
 .salary-table-container .salary-summary-table th,
 .salary-table-container .salary-summary-table td,
 .salary-table-container .salary-stats-table th,
 .salary-table-container .salary-stats-table td {
-    white-space: nowrap;
-    word-break: normal;
-    overflow-wrap: normal;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    line-height: 1.25;
 }
 .salary-table-container .salary-stats-table th:first-child,
 .salary-table-container .salary-stats-table td:first-child {
-    width: 48px;
-    min-width: 48px;
+    width: 36px;
+    min-width: 36px;
     text-align: center;
 }
 .salary-table-container .salary-stats-table th:nth-child(2),
 .salary-table-container .salary-stats-table td:nth-child(2) {
-    min-width: 72px;
+    width: 56px;
+    min-width: 56px;
 }
 .salary-table-container .salary-stats-table th:nth-child(3),
 .salary-table-container .salary-stats-table td:nth-child(3),
@@ -1778,7 +1781,8 @@ tr:hover { background-color: #f0f4f9; }
 .salary-table-container .salary-stats-table td:nth-child(7),
 .salary-table-container .salary-stats-table th:nth-child(8),
 .salary-table-container .salary-stats-table td:nth-child(8) {
-    min-width: 88px;
+    width: 64px;
+    min-width: 64px;
     text-align: center;
 }
 .salary-table-container .salary-summary-table th,
@@ -1788,8 +1792,8 @@ tr:hover { background-color: #f0f4f9; }
 .salary-table-container .salary-stats-table th:last-child,
 .salary-table-container .salary-stats-table td:last-child {
     white-space: normal;
-    width: 42%;
-    min-width: 360px;
+    width: auto;
+    min-width: 0;
 }
 .salary-table-container .vacancy-table th,
 .salary-table-container .vacancy-table td {
@@ -2444,9 +2448,13 @@ tbody tr:hover {
     margin: 0 auto;
 }
 
-.analysis-flex .table-container > div,
-.salary-table-container > div {
+.analysis-flex .table-container > div {
     overflow: auto;
+    width: 100%;
+}
+
+.salary-table-container > div {
+    overflow: visible;
     width: 100%;
 }
 
