@@ -685,14 +685,14 @@ function switchAnalysis(evt, analysisId) {
         activityBlocks.forEach(block => block.style.display = 'block');
         normalizeActivityControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'activity');
-        else if (roleId === 'role-combined' && !parentRole.querySelector('.month-button')) {
+        else if (roleId === 'role-combined' && !parentRole.querySelector('.activity-month-tabs .month-button, .tabs.month-tabs.activity-only .month-button')) {
             var combinedBlock = activityBlocks[0];
             if (combinedBlock) {
                 var viewBtns = combinedBlock.querySelectorAll('.view-mode-btn');
                 setActiveViewButton(viewBtns, uiState.activity_view_mode);
                 var combinedContainer = combinedBlock.querySelector('.view-mode-container');
                 applyViewMode(combinedContainer, uiState.activity_view_mode);
-                var combinedEntries = parseJsonDataset(combinedBlock, 'entries', []);
+                var combinedEntries = (combinedBlock._data && combinedBlock._data.entries) ? combinedBlock._data.entries : parseJsonDataset(combinedBlock, 'entries', []);
                 var combinedTableWrap = combinedBlock.querySelector('.table-container');
                 if (combinedTableWrap) combinedTableWrap.innerHTML = buildActivityTableHtml(combinedEntries || []);
                 var combinedGraph = combinedBlock.querySelector('.plotly-graph');

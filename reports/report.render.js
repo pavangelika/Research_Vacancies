@@ -714,7 +714,7 @@ function renderCombinedContainer(container, roleContents) {
 
     var combinedActivity = activityMonths.length ? activityMonths[0] : { month: 'За период', entries: [] };
     var activityBlocks =
-        '<div id="month-combined-summary" class="month-content activity-only" data-entries="" data-month="' + combinedActivity.month + '">' +
+        '<div id="month-combined-summary" class="month-content activity-only" data-entries="' + encodeURIComponent(JSON.stringify(combinedActivity.entries || [])) + '" data-month="' + combinedActivity.month + '">' +
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.activity_view_mode || 'together') +
             '</div>' +
