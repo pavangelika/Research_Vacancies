@@ -312,11 +312,14 @@ document.addEventListener('click', function(e) {
     if (!analysisType) return;
 
     var mode = normalizeResponsiveViewMode(btn.dataset.view);
-    if (analysisType === 'activity') uiState.activity_view_mode = mode;
-    else if (analysisType === 'weekday') uiState.weekday_view_mode = mode;
-    else if (analysisType === 'skills-monthly') uiState.skills_monthly_view_mode = mode;
-    else if (analysisType === 'salary') uiState.salary_view_mode = mode;
-    else if (analysisType === 'employer-analysis') uiState.employer_analysis_view_mode = mode;
+    if (typeof syncAllViewModes === 'function') syncAllViewModes(mode);
+    else {
+        uiState.activity_view_mode = mode;
+        uiState.weekday_view_mode = mode;
+        uiState.skills_monthly_view_mode = mode;
+        uiState.salary_view_mode = mode;
+        uiState.employer_analysis_view_mode = mode;
+    }
     if (typeof persistViewModes === 'function') persistViewModes();
 
     var allBtns = container.querySelectorAll('.view-mode-btn, .view-mode-button');

@@ -2808,7 +2808,8 @@ function normalizeSalaryControls(parentRole) {
             var btn = e.target.closest('.salary-inline-mode-btn');
             if (!btn) return;
             var view = btn.dataset.view || 'together';
-            uiState.salary_view_mode = view;
+            if (typeof syncAllViewModes === 'function') syncAllViewModes(view);
+            else uiState.salary_view_mode = view;
             if (typeof persistViewModes === 'function') persistViewModes();
             setActiveViewButton(inlineToggle.querySelectorAll('.salary-inline-mode-btn'), view);
 
@@ -3932,7 +3933,8 @@ function normalizeActivityControls(parentRole) {
             var btn = e.target.closest('.activity-inline-mode-btn');
             if (!btn) return;
             var view = btn.dataset.view || 'together';
-            uiState.activity_view_mode = view;
+            if (typeof syncAllViewModes === 'function') syncAllViewModes(view);
+            else uiState.activity_view_mode = view;
             if (typeof persistViewModes === 'function') persistViewModes();
             setActiveViewButton(inlineToggle.querySelectorAll('.activity-inline-mode-btn'), view);
 
@@ -4121,7 +4123,8 @@ function normalizeSkillsMonthlyControls(parentRole) {
             var btn = e.target.closest('.skills-inline-mode-btn');
             if (!btn) return;
             var view = btn.dataset.view || 'together';
-            uiState.skills_monthly_view_mode = view;
+            if (typeof syncAllViewModes === 'function') syncAllViewModes(view);
+            else uiState.skills_monthly_view_mode = view;
             if (typeof persistViewModes === 'function') persistViewModes();
             setActiveViewButton(inlineToggle.querySelectorAll('.skills-inline-mode-btn'), view);
 
@@ -4395,7 +4398,8 @@ function applyEmployerAnalysisViewMode(block, mode) {
     var layoutRoot = block.querySelector('.employer-analysis-main') || block.querySelector('.employer-analysis-view');
     if (!table || !graph) return;
 
-    uiState.employer_analysis_view_mode = mode;
+    if (typeof syncAllViewModes === 'function') syncAllViewModes(mode);
+    else uiState.employer_analysis_view_mode = mode;
     block.dataset.employerViewMode = mode;
     if (typeof persistViewModes === 'function') persistViewModes();
     var btns = block.querySelectorAll('.employer-view-btn');
@@ -5081,15 +5085,15 @@ function initEmployerAnalysisFilter(block) {
         } else {
             applyEmployerAnalysisMonthFilter(block, block.dataset.employerActiveMonth || 'all');
         }
-        applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'together');
+        applyEmployerAnalysisViewMode(block, uiState.employer_analysis_view_mode || block.dataset.employerViewMode || 'together');
         return;
     }
     var tableContainer = block.querySelector('.table-container');
     if (!tableContainer) return;
     tableContainer.classList.add('employer-analysis-table-container');
     tableContainer.style.margin = '0 auto';
-    tableContainer.style.width = '80%';
-    tableContainer.style.maxWidth = '80%';
+    tableContainer.style.width = '';
+    tableContainer.style.maxWidth = '';
 
     var analysisView = block.querySelector('.employer-analysis-view');
     if (!analysisView) {
@@ -5194,7 +5198,7 @@ function initEmployerAnalysisFilter(block) {
     }
 
     applyEmployerAnalysisMonthFilter(block, 'all');
-    applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || 'together');
+    applyEmployerAnalysisViewMode(block, uiState.employer_analysis_view_mode || block.dataset.employerViewMode || 'together');
     updateViewToggleIcons(block);
     block.dataset.employerInited = '1';
 }

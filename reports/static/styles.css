@@ -621,10 +621,10 @@ tr:hover { background-color: #f0f4f9; }
     align-items: flex-start;
 }
 .salary-table-container, .salary-graph-container {
-    flex: 1 1 calc(50% - var(--analysis-half-gap));
-    width: auto;
-    max-width: none;
-    min-width: var(--analysis-column-min-width);
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     margin: 0 auto;
 }
 .salary-table-container > div {
