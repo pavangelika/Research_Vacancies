@@ -1018,8 +1018,20 @@ tr:hover { background-color: #f0f4f9; }
     display: flex;
     justify-content: center;
     gap: 8px;
-    margin: 0 0 var(--chart-title-bottom-gap);
+    margin: 0;
     flex-wrap: wrap;
+}
+.chart-switch ~ .chart-switch-target {
+    margin-top: var(--chart-title-bottom-gap);
+}
+.salary-graphs-3 > .chart-switch ~ .chart-switch-target,
+.all-roles-graph-stack > .chart-switch ~ .chart-switch-target,
+.employer-analysis-graph > .chart-switch ~ .chart-switch-target {
+    margin-top: calc(var(--chart-title-bottom-gap) - var(--chart-stack-gap));
+}
+.chart-switch ~ .chart-switch-target .unified-chart-shell,
+.chart-switch ~ .chart-switch-target .skills-all-html-card {
+    padding-top: 0;
 }
 .skills-all-chart-switch-btn {
     font-size: 0.75rem;
@@ -1035,7 +1047,7 @@ tr:hover { background-color: #f0f4f9; }
     gap: 8px;
     flex-wrap: wrap;
     width: 100%;
-    margin: 0 0 var(--chart-title-bottom-gap);
+    margin: 0;
 }
 .stacked-chart-switch-btn {
     flex: 0 0 auto;

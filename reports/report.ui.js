@@ -5363,7 +5363,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     var buildChartSwitchHtml = function(activeKey) {
         if (!hasAvgSalaryChart) return '';
         return '' +
-            '<div class="skills-all-chart-switch">' +
+            '<div class="skills-all-chart-switch chart-switch">' +
                 '<button type="button" class="tab-button skills-all-chart-switch-btn' + (activeKey === 'mentions' ? ' active' : '') + '" data-chart="mentions">По упоминаниям</button>' +
                 '<button type="button" class="tab-button skills-all-chart-switch-btn' + (activeKey === 'avg' ? ' active' : '') + '" data-chart="avg">По средней з/п</button>' +
             '</div>';
@@ -5410,7 +5410,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         graphEl.innerHTML =
             '<div class="skills-all-html-card">' +
                 buildChartSwitchHtml(activeChartKey) +
-                '<div class="skills-all-chart-section' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
+                '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
                     '<div class="skills-all-html-title">Топ-100 навыков по упоминаниям</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     top.map(function(item) {
@@ -5425,7 +5425,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                             '</div>';
                     }).join('') +
                 '</div>' +
-                '<div class="skills-all-chart-section' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
+                '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
                     '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     (topByAvgSalary.length ? topByAvgSalary.map(function(item) {
@@ -5476,12 +5476,12 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     graphEl.innerHTML =
         '<div class="skills-all-html-card">' +
             buildChartSwitchHtml(activeChartKey) +
-            '<div class="skills-all-chart-section' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
+            '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
                 '<div class="skills-all-html-title">Топ-100 навыков по упоминаниям</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
             '</div>' +
-            '<div class="skills-all-chart-section' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
+            '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
                 '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-avg-plotly-host"></div>' +
@@ -5625,6 +5625,7 @@ function ensureStackedChartSwitch(container, items, preferredKey) {
     });
     visibleItems.forEach(function(item) {
         item.el.classList.add('stacked-chart-switchable');
+        item.el.classList.add('chart-switch-target');
         item.el.dataset.chartSection = item.key || '';
     });
     var switchWrap = getDirectChildByClass(container, 'stacked-chart-switch');
@@ -5638,7 +5639,7 @@ function ensureStackedChartSwitch(container, items, preferredKey) {
     }
     if (!switchWrap) {
         switchWrap = document.createElement('div');
-        switchWrap.className = 'stacked-chart-switch';
+        switchWrap.className = 'stacked-chart-switch chart-switch';
         container.insertBefore(switchWrap, container.firstChild);
     }
     switchWrap.innerHTML = visibleItems.map(function(item) {
