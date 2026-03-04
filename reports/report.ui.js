@@ -2667,7 +2667,11 @@ function renderGlobalWeekdayFiltered(parentRole) {
 
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'weekday');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'weekday');
+    var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
+    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
     var weekdays = computeWeekdayStatsFromVacancies(vacancies);
 
     block.dataset.weekdays = JSON.stringify(weekdays || []);
@@ -2684,7 +2688,7 @@ function renderGlobalWeekdayFiltered(parentRole) {
         if (roleSuffix) {
             var weekdayGraphId = 'weekday-graph-' + roleSuffix;
             buildWeekdayBarChart(roleSuffix, block);
-            applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(selectedPeriods), null));
+            applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(selectedPeriods), chartExperienceLabel));
         }
         applyWeekdayModeSizing(container, mode);
     }
