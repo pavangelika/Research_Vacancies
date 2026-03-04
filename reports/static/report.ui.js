@@ -685,6 +685,24 @@ function switchAnalysis(evt, analysisId) {
         activityBlocks.forEach(block => block.style.display = 'block');
         normalizeActivityControls(parentRole);
         if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'activity');
+        else if (roleId === 'role-combined' && !parentRole.querySelector('.month-button')) {
+            var combinedBlock = activityBlocks[0];
+            if (combinedBlock) {
+                var viewBtns = combinedBlock.querySelectorAll('.view-mode-btn');
+                setActiveViewButton(viewBtns, uiState.activity_view_mode);
+                var combinedContainer = combinedBlock.querySelector('.view-mode-container');
+                applyViewMode(combinedContainer, uiState.activity_view_mode);
+                var combinedEntries = parseJsonDataset(combinedBlock, 'entries', []);
+                var combinedTableWrap = combinedBlock.querySelector('.table-container');
+                if (combinedTableWrap) combinedTableWrap.innerHTML = buildActivityTableHtml(combinedEntries || []);
+                var combinedGraph = combinedBlock.querySelector('.plotly-graph');
+                if (combinedGraph && combinedGraph.id) {
+                    buildActivityBarChart(combinedGraph.id, combinedEntries);
+                    applyChartTitleContext(combinedGraph.id, 'Количество вакансий по опыту', buildChartContextLabel((combinedBlock.dataset.month || '').trim(), null));
+                }
+                applyActivityModeSizing(combinedContainer, uiState.activity_view_mode);
+            }
+        }
         else restoreActivityState(parentRole, roleId);
     } else if (analysisType === 'weekday') {
         weekdayBlock.style.display = 'block';
@@ -834,10 +852,10 @@ function ensureSharedFilterPanel() {
 
         var hint = document.createElement('div');
         hint.className = 'shared-filter-panel-hint';
-        hint.textContent = 'ЛКМ — включить, ПКМ — исключить';
+        hint.textContent = '';
         hint.style.fontSize = '10px';
         hint.style.color = '#94a3b8';
-        hint.style.marginBottom = '6px';
+        hint.style.marginBottom = '0';
 
         var body = document.createElement('div');
         body.className = 'shared-filter-panel-body';
@@ -1338,7 +1356,7 @@ function ensureGlobalFilterBucket(filterKey) {
 function ensureGlobalFilterModeState() {
     if (!uiState.global_filter_modes) uiState.global_filter_modes = {};
     ['roles', 'periods', 'experiences'].forEach(function(key) {
-        if (typeof uiState.global_filter_modes[key] !== 'boolean') uiState.global_filter_modes[key] = (key === 'roles');
+        if (typeof uiState.global_filter_modes[key] !== 'boolean') uiState.global_filter_modes[key] = false;
     });
     return uiState.global_filter_modes;
 }
@@ -1348,7 +1366,6 @@ function isGlobalFilterMultiEnabled(filterKey) {
 }
 
 function setGlobalFilterMultiEnabled(filterKey, enabled) {
-    if (filterKey === 'roles') enabled = true;
     ensureGlobalFilterModeState()[filterKey] = !!enabled;
     if (!enabled) {
         var bucket = ensureGlobalFilterBucket(filterKey);
@@ -1501,8 +1518,7 @@ function summarizeGlobalFilterSelection(filterKey, options, disabled) {
     var excludeCount = bucket.exclude.length;
     if (!includeCount && !excludeCount) return filterKey === 'roles' ? 'Выбрать роль' : 'Все';
     if (filterKey === 'roles' && isGlobalFilterMultiEnabled(filterKey)) {
-        if (!excludeCount) return includeCount + ' выбрано';
-        return includeCount + ' выбрано / ' + excludeCount + ' исключено';
+        return includeCount + ' выбрано';
     }
     var optionMap = {};
     (options || []).forEach(function(item) { optionMap[item.value] = item.label; });
@@ -1740,6 +1756,29 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
         labelNode.textContent = summarizeGlobalFilterSelection(key, options, disabled);
     });
 
+    var rolesWrap = panel.querySelector('.global-filter-dropdown[data-filter-key="roles"]');
+    if (rolesWrap) {
+        var rolesBucket = ensureGlobalFilterBucket('roles');
+        var selectedRoles = rolesBucket.include || [];
+        rolesWrap.querySelectorAll('.skills-search-dropdown-item[data-role-value]').forEach(function(row) {
+            var roleValue = row.dataset.roleValue || '';
+            var selected = selectedRoles.indexOf(roleValue) >= 0;
+            row.style.background = selected ? '#eef2f6' : 'transparent';
+            var label = row.querySelector('div');
+            if (label) label.style.fontWeight = selected ? '600' : '400';
+        });
+        if (uiState.keep_roles_filter_open) {
+            var rolesMenu = rolesWrap.querySelector('.global-filter-menu');
+            var rolesTrigger = rolesWrap.querySelector('.global-filter-trigger');
+            var rolesArrow = rolesWrap.querySelector('.global-filter-trigger-arrow');
+            if (rolesMenu) {
+                rolesMenu.style.display = 'block';
+                if (rolesTrigger) positionGlobalFilterMenu(rolesTrigger, rolesMenu);
+            }
+            if (rolesArrow) rolesArrow.textContent = '\u25B4';
+        }
+    }
+
     renderActiveGlobalFilterChips(panel, activeRole, current);
     applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
@@ -1785,7 +1824,7 @@ function applyGlobalRoleFilter() {
     if (include.length) next = include.filter(function(v) { return exclude.indexOf(v) < 0; });
     else if (exclude.length) next = allIds.filter(function(v) { return exclude.indexOf(v) < 0; });
     else next = [];
-    if (isSummaryModeActive() && next.length <= 1 && typeof ctx.exitAllRolesMode === 'function') {
+    if (isSummaryModeActive() && !isGlobalFilterMultiEnabled('roles') && next.length <= 1 && typeof ctx.exitAllRolesMode === 'function') {
         ctx.exitAllRolesMode(new Set(next), next);
         return;
     }
@@ -1794,6 +1833,8 @@ function applyGlobalRoleFilter() {
 
 function updateGlobalFilterSelection(filterKey, value, action) {
     var bucket = ensureGlobalFilterBucket(filterKey);
+    var previousInclude = bucket.include.slice();
+    if (filterKey === 'roles') bucket.exclude = [];
     if (action === 'reset') {
         bucket.include = bucket.include.filter(function(v) { return v !== value; });
         bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
@@ -1806,6 +1847,7 @@ function updateGlobalFilterSelection(filterKey, value, action) {
             bucket.exclude = [];
         }
     } else if (action === 'exclude') {
+        if (filterKey === 'roles') return;
         if (isGlobalFilterMultiEnabled(filterKey)) {
             if (bucket.exclude.indexOf(value) < 0) bucket.exclude.push(value);
             bucket.include = bucket.include.filter(function(v) { return v !== value; });
@@ -1822,20 +1864,25 @@ function updateGlobalFilterSelection(filterKey, value, action) {
             bucket.exclude = [];
         }
     } else if (action === 'clear') {
-        bucket.include = [];
+        if (filterKey === 'roles') {
+            bucket.include = previousInclude.length ? [previousInclude[0]] : [];
+        } else {
+            bucket.include = [];
+        }
         bucket.exclude = [];
     } else if (action === 'clear_excluded') {
+        if (filterKey === 'roles') return;
         bucket.exclude = [];
     }
     if (filterKey === 'roles') {
-        if (action === 'clear') {
+        if (uiState.keep_roles_filter_open && isGlobalFilterMultiEnabled('roles')) {
+            uiState.pending_roles_filter_apply = true;
+            return;
+        }
+        if (action === 'clear' && isSummaryModeActive()) {
             var ctx = uiState.roleSelectionContext;
             if (ctx && typeof ctx.applySelection === 'function') {
-                if (isSummaryModeActive() && typeof ctx.exitAllRolesMode === 'function') {
-                    ctx.exitAllRolesMode(new Set(), []);
-                    return;
-                }
-                ctx.applySelection(new Set(), []);
+                ctx.applySelection(new Set(bucket.include), bucket.include.slice());
                 return;
             }
         }
@@ -1864,10 +1911,6 @@ function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
             if (!labels[value]) return;
             host.appendChild(createActiveRoleFilterChip(def.key, value, labels[value], 'include'));
         });
-        (bucket.exclude || []).forEach(function(value) {
-            if (!labels[value]) return;
-            host.appendChild(createActiveRoleFilterChip(def.key, value, labels[value], 'exclude'));
-        });
     });
 }
 
@@ -1875,7 +1918,7 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     var chip = document.createElement('div');
     var isExcluded = state === 'exclude';
     chip.className = 'active-role-filter-chip';
-    chip.title = 'ЛКМ: включить, ПКМ: исключить, ?: удалить';
+    chip.title = '';
     chip.style.display = 'inline-flex';
     chip.style.alignItems = 'center';
     chip.style.gap = '6px';
@@ -1916,11 +1959,6 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     chip.addEventListener('click', function(e) {
         if (e.target === removeBtn) return;
         updateGlobalFilterSelection(filterKey, value, 'include');
-    });
-    chip.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        if (e.target === removeBtn) return;
-        updateGlobalFilterSelection(filterKey, value, 'exclude');
     });
     chip.addEventListener('mouseenter', function() {
         chip.style.transform = 'translateY(-1px)';
@@ -2010,9 +2048,11 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     allBtn.textContent = '\u2713';
     bindGlobalFilterTooltip(allBtn, 'Выбрать все');
     applyGlobalFilterIconButtonStyle(allBtn, false);
-    allBtn.addEventListener('click', function() {
-        if (isSummaryModeActive()) setSummaryModeActive(false);
+    allBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGlobalFilterMultiEnabled('roles')) uiState.keep_roles_filter_open = true;
         updateGlobalFilterSelection('roles', '', 'all');
+        syncRolesControlVisualState();
     });
     controls.appendChild(allBtn);
 
@@ -2022,26 +2062,20 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     multiBtn.textContent = '\u2611';
     bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
     applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled('roles'));
-    multiBtn.addEventListener('click', function() {
-        if (isSummaryModeActive()) setSummaryModeActive(false);
+    multiBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        uiState.keep_roles_filter_open = true;
         var next = !isGlobalFilterMultiEnabled('roles');
         setGlobalFilterMultiEnabled('roles', next);
         applyGlobalFilterIconButtonStyle(multiBtn, next);
-        applyGlobalRoleFilter();
+        if (next) {
+            uiState.pending_roles_filter_apply = true;
+            syncRolesControlVisualState();
+        } else {
+            applyGlobalRoleFilter();
+        }
     });
     controls.appendChild(multiBtn);
-
-    var clearExcludedBtn = document.createElement('button');
-    clearExcludedBtn.type = 'button';
-    clearExcludedBtn.className = 'tab-button skills-search-dropdown-item';
-    clearExcludedBtn.textContent = '\u2014';
-    bindGlobalFilterTooltip(clearExcludedBtn, 'Очистить исключения');
-    applyGlobalFilterIconButtonStyle(clearExcludedBtn, false);
-    clearExcludedBtn.addEventListener('click', function() {
-        if (isSummaryModeActive()) setSummaryModeActive(false);
-        updateGlobalFilterSelection('roles', '', 'clear_excluded');
-    });
-    controls.appendChild(clearExcludedBtn);
 
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
@@ -2049,9 +2083,11 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     clearBtn.textContent = '\u21BA';
     bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
     applyGlobalFilterIconButtonStyle(clearBtn, false);
-    clearBtn.addEventListener('click', function() {
-        if (isSummaryModeActive()) setSummaryModeActive(false);
+    clearBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (isGlobalFilterMultiEnabled('roles')) uiState.keep_roles_filter_open = true;
         updateGlobalFilterSelection('roles', '', 'clear');
+        syncRolesControlVisualState();
     });
     controls.appendChild(clearBtn);
     menu.appendChild(controls);
@@ -2071,9 +2107,22 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     search.style.borderRadius = '8px';
     menu.appendChild(search);
 
+    function syncRolesControlVisualState() {
+        triggerLabel.textContent = summarizeGlobalFilterSelection('roles', options, false);
+        var selectedRoles = bucket.include || [];
+        menu.querySelectorAll('.skills-search-dropdown-item[data-role-value]').forEach(function(node) {
+            var roleValue = node.dataset.roleValue || '';
+            var selected = selectedRoles.indexOf(roleValue) >= 0;
+            node.style.background = selected ? '#eef2f6' : 'transparent';
+            var labelNode = node.querySelector('div');
+            if (labelNode) labelNode.style.fontWeight = selected ? '600' : '400';
+        });
+    }
+
     options.forEach(function(option) {
         var row = document.createElement('div');
         row.className = 'skills-search-dropdown-item';
+        row.dataset.roleValue = option.value;
         row.style.display = 'grid';
         row.style.gridTemplateColumns = '1fr';
         row.style.gap = '4px';
@@ -2082,25 +2131,21 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         row.style.padding = '5px 8px';
         row.style.borderRadius = '8px';
         row.style.cursor = 'pointer';
-        row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
-        row.addEventListener('click', function() {
-            if (isSummaryModeActive()) setSummaryModeActive(false);
+        row.title = '';
+        row.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (isGlobalFilterMultiEnabled('roles')) uiState.keep_roles_filter_open = true;
+            if (isSummaryModeActive() && !isGlobalFilterMultiEnabled('roles')) setSummaryModeActive(false);
             var isIncluded = bucket.include.indexOf(option.value) >= 0;
             updateGlobalFilterSelection('roles', option.value, isIncluded ? 'reset' : 'include');
-        });
-        row.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            if (isSummaryModeActive()) setSummaryModeActive(false);
-            var isExcluded = bucket.exclude.indexOf(option.value) >= 0;
-            updateGlobalFilterSelection('roles', option.value, isExcluded ? 'reset' : 'exclude');
+            syncRolesControlVisualState();
         });
         var label = document.createElement('div');
         var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
-        var isExcludedNow = bucket.exclude.indexOf(option.value) >= 0;
         label.textContent = option.label;
-        label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
+        label.style.fontWeight = isIncludedNow ? '600' : '400';
         label.style.fontSize = '12px';
-        row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
+        row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
         row.appendChild(label);
         menu.appendChild(row);
     });
@@ -2114,7 +2159,8 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         });
     });
 
-    trigger.addEventListener('click', function() {
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
         menu.style.display = nextState;
@@ -2123,6 +2169,22 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     });
 
     wrap.appendChild(menu);
+    menu.addEventListener('mouseleave', function() {
+        if (!uiState.keep_roles_filter_open) return;
+        uiState.keep_roles_filter_open = false;
+        menu.style.display = 'none';
+        if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
+        triggerArrow.textContent = '\u25BE';
+        if (uiState.pending_roles_filter_apply) {
+            uiState.pending_roles_filter_apply = false;
+            applyGlobalRoleFilter();
+        }
+    });
+    if (uiState.keep_roles_filter_open) {
+        menu.style.display = 'block';
+        positionGlobalFilterMenu(trigger, menu);
+        triggerArrow.textContent = '\u25B4';
+    }
     return wrap;
 }
 
@@ -2223,17 +2285,6 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     });
     controls.appendChild(multiBtn);
 
-    if (filterKey === 'roles') {
-        var clearExcludedBtn = document.createElement('button');
-        clearExcludedBtn.type = 'button';
-        clearExcludedBtn.className = 'tab-button skills-search-dropdown-item';
-        clearExcludedBtn.textContent = '\u2014';
-        bindGlobalFilterTooltip(clearExcludedBtn, 'Очистить исключения');
-        applyGlobalFilterIconButtonStyle(clearExcludedBtn, false);
-        clearExcludedBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear_excluded'); });
-        controls.appendChild(clearExcludedBtn);
-    }
-
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.className = 'tab-button skills-search-dropdown-item';
@@ -2284,34 +2335,28 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             row.style.borderRadius = '8px';
             row.style.cursor = 'pointer';
             row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
-            row.title = 'ЛКМ: включить/снять, ПКМ: исключить/снять';
+            row.title = '';
             row.addEventListener('click', function() {
                 var isIncluded = bucket.include.indexOf(option.value) >= 0;
                 updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include');
             });
-            row.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                var isExcluded = bucket.exclude.indexOf(option.value) >= 0;
-                updateGlobalFilterSelection(filterKey, option.value, isExcluded ? 'reset' : 'exclude');
-            });
             var label = document.createElement('div');
             var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
-            var isExcludedNow = bucket.exclude.indexOf(option.value) >= 0;
             label.textContent = option.label;
-            label.style.fontWeight = isIncludedNow || isExcludedNow ? '600' : '400';
+            label.style.fontWeight = isIncludedNow ? '600' : '400';
             label.style.fontSize = '12px';
-            row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
+            row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
             row.addEventListener('mouseenter', function() {
                 row.style.transform = 'translateX(4px) translateY(-1px)';
                 row.style.boxShadow = '0 6px 14px rgba(148, 163, 184, 0.12)';
-                if (!isIncludedNow && !isExcludedNow) {
+                if (!isIncludedNow) {
                     row.style.background = 'rgba(248, 250, 252, 0.98)';
                 }
             });
             row.addEventListener('mouseleave', function() {
                 row.style.transform = 'translateX(0) translateY(0)';
                 row.style.boxShadow = 'none';
-                row.style.background = isIncludedNow || isExcludedNow ? '#eef2f6' : 'transparent';
+                row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
             });
             row.appendChild(label);
             menu.appendChild(row);
@@ -2761,6 +2806,10 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     hideSharedFilterSources(activeRole);
     var panel = ensureSharedFilterPanel();
     if (!panel) return;
+    if (uiState.keep_roles_filter_open) {
+        refreshExistingGlobalFilterUi(parentRole, analysisType);
+        return;
+    }
     var body = panel.querySelector('.shared-filter-panel-body');
     if (!body) return;
     body.innerHTML = '';
@@ -3720,9 +3769,9 @@ function aggregateActivityEntries(entries) {
         is_max_archived: false,
         is_max_age: false
     };
-    var ageVals = rows.map(e => e.avg_age).filter(v => v !== null && v !== undefined);
-    if (ageVals.length) {
-        totalEntry.avg_age = ageVals.reduce((s, v) => s + v, 0) / ageVals.length;
+    var totalWeight = rows.reduce(function(sum, e) { return sum + (e.total || 0); }, 0);
+    if (totalWeight) {
+        totalEntry.avg_age = rows.reduce(function(sum, e) { return sum + ((e.avg_age || 0) * (e.total || 0)); }, 0) / totalWeight;
     }
     rows.push(totalEntry);
 
@@ -3795,9 +3844,9 @@ function computeActivityEntriesFromVacancies(vacancies) {
         is_max_archived: false,
         is_max_age: false
     };
-    var ageVals = rows.map(e => e.avg_age).filter(v => v !== null && v !== undefined);
-    if (ageVals.length) {
-        totalEntry.avg_age = ageVals.reduce((s, v) => s + v, 0) / ageVals.length;
+    var totalWeight = rows.reduce(function(sum, e) { return sum + (e.total || 0); }, 0);
+    if (totalWeight) {
+        totalEntry.avg_age = rows.reduce(function(sum, e) { return sum + ((e.avg_age || 0) * (e.total || 0)); }, 0) / totalWeight;
     }
     rows.push(totalEntry);
 

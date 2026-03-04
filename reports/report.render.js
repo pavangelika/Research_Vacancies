@@ -1,6 +1,6 @@
 ﻿function buildVacancyTableHtml(vacancies) {
     if (!vacancies || vacancies.length === 0) {
-        return '<div class="vacancy-empty">РќРµС‚ РІР°РєР°РЅСЃРёР№</div>';
+        return '<div class="vacancy-empty">Нет вакансий</div>';
     }
 
     var showRole = vacancies.some(v => v && (v.role_name || v.role_id));
@@ -11,8 +11,8 @@
             : formatCell(v.id);
         var replyCell = v.apply_alternate_url
             ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
-            : 'вЂ”';
-        var roleCell = showRole ? (escapeHtml((v.role_name || 'Р РѕР»СЊ') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
+            : '—';
+        var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
         var employerCell = formatCell(v.employer);
         if (v.employer) {
             employerCell = '<button class="employer-link" type="button" ' +
@@ -61,12 +61,12 @@
     '</div>';
 }
 function buildSalaryTablesHtml(entries) {
-    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Р”СЂСѓРіР°СЏ': 0, 'РќРµ Р·Р°РїРѕР»РЅРµРЅР°': 0 };
+    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
     var coverageTotal = 0;
     (entries || []).forEach(function(entry) {
         if (!entry) return;
         var count = Number(entry.total_vacancies) || 0;
-        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Р”СЂСѓРіР°СЏ';
+        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Другая';
         coverageMap[currency] += count;
         coverageTotal += count;
     });
@@ -78,8 +78,8 @@ function buildSalaryTablesHtml(entries) {
         '<td>' + coverageMap['RUR'] + ' (' + pct(coverageMap['RUR']) + ')</td>' +
         '<td>' + coverageMap['USD'] + ' (' + pct(coverageMap['USD']) + ')</td>' +
         '<td>' + coverageMap['EUR'] + ' (' + pct(coverageMap['EUR']) + ')</td>' +
-        '<td>' + coverageMap['Р”СЂСѓРіР°СЏ'] + ' (' + pct(coverageMap['Р”СЂСѓРіР°СЏ']) + ')</td>' +
-        '<td>' + coverageMap['РќРµ Р·Р°РїРѕР»РЅРµРЅР°'] + ' (' + pct(coverageMap['РќРµ Р·Р°РїРѕР»РЅРµРЅР°']) + ')</td>' +
+        '<td>' + coverageMap['Другая'] + ' (' + pct(coverageMap['Другая']) + ')</td>' +
+        '<td>' + coverageMap['Не заполнена'] + ' (' + pct(coverageMap['Не заполнена']) + ')</td>' +
     '</tr>';
     var statsRows = (entries || []).map(function(entry) {
         return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -87,8 +87,8 @@ function buildSalaryTablesHtml(entries) {
             '<td>' + entry.currency + '</td>' +
             '<td>' + entry.total_vacancies + '</td>' +
             '<td>' + Math.round(entry.avg_salary) + '</td>' +
-            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'вЂ”') + '</td>' +
-            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'вЂ”') + '</td>' +
+            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
             '<td>' + Math.round(entry.min_salary) + '</td>' +
             '<td>' + Math.round(entry.max_salary) + '</td>' +
             '<td>' + entry.top_skills + '</td>' +
@@ -97,16 +97,16 @@ function buildSalaryTablesHtml(entries) {
 
     return '<div class="salary-split-tables">' +
         '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
-            '<h4 style="margin: 0 0 8px;">РЎРІРѕРґРєР° РІР°РєР°РЅСЃРёР№ РїРѕ РІР°Р»СЋС‚Р°Рј</h4>' +
+            '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
             '<table class="vacancy-table salary-table">' +
-                '<thead><tr><th>Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№</th><th>RUR</th><th>USD</th><th>EUR</th><th>Р”СЂСѓРіР°СЏ</th><th>РќРµ Р·Р°РїРѕР»РЅРµРЅР°</th></tr></thead>' +
+                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
         '</div>' +
         '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
-            '<h4 style="margin: 0 0 8px;">РЎС‚Р°С‚РёСЃС‚РёРєР° Р·Р°СЂРїР»Р°С‚</h4>' +
+            '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
             '<table class="vacancy-table salary-table">' +
-                '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>РќР°Р№РґРµРЅРѕ</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
+                '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                 '<tbody>' + statsRows + '</tbody>' +
             '</table>' +
         '</div>' +
@@ -144,11 +144,11 @@ function buildAllRolesSkillsTableHtml(rows) {
                 '<tr>' +
                     '<td>' + escapeHtml(r.skill) + '</td>' +
                     '<td>' + r.mention_count + '</td>' +
-                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : 'вЂ”') + '</td>' +
-                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : 'вЂ”') + '</td>' +
-                    '<td>' + (r.roles ? escapeHtml(r.roles) : 'вЂ”') + '</td>' +
+                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                    '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
                 '</tr>'
-            )).join('') : '<tr><td colspan="5">вЂ”</td></tr>') +
+            )).join('') : '<tr><td colspan="5">—</td></tr>') +
         '</tbody>' +
     '</table>';
 }
@@ -300,11 +300,12 @@ function renderAllRolesContainer(container, roleContents) {
                     if (!savedLabel || (savedLabel === savedLabel.toLowerCase() && label !== label.toLowerCase())) {
                         displayNames.set(skill, label || skill);
                     }
-                    var entry = totals.get(skill) || { count: 0, sum: 0, salaryCount: 0 };
+                    var entry = totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
                     entry.count += 1;
                     if (avg !== null) {
                         entry.sum += avg;
                         entry.salaryCount += 1;
+                        entry.salaryValues.push(avg);
                     }
                     totals.set(skill, entry);
                     var roleKey = skill + '||' + roleName;
@@ -315,13 +316,13 @@ function renderAllRolesContainer(container, roleContents) {
 
         var rows = Array.from(totals.entries()).map(function(pair) {
             var skillKey = pair[0];
-            var entry = pair[1] || { count: 0, sum: 0, salaryCount: 0 };
+            var entry = pair[1] || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
             return {
                 skill: displayNames.get(skillKey) || skillKey,
                 _skill_key: skillKey,
                 mention_count: entry.count,
                 avg_skill_cost_rur: entry.salaryCount ? Math.round((entry.sum / entry.salaryCount) * 100) / 100 : null,
-                median_skill_cost_rur: null
+                median_skill_cost_rur: entry.salaryValues.length ? Math.round(computeMedian(entry.salaryValues) * 100) / 100 : null
             };
         });
         rows.sort(function(a, b) {
@@ -613,7 +614,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button salary-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Р’СЃРµ';
+        btn.textContent = 'Все';
         btn.setAttribute('onclick', "openSalaryExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 
@@ -630,7 +631,7 @@ function addSummaryTabs(root) {
                     '<div class="salary-table-container">' +
                         '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
                             '<table class="vacancy-table salary-table">' +
-                                '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>Р’СЃРµРіРѕ</th><th>С з/п</th><th>% СЃ Р·/Рї</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
+                                '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                                 '<tbody>' +
                                     summaryExp.entries.map(entry => (
                                         '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -640,8 +641,8 @@ function addSummaryTabs(root) {
                                             '<td>' + entry.vacancies_with_salary + '</td>' +
                                             '<td>' + entry.salary_percentage + '%</td>' +
                                             '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                                            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'вЂ”') + '</td>' +
-                                            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'вЂ”') + '</td>' +
+                                            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+                                            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
                                             '<td>' + Math.round(entry.min_salary) + '</td>' +
                                             '<td>' + Math.round(entry.max_salary) + '</td>' +
                                             '<td>' + entry.top_skills + '</td>' +
@@ -708,39 +709,35 @@ function renderCombinedContainer(container, roleContents) {
         combinedVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
     }
     combinedVacancies = dedupeVacanciesById(combinedVacancies);
-    var period = computePublicationPeriod(combinedVacancies) || 'вЂ”';
+    var period = computePublicationPeriod(combinedVacancies) || '—';
     var roleTitle = '[ID: ' + ids.join(', ') + ']';
 
-    var activityTabs = activityMonths.map((m, i) => (
-        '<button class="tab-button month-button all-roles-period-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
-    )).join('');
-
-    var activityBlocks = activityMonths.map((m, i) => (
-        '<div id="month-combined-' + (i + 1) + '" class="month-content activity-only" data-entries="" data-month="' + m.month + '">' +
+    var combinedActivity = activityMonths.length ? activityMonths[0] : { month: 'За период', entries: [] };
+    var activityBlocks =
+        '<div id="month-combined-summary" class="month-content activity-only" data-entries="" data-month="' + combinedActivity.month + '">' +
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.activity_view_mode || 'together') +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>РћРїС‹С‚</th><th>Р’СЃРµРіРѕ</th><th>РђСЂС…РёРІРЅС‹С…</th><th>РђРєС‚РёРІРЅС‹С…</th><th>РЎСЂ. РІРѕР·СЂР°СЃС‚ (РґРЅРё)</th></tr></thead>' +
+                        '<thead><tr><th>Опыт</th><th>Всего</th><th>Архивных</th><th>Активных</th><th>Ср. возраст (дни)</th></tr></thead>' +
                         '<tbody>' +
-                            m.entries.map(e => (
+                            combinedActivity.entries.map(e => (
                                 '<tr' + (e.is_max_archived ? ' class="max-archived"' : '') + '>' +
                                     '<td>' + e.experience + '</td>' +
                                     '<td>' + e.total + '</td>' +
                                     '<td>' + e.archived + '</td>' +
                                     '<td>' + e.active + '</td>' +
-                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : 'вЂ”') + '</td>' +
+                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td>' +
                                 '</tr>'
                             )).join('') +
                         '</tbody>' +
                     '</table>' +
                 '</div>' +
-                '<div class="plotly-graph" id="activity-graph-combined-' + (i + 1) + '"></div>' +
+                '<div class="plotly-graph" id="activity-graph-combined-summary"></div>' +
             '</div>' +
-        '</div>'
-    )).join('');
+        '</div>';
 
     var weekdayBlock = (
         '<div class="weekday-content" data-analysis="weekday-combined" style="display: none;" data-weekdays="">' +
@@ -751,7 +748,7 @@ function renderCombinedContainer(container, roleContents) {
                 '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                     '<div class="table-container">' +
                         '<table>' +
-                            '<thead><tr><th>Р”РµРЅСЊ РЅРµРґРµР»Рё</th><th>РџСѓР±Р»РёРєР°С†РёР№</th><th>РђСЂС…РёРІР°С†РёР№</th><th>РЎСЂ. РІСЂРµРјСЏ РїСѓР±Р»РёРєР°С†РёРё</th><th>РЎСЂ. РІСЂРµРјСЏ Р°СЂС…РёРІР°С†РёРё</th></tr></thead>' +
+                            '<thead><tr><th>День недели</th><th>Публикаций</th><th>Архиваций</th><th>Ср. время публикации</th><th>Ср. время архивации</th></tr></thead>' +
                             '<tbody>' +
                                 weekdays.map(d => (
                                     '<tr><td>' + d.weekday + '</td><td>' + d.publications + '</td><td>' + d.archives + '</td><td>' + d.avg_pub_hour + '</td><td>' + d.avg_arch_hour + '</td></tr>'
@@ -761,7 +758,7 @@ function renderCombinedContainer(container, roleContents) {
                     '</div>' +
                     '<div class="plotly-graph" id="weekday-graph-combined"></div>' +
                 '</div>'
-            ) : '<p>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ РґРЅСЏРј РЅРµРґРµР»Рё</p>') +
+            ) : '<p>Нет данных по дням недели</p>') +
         '</div>'
     );
 
@@ -788,14 +785,14 @@ function renderCombinedContainer(container, roleContents) {
                                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                                     '<div class="table-container">' +
                                         '<table>' +
-                                            '<thead><tr><th>РќР°РІС‹Рє</th><th>РЈРїРѕРјРёРЅР°РЅРёР№</th><th>% РїРѕРєСЂС‹С‚РёСЏ</th></tr></thead>' +
+                                            '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
                                             '<tbody>' +
                                                 exp.skills.map(s => (
                                                     '<tr><td>' + s.skill + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>'
                                                 )).join('') +
                                             '</tbody>' +
                                         '</table>' +
-                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№ СЃ РЅР°РІС‹РєР°РјРё: ' + exp.total_vacancies + '</p>' +
+                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + exp.total_vacancies + '</p>' +
                                     '</div>' +
                                     '<div class="plotly-graph" id="skills-monthly-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
                                 '</div>' +
@@ -803,7 +800,7 @@ function renderCombinedContainer(container, roleContents) {
                         )).join('') +
                     '</div>'
                 )).join('')
-            ) : '<p>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ РЅР°РІС‹РєР°Рј</p>') +
+            ) : '<p>Нет данных по навыкам</p>') +
         '</div>'
     );
 
@@ -867,7 +864,7 @@ function renderCombinedContainer(container, roleContents) {
                                         '<div class="salary-table-container">' +
                                             '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
                                                 '<table class="vacancy-table salary-table">' +
-                                                    '<thead><tr><th>РЎС‚Р°С‚СѓСЃ</th><th>Р’Р°Р»СЋС‚Р°</th><th>Р’СЃРµРіРѕ</th><th>С з/п</th><th>% СЃ Р·/Рї</th><th>РЎСЂРµРґРЅСЏСЏ</th><th>РњРµРґРёР°РЅРЅР°СЏ</th><th>РњРѕРґР°Р»СЊРЅР°СЏ</th><th>РњРёРЅ</th><th>РњР°РєСЃ</th><th>РўРѕРї-10 РЅР°РІС‹РєРѕРІ</th></tr></thead>' +
+                                                    '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                                                     '<tbody>' +
                                                         exp.entries.map(entry => (
                                                             '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -877,8 +874,8 @@ function renderCombinedContainer(container, roleContents) {
                                                                 '<td>' + entry.vacancies_with_salary + '</td>' +
                                                                 '<td>' + entry.salary_percentage + '%</td>' +
                                                                 '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'вЂ”') + '</td>' +
-                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'вЂ”') + '</td>' +
+                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
                                                                 '<td>' + Math.round(entry.min_salary) + '</td>' +
                                                                 '<td>' + Math.round(entry.max_salary) + '</td>' +
                                                                 '<td>' + entry.top_skills + '</td>' +
@@ -900,7 +897,7 @@ function renderCombinedContainer(container, roleContents) {
                         )).join('') +
                     '</div>'
                 )).join('')
-            ) : '<p>РќРµС‚ РґР°РЅРЅС‹С… РїРѕ Р·Р°СЂРїР»Р°С‚Р°Рј</p>') +
+            ) : '<p>Нет данных по зарплатам</p>') +
         '</div>'
     );
 
@@ -955,9 +952,6 @@ function renderCombinedContainer(container, roleContents) {
             '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Анализ зарплат</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="employer-analysis-combined" onclick="switchAnalysis(event, \'employer-analysis-combined\')">Анализ работодателей</button>' +
         '</div>' +
-        '<div class="tabs month-tabs activity-only all-roles-period-tabs" style="justify-content: center;">' +
-            activityTabs +
-        '</div>' +
         activityBlocks +
         weekdayBlock +
         skillsBlock +
@@ -969,8 +963,8 @@ function renderCombinedContainer(container, roleContents) {
     container._data.vacancies = combinedVacancies;
 
     var monthBlocks = container.querySelectorAll('.month-content');
-    monthBlocks.forEach((block, i) => {
-        block._data = { entries: activityMonths[i] ? activityMonths[i].entries : [], month: activityMonths[i] ? activityMonths[i].month : '' };
+    monthBlocks.forEach(function(block) {
+        block._data = { entries: combinedActivity.entries || [], month: combinedActivity.month || '' };
     });
 
     var weekdayContent = container.querySelector('.weekday-content');
@@ -1132,7 +1126,7 @@ function buildRowContext(row) {
         .map(th => '<th>' + escapeHtml(th.textContent.trim()) + '</th>')
         .join('');
     var valueCells = Array.from(row.querySelectorAll('td'))
-        .map(td => '<td>' + escapeHtml(td.textContent.trim() || 'вЂ”') + '</td>')
+        .map(td => '<td>' + escapeHtml(td.textContent.trim() || '—') + '</td>')
         .join('');
 
     return '<div class="context-table-wrap">' +
@@ -1167,14 +1161,14 @@ function openEmployerModal(data) {
     var body = document.getElementById('employer-modal-body');
     if (!backdrop || !body) return;
 
-    var name = data.name || 'вЂ”';
+    var name = data.name || '—';
     var accredited = String(data.accredited || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
     var trusted = String(data.trusted || '').toLowerCase() === 'true' ? 'Да' : 'Нет';
     var rawRating = String(data.rating || '').trim();
     var rating = rawRating && rawRating.toLowerCase() !== 'unknown' ? escapeHtml(rawRating) : 'нет рейтинга';
     var url = data.url ? escapeHtml(String(data.url)) : '';
 
-    var linkHtml = url ? ('<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">Открыть страницу компании</a>') : 'вЂ”';
+    var linkHtml = url ? ('<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\">Открыть страницу компании</a>') : '—';
 
     body.innerHTML =
         '<div class=\"employer-modal-grid\">' +

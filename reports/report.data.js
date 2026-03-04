@@ -287,7 +287,7 @@ function aggregateActivity(roleContents) {
             total: entries.reduce((s, e) => s + e.total, 0),
             archived: entries.reduce((s, e) => s + e.archived, 0),
             active: entries.reduce((s, e) => s + e.active, 0),
-            avg_age: entries.reduce((s, e) => s + e.avg_age, 0) / (entries.length || 1),
+            avg_age: entries.reduce((s, e) => s + ((e.avg_age || 0) * (e.total || 0)), 0) / (entries.reduce((s, e) => s + (e.total || 0), 0) || 1),
             is_max_archived: false,
             is_max_age: false
         };
@@ -325,7 +325,7 @@ function aggregateActivity(roleContents) {
             total: summaryEntries.reduce((s, e) => s + e.total, 0),
             archived: summaryEntries.reduce((s, e) => s + e.archived, 0),
             active: summaryEntries.reduce((s, e) => s + e.active, 0),
-            avg_age: summaryEntries.reduce((s, e) => s + e.avg_age, 0) / (summaryEntries.length || 1),
+            avg_age: summaryEntries.reduce((s, e) => s + ((e.avg_age || 0) * (e.total || 0)), 0) / (summaryEntries.reduce((s, e) => s + (e.total || 0), 0) || 1),
             is_max_archived: false,
             is_max_age: false
         });
@@ -658,7 +658,7 @@ function computeActivitySummaryFromEntries(entries) {
     var total = rows.reduce((s, e) => s + (e.total || 0), 0);
     var archived = rows.reduce((s, e) => s + (e.archived || 0), 0);
     var active = rows.reduce((s, e) => s + (e.active || 0), 0);
-    var avgAge = rows.length ? rows.reduce((s, e) => s + (e.avg_age || 0), 0) / rows.length : 0;
+    var avgAge = total ? rows.reduce((s, e) => s + ((e.avg_age || 0) * (e.total || 0)), 0) / total : 0;
     rows.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
     return { total: total, archived: archived, active: active, avg_age: avgAge, exp_breakdown: rows };
 }

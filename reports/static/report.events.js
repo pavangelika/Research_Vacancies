@@ -428,14 +428,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!uiState.global_filters.roles) uiState.global_filters.roles = { include: [], exclude: [] };
         var selectedList = Array.from(selected);
         uiState.global_filters.roles.include = selectedList;
-        if (uiState.all_roles_active) {
-            var allRoleIds = buttons.map(function(btn) { return btn.dataset.roleIndex; }).filter(Boolean);
-            uiState.global_filters.roles.exclude = allRoleIds.filter(function(id) {
-                return selectedList.indexOf(id) < 0;
-            });
-        } else {
-            uiState.global_filters.roles.exclude = [];
-        }
+        uiState.global_filters.roles.exclude = [];
     }
     function commitSelection(nextSelected, nextOrder) {
         selected = new Set(nextSelected);
@@ -444,7 +437,9 @@ document.addEventListener("DOMContentLoaded", function() {
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
         ensureSummaryAnalysisTabs();
-        if (typeof syncSharedFilterPanel === 'function') {
+        if (uiState.keep_roles_filter_open && typeof refreshExistingGlobalFilterUi === 'function') {
+            refreshExistingGlobalFilterUi(null, null);
+        } else if (typeof syncSharedFilterPanel === 'function') {
             syncSharedFilterPanel(null, null, true);
         }
     }
