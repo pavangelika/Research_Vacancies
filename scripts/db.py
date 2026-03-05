@@ -108,6 +108,35 @@ def init_table():
         logger.info("✅ Таблица get_vacancies готова")
 
 
+def mark_resume_sent(vacancy_id: str) -> bool:
+    """
+    Отмечает, что по вакансии отправлено резюме.
+    Возвращает True, если запись обновлена.
+    """
+    if not vacancy_id:
+        return False
+
+    with psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+    ) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE get_vacancies
+            SET send_resume = TRUE,
+                resume_at = NOW()
+            WHERE id = %s
+            """,
+            (str(vacancy_id),)
+        )
+        updated = cur.rowcount > 0
+        conn.commit()
+        return updated
+
+
 def save_vacancies(vacancies: list[dict]):
     logger.info("Сохранение вакансий в БД...")
 

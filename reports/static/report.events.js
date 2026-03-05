@@ -29,6 +29,25 @@
 });
 
 document.addEventListener('click', function(e) {
+    if (e.target.id === 'resume-action-modal-backdrop') {
+        closeResumeActionModal(null);
+        return;
+    }
+    if (e.target.closest('.resume-action-modal-btn.submit')) {
+        var backdropResume = document.getElementById('resume-action-modal-backdrop');
+        if (!backdropResume) return;
+        var selected = backdropResume.querySelector('input[name="resume-action-choice"]:checked');
+        var choice = selected ? String(selected.value || '') : '';
+        var payload = (resumeActionModalState && resumeActionModalState.payload) || {};
+        closeResumeActionModal({
+            vacancyId: payload.vacancyId || '',
+            applyUrl: payload.applyUrl || '',
+            sendResume: choice === 'send',
+            rethink: choice === 'rethink'
+        });
+        return;
+    }
+
     var empBtn = e.target.closest('.employer-link');
     if (empBtn) {
         e.preventDefault();
@@ -102,7 +121,122 @@ document.addEventListener('contextmenu', function(e) {
     if (block) updateSkillsSearchResults(block);
 });
 
+var resumeActionModalState = null;
+
+function ensureResumeActionModal() {
+    var backdrop = document.getElementById('resume-action-modal-backdrop');
+    if (backdrop) return backdrop;
+
+    backdrop = document.createElement('div');
+    backdrop.id = 'resume-action-modal-backdrop';
+    backdrop.className = 'resume-action-modal-backdrop';
+    backdrop.style.display = 'none';
+    backdrop.innerHTML =
+        '<div class="resume-action-modal" role="dialog" aria-modal="true" aria-label="Действие по отклику">' +
+            '<div class="resume-action-modal-title">Действие по отклику</div>' +
+            '<label class="resume-action-modal-check">' +
+                '<input type="radio" name="resume-action-choice" value="send" class="resume-action-choice"> Отправил резюме' +
+            '</label>' +
+            '<label class="resume-action-modal-check">' +
+                '<input type="radio" name="resume-action-choice" value="rethink" class="resume-action-choice"> Передумал' +
+            '</label>' +
+            '<div class="resume-action-modal-actions">' +
+                '<button type="button" class="resume-action-modal-btn submit">OK</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+    return backdrop;
+}
+
+function closeResumeActionModal(result) {
+    var backdrop = document.getElementById('resume-action-modal-backdrop');
+    if (backdrop) backdrop.style.display = 'none';
+    if (resumeActionModalState && typeof resumeActionModalState.resolve === 'function') {
+        resumeActionModalState.resolve(result || null);
+    }
+    resumeActionModalState = null;
+}
+
+function openResumeActionModal(payload) {
+    return new Promise(function(resolve) {
+        var backdrop = ensureResumeActionModal();
+        var choices = backdrop.querySelectorAll('.resume-action-choice');
+        choices.forEach(function(input) { input.checked = false; });
+        resumeActionModalState = {
+            payload: payload || {},
+            resolve: resolve
+        };
+        backdrop.style.display = 'flex';
+    });
+}
+
+function postSendResume(vacancyId) {
+    if (!vacancyId) return Promise.resolve({ ok: false, updated: false });
+    var endpoint = '/api/vacancies/send-resume';
+    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/send-resume';
+    var payload = JSON.stringify({ vacancy_id: String(vacancyId).trim() });
+    function doPost(url) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        });
+    }
+    if (window.location && window.location.protocol === 'file:') {
+        return doPost(fallbackEndpoint);
+    }
+    return doPost(endpoint).catch(function(err) {
+        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw err;
+        return doPost(fallbackEndpoint);
+    });
+}
+
 document.addEventListener('click', function(e) {
+    var applyLink = e.target.closest('.vacancy-apply-link');
+    if (!applyLink) return;
+    e.preventDefault();
+    var payload = {
+        vacancyId: applyLink.dataset.vacancyId || '',
+        applyUrl: applyLink.dataset.applyUrl || applyLink.getAttribute('href') || ''
+    };
+    if (payload.applyUrl) {
+        window.open(payload.applyUrl, '_blank', 'noopener');
+    }
+    openResumeActionModal(payload).then(function(result) {
+        if (!result) return;
+        if (result.sendResume) {
+            postSendResume(result.vacancyId).then(function(apiResult) {
+                if (!apiResult || !apiResult.updated) {
+                    console.warn('send_resume not updated, vacancy id not found:', result.vacancyId);
+                }
+            }).catch(function(err) {
+                console.error('send_resume update failed:', err);
+            });
+        }
+    });
+});
+
+document.addEventListener('click', function(e) {
+    var removeFavoriteMark = e.target.closest('.skills-search-favorite-remove');
+    if (removeFavoriteMark) {
+        e.preventDefault();
+        e.stopPropagation();
+        var ddWrap = removeFavoriteMark.closest('.skills-search-dropdown[data-filter="favorite"]');
+        var blockForRemove = removeFavoriteMark.closest('.skills-search-content');
+        if (!ddWrap || !blockForRemove) return;
+        var favoriteId = removeFavoriteMark.dataset.removeFavorite || '';
+        if (!favoriteId) return;
+        confirmSkillsSearchFavoriteDelete().then(function(shouldDelete) {
+            if (!shouldDelete) return;
+            removeCurrentSkillsSearchFavorite(blockForRemove, favoriteId);
+            ddWrap.classList.add('open');
+        });
+        return;
+    }
+
     var dropdownBtn = e.target.closest('.skills-search-dropdown-btn');
     if (dropdownBtn) {
         var skillsBlock = dropdownBtn.closest('.skills-search-content');
@@ -126,6 +260,19 @@ document.addEventListener('click', function(e) {
     var textLabel = item.textContent || '';
     var label = dd.dataset.label || '';
     var btn = dd.querySelector('.skills-search-dropdown-btn');
+    if (dd.dataset.filter === 'favorite') {
+        if (value === 'all') {
+            setSkillsSearchFavoriteTrigger(dd, '', 'all');
+            var favState = ensureSkillsSearchFavoritesState();
+            favState.activeId = '';
+            persistSkillsSearchFavoritesState();
+            dd.classList.remove('open');
+            return;
+        }
+        applySkillsSearchFavorite(block, value);
+        dd.classList.remove('open');
+        return;
+    }
 
     if (dd.dataset.multi === '1') {
         var values = [];
@@ -173,6 +320,30 @@ document.addEventListener('click', function(e) {
     }
     dd.classList.remove('open');
     updateSkillsSearchData(block);
+});
+
+document.addEventListener('click', function(e) {
+    var saveFavBtn = e.target.closest('.skills-search-save-favorite');
+    if (!saveFavBtn) return;
+    var block = saveFavBtn.closest('.skills-search-content');
+    if (!block) return;
+    var defaultName = '';
+    var favoritesDd = block.querySelector('.skills-search-dropdown[data-filter="favorite"]');
+    if (favoritesDd) {
+        var current = getSkillsSearchFilterValue(block, 'favorite');
+        if (current && current !== 'all') {
+            var currentItem = favoritesDd.querySelector('.skills-search-dropdown-item[data-value="' + current + '"]');
+            if (currentItem) {
+                var nameEl = currentItem.querySelector('.skills-search-favorite-name');
+                defaultName = String((nameEl ? nameEl.textContent : currentItem.textContent) || '').trim();
+            }
+        }
+    }
+    promptSkillsSearchFavoriteName(defaultName || '').then(function(nextName) {
+        if (nextName === null) return;
+        if (!String(nextName || '').trim()) return;
+        saveCurrentSkillsSearchFavorite(block, nextName);
+    });
 });
 
 document.addEventListener('click', function(e) {

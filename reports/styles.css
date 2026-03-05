@@ -1500,6 +1500,8 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-toggle,
 .skills-search-select-all,
 .skills-search-reset-skills,
+.skills-search-save-favorite,
+.skills-search-remove-favorite,
 .skills-search-clear,
 .skills-search-dropdown-btn {
     background: rgba(255, 255, 255, 0.96);
@@ -1518,9 +1520,28 @@ tr:hover { background-color: #f0f4f9; }
     align-items: center;
     justify-content: center;
 }
+.skills-search-icon-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    min-width: 1.9rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: clamp(0.88rem, 1.6vw, 0.98rem);
+}
+.skills-search-favorite-inline .skills-search-dropdown-btn.skills-search-icon-btn {
+    width: 1.9rem;
+    min-width: 1.9rem;
+    height: 1.9rem;
+    padding: 0;
+}
 .skills-search-toggle:hover,
 .skills-search-select-all:hover,
 .skills-search-reset-skills:hover,
+.skills-search-save-favorite:hover,
+.skills-search-remove-favorite:hover,
 .skills-search-clear:hover,
 .skills-search-dropdown-btn:hover {
     background: rgba(248, 250, 252, 0.98);
@@ -1532,6 +1553,8 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-toggle:active,
 .skills-search-select-all:active,
 .skills-search-reset-skills:active,
+.skills-search-save-favorite:active,
+.skills-search-remove-favorite:active,
 .skills-search-clear:active,
 .skills-search-dropdown-btn:active {
     transform: translateY(0);
@@ -1650,7 +1673,9 @@ tr:hover { background-color: #f0f4f9; }
 }
 .skills-search-clear,
 .skills-search-select-all,
-.skills-search-reset-skills {
+.skills-search-reset-skills,
+.skills-search-save-favorite,
+.skills-search-remove-favorite {
     padding: 6px 12px;
     font-weight: 500;
 }
@@ -1951,6 +1976,170 @@ tr:hover { background-color: #f0f4f9; }
     background: rgba(240, 253, 244, 0.96);
     color: #15803d;
     font-weight: 500;
+}
+.skills-search-favorite-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.skills-search-favorite-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.skills-search-favorite-remove {
+    flex: 0 0 auto;
+    width: 1rem;
+    height: 1rem;
+    line-height: 0.9rem;
+    text-align: center;
+    border-radius: 50%;
+    color: #64748b;
+    cursor: pointer;
+}
+.skills-search-favorite-remove:hover {
+    background: rgba(241, 245, 249, 0.95);
+    color: var(--text-primary);
+}
+.skills-favorite-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.26);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    backdrop-filter: blur(2px);
+}
+.skills-favorite-modal {
+    width: min(92vw, 26rem);
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16);
+    padding: clamp(0.75rem, 1.8vw, 0.95rem);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.55rem, 1.2vw, 0.7rem);
+}
+.skills-favorite-modal-title {
+    font-size: clamp(0.9rem, 1.8vw, 0.98rem);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.skills-favorite-modal-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 0.62rem;
+    padding: 0.56rem 0.62rem;
+    font-size: clamp(0.88rem, 1.6vw, 0.94rem);
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.98);
+    outline: none;
+}
+.skills-favorite-modal-input:focus {
+    border-color: rgba(59, 130, 246, 0.55);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+.skills-favorite-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+.skills-favorite-modal-btn {
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 999px;
+    padding: 0.38rem 0.78rem;
+    font-size: clamp(0.79rem, 1.5vw, 0.84rem);
+    font-weight: 500;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--text-secondary);
+}
+.skills-favorite-modal-btn.submit {
+    color: #0f172a;
+    border-color: rgba(96, 165, 250, 0.45);
+    background: rgba(239, 246, 255, 0.95);
+}
+.skills-favorite-modal-btn.danger.submit {
+    color: #991b1b;
+    border-color: rgba(248, 113, 113, 0.45);
+    background: rgba(254, 242, 242, 0.95);
+}
+
+.resume-action-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.2);
+    backdrop-filter: blur(8px);
+    z-index: 1400;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.resume-action-modal {
+    width: min(28rem, 100%);
+    background: rgba(255, 255, 255, 0.98);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+    padding: 1rem;
+}
+
+.resume-action-modal-title {
+    margin: 0 0 0.75rem;
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.resume-action-modal-check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.45rem 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.resume-action-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+}
+
+.resume-action-modal-btn {
+    border: 1px solid var(--border-light);
+    background: #fff;
+    border-radius: 10px;
+    padding: 0.42rem 0.82rem;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.resume-action-modal-btn:hover {
+    background: var(--surface-variant);
+}
+
+.resume-action-modal-btn.submit {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+.resume-action-modal-btn.submit:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
 }
 
 /* iOS-like visual refresh */
@@ -2707,6 +2896,8 @@ tbody tr:hover {
     .skills-search-toggle,
     .skills-search-select-all,
     .skills-search-reset-skills,
+    .skills-search-save-favorite,
+    .skills-search-remove-favorite,
     .skills-search-clear,
     .skills-search-dropdown-btn {
         width: 100%;
@@ -2715,6 +2906,14 @@ tbody tr:hover {
 
     .skills-search-toggle {
         width: 100%;
+    }
+    .skills-search-icon-btn,
+    .skills-search-favorite-inline .skills-search-dropdown-btn.skills-search-icon-btn {
+        width: 2.25rem !important;
+        min-width: 2.25rem !important;
+        min-height: 2.25rem !important;
+        height: 2.25rem !important;
+        flex: 0 0 auto;
     }
 
     .skills-search-buttons {

@@ -809,7 +809,7 @@ function buildVacancyTableHtml(vacancies) {
             ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
             : formatCell(v.id);
         var replyCell = v.apply_alternate_url
-            ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
+            ? '<a class="vacancy-apply-link" href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url) + '">отклик</a>'
             : '—';
         var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
         return '<tr>' +

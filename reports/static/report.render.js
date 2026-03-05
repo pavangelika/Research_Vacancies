@@ -10,7 +10,7 @@
             ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
             : formatCell(v.id);
         var replyCell = v.apply_alternate_url
-            ? '<a href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener">отклик</a>'
+            ? '<a class="vacancy-apply-link" href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url) + '">отклик</a>'
             : '—';
         var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
         var employerCell = formatCell(v.employer);
@@ -837,6 +837,11 @@ function renderCombinedContainer(container, roleContents) {
             '<div class="skills-search-panel">' +
                 '<div class="skills-search-panel-header">' +
                     '<div class="skills-search-summary-line"></div>' +
+                    '<button class="skills-search-save-favorite skills-search-icon-btn" type="button" title="Сохранить набор" aria-label="Сохранить набор">⤓</button>' +
+                    '<div class="skills-search-dropdown skills-search-favorite-inline" data-filter="favorite">' +
+                        '<button class="skills-search-dropdown-btn skills-search-icon-btn" type="button" data-value="" title="Избранное" aria-label="Избранное">❤</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
                     '<button class="skills-search-toggle" type="button" aria-expanded="true">&#9650;</button>' +
                     '<button class="skills-search-select-all" type="button">Выбрать все</button>' +
                     '<button class="skills-search-reset-skills" type="button">Сбросить навыки</button>' +

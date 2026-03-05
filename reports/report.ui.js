@@ -3240,6 +3240,8 @@ function initSkillsSearch(parentRole) {
     });
     ensureSkillsSearchBooleanFilters(block);
 
+    ensureSkillsSearchFavoritesControls(block);
+
     var statusDropdown = block.querySelector('.skills-search-dropdown[data-filter="status"]');
     if (statusDropdown && !statusDropdown.dataset.ready) {
         var statusItems = [
@@ -3300,6 +3302,7 @@ function initSkillsSearch(parentRole) {
         logicDropdown.dataset.ready = '1';
         block.dataset.logic = 'or';
     }
+    renderSkillsSearchFavoritesDropdown(block);
 
     var buttonsWrap = block.querySelector('.skills-search-buttons');
     if (buttonsWrap && !buttonsWrap.dataset.ready) {
@@ -3307,16 +3310,200 @@ function initSkillsSearch(parentRole) {
         buttonsWrap.dataset.ready = '1';
     }
 
-    var saved = getSkillsSearchState(block);
-    if (saved) {
-        applySkillsSearchState(block, saved);
+    var favorite = getActiveSkillsSearchFavorite();
+    if (favorite && favorite.state) {
+        applySkillsSearchState(block, favorite.state);
+        renderSkillsSearchFavoritesDropdown(block);
     } else {
+        var saved = getSkillsSearchState(block);
+        if (saved) {
+            applySkillsSearchState(block, saved);
+        } else {
+            if (statusDropdown) {
+                setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
+                block.dataset.status = 'Открытая';
+            }
+        }
+    }
+    if (!favorite || !favorite.state) {
         if (statusDropdown) {
-            setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
-            block.dataset.status = 'Открытая';
+            var statusValue = getSkillsSearchFilterValue(block, 'status');
+            if (!statusValue || statusValue === 'all') {
+                setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
+                block.dataset.status = 'Открытая';
+            }
         }
     }
     updateSkillsSearchData(block);
+}
+
+function ensureSkillsSearchFavoritesControls(block) {
+    if (!block) return;
+    var header = block.querySelector('.skills-search-panel-header');
+    if (!header) return;
+
+    var saveBtn = header.querySelector('.skills-search-save-favorite');
+    if (!saveBtn) {
+        saveBtn = document.createElement('button');
+        saveBtn.className = 'skills-search-save-favorite skills-search-icon-btn';
+        saveBtn.type = 'button';
+        header.appendChild(saveBtn);
+    }
+    saveBtn.classList.add('skills-search-icon-btn');
+    saveBtn.textContent = '⤓';
+    saveBtn.title = 'Сохранить набор';
+    saveBtn.setAttribute('aria-label', 'Сохранить набор');
+
+    var legacyRemoveBtn = header.querySelector('.skills-search-remove-favorite');
+    if (legacyRemoveBtn && legacyRemoveBtn.parentElement) {
+        legacyRemoveBtn.parentElement.removeChild(legacyRemoveBtn);
+    }
+
+    var favoriteWrap = header.querySelector('.skills-search-dropdown[data-filter="favorite"]');
+    if (!favoriteWrap) {
+        var favoriteWrap = document.createElement('div');
+        favoriteWrap.className = 'skills-search-dropdown skills-search-favorite-inline';
+        favoriteWrap.setAttribute('data-filter', 'favorite');
+        favoriteWrap.innerHTML =
+            '<button class="skills-search-dropdown-btn skills-search-icon-btn" type="button" data-value="" title="Избранное" aria-label="Избранное">❤</button>' +
+            '<div class="skills-search-dropdown-menu"></div>';
+        header.appendChild(favoriteWrap);
+    }
+    var favoriteBtn = favoriteWrap.querySelector('.skills-search-dropdown-btn');
+    if (favoriteBtn) {
+        favoriteBtn.classList.add('skills-search-icon-btn');
+        favoriteBtn.textContent = '❤';
+        favoriteBtn.title = favoriteBtn.title || 'Избранное';
+        favoriteBtn.setAttribute('aria-label', 'Избранное');
+    }
+
+    var toggleBtn = header.querySelector('.skills-search-toggle');
+    if (toggleBtn) {
+        header.insertBefore(favoriteWrap, toggleBtn);
+        header.insertBefore(saveBtn, favoriteWrap);
+    } else {
+        header.appendChild(saveBtn);
+        header.appendChild(favoriteWrap);
+    }
+}
+function setSkillsSearchFavoriteTrigger(dropdown, favoriteName, favoriteId) {
+    if (!dropdown) return;
+    var btn = dropdown.querySelector('.skills-search-dropdown-btn');
+    if (!btn) return;
+    btn.classList.add('skills-search-icon-btn');
+    btn.dataset.value = favoriteId || 'all';
+    btn.textContent = '❤';
+    var title = favoriteName ? ('Избранное: ' + favoriteName) : 'Избранное';
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+}
+function promptSkillsSearchFavoriteName(defaultName) {
+    return new Promise(function(resolve) {
+        var existing = document.querySelector('.skills-favorite-modal-backdrop');
+        if (existing && existing.parentElement) existing.parentElement.removeChild(existing);
+
+        var backdrop = document.createElement('div');
+        backdrop.className = 'skills-favorite-modal-backdrop';
+        backdrop.innerHTML =
+            '<div class="skills-favorite-modal" role="dialog" aria-modal="true" aria-label="Название набора">' +
+                '<div class="skills-favorite-modal-title">Название набора</div>' +
+                '<input type="text" class="skills-favorite-modal-input" maxlength="80" placeholder="Введите название">' +
+                '<div class="skills-favorite-modal-actions">' +
+                    '<button type="button" class="skills-favorite-modal-btn cancel">Отмена</button>' +
+                    '<button type="button" class="skills-favorite-modal-btn submit">Сохранить</button>' +
+                '</div>' +
+            '</div>';
+
+        var settled = false;
+        var finish = function(value) {
+            if (settled) return;
+            settled = true;
+            if (backdrop && backdrop.parentElement) backdrop.parentElement.removeChild(backdrop);
+            document.removeEventListener('keydown', onKeydown, true);
+            resolve(value);
+        };
+        var onKeydown = function(ev) {
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                finish(null);
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                var submitBtn = backdrop.querySelector('.skills-favorite-modal-btn.submit');
+                if (submitBtn) submitBtn.click();
+            }
+        };
+
+        document.body.appendChild(backdrop);
+        var input = backdrop.querySelector('.skills-favorite-modal-input');
+        var cancelBtn = backdrop.querySelector('.skills-favorite-modal-btn.cancel');
+        var submitBtn = backdrop.querySelector('.skills-favorite-modal-btn.submit');
+        if (input) {
+            input.value = String(defaultName || '');
+            input.focus();
+            input.select();
+        }
+        if (cancelBtn) cancelBtn.addEventListener('click', function() { finish(null); });
+        if (submitBtn) submitBtn.addEventListener('click', function() {
+            var value = input ? String(input.value || '').trim() : '';
+            if (!value) {
+                if (input) input.focus();
+                return;
+            }
+            finish(value);
+        });
+        backdrop.addEventListener('click', function(ev) {
+            if (ev.target === backdrop) finish(null);
+        });
+        document.addEventListener('keydown', onKeydown, true);
+    });
+}
+function confirmSkillsSearchFavoriteDelete() {
+    return new Promise(function(resolve) {
+        var existing = document.querySelector('.skills-favorite-modal-backdrop');
+        if (existing && existing.parentElement) existing.parentElement.removeChild(existing);
+
+        var backdrop = document.createElement('div');
+        backdrop.className = 'skills-favorite-modal-backdrop';
+        backdrop.innerHTML =
+            '<div class="skills-favorite-modal" role="dialog" aria-modal="true" aria-label="Удаление набора">' +
+                '<div class="skills-favorite-modal-title">Удалить набор фильтров?</div>' +
+                '<div class="skills-favorite-modal-actions">' +
+                    '<button type="button" class="skills-favorite-modal-btn cancel">Отмена</button>' +
+                    '<button type="button" class="skills-favorite-modal-btn danger submit">Удалить</button>' +
+                '</div>' +
+            '</div>';
+
+        var settled = false;
+        var finish = function(value) {
+            if (settled) return;
+            settled = true;
+            if (backdrop && backdrop.parentElement) backdrop.parentElement.removeChild(backdrop);
+            document.removeEventListener('keydown', onKeydown, true);
+            resolve(!!value);
+        };
+        var onKeydown = function(ev) {
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                finish(false);
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                finish(true);
+            }
+        };
+
+        document.body.appendChild(backdrop);
+        var cancelBtn = backdrop.querySelector('.skills-favorite-modal-btn.cancel');
+        var submitBtn = backdrop.querySelector('.skills-favorite-modal-btn.submit');
+        if (cancelBtn) cancelBtn.addEventListener('click', function() { finish(false); });
+        if (submitBtn) {
+            submitBtn.focus();
+            submitBtn.addEventListener('click', function() { finish(true); });
+        }
+        backdrop.addEventListener('click', function(ev) {
+            if (ev.target === backdrop) finish(false);
+        });
+        document.addEventListener('keydown', onKeydown, true);
+    });
 }
 
 function renderSkillsSearchButtons(block, skillsList) {
@@ -3622,7 +3809,52 @@ function updateSkillsSearchSummaryLine(block) {
 function getSkillsSearchState(block) {
     return uiState.skills_search_global || null;
 }
-function saveSkillsSearchState(block) {
+var SKILLS_SEARCH_FAVORITES_STORAGE_KEY = 'research_vacancies_skills_search_favorites_v1';
+function ensureSkillsSearchFavoritesState() {
+    if (uiState.skills_search_favorites && Array.isArray(uiState.skills_search_favorites.items)) return uiState.skills_search_favorites;
+    var fallback = { activeId: '', items: [] };
+    if (typeof window === 'undefined' || !window.localStorage) {
+        uiState.skills_search_favorites = fallback;
+        return uiState.skills_search_favorites;
+    }
+    try {
+        var raw = window.localStorage.getItem(SKILLS_SEARCH_FAVORITES_STORAGE_KEY);
+        if (!raw) {
+            uiState.skills_search_favorites = fallback;
+            return uiState.skills_search_favorites;
+        }
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') {
+            uiState.skills_search_favorites = fallback;
+            return uiState.skills_search_favorites;
+        }
+        var items = Array.isArray(parsed.items) ? parsed.items.filter(function(item) {
+            return item && item.id && item.name && item.state && typeof item.state === 'object';
+        }).map(function(item) {
+            return { id: String(item.id), name: String(item.name), state: item.state };
+        }) : [];
+        uiState.skills_search_favorites = {
+            activeId: String(parsed.activeId || ''),
+            items: items
+        };
+    } catch (_e) {
+        uiState.skills_search_favorites = fallback;
+    }
+    return uiState.skills_search_favorites;
+}
+function persistSkillsSearchFavoritesState() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    var state = ensureSkillsSearchFavoritesState();
+    try {
+        window.localStorage.setItem(SKILLS_SEARCH_FAVORITES_STORAGE_KEY, JSON.stringify({
+            activeId: state.activeId || '',
+            items: Array.isArray(state.items) ? state.items : []
+        }));
+    } catch (_e) {
+        // ignore storage failures
+    }
+}
+function getSkillsSearchStateSnapshot(block) {
     var currencyVals = [];
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
     if (currencyDd && currencyDd.dataset.multi === '1') {
@@ -3632,18 +3864,102 @@ function saveSkillsSearchState(block) {
             currencyVals = [];
         }
     }
-    var state = {
+    return {
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
         country: getSkillsSearchFilterValue(block, 'country') || 'all',
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
         sort: getSkillsSearchFilterValue(block, 'sort') || 'count',
         logic: getSkillsSearchFilterValue(block, 'logic') || 'or',
         employerFlags: getSkillsSearchBooleanFilterValues(block),
-        includeSkills: Array.from(block.querySelectorAll('.skills-search-skill.active')).map(b => b.dataset.skill || b.textContent.trim()),
-        excludeSkills: Array.from(block.querySelectorAll('.skills-search-skill.excluded')).map(b => b.dataset.skill || b.textContent.trim()),
+        includeSkills: Array.from(block.querySelectorAll('.skills-search-skill.active')).map(function(b) { return b.dataset.skill || b.textContent.trim(); }),
+        excludeSkills: Array.from(block.querySelectorAll('.skills-search-skill.excluded')).map(function(b) { return b.dataset.skill || b.textContent.trim(); }),
         collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
     };
-    uiState.skills_search_global = state;
+}
+function renderSkillsSearchFavoritesDropdown(block) {
+    if (!block) return;
+    var favoritesDd = block.querySelector('.skills-search-dropdown[data-filter="favorite"]');
+    if (!favoritesDd) return;
+    var state = ensureSkillsSearchFavoritesState();
+    var items = (state.items || []).map(function(item) {
+        return { value: item.id, label: item.name };
+    });
+    renderSkillsSearchDropdown(favoritesDd, items, 'Избранное', 'Не выбрано', false, true);
+    var menu = favoritesDd.querySelector('.skills-search-dropdown-menu');
+    if (menu) {
+        var favRows = (state.items || []).map(function(item) {
+            return '<button class="skills-search-dropdown-item skills-search-favorite-item" type="button" data-value="' + escapeHtml(item.id) + '">' +
+                '<span class="skills-search-favorite-name">' + escapeHtml(item.name) + '</span>' +
+                '<span class="skills-search-favorite-remove" data-remove-favorite="' + escapeHtml(item.id) + '" title="Удалить набор" aria-label="Удалить набор">&times;</span>' +
+            '</button>';
+        }).join('');
+        menu.innerHTML =
+            '<button class="skills-search-dropdown-item" type="button" data-value="all">Не выбрано</button>' +
+            favRows;
+    }
+    if (state.activeId && items.some(function(item) { return item.value === state.activeId; })) {
+        setSkillsSearchDropdownValue(favoritesDd, state.activeId);
+        var activeItem = items.find(function(item) { return item.value === state.activeId; });
+        setSkillsSearchFavoriteTrigger(favoritesDd, activeItem ? activeItem.label : '', state.activeId);
+    } else {
+        setSkillsSearchDropdownValue(favoritesDd, 'all');
+        setSkillsSearchFavoriteTrigger(favoritesDd, '', 'all');
+    }
+}
+function getActiveSkillsSearchFavorite() {
+    var state = ensureSkillsSearchFavoritesState();
+    var activeId = String(state.activeId || '');
+    if (!activeId) return null;
+    return (state.items || []).find(function(item) { return item.id === activeId; }) || null;
+}
+function applySkillsSearchFavorite(block, favoriteId) {
+    if (!block) return false;
+    var state = ensureSkillsSearchFavoritesState();
+    var favorite = (state.items || []).find(function(item) { return item.id === favoriteId; });
+    if (!favorite) return false;
+    applySkillsSearchState(block, favorite.state || {});
+    state.activeId = favorite.id;
+    persistSkillsSearchFavoritesState();
+    renderSkillsSearchFavoritesDropdown(block);
+    updateSkillsSearchData(block);
+    return true;
+}
+function saveCurrentSkillsSearchFavorite(block, name) {
+    if (!block) return false;
+    var trimmed = String(name || '').trim();
+    if (!trimmed) return false;
+    var state = ensureSkillsSearchFavoritesState();
+    var snapshot = getSkillsSearchStateSnapshot(block);
+    var existing = (state.items || []).find(function(item) { return item.name.toLowerCase() === trimmed.toLowerCase(); });
+    if (existing) {
+        existing.state = snapshot;
+        state.activeId = existing.id;
+    } else {
+        var nextId = 'fav_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        state.items = state.items || [];
+        state.items.push({ id: nextId, name: trimmed, state: snapshot });
+        state.activeId = nextId;
+    }
+    persistSkillsSearchFavoritesState();
+    renderSkillsSearchFavoritesDropdown(block);
+    return true;
+}
+function removeCurrentSkillsSearchFavorite(block, favoriteId) {
+    if (!block) return false;
+    var favoritesDd = block.querySelector('.skills-search-dropdown[data-filter="favorite"]');
+    var selectedId = favoriteId ? String(favoriteId) : (favoritesDd ? String(getSkillsSearchFilterValue(block, 'favorite') || '') : '');
+    if (!selectedId || selectedId === 'all') return false;
+    var state = ensureSkillsSearchFavoritesState();
+    var before = (state.items || []).length;
+    state.items = (state.items || []).filter(function(item) { return item.id !== selectedId; });
+    if (state.activeId === selectedId) state.activeId = '';
+    if (state.items.length === before) return false;
+    persistSkillsSearchFavoritesState();
+    renderSkillsSearchFavoritesDropdown(block);
+    return true;
+}
+function saveSkillsSearchState(block) {
+    uiState.skills_search_global = getSkillsSearchStateSnapshot(block);
 }
 function applySkillsSearchState(block, state) {
     if (!state) return;
