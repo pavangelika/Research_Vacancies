@@ -6,6 +6,7 @@
         roleContent[i].style.display = "none";
     }
     var targetRole = document.getElementById(roleId);
+    if (typeof ensureMyResponsesTab === 'function') ensureMyResponsesTab(targetRole);
     targetRole.style.display = "block";
     targetRole.classList.remove('role-switch-enter');
     targetRole.offsetWidth;
@@ -677,8 +678,433 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
     };
 }
 
+function normalizeSendResumeValue(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value > 0;
+    var normalized = String(value === null || value === undefined ? '' : value).trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'да';
+}
+
+function collectMyResponsesVacancies() {
+    var roleContents = [];
+    if (typeof getSelectableRoleContents === 'function') {
+        roleContents = getSelectableRoleContents();
+    } else {
+        roleContents = Array.from(document.querySelectorAll('.role-content')).filter(function(node) {
+            return /^role-\d+$/.test(String(node.id || ''));
+        });
+    }
+    var combined = [];
+    roleContents.forEach(function(roleContent) {
+        combined = combined.concat((typeof getRoleVacancies === 'function' ? getRoleVacancies(roleContent) : []) || []);
+    });
+    combined = typeof dedupeVacanciesById === 'function' ? dedupeVacanciesById(combined) : combined;
+    var filtered = combined.filter(function(vacancy) {
+        return vacancy && normalizeSendResumeValue(vacancy.send_resume);
+    });
+    filtered.sort(function(a, b) {
+        var aTs = Date.parse(a && a.resume_at ? a.resume_at : '') || 0;
+        var bTs = Date.parse(b && b.resume_at ? b.resume_at : '') || 0;
+        return bTs - aTs;
+    });
+    return filtered;
+}
+
+function fetchMyResponsesVacancies() {
+    var endpoint = '/api/vacancies/responses';
+    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/responses';
+    function doGet(url) {
+        return fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        }).then(function(payload) {
+            var items = payload && Array.isArray(payload.items) ? payload.items : [];
+            return items;
+        });
+    }
+    if (window.location && window.location.protocol === 'file:') {
+        return doGet(fallbackEndpoint);
+    }
+    return doGet(endpoint).catch(function() {
+        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw new Error('responses_api_failed');
+        return doGet(fallbackEndpoint);
+    });
+}
+
+function formatResumeAtValue(value) {
+    var text = String(value || '').trim();
+    if (!text) return '—';
+    var date = new Date(text);
+    if (isNaN(date.getTime())) return escapeHtml(text);
+    var dd = String(date.getDate()).padStart(2, '0');
+    var mm = String(date.getMonth() + 1).padStart(2, '0');
+    var yyyy = date.getFullYear();
+    var hh = String(date.getHours()).padStart(2, '0');
+    var min = String(date.getMinutes()).padStart(2, '0');
+    return dd + '.' + mm + '.' + yyyy + ' ' + hh + ':' + min;
+}
+function findVacancySourceById(vacancyId) {
+    var id = String(vacancyId || '').trim();
+    if (!id) return null;
+    var roleContents = document.querySelectorAll('.role-content[data-vacancies]');
+    for (var i = 0; i < roleContents.length; i++) {
+        var roleEl = roleContents[i];
+        var vacancies = parseJsonDataset(roleEl, 'vacancies', []);
+        if (!Array.isArray(vacancies) || !vacancies.length) continue;
+        for (var j = 0; j < vacancies.length; j++) {
+            var v = vacancies[j];
+            if (!v) continue;
+            if (String(v.id || '').trim() === id) return v;
+        }
+    }
+    return null;
+}
+function resolveRoleDisplayName(roleId, roleName) {
+    var explicit = String(roleName || '').trim();
+    if (explicit && explicit !== 'Роль' && explicit !== String(roleId || '').trim()) return explicit;
+    var id = String(roleId || '').trim();
+    if (!id) return explicit || 'Роль';
+    var roleEl = document.querySelector('.role-content[data-role-id="' + id + '"]');
+    if (roleEl && roleEl.dataset) {
+        var mapped = String(roleEl.dataset.roleName || '').trim();
+        if (mapped) return mapped;
+    }
+    return explicit || id;
+}
+
+function buildMyResponsesTableHtml(vacancies) {
+    if (!vacancies || !vacancies.length) {
+        return '<div class="vacancy-empty">Нет откликов</div>';
+    }
+    var showRole = vacancies.some(function(v) { return v && (v.role_name || v.role_id); });
+    var asArchiveIcon = function(v) {
+        var archivedRaw = v && v.archived;
+        var isArchived = archivedRaw === true || archivedRaw === 1 || archivedRaw === '1' || archivedRaw === 'true' ||
+            (!!(v && v.archived_at));
+        var cls = isArchived ? 'status-icon-archived' : 'status-icon-open';
+        var title = isArchived ? 'Архивная' : 'Открытая';
+        return '<span class="status-icon ' + cls + '" title="' + title + '" aria-label="' + title + '"></span>';
+    };
+    var rows = vacancies.map(function(v) {
+        var source = findVacancySourceById(v && v.id);
+        var linkUrl = v.id ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(v.id) : '';
+        var idCell = linkUrl
+            ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
+            : formatCell(v.id);
+        var roleCell = showRole ? escapeHtml(resolveRoleDisplayName(v.role_id, v.role_name)) : '';
+        var employerCell = formatCell(v.employer);
+        if (v.employer) {
+            employerCell = '<button class="employer-link" type="button" ' +
+                'data-employer="' + escapeHtml(v.employer) + '" ' +
+                'data-accredited="' + escapeHtml(v.employer_accredited) + '" ' +
+                'data-rating="' + escapeHtml(v.employer_rating) + '" ' +
+                'data-trusted="' + escapeHtml(v.employer_trusted) + '" ' +
+                'data-url="' + escapeHtml(v.employer_url) + '">' +
+                escapeHtml(v.employer) +
+            '</button>';
+        }
+        var interviewUrl = linkUrl || (v.apply_alternate_url || '');
+        var isInterviewFilled = !!(v && v.interview_filled);
+        var interviewIcon = isInterviewFilled ? 'ⓘ' : '🖉';
+        var interviewTitle = isInterviewFilled ? 'Подробнее' : 'Заполнить';
+        var interviewCell = interviewUrl
+            ? '<button type="button" class="my-responses-details-link ' + (isInterviewFilled ? 'is-details' : 'is-fill') + '" data-vacancy-id="' + escapeHtml(v.id || '') + '" title="' + interviewTitle + '" aria-label="' + interviewTitle + '">' + interviewIcon + '</button>'
+            : '—';
+        return '<tr>' +
+            '<td>' + idCell + '</td>' +
+            (showRole ? '<td>' + roleCell + '</td>' : '') +
+            '<td>' + formatCell(v.name) + '</td>' +
+            '<td>' + employerCell + '</td>' +
+            '<td>' + formatCell(v.city) + '</td>' +
+            '<td>' + formatCell(v.salary_from) + '</td>' +
+            '<td>' + formatCell(v.salary_to) + '</td>' +
+            '<td class="my-responses-checkbox-cell"><input type="checkbox" class="my-responses-checkbox" ' + (normalizeSendResumeValue(v.send_resume) ? 'checked ' : '') + 'disabled></td>' +
+            '<td>' + formatResumeAtValue(v.resume_at) + '</td>' +
+            '<td>' + formatResumeAtValue(v.published_at || (source && (source.published_at || source.created_at))) + '</td>' +
+            '<td class="status-icon-cell">' + asArchiveIcon(v && (v.archived !== undefined || v.archived_at) ? v : (source || {})) + '</td>' +
+            '<td>' + formatResumeAtValue(v.archived_at || (source && source.archived_at)) + '</td>' +
+            '<td>' + interviewCell + '</td>' +
+        '</tr>';
+    }).join('');
+
+    return '<div class="vacancy-table-wrap">' +
+        '<table class="vacancy-table">' +
+            '<thead>' +
+                '<tr>' +
+                    '<th>ID</th>' +
+                    (showRole ? '<th>Роль</th>' : '') +
+                    '<th>Название</th>' +
+                    '<th>Работодатель</th>' +
+                    '<th>Город</th>' +
+                    '<th>ЗП от</th>' +
+                    '<th>ЗП до</th>' +
+                    '<th>Отклик</th>' +
+                    '<th>Дата отклика</th>' +
+                    '<th>Дата публикации</th>' +
+                    '<th>Статус</th>' +
+                    '<th>Дата архивации</th>' +
+                    '<th class="my-responses-interview-head" title="Заполнить" aria-label="Заполнить">🖉</th>' +
+                '</tr>' +
+            '</thead>' +
+            '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+    '</div>';
+}
+
+function renderMyResponsesContent(parentRole) {
+    if (!parentRole) return;
+    var block = parentRole.querySelector('.my-responses-content');
+    if (!block) return;
+    var results = block.querySelector('.skills-search-results');
+    if (!results) return;
+    results.innerHTML = '<div class="skills-search-summary">Загрузка откликов...</div>';
+    fetchMyResponsesVacancies().then(function(vacancies) {
+        var list = Array.isArray(vacancies) ? vacancies : [];
+        var summary = '<div class="skills-search-summary">Найдено откликов: ' + list.length + '</div>';
+        results.innerHTML = summary + buildMyResponsesTableHtml(list);
+    }).catch(function() {
+        var local = collectMyResponsesVacancies();
+        var summary = '<div class="skills-search-summary">Найдено откликов: ' + local.length + '</div>';
+        results.innerHTML = summary + buildMyResponsesTableHtml(local);
+    });
+}
+
+function fetchMyResponseDetails(vacancyId) {
+    var id = String(vacancyId || '').trim();
+    if (!id) return Promise.reject(new Error('vacancy_id_required'));
+    var endpoint = '/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
+    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
+    function doGet(url) {
+        return fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        }).then(function(payload) {
+            if (!payload || payload.ok !== true || !payload.item) throw new Error('invalid_payload');
+            return payload.item;
+        });
+    }
+    if (window.location && window.location.protocol === 'file:') return doGet(fallbackEndpoint);
+    return doGet(endpoint).catch(function() {
+        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw new Error('details_api_failed');
+        return doGet(fallbackEndpoint);
+    });
+}
+
+function saveMyResponseDetails(vacancyId, fields, forceOverwrite) {
+    var id = String(vacancyId || '').trim();
+    if (!id) return Promise.reject(new Error('vacancy_id_required'));
+    var endpoint = '/api/vacancies/details';
+    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/details';
+    var payload = JSON.stringify({
+        vacancy_id: id,
+        fields: fields || {},
+        force_overwrite: !!forceOverwrite
+    });
+    function doPost(url) {
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        });
+    }
+    if (window.location && window.location.protocol === 'file:') return doPost(fallbackEndpoint);
+    return doPost(endpoint).catch(function() {
+        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw new Error('save_details_api_failed');
+        return doPost(fallbackEndpoint);
+    });
+}
+
+function toDatetimeLocalValue(value) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    var date = new Date(text);
+    if (isNaN(date.getTime())) return '';
+    var yyyy = date.getFullYear();
+    var mm = String(date.getMonth() + 1).padStart(2, '0');
+    var dd = String(date.getDate()).padStart(2, '0');
+    var hh = String(date.getHours()).padStart(2, '0');
+    var min = String(date.getMinutes()).padStart(2, '0');
+    return yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
+}
+
+function getMyResponseDetailsFieldsFromModal(backdrop) {
+    var fieldKeys = ['hr_name', 'interview_date', 'interview_stages', 'company_type', 'result', 'feedback', 'offer_salary', 'pros', 'cons'];
+    var values = {};
+    fieldKeys.forEach(function(key) {
+        var el = backdrop.querySelector('[data-field="' + key + '"]');
+        if (!el) return;
+        var val = String(el.value || '').trim();
+        values[key] = val || null;
+    });
+    return values;
+}
+
+function ensureMyResponseDetailsModal() {
+    var backdrop = document.getElementById('my-response-details-modal-backdrop');
+    if (backdrop) return backdrop;
+    backdrop = document.createElement('div');
+    backdrop.id = 'my-response-details-modal-backdrop';
+    backdrop.className = 'skills-favorite-modal-backdrop my-response-details-backdrop';
+    backdrop.style.display = 'none';
+    backdrop.innerHTML =
+        '<div class="skills-favorite-modal my-response-details-modal" role="dialog" aria-modal="true" aria-label="Детали отклика">' +
+            '<div class="skills-favorite-modal-title">Детали отклика</div>' +
+            '<div class="my-response-details-body">' +
+                '<div class="my-response-details-readonly"></div>' +
+                '<div class="my-response-details-form">' +
+                    '<label>ФИО HR<input type="text" data-field="hr_name"></label>' +
+                    '<label>Дата и время собеседования<input type="datetime-local" data-field="interview_date"></label>' +
+                    '<label>Этапы собеседования<textarea data-field="interview_stages" rows="2"></textarea></label>' +
+                    '<label>Тип компании<input type="text" data-field="company_type"></label>' +
+                    '<label>Результат собеседования<textarea data-field="result" rows="2"></textarea></label>' +
+                    '<label>Обратная связь<textarea data-field="feedback" rows="2"></textarea></label>' +
+                    '<label>Сумма оффера<input type="text" data-field="offer_salary"></label>' +
+                    '<label>Плюсы<textarea data-field="pros" rows="2"></textarea></label>' +
+                    '<label>Минусы<textarea data-field="cons" rows="2"></textarea></label>' +
+                '</div>' +
+            '</div>' +
+            '<div class="skills-favorite-modal-actions">' +
+                '<button type="button" class="skills-favorite-modal-btn cancel my-response-details-close">Закрыть</button>' +
+                '<button type="button" class="skills-favorite-modal-btn submit my-response-details-save">Сохранить</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+    return backdrop;
+}
+
+function openMyResponseDetailsModal(vacancyId) {
+    var id = String(vacancyId || '').trim();
+    if (!id) return;
+    var backdrop = ensureMyResponseDetailsModal();
+    backdrop.dataset.vacancyId = id;
+    var readonlyWrap = backdrop.querySelector('.my-response-details-readonly');
+    if (readonlyWrap) readonlyWrap.innerHTML = '<div class="skills-search-summary">Загрузка...</div>';
+    backdrop.style.display = 'flex';
+
+    fetchMyResponseDetails(id).then(function(item) {
+        if (!backdrop || backdrop.dataset.vacancyId !== id) return;
+        var source = findVacancySourceById(id) || {};
+        if ((item.skills === null || item.skills === undefined || item.skills === '') && source.skills) {
+            item.skills = source.skills;
+        }
+        var asValue = function(value) {
+            return '<div class="my-response-details-value">' + formatCell(value) + '</div>';
+        };
+        var readonlyHtml =
+            '<table class="vacancy-table my-response-details-table"><tbody>' +
+                '<tr><th>Навыки</th><td>' + asValue(item.skills) + '</td></tr>' +
+                '<tr><th>Требования</th><td>' + asValue(item.requirement) + '</td></tr>' +
+                '<tr><th>Обязанности</th><td>' + asValue(item.responsibility) + '</td></tr>' +
+                '<tr><th>Описание</th><td>' + asValue(item.description) + '</td></tr>' +
+            '</tbody></table>';
+        if (readonlyWrap) readonlyWrap.innerHTML = readonlyHtml;
+
+        var setVal = function(field, value) {
+            var el = backdrop.querySelector('[data-field="' + field + '"]');
+            if (!el) return;
+            if (field === 'interview_date') el.value = toDatetimeLocalValue(value);
+            else el.value = String(value || '');
+        };
+        setVal('hr_name', item.hr_name);
+        setVal('interview_date', item.interview_date);
+        setVal('interview_stages', item.interview_stages);
+        setVal('company_type', item.company_type);
+        setVal('result', item.result);
+        setVal('feedback', item.feedback);
+        setVal('offer_salary', item.offer_salary);
+        setVal('pros', item.pros);
+        setVal('cons', item.cons);
+    }).catch(function() {
+        if (readonlyWrap) readonlyWrap.innerHTML = '<div class="skills-search-summary">Не удалось загрузить данные</div>';
+    });
+}
+
+function closeMyResponseDetailsModal() {
+    var backdrop = document.getElementById('my-response-details-modal-backdrop');
+    if (backdrop) backdrop.style.display = 'none';
+}
+
+function submitMyResponseDetailsModal() {
+    var backdrop = document.getElementById('my-response-details-modal-backdrop');
+    if (!backdrop) return;
+    var vacancyId = String(backdrop.dataset.vacancyId || '').trim();
+    if (!vacancyId) return;
+    var fields = getMyResponseDetailsFieldsFromModal(backdrop);
+    saveMyResponseDetails(vacancyId, fields, false).then(function(resp) {
+        if (resp && resp.requires_overwrite) {
+            var allow = window.confirm('По этой вакансии уже есть сохраненные данные. Перезаписать?');
+            if (!allow) return;
+            return saveMyResponseDetails(vacancyId, fields, true);
+        }
+        return resp;
+    }).then(function(resp) {
+        if (!resp) return;
+        if (resp.ok === true && resp.updated === true) {
+            closeMyResponseDetailsModal();
+        }
+    }).catch(function() {
+        window.alert('Не удалось сохранить данные собеседования');
+    });
+}
+
+function ensureMyResponsesTab(parentRole) {
+    if (!parentRole || parentRole.id === 'role-all') return;
+    var tabs = parentRole.querySelector('.tabs.analysis-tabs');
+    if (!tabs) return;
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
+    if (!roleSuffix) return;
+    var analysisId = 'my-responses-' + roleSuffix;
+
+    var tab = tabs.querySelector('.analysis-button[data-analysis-id="' + analysisId + '"]');
+    if (!tab) {
+        tab = document.createElement('button');
+        tab.className = 'tab-button analysis-button';
+        tab.setAttribute('data-analysis-id', analysisId);
+        tab.setAttribute('onclick', "switchAnalysis(event, '" + analysisId + "')");
+        tab.textContent = 'Мои отклики';
+        var skillsSearchTab = tabs.querySelector('.analysis-button[data-analysis-id^="skills-search-"]');
+        if (skillsSearchTab && skillsSearchTab.nextSibling) tabs.insertBefore(tab, skillsSearchTab.nextSibling);
+        else if (skillsSearchTab) tabs.appendChild(tab);
+        else {
+            var summaryBtn = tabs.querySelector('.summary-report-btn');
+            if (summaryBtn) tabs.insertBefore(tab, summaryBtn);
+            else tabs.appendChild(tab);
+        }
+    }
+
+    var block = parentRole.querySelector('.my-responses-content[data-analysis="' + analysisId + '"]');
+    if (!block) {
+        block = document.createElement('div');
+        block.className = 'my-responses-content skills-search-content';
+        block.setAttribute('data-analysis', analysisId);
+        block.style.display = 'none';
+        block.innerHTML =
+            '<div class="skills-search-results my-responses-results">' +
+                '<div class="skills-search-hint">Нет откликов</div>' +
+            '</div>';
+        parentRole.appendChild(block);
+    }
+}
+
+function ensureMyResponsesTabs(scope) {
+    var root = scope || document;
+    root.querySelectorAll('.role-content').forEach(function(roleContent) {
+        ensureMyResponsesTab(roleContent);
+    });
+}
+
 function applyAnalysisTabNaming(root) {
     var scope = root || document;
+    if (typeof ensureMyResponsesTabs === 'function') ensureMyResponsesTabs(scope);
     var mapDefault = {
         activity: 'Динамика вакансий',
         weekday: 'Дни активности',
@@ -726,6 +1152,7 @@ function applyAnalysisTabNaming(root) {
 function switchAnalysis(evt, analysisId) {
     applyAnalysisTabNaming(document);
     var parentRole = evt.currentTarget.closest('.role-content');
+    ensureMyResponsesTab(parentRole);
     var roleId = parentRole.id;
     var analysisButtons = parentRole.getElementsByClassName("analysis-button");
     for (var i = 0; i < analysisButtons.length; i++) {
@@ -737,6 +1164,7 @@ function switchAnalysis(evt, analysisId) {
     var weekdayBlock = parentRole.querySelector('.weekday-content');
     var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
     var skillsSearchBlock = parentRole.querySelector('.skills-search-content');
+    var myResponsesBlock = parentRole.querySelector('.my-responses-content');
     var salaryBlock = parentRole.querySelector('.salary-content');
     var employerAnalysisBlock = parentRole.querySelector('.employer-analysis-content');
 
@@ -745,6 +1173,7 @@ function switchAnalysis(evt, analysisId) {
     else if (analysisId.includes('weekday')) analysisType = 'weekday';
     else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
     else if (analysisId.includes('skills-search')) analysisType = 'skills-search';
+    else if (analysisId.includes('my-responses')) analysisType = 'my-responses';
     else if (analysisId.includes('salary')) analysisType = 'salary';
     else if (analysisId.includes('employer-analysis')) analysisType = 'employer-analysis';
 
@@ -755,6 +1184,7 @@ function switchAnalysis(evt, analysisId) {
     if (weekdayBlock) weekdayBlock.style.display = 'none';
     if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
     if (skillsSearchBlock) skillsSearchBlock.style.display = 'none';
+    if (myResponsesBlock) myResponsesBlock.style.display = 'none';
     if (salaryBlock) salaryBlock.style.display = 'none';
     if (employerAnalysisBlock) employerAnalysisBlock.style.display = 'none';
 
@@ -835,6 +1265,11 @@ function switchAnalysis(evt, analysisId) {
         if (skillsSearchBlock) {
             skillsSearchBlock.style.display = 'block';
             initSkillsSearch(parentRole);
+        }
+    } else if (analysisType === 'my-responses') {
+        if (myResponsesBlock) {
+            myResponsesBlock.style.display = 'block';
+            renderMyResponsesContent(parentRole);
         }
     } else if (analysisType === 'salary') {
         salaryBlock.style.display = 'block';
@@ -5723,7 +6158,15 @@ function applyAllRolesSkillsCurrency(target, currency, contextText) {
     var normalizedCurrency = String(currency || 'RUR').trim().toUpperCase();
     var rowsByCurrency = getAllRolesSkillsRowsByCurrency(target);
     var rows = rowsByCurrency[normalizedCurrency] || [];
+    if (!rows.length) {
+        var fallbackCurrency = Object.keys(rowsByCurrency).find(function(curr) {
+            return Array.isArray(rowsByCurrency[curr]) && rowsByCurrency[curr].length;
+        }) || normalizedCurrency;
+        normalizedCurrency = String(fallbackCurrency || normalizedCurrency).trim().toUpperCase();
+        rows = rowsByCurrency[normalizedCurrency] || [];
+    }
     target.dataset.activeCurrency = normalizedCurrency;
+    uiState.all_roles_skills_currency = normalizedCurrency;
     target._data = target._data || {};
     target._data.entries = rows;
     target.dataset.entries = encodeURIComponent(JSON.stringify(rows));
@@ -5748,7 +6191,11 @@ function applyAllRolesSkillsCurrency(target, currency, contextText) {
 function ensureAllRolesSkillsCurrencyControls(target, contextText) {
     if (!target) return;
     var switchWrap = target.querySelector('.skills-currency-switch');
-    var defaultCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
+    var defaultCurrency = String(
+        uiState.all_roles_skills_currency ||
+        target.dataset.activeCurrency ||
+        'RUR'
+    ).trim().toUpperCase();
     if (switchWrap && switchWrap.dataset.bound !== '1') {
         switchWrap.addEventListener('click', function(e) {
             var btn = e.target.closest('.skills-currency-switch-btn');
@@ -5774,7 +6221,15 @@ function applyAllRolesSalaryCurrency(target, currency, contextText) {
     var normalizedCurrency = String(currency || 'RUR').trim().toUpperCase();
     var rowsByCurrency = getAllRolesSalaryRowsByCurrency(target);
     var rows = rowsByCurrency[normalizedCurrency] || [];
+    if (!rows.length) {
+        var fallbackCurrency = Object.keys(rowsByCurrency).find(function(curr) {
+            return Array.isArray(rowsByCurrency[curr]) && rowsByCurrency[curr].length;
+        }) || normalizedCurrency;
+        normalizedCurrency = String(fallbackCurrency || normalizedCurrency).trim().toUpperCase();
+        rows = rowsByCurrency[normalizedCurrency] || [];
+    }
     target.dataset.activeCurrency = normalizedCurrency;
+    uiState.all_roles_salary_currency = normalizedCurrency;
     target._data = target._data || {};
     target._data.entries = rows;
     target.dataset.entries = encodeURIComponent(JSON.stringify(rows));
@@ -5791,7 +6246,7 @@ function applyAllRolesSalaryCurrency(target, currency, contextText) {
     var mode = getAllRolesViewMode('salary');
     if (mode !== 'table') {
         var graphId = target.dataset.graphId;
-        var metricKey = String(target.dataset.activeSalaryMetric || 'avg_salary');
+        var metricKey = String(target.dataset.activeSalaryMetric || uiState.all_roles_salary_metric || 'avg_salary');
         if (graphId) {
             buildAllRolesSalaryChart(rows, graphId, metricKey);
             var metricTitleMap = {
@@ -5809,7 +6264,11 @@ function applyAllRolesSalaryCurrency(target, currency, contextText) {
 function ensureAllRolesSalaryCurrencyControls(target, contextText) {
     if (!target) return;
     var switchWrap = target.querySelector('.salary-currency-switch');
-    var defaultCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
+    var defaultCurrency = String(
+        uiState.all_roles_salary_currency ||
+        target.dataset.activeCurrency ||
+        'RUR'
+    ).trim().toUpperCase();
     if (switchWrap && switchWrap.dataset.bound !== '1') {
         switchWrap.addEventListener('click', function(e) {
             var btn = e.target.closest('.salary-currency-switch-btn');
@@ -5824,6 +6283,7 @@ function ensureAllRolesSalaryCurrencyControls(target, contextText) {
             var btn = e.target.closest('.salary-metric-switch-btn');
             if (!btn) return;
             target.dataset.activeSalaryMetric = String(btn.dataset.metric || 'avg_salary');
+            uiState.all_roles_salary_metric = target.dataset.activeSalaryMetric;
             metricWrap.querySelectorAll('.salary-metric-switch-btn').forEach(function(node) {
                 node.classList.toggle('active', node === btn);
             });
@@ -5831,7 +6291,7 @@ function ensureAllRolesSalaryCurrencyControls(target, contextText) {
         });
         metricWrap.dataset.bound = '1';
     }
-    if (!target.dataset.activeSalaryMetric) target.dataset.activeSalaryMetric = 'avg_salary';
+    if (!target.dataset.activeSalaryMetric) target.dataset.activeSalaryMetric = String(uiState.all_roles_salary_metric || 'avg_salary');
     if (metricWrap) {
         var currentMetric = String(target.dataset.activeSalaryMetric || 'avg_salary');
         metricWrap.querySelectorAll('.salary-metric-switch-btn').forEach(function(node) {
@@ -5883,7 +6343,12 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     }).slice(0, 100);
     var activeCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
     var hasAvgSalaryChart = !!topByAvgSalary.length;
-    var activeChartKey = (graphEl.dataset.activeSkillsChart === 'avg' && hasAvgSalaryChart) ? 'avg' : 'mentions';
+    var preferredChartKey = String(
+        graphEl.dataset.activeSkillsChart ||
+        uiState.all_roles_skills_chart ||
+        'mentions'
+    ).trim().toLowerCase();
+    var activeChartKey = (preferredChartKey === 'avg' && hasAvgSalaryChart) ? 'avg' : 'mentions';
     var buildChartSwitchHtml = function(activeKey) {
         if (!hasAvgSalaryChart) return '';
         return '' +
@@ -6119,6 +6584,7 @@ function bindSkillsAllChartSwitch(graphEl) {
     var activateChart = function(chartKey) {
         var normalized = chartKey === 'avg' ? 'avg' : 'mentions';
         graphEl.dataset.activeSkillsChart = normalized;
+        uiState.all_roles_skills_chart = normalized;
         buttons.forEach(function(btn) {
             btn.classList.toggle('active', (btn.dataset.chart || 'mentions') === normalized);
         });
@@ -6139,7 +6605,7 @@ function bindSkillsAllChartSwitch(graphEl) {
         });
         btn.dataset.bound = '1';
     });
-    activateChart(graphEl.dataset.activeSkillsChart || 'mentions');
+    activateChart(graphEl.dataset.activeSkillsChart || uiState.all_roles_skills_chart || 'mentions');
 }
 
 function ensureStackedChartSwitch(container, items, preferredKey) {

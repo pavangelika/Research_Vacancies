@@ -662,16 +662,18 @@ function renderAllRolesContainer(container, roleContents) {
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
             '</div>' +
-            '<div class="stacked-chart-switch chart-switch skills-currency-switch">' +
-                currencies.map(function(curr) {
-                    return '<button type="button" class="tab-button stacked-chart-switch-btn skills-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
-                }).join('') +
-            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container">' +
                     buildAllRolesSkillsTableHtml(rows, defaultCurrency) +
                 '</div>' +
-                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
+                '<div class="all-roles-graph skills-all-graph-panel">' +
+                    '<div class="stacked-chart-switch chart-switch skills-currency-switch">' +
+                        currencies.map(function(curr) {
+                            return '<button type="button" class="tab-button stacked-chart-switch-btn skills-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
+                        }).join('') +
+                    '</div>' +
+                    '<div class="plotly-graph" id="' + graphId + '"></div>' +
+                '</div>' +
             '</div>' +
         '</div>';
     }).join('');
@@ -694,16 +696,16 @@ function renderAllRolesContainer(container, roleContents) {
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
             '</div>' +
-            '<div class="stacked-chart-switch chart-switch salary-currency-switch">' +
-                currencies.map(function(curr) {
-                    return '<button type="button" class="tab-button stacked-chart-switch-btn salary-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
-                }).join('') +
-            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     buildAllRolesSalaryTableHtml(rows, defaultCurrency) +
                 '</div>' +
                 '<div class="plotly-graph all-roles-graph salary-all-graph-panel">' +
+                    '<div class="stacked-chart-switch chart-switch salary-currency-switch">' +
+                        currencies.map(function(curr) {
+                            return '<button type="button" class="tab-button stacked-chart-switch-btn salary-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
+                        }).join('') +
+                    '</div>' +
                     '<div class="stacked-chart-switch chart-switch salary-metric-switch">' +
                         '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn active" data-metric="avg_salary">Средняя</button>' +
                         '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="median_salary">Медианная</button>' +

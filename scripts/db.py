@@ -137,6 +137,228 @@ def mark_resume_sent(vacancy_id: str) -> bool:
         return updated
 
 
+def get_sent_resume_vacancies() -> list[dict]:
+    """
+    Возвращает вакансии, по которым отправлено резюме (send_resume = TRUE),
+    отсортированные по дате отклика.
+    """
+    with psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+    ) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                professional_role,
+                name,
+                employer,
+                city,
+                salary_from,
+                salary_to,
+                currency,
+                skills,
+                apply_alternate_url,
+                send_resume,
+                resume_at,
+                COALESCE(published_at, created_at) AS published_at,
+                archived,
+                archived_at,
+                hr_name,
+                interview_date,
+                interview_stages,
+                company_type,
+                result,
+                feedback,
+                offer_salary,
+                pros,
+                cons
+            FROM get_vacancies
+            WHERE send_resume = TRUE
+            ORDER BY resume_at DESC NULLS LAST, created_at DESC NULLS LAST
+            """
+        )
+        rows = cur.fetchall()
+
+    result = []
+    for row in rows:
+        interview_values = [row[15], row[16], row[17], row[18], row[19], row[20], row[21], row[22], row[23]]
+        interview_filled = any(v is not None and str(v).strip() != "" for v in interview_values)
+        result.append({
+            "id": row[0],
+            "role_id": row[1],
+            "role_name": row[1],
+            "name": row[2],
+            "employer": row[3],
+            "city": row[4],
+            "salary_from": row[5],
+            "salary_to": row[6],
+            "currency": row[7],
+            "skills": row[8],
+            "apply_alternate_url": row[9],
+            "send_resume": bool(row[10]),
+            "resume_at": row[11].isoformat() if row[11] else None,
+            "published_at": row[12].isoformat() if row[12] else None,
+            "archived": bool(row[13]) if row[13] is not None else False,
+            "archived_at": row[14].isoformat() if row[14] else None,
+            "interview_filled": interview_filled,
+        })
+    return result
+
+
+def get_vacancy_details(vacancy_id: str) -> dict | None:
+    if not vacancy_id:
+        return None
+    with psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+    ) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                id,
+                skills,
+                requirement,
+                responsibility,
+                description,
+                published_at,
+                archived,
+                archived_at,
+                hr_name,
+                interview_date,
+                interview_stages,
+                company_type,
+                result,
+                feedback,
+                offer_salary,
+                pros,
+                cons
+            FROM get_vacancies
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (str(vacancy_id),)
+        )
+        row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "skills": row[1],
+        "requirement": row[2],
+        "responsibility": row[3],
+        "description": row[4],
+        "published_at": row[5].isoformat() if row[5] else None,
+        "archived": bool(row[6]) if row[6] is not None else False,
+        "archived_at": row[7].isoformat() if row[7] else None,
+        "hr_name": row[8],
+        "interview_date": row[9].isoformat() if row[9] else None,
+        "interview_stages": row[10],
+        "company_type": row[11],
+        "result": row[12],
+        "feedback": row[13],
+        "offer_salary": row[14],
+        "pros": row[15],
+        "cons": row[16],
+    }
+
+
+def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: bool = False) -> dict:
+    if not vacancy_id:
+        return {"ok": False, "updated": False, "error": "vacancy_id_required"}
+    incoming = fields or {}
+    editable_cols = [
+        "hr_name",
+        "interview_date",
+        "interview_stages",
+        "company_type",
+        "result",
+        "feedback",
+        "offer_salary",
+        "pros",
+        "cons",
+    ]
+    with psycopg2.connect(
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASS,
+        host=DB_HOST,
+        port=DB_PORT,
+    ) as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT hr_name, interview_date, interview_stages, company_type, result, feedback, offer_salary, pros, cons
+            FROM get_vacancies
+            WHERE id = %s
+            LIMIT 1
+            """,
+            (str(vacancy_id),)
+        )
+        existing = cur.fetchone()
+        if not existing:
+            return {"ok": False, "updated": False, "error": "not_found"}
+
+        current = dict(zip(editable_cols, existing))
+        normalized = {}
+        for key in editable_cols:
+            value = incoming.get(key, None)
+            if value is None:
+                normalized[key] = None
+                continue
+            text = str(value).strip()
+            normalized[key] = text if text else None
+
+        def to_cmp(value):
+            if value is None:
+                return ""
+            if isinstance(value, datetime):
+                return value.isoformat(timespec="minutes")
+            return str(value).strip()
+
+        existing_non_empty = any(to_cmp(current.get(key)) for key in editable_cols)
+        has_changes = any(to_cmp(current.get(key)) != to_cmp(normalized.get(key)) for key in editable_cols)
+
+        if has_changes and existing_non_empty and not force_overwrite:
+            return {"ok": True, "updated": False, "requires_overwrite": True}
+
+        cur.execute(
+            """
+            UPDATE get_vacancies
+            SET
+                hr_name = %s,
+                interview_date = %s,
+                interview_stages = %s,
+                company_type = %s,
+                result = %s,
+                feedback = %s,
+                offer_salary = %s,
+                pros = %s,
+                cons = %s
+            WHERE id = %s
+            """,
+            (
+                normalized["hr_name"],
+                normalized["interview_date"],
+                normalized["interview_stages"],
+                normalized["company_type"],
+                normalized["result"],
+                normalized["feedback"],
+                normalized["offer_salary"],
+                normalized["pros"],
+                normalized["cons"],
+                str(vacancy_id),
+            )
+        )
+        conn.commit()
+        return {"ok": True, "updated": cur.rowcount > 0, "requires_overwrite": False}
+
+
 def save_vacancies(vacancies: list[dict]):
     logger.info("Сохранение вакансий в БД...")
 

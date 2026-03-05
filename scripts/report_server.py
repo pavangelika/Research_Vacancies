@@ -5,14 +5,19 @@ import sys
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.db import mark_resume_sent
+from scripts.db import (
+    get_sent_resume_vacancies,
+    get_vacancy_details,
+    mark_resume_sent,
+    save_vacancy_details,
+)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -47,10 +52,6 @@ class ReportHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        if parsed.path != "/api/vacancies/send-resume":
-            self._send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not_found"})
-            return
-
         try:
             content_len = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -62,22 +63,65 @@ class ReportHandler(SimpleHTTPRequestHandler):
             self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "invalid_json"})
             return
 
-        vacancy_id = str(payload.get("vacancy_id") or "").strip()
-        if not vacancy_id:
-            self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "vacancy_id_required"})
+        if parsed.path == "/api/vacancies/send-resume":
+            vacancy_id = str(payload.get("vacancy_id") or "").strip()
+            if not vacancy_id:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "vacancy_id_required"})
+                return
+
+            try:
+                updated = mark_resume_sent(vacancy_id)
+            except Exception as exc:
+                logger.exception("Failed to mark send_resume for vacancy_id=%s", vacancy_id)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
+                return
+
+            self._send_json(HTTPStatus.OK, {"ok": True, "updated": bool(updated), "vacancy_id": vacancy_id})
             return
 
-        try:
-            updated = mark_resume_sent(vacancy_id)
-        except Exception as exc:
-            logger.exception("Failed to mark send_resume for vacancy_id=%s", vacancy_id)
-            self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
+        if parsed.path == "/api/vacancies/details":
+            vacancy_id = str(payload.get("vacancy_id") or "").strip()
+            fields = payload.get("fields") if isinstance(payload.get("fields"), dict) else {}
+            force_overwrite = bool(payload.get("force_overwrite"))
+            try:
+                result = save_vacancy_details(vacancy_id, fields, force_overwrite)
+            except Exception as exc:
+                logger.exception("Failed to save details for vacancy_id=%s", vacancy_id)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
+                return
+            self._send_json(HTTPStatus.OK, result)
             return
 
-        self._send_json(HTTPStatus.OK, {"ok": True, "updated": bool(updated), "vacancy_id": vacancy_id})
+        self._send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not_found"})
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/vacancies/responses":
+            try:
+                vacancies = get_sent_resume_vacancies()
+            except Exception as exc:
+                logger.exception("Failed to load responses list")
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
+                return
+            self._send_json(HTTPStatus.OK, {"ok": True, "items": vacancies})
+            return
+        if parsed.path == "/api/vacancies/details":
+            qs = parse_qs(parsed.query or "")
+            vacancy_id = str((qs.get("vacancy_id") or [""])[0]).strip()
+            if not vacancy_id:
+                self._send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "error": "vacancy_id_required"})
+                return
+            try:
+                item = get_vacancy_details(vacancy_id)
+            except Exception as exc:
+                logger.exception("Failed to load details for vacancy_id=%s", vacancy_id)
+                self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
+                return
+            if not item:
+                self._send_json(HTTPStatus.NOT_FOUND, {"ok": False, "error": "not_found"})
+                return
+            self._send_json(HTTPStatus.OK, {"ok": True, "item": item})
+            return
         if parsed.path in ("/", ""):
             self.path = "/report.html"
         super().do_GET()

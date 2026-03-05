@@ -29,6 +29,30 @@
 });
 
 document.addEventListener('click', function(e) {
+    var detailsBtn = e.target.closest('.my-responses-details-link');
+    if (detailsBtn) {
+        e.preventDefault();
+        if (typeof openMyResponseDetailsModal === 'function') {
+            openMyResponseDetailsModal(detailsBtn.dataset.vacancyId || '');
+        }
+        return;
+    }
+
+    if (e.target.id === 'my-response-details-modal-backdrop') {
+        if (typeof closeMyResponseDetailsModal === 'function') closeMyResponseDetailsModal();
+        return;
+    }
+    if (e.target.closest('.my-response-details-close')) {
+        if (typeof closeMyResponseDetailsModal === 'function') closeMyResponseDetailsModal();
+        return;
+    }
+    if (e.target.closest('.my-response-details-save')) {
+        if (typeof submitMyResponseDetailsModal === 'function') submitMyResponseDetailsModal();
+        return;
+    }
+});
+
+document.addEventListener('click', function(e) {
     if (e.target.id === 'resume-action-modal-backdrop') {
         closeResumeActionModal(null);
         return;
@@ -211,7 +235,22 @@ document.addEventListener('click', function(e) {
             postSendResume(result.vacancyId).then(function(apiResult) {
                 if (!apiResult || !apiResult.updated) {
                     console.warn('send_resume not updated, vacancy id not found:', result.vacancyId);
+                    return;
                 }
+                var nowValue = (apiResult && apiResult.resume_at) ? apiResult.resume_at : new Date().toISOString();
+                document.querySelectorAll('.role-content').forEach(function(roleContent) {
+                    var vacancies = (typeof getRoleVacancies === 'function') ? getRoleVacancies(roleContent) : [];
+                    (vacancies || []).forEach(function(vacancy) {
+                        if (!vacancy) return;
+                        if (String(vacancy.id || '') !== String(result.vacancyId || '')) return;
+                        vacancy.send_resume = true;
+                        if (!vacancy.resume_at) vacancy.resume_at = nowValue;
+                    });
+                    var responsesBlock = roleContent.querySelector('.my-responses-content');
+                    if (responsesBlock && responsesBlock.style.display === 'block' && typeof renderMyResponsesContent === 'function') {
+                        renderMyResponsesContent(roleContent);
+                    }
+                });
             }).catch(function(err) {
                 console.error('send_resume update failed:', err);
             });
