@@ -1,34 +1,107 @@
 ﻿document.addEventListener('click', function(e) {
-    var sortableHeader = e.target.closest('th.salary-sortable');
+    var sortableHeader = e.target.closest('th');
     if (sortableHeader) {
         var table = sortableHeader.closest('table');
         var tbody = table && table.tBodies && table.tBodies[0] ? table.tBodies[0] : null;
         if (!table || !tbody) return;
+        if (!sortableHeader.closest('thead')) return;
+        if (sortableHeader.classList.contains('no-sort')) return;
         var colIdx = sortableHeader.cellIndex;
+        if (colIdx < 0) return;
         var currentDir = sortableHeader.dataset.sortDir === 'asc' ? 'asc' : (sortableHeader.dataset.sortDir === 'desc' ? 'desc' : '');
         var nextDir = currentDir === 'asc' ? 'desc' : 'asc';
 
-        Array.from(table.querySelectorAll('th.salary-sortable')).forEach(function(th) {
+        Array.from(table.querySelectorAll('th')).forEach(function(th) {
             th.dataset.sortDir = '';
             th.classList.remove('sort-asc', 'sort-desc');
         });
         sortableHeader.dataset.sortDir = nextDir;
         sortableHeader.classList.add(nextDir === 'asc' ? 'sort-asc' : 'sort-desc');
 
-        var rows = Array.from(tbody.querySelectorAll('tr'));
-        rows.sort(function(a, b) {
-            var aCell = a.cells && a.cells[colIdx] ? a.cells[colIdx] : null;
-            var bCell = b.cells && b.cells[colIdx] ? b.cells[colIdx] : null;
-            var aVal = aCell ? Number(aCell.dataset.sortNum) : NaN;
-            var bVal = bCell ? Number(bCell.dataset.sortNum) : NaN;
-            var aMissing = !isFinite(aVal);
-            var bMissing = !isFinite(bVal);
+        function getSortValue(row) {
+            if (!row || row.classList.contains('activity-all-details')) return { type: 'missing', value: null };
+            var cell = row.cells && row.cells[colIdx] ? row.cells[colIdx] : null;
+            if (!cell) return { type: 'missing', value: null };
+
+            var ds = Number(cell.dataset.sortNum);
+            if (isFinite(ds)) return { type: 'number', value: ds };
+
+            var text = String(cell.textContent || '')
+                .replace(/\u00a0/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (!text || text === '—' || text === '-') return { type: 'missing', value: null };
+
+            var dateMatch = text.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?$/);
+            if (dateMatch) {
+                var ts = Date.UTC(
+                    Number(dateMatch[3]),
+                    Number(dateMatch[2]) - 1,
+                    Number(dateMatch[1]),
+                    Number(dateMatch[4] || '0'),
+                    Number(dateMatch[5] || '0')
+                );
+                if (isFinite(ts)) return { type: 'number', value: ts };
+            }
+
+            var numericText = text
+                .replace(/\s+/g, '')
+                .replace(',', '.')
+                .replace(/[^\d.-]/g, '');
+            var maybeNum = Number(numericText);
+            if (numericText && /[\d]/.test(numericText) && isFinite(maybeNum)) {
+                return { type: 'number', value: maybeNum };
+            }
+            return { type: 'text', value: text.toLowerCase() };
+        }
+
+        function isTotalRow(row) {
+            if (!row || !row.cells || !row.cells.length) return false;
+            var first = String(row.cells[0].textContent || '').trim().toLowerCase();
+            return first === 'всего';
+        }
+
+        var groups = [];
+        var allRows = Array.from(tbody.querySelectorAll('tr'));
+        for (var i = 0; i < allRows.length; i++) {
+            var main = allRows[i];
+            if (!main || main.classList.contains('activity-all-details')) continue;
+            var details = null;
+            var next = main.nextElementSibling;
+            if (next && next.classList && next.classList.contains('activity-all-details')) details = next;
+            groups.push({
+                main: main,
+                details: details,
+                total: isTotalRow(main),
+                sort: getSortValue(main)
+            });
+        }
+
+        groups.sort(function(a, b) {
+            if (a.total && b.total) return 0;
+            if (a.total) return 1;
+            if (b.total) return -1;
+
+            var aMissing = a.sort.type === 'missing';
+            var bMissing = b.sort.type === 'missing';
             if (aMissing && bMissing) return 0;
             if (aMissing) return 1;
             if (bMissing) return -1;
-            return nextDir === 'asc' ? (aVal - bVal) : (bVal - aVal);
+
+            if (a.sort.type === 'number' && b.sort.type === 'number') {
+                return nextDir === 'asc' ? (a.sort.value - b.sort.value) : (b.sort.value - a.sort.value);
+            }
+            var aText = String(a.sort.value || '');
+            var bText = String(b.sort.value || '');
+            return nextDir === 'asc'
+                ? aText.localeCompare(bText, 'ru')
+                : bText.localeCompare(aText, 'ru');
         });
-        rows.forEach(function(row) { tbody.appendChild(row); });
+
+        groups.forEach(function(group) {
+            tbody.appendChild(group.main);
+            if (group.details) tbody.appendChild(group.details);
+        });
         return;
     }
 

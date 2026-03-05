@@ -1931,16 +1931,16 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-results .vacancy-table tbody tr {
     transition: background-color 0.18s ease;
 }
-.vacancy-table th.salary-sortable {
+.role-content table thead th:not(.no-sort) {
     cursor: pointer;
     user-select: none;
 }
-.vacancy-table th.salary-sortable.sort-asc::after {
-    content: " ↑";
+.role-content table thead th.sort-asc::after {
+    content: " \2191";
     color: #64748b;
 }
-.vacancy-table th.salary-sortable.sort-desc::after {
-    content: " ↓";
+.role-content table thead th.sort-desc::after {
+    content: " \2193";
     color: #64748b;
 }
 .skills-search-results .vacancy-table th:nth-child(1),
