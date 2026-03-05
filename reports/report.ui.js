@@ -711,12 +711,14 @@ function collectMyResponsesVacancies() {
 }
 
 function fetchMyResponsesVacancies() {
-    var endpoint = '/api/vacancies/responses';
-    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/responses';
+    var nonce = Date.now();
+    var endpoint = '/api/vacancies/responses?_ts=' + nonce;
+    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/responses?_ts=' + nonce;
     function doGet(url) {
         return fetch(url, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
         }).then(function(resp) {
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             return resp.json();
@@ -745,6 +747,14 @@ function formatResumeAtValue(value) {
     var hh = String(date.getHours()).padStart(2, '0');
     var min = String(date.getMinutes()).padStart(2, '0');
     return dd + '.' + mm + '.' + yyyy + ' ' + hh + ':' + min;
+}
+function hasInterviewContent(item) {
+    if (!item || typeof item !== 'object') return false;
+    var keys = ['hr_name', 'interview_date', 'interview_stages', 'company_type', 'result', 'feedback', 'offer_salary', 'pros', 'cons'];
+    return keys.some(function(key) {
+        var value = item[key];
+        return value !== null && value !== undefined && String(value).trim() !== '';
+    });
 }
 function findVacancySourceById(vacancyId) {
     var id = String(vacancyId || '').trim();
@@ -807,9 +817,9 @@ function buildMyResponsesTableHtml(vacancies) {
             '</button>';
         }
         var interviewUrl = linkUrl || (v.apply_alternate_url || '');
-        var isInterviewFilled = !!(v && v.interview_filled);
-        var interviewIcon = isInterviewFilled ? 'ⓘ' : '🖉';
-        var interviewTitle = isInterviewFilled ? 'Подробнее' : 'Заполнить';
+        var isInterviewFilled = !!(v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v)));
+        var interviewIcon = '🖉';
+        var interviewTitle = isInterviewFilled ? 'Заполнено' : 'Заполнить';
         var interviewCell = interviewUrl
             ? '<button type="button" class="my-responses-details-link ' + (isInterviewFilled ? 'is-details' : 'is-fill') + '" data-vacancy-id="' + escapeHtml(v.id || '') + '" title="' + interviewTitle + '" aria-label="' + interviewTitle + '">' + interviewIcon + '</button>'
             : '—';
@@ -1039,6 +1049,7 @@ function submitMyResponseDetailsModal() {
     var vacancyId = String(backdrop.dataset.vacancyId || '').trim();
     if (!vacancyId) return;
     var fields = getMyResponseDetailsFieldsFromModal(backdrop);
+    var localFilled = hasInterviewContent(fields);
     saveMyResponseDetails(vacancyId, fields, false).then(function(resp) {
         if (resp && resp.requires_overwrite) {
             var allow = window.confirm('По этой вакансии уже есть сохраненные данные. Перезаписать?');
@@ -1049,7 +1060,19 @@ function submitMyResponseDetailsModal() {
     }).then(function(resp) {
         if (!resp) return;
         if (resp.ok === true && resp.updated === true) {
+            var activeRole = (typeof getActiveRoleContent === 'function') ? getActiveRoleContent() : null;
+            if (activeRole) {
+                var button = activeRole.querySelector('.my-responses-details-link[data-vacancy-id="' + vacancyId + '"]');
+                if (button) {
+                    button.classList.remove('is-fill', 'is-details');
+                    button.classList.add(localFilled ? 'is-details' : 'is-fill');
+                    button.textContent = '🖉';
+                    button.title = localFilled ? 'Заполнено' : 'Заполнить';
+                    button.setAttribute('aria-label', button.title);
+                }
+            }
             closeMyResponseDetailsModal();
+            if (activeRole) renderMyResponsesContent(activeRole);
         }
     }).catch(function() {
         window.alert('Не удалось сохранить данные собеседования');

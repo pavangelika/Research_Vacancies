@@ -205,6 +205,15 @@ def get_sent_resume_vacancies() -> list[dict]:
             "archived": bool(row[13]) if row[13] is not None else False,
             "archived_at": row[14].isoformat() if row[14] else None,
             "interview_filled": interview_filled,
+            "hr_name": row[15],
+            "interview_date": row[16].isoformat() if row[16] else None,
+            "interview_stages": row[17],
+            "company_type": row[18],
+            "result": row[19],
+            "feedback": row[20],
+            "offer_salary": row[21],
+            "pros": row[22],
+            "cons": row[23],
         })
     return result
 
