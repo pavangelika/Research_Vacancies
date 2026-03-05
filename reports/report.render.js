@@ -153,6 +153,26 @@ function buildAllRolesSkillsTableHtml(rows, currency) {
         '</tbody>' +
     '</table>';
 }
+function buildAllRolesSalaryTableHtml(rows, currency) {
+    var curr = String(currency || '').trim().toUpperCase();
+    var list = Array.isArray(rows) ? rows : [];
+    return '<table class="skills-all-table salary-all-table">' +
+        '<thead><tr><th>Роль</th><th>Кол-во вакансий</th><th>Средняя зарплата' + (curr ? ' (' + curr + ')' : '') + '</th><th>Медианная</th><th>Мода</th><th>Минимальная</th><th>Максимальная</th></tr></thead>' +
+        '<tbody>' +
+            (list.length ? list.map(function(row) {
+                return '<tr>' +
+                    '<td>' + escapeHtml(row.name || '') + ' [ID: ' + escapeHtml(row.id || '') + ']</td>' +
+                    '<td>' + (row.count || 0) + '</td>' +
+                    '<td>' + (row.avg_salary !== null && row.avg_salary !== undefined ? Number(row.avg_salary).toFixed(2) : '—') + '</td>' +
+                    '<td>' + (row.median_salary !== null && row.median_salary !== undefined ? Number(row.median_salary).toFixed(2) : '—') + '</td>' +
+                    '<td>' + (row.mode_salary !== null && row.mode_salary !== undefined ? Number(row.mode_salary).toFixed(2) : '—') + '</td>' +
+                    '<td>' + (row.min_salary !== null && row.min_salary !== undefined ? Number(row.min_salary).toFixed(2) : '—') + '</td>' +
+                    '<td>' + (row.max_salary !== null && row.max_salary !== undefined ? Number(row.max_salary).toFixed(2) : '—') + '</td>' +
+                '</tr>';
+            }).join('') : '<tr><td colspan="7">—</td></tr>') +
+        '</tbody>' +
+    '</table>';
+}
 function buildCombinedEmployerRawRowsHtml(rows) {
     var items = Array.isArray(rows) ? rows.slice() : [];
     if (typeof sortEmployerAnalysisData === 'function') {
@@ -394,6 +414,106 @@ function renderAllRolesContainer(container, roleContents) {
         };
     }
 
+    function computeAllRolesSalarySummaryFromVacancies(periodValue) {
+        var roleMeta = filteredRoleContents.map(function(roleContent) {
+            return {
+                id: String(roleContent.dataset.roleId || ''),
+                name: String(roleContent.dataset.roleName || ''),
+                vacancies: getRoleFilteredVacancies(roleContent, periodValue) || []
+            };
+        });
+        var currencyBuckets = { RUR: [], USD: [], EUR: [] };
+
+        function normalizeCurrency(value) {
+            var curr = String(value || '').trim().toUpperCase();
+            if (curr === 'EURO') return 'EUR';
+            if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') return curr;
+            return '';
+        }
+        function resolveSalaryValue(vacancy) {
+            if (!vacancy) return null;
+            var from = vacancy.salary_from;
+            var to = vacancy.salary_to;
+            if (from === null || from === undefined) from = null;
+            if (to === null || to === undefined) to = null;
+            if (!(from === null && to === null)) {
+                var a = from !== null ? Number(from) : Number(to);
+                var b = to !== null ? Number(to) : Number(from);
+                if (!isNaN(a) && !isNaN(b)) return (a + b) / 2.0;
+            }
+            var normalized = vacancy.converted_salary;
+            if (normalized === null || normalized === undefined || normalized === '') normalized = vacancy.calculated_salary;
+            var normalizedNum = Number(normalized);
+            if (!isNaN(normalizedNum) && isFinite(normalizedNum)) return normalizedNum;
+            return null;
+        }
+        function round2(value) {
+            return Math.round(Number(value || 0) * 100) / 100;
+        }
+        function computeMode(values) {
+            if (!values.length) return null;
+            var counts = new Map();
+            values.forEach(function(v) {
+                var key = Number(v);
+                counts.set(key, (counts.get(key) || 0) + 1);
+            });
+            var bestVal = values[0];
+            var bestCount = 0;
+            counts.forEach(function(count, val) {
+                if (count > bestCount || (count === bestCount && val < bestVal)) {
+                    bestCount = count;
+                    bestVal = val;
+                }
+            });
+            return bestVal;
+        }
+
+        roleMeta.forEach(function(role) {
+            var byCurrency = { RUR: [], USD: [], EUR: [] };
+            (role.vacancies || []).forEach(function(vacancy) {
+                var currency = normalizeCurrency(vacancy && vacancy.currency);
+                if (!currency || !byCurrency[currency]) return;
+                var salary = resolveSalaryValue(vacancy);
+                if (salary === null || !isFinite(salary)) return;
+                byCurrency[currency].push(Number(salary));
+            });
+
+            Object.keys(byCurrency).forEach(function(currency) {
+                var values = byCurrency[currency];
+                if (!values.length) return;
+                values.sort(function(a, b) { return a - b; });
+                var avg = values.reduce(function(sum, value) { return sum + value; }, 0) / values.length;
+                currencyBuckets[currency].push({
+                    id: role.id,
+                    name: role.name,
+                    currency: currency,
+                    count: values.length,
+                    avg_salary: round2(avg),
+                    median_salary: round2(computeMedian(values)),
+                    mode_salary: round2(computeMode(values)),
+                    min_salary: round2(values[0]),
+                    max_salary: round2(values[values.length - 1])
+                });
+            });
+        });
+
+        Object.keys(currencyBuckets).forEach(function(currency) {
+            currencyBuckets[currency].sort(function(a, b) {
+                return (b.avg_salary - a.avg_salary) || String(a.name || '').localeCompare(String(b.name || ''));
+            });
+        });
+
+        var currencies = ['RUR', 'USD', 'EUR'].filter(function(currency) {
+            return (currencyBuckets[currency] || []).length > 0;
+        });
+        var defaultCurrency = currencyBuckets.RUR.length ? 'RUR' : (currencies[0] || 'RUR');
+        return {
+            rows: currencyBuckets[defaultCurrency] || [],
+            rows_by_currency: currencyBuckets,
+            currencies: currencies
+        };
+    }
+
     function buildPeriodTabs(prefix, analysisType) {
         return '<div class="tabs month-tabs all-roles-period-tabs">' +
             periodItems.map((p, i) => (
@@ -562,39 +682,37 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     var salaryPeriodBlocks = periodItems.map((p, i) => {
-        var rows = filteredRoleContents.map(rc => {
-            var s = computeSalarySkillsFromVacancies(getRoleFilteredVacancies(rc, p.period));
-            return { name: rc.dataset.roleName || '', id: rc.dataset.roleId || '', skills: s };
-        });
+        var summary = computeAllRolesSalarySummaryFromVacancies(p.period);
+        var rowsByCurrency = summary.rows_by_currency || {};
+        var currencies = (summary.currencies && summary.currencies.length) ? summary.currencies : ['RUR'];
+        var defaultCurrency = currencies.indexOf('RUR') >= 0 ? 'RUR' : currencies[0];
+        var rows = rowsByCurrency[defaultCurrency] || summary.rows || [];
         var graphId = 'salary-graph-all-' + i;
         return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-analysis="salary-all" data-period="' + (p.period || 'all') + '" ' +
-                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
+                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-currency-entries="' + encodeURIComponent(JSON.stringify(rowsByCurrency)) + '" data-currencies="' + encodeURIComponent(JSON.stringify(currencies)) + '" data-active-currency="' + escapeHtml(defaultCurrency) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === defaultAllRolesPeriodIndex ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
             '</div>' +
+            '<div class="stacked-chart-switch chart-switch salary-currency-switch">' +
+                currencies.map(function(curr) {
+                    return '<button type="button" class="tab-button stacked-chart-switch-btn salary-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
+                }).join('') +
+            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
-                    '<table>' +
-                        '<thead><tr><th>Роль</th><th>Навык</th><th>Упоминаний</th><th>Средняя з/п</th></tr></thead>' +
-                        '<tbody>' +
-                            rows.map(r => {
-                                if (!r.skills.length) {
-                                    return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">?</td></tr>';
-                                }
-                                return r.skills.map((s, i) => (
-                                    '<tr>' +
-                                        (i === 0 ? '<td rowspan="' + r.skills.length + '">' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' : '') +
-                                        '<td>' + escapeHtml(s.skill) + '</td>' +
-                                        '<td>' + s.count + '</td>' +
-                                        '<td>' + (s.avg ? Math.round(s.avg) : '?') + '</td>' +
-                                    '</tr>'
-                                )).join('');
-                            }).join('') +
-                        '</tbody>' +
-                    '</table>' +
+                    buildAllRolesSalaryTableHtml(rows, defaultCurrency) +
                 '</div>' +
-                '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
+                '<div class="plotly-graph all-roles-graph salary-all-graph-panel">' +
+                    '<div class="stacked-chart-switch chart-switch salary-metric-switch">' +
+                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn active" data-metric="avg_salary">Средняя</button>' +
+                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="median_salary">Медианная</button>' +
+                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="mode_salary">Мода</button>' +
+                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="min_salary">Минимальная</button>' +
+                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="max_salary">Максимальная</button>' +
+                    '</div>' +
+                    '<div class="salary-all-plot-host" id="' + graphId + '"></div>' +
+                '</div>' +
             '</div>' +
         '</div>';
     }).join('');

@@ -563,11 +563,11 @@ document.addEventListener('click', function(e) {
     if (container.dataset.analysis === 'salary-all') {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
-        if (mode !== 'table') {
-            var rows = parseJsonDataset(container, 'entries', []);
-            var graphId = container.dataset.graphId;
-            if (graphId) buildAllRolesSalaryChart(rows, graphId);
-        }
+        var activePeriodBtn = container.closest('.all-roles-period-wrapper')
+            ? container.closest('.all-roles-period-wrapper').querySelector('.all-roles-period-button.active')
+            : null;
+        var contextText = buildChartContextLabel(((activePeriodBtn || {}).textContent || '').trim(), null);
+        ensureAllRolesSalaryCurrencyControls(container, contextText);
         return;
     }
 

@@ -629,26 +629,50 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
             height: 520
         });
     };
-    buildAllRolesSalaryChart = function(rows, graphId) {
-        var labels = (rows || []).map(function(r) { return buildRoleAxisTick(r.id); });
-        var fullLabels = (rows || []).map(buildRoleFullLabel);
-        var vals = (rows || []).map(function(r) { return (r.skills || []).reduce(function(s, x) { return s + (x.count || 0); }, 0); });
-        var signature = (rows || []).map(function(r, idx) { return (r.name || '') + ':' + (r.id || '') + ':' + vals[idx]; }).join('|');
-        plotIfChangedById(graphId, signature, [{
-            x: vals,
+    buildAllRolesSalaryChart = function(rows, graphId, metricKey) {
+        var list = Array.isArray(rows) ? rows : [];
+        var labels = list.map(function(r) { return buildRoleAxisTick(r.id); });
+        var fullLabels = list.map(buildRoleFullLabel);
+        var metricDefs = [
+            { key: 'avg_salary', label: 'Средняя', color: CHART_COLORS.dark },
+            { key: 'median_salary', label: 'Медианная', color: CHART_COLORS.medium },
+            { key: 'mode_salary', label: 'Мода', color: CHART_COLORS.light },
+            { key: 'min_salary', label: 'Минимальная', color: '#8fbcd4' },
+            { key: 'max_salary', label: 'Максимальная', color: '#4f7f9d' }
+        ];
+        var activeMetric = metricDefs.find(function(item) { return item.key === metricKey; }) || metricDefs[0];
+        var signature = list.map(function(r) {
+            return [r.name || '', r.id || '', r.avg_salary || '', r.median_salary || '', r.mode_salary || '', r.min_salary || '', r.max_salary || ''].join(':');
+        }).join('|') + '|' + activeMetric.key;
+        if (!list.length) {
+            var graphEl = document.getElementById(graphId);
+            if (graphEl) {
+                graphEl.dataset.plotSignature = signature;
+                graphEl.dataset.plotReady = '';
+                graphEl.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для графика</div>';
+            }
+            return;
+        }
+        var trace = {
+            x: list.map(function(row) {
+                var value = Number(row && row[activeMetric.key]);
+                return isFinite(value) ? value : 0;
+            }),
             y: labels,
             customdata: fullLabels,
             type: 'bar',
             orientation: 'h',
-            name: 'Частота навыков',
-            marker: { color: CHART_COLORS.dark },
-            hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>'
-        }], {
-            title: 'Суммарная частота навыков по ролям',
-            xaxis: { title: 'Частота', automargin: true },
+            name: activeMetric.label,
+            marker: { color: activeMetric.color },
+            hovertemplate: '%{customdata}<br>' + activeMetric.label + ': %{x}<extra></extra>'
+        };
+        plotIfChangedById(graphId, signature, [trace], {
+            title: activeMetric.label + ' зарплата по ролям',
+            xaxis: { title: '', automargin: true },
             yaxis: { title: '', automargin: true, autorange: 'reversed' },
             margin: { t: 50, b: 40, l: 110, r: 60 },
-            height: 420
+            height: 500,
+            showlegend: false
         });
     };
 }
@@ -5736,6 +5760,87 @@ function ensureAllRolesSkillsCurrencyControls(target, contextText) {
     applyAllRolesSkillsCurrency(target, defaultCurrency, contextText);
 }
 
+function getAllRolesSalaryRowsByCurrency(target) {
+    if (!target) return {};
+    if (target._data && target._data.currencyEntries) return target._data.currencyEntries;
+    var parsed = parseJsonDataset(target, 'currencyEntries', {});
+    target._data = target._data || {};
+    target._data.currencyEntries = parsed || {};
+    return target._data.currencyEntries;
+}
+
+function applyAllRolesSalaryCurrency(target, currency, contextText) {
+    if (!target) return;
+    var normalizedCurrency = String(currency || 'RUR').trim().toUpperCase();
+    var rowsByCurrency = getAllRolesSalaryRowsByCurrency(target);
+    var rows = rowsByCurrency[normalizedCurrency] || [];
+    target.dataset.activeCurrency = normalizedCurrency;
+    target._data = target._data || {};
+    target._data.entries = rows;
+    target.dataset.entries = encodeURIComponent(JSON.stringify(rows));
+
+    var tableContainer = target.querySelector('.table-container');
+    if (tableContainer && typeof buildAllRolesSalaryTableHtml === 'function') {
+        tableContainer.innerHTML = buildAllRolesSalaryTableHtml(rows, normalizedCurrency);
+    }
+
+    target.querySelectorAll('.salary-currency-switch-btn').forEach(function(btn) {
+        btn.classList.toggle('active', String(btn.dataset.currency || '').toUpperCase() === normalizedCurrency);
+    });
+
+    var mode = getAllRolesViewMode('salary');
+    if (mode !== 'table') {
+        var graphId = target.dataset.graphId;
+        var metricKey = String(target.dataset.activeSalaryMetric || 'avg_salary');
+        if (graphId) {
+            buildAllRolesSalaryChart(rows, graphId, metricKey);
+            var metricTitleMap = {
+                avg_salary: 'Средняя зарплата по ролям',
+                median_salary: 'Медианная зарплата по ролям',
+                mode_salary: 'Модальная зарплата по ролям',
+                min_salary: 'Минимальная зарплата по ролям',
+                max_salary: 'Максимальная зарплата по ролям'
+            };
+            applyChartTitleContext(graphId, metricTitleMap[metricKey] || 'Сравнение зарплат по ролям', contextText);
+        }
+    }
+}
+
+function ensureAllRolesSalaryCurrencyControls(target, contextText) {
+    if (!target) return;
+    var switchWrap = target.querySelector('.salary-currency-switch');
+    var defaultCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
+    if (switchWrap && switchWrap.dataset.bound !== '1') {
+        switchWrap.addEventListener('click', function(e) {
+            var btn = e.target.closest('.salary-currency-switch-btn');
+            if (!btn) return;
+            applyAllRolesSalaryCurrency(target, btn.dataset.currency || defaultCurrency, contextText);
+        });
+        switchWrap.dataset.bound = '1';
+    }
+    var metricWrap = target.querySelector('.salary-metric-switch');
+    if (metricWrap && metricWrap.dataset.bound !== '1') {
+        metricWrap.addEventListener('click', function(e) {
+            var btn = e.target.closest('.salary-metric-switch-btn');
+            if (!btn) return;
+            target.dataset.activeSalaryMetric = String(btn.dataset.metric || 'avg_salary');
+            metricWrap.querySelectorAll('.salary-metric-switch-btn').forEach(function(node) {
+                node.classList.toggle('active', node === btn);
+            });
+            applyAllRolesSalaryCurrency(target, target.dataset.activeCurrency || defaultCurrency, contextText);
+        });
+        metricWrap.dataset.bound = '1';
+    }
+    if (!target.dataset.activeSalaryMetric) target.dataset.activeSalaryMetric = 'avg_salary';
+    if (metricWrap) {
+        var currentMetric = String(target.dataset.activeSalaryMetric || 'avg_salary');
+        metricWrap.querySelectorAll('.salary-metric-switch-btn').forEach(function(node) {
+            node.classList.toggle('active', String(node.dataset.metric || '') === currentMetric);
+        });
+    }
+    applyAllRolesSalaryCurrency(target, defaultCurrency, contextText);
+}
+
 function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attempt) {
     if (!target || !graphId) return;
     attempt = attempt || 0;
@@ -6137,13 +6242,8 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         ensureAllRolesSkillsCurrencyControls(target, allRolesSkillsContext);
     } else if (analysisType === 'salary' && target) {
         var mode = applyAllRolesViewMode(target, analysisType);
-        var rows = parseJsonDataset(target, 'entries', []);
-        var graphId = target.dataset.graphId;
         var allRolesSalaryContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        if (mode !== 'table' && graphId) {
-            buildAllRolesSalaryChart(rows, graphId);
-            applyChartTitleContext(graphId, 'Суммарная частота навыков по ролям', allRolesSalaryContext);
-        }
+        ensureAllRolesSalaryCurrencyControls(target, allRolesSalaryContext);
     }
 }
 
