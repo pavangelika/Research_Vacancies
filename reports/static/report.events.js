@@ -577,6 +577,7 @@ document.addEventListener('click', function(e) {
 
 // ---------- Инициализация ----------
 document.addEventListener("DOMContentLoaded", function() {
+    if (typeof applyAnalysisTabNaming === 'function') applyAnalysisTabNaming(document);
     if (typeof updateViewToggleIcons === 'function') updateViewToggleIcons(document);
     document.querySelectorAll('#role-summary-tab').forEach(function(btn) {
         if (btn && btn.parentElement) btn.parentElement.removeChild(btn);

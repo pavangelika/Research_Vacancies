@@ -653,8 +653,54 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
     };
 }
 
+function applyAnalysisTabNaming(root) {
+    var scope = root || document;
+    var mapDefault = {
+        activity: 'Динамика вакансий',
+        weekday: 'Дни активности',
+        salary: 'Вилка зарплат',
+        employer: 'Анализ компаний'
+    };
+    var mapSummary = {
+        activity: 'Динамика по ролям',
+        weekday: 'Лидер публикаций',
+        skills: 'Стоимость навыков',
+        salary: 'Вилка по ролям',
+        employer: 'Анализ компаний'
+    };
+    scope.querySelectorAll('.analysis-button[data-analysis-id]').forEach(function(btn) {
+        var id = String(btn.dataset.analysisId || '');
+        var tabsHost = btn.closest('.tabs');
+        var hasSummaryTab = !!(tabsHost && Array.from(tabsHost.querySelectorAll('button')).some(function(node) {
+            return String(node.textContent || '').trim() === 'Сводный отчет';
+        }));
+        if (hasSummaryTab) {
+            if (id.indexOf('activity-') === 0) btn.textContent = mapDefault.activity;
+            else if (id.indexOf('weekday-') === 0) btn.textContent = mapDefault.weekday;
+            else if (id.indexOf('salary-') === 0) btn.textContent = mapDefault.salary;
+            else if (id.indexOf('employer-analysis-') === 0) btn.textContent = mapDefault.employer;
+            return;
+        }
+        var isSummary = /-all$/.test(id);
+        if (id.indexOf('activity-') === 0) btn.textContent = isSummary ? mapSummary.activity : mapDefault.activity;
+        else if (id.indexOf('weekday-') === 0) btn.textContent = isSummary ? mapSummary.weekday : mapDefault.weekday;
+        else if (id.indexOf('skills-monthly-') === 0 && isSummary) btn.textContent = mapSummary.skills;
+        else if (id.indexOf('salary-') === 0) btn.textContent = isSummary ? mapSummary.salary : mapDefault.salary;
+        else if (id.indexOf('employer-analysis-') === 0) btn.textContent = isSummary ? mapSummary.employer : mapDefault.employer;
+    });
+    scope.querySelectorAll('.summary-return-tab[onclick]').forEach(function(btn) {
+        var onClick = String(btn.getAttribute('onclick') || '');
+        if (onClick.indexOf("switchFromSummaryToAnalysis('activity')") >= 0) btn.textContent = mapDefault.activity;
+        else if (onClick.indexOf("switchFromSummaryToAnalysis('weekday')") >= 0) btn.textContent = mapDefault.weekday;
+        else if (onClick.indexOf("switchFromSummaryToAnalysis('skills-search')") >= 0) btn.textContent = 'Поиск по навыкам';
+        else if (onClick.indexOf("switchFromSummaryToAnalysis('salary')") >= 0) btn.textContent = mapDefault.salary;
+        else if (onClick.indexOf("switchFromSummaryToAnalysis('employer-analysis')") >= 0) btn.textContent = mapDefault.employer;
+    });
+}
+
 // ---------- Переключение типов анализа ----------
 function switchAnalysis(evt, analysisId) {
+    applyAnalysisTabNaming(document);
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
     var analysisButtons = parentRole.getElementsByClassName("analysis-button");
