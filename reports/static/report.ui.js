@@ -823,14 +823,18 @@ function buildMyResponsesTableHtml(vacancies) {
         var interviewCell = interviewUrl
             ? '<button type="button" class="my-responses-details-link ' + (isInterviewFilled ? 'is-details' : 'is-fill') + '" data-vacancy-id="' + escapeHtml(v.id || '') + '" title="' + interviewTitle + '" aria-label="' + interviewTitle + '">' + interviewIcon + '</button>'
             : '—';
+        var salaryFromNum = Number(v.salary_from);
+        var salaryToNum = Number(v.salary_to);
+        var salaryFromSort = isFinite(salaryFromNum) ? String(salaryFromNum) : '';
+        var salaryToSort = isFinite(salaryToNum) ? String(salaryToNum) : '';
         return '<tr>' +
             '<td>' + idCell + '</td>' +
             (showRole ? '<td>' + roleCell + '</td>' : '') +
             '<td>' + formatCell(v.name) + '</td>' +
             '<td>' + employerCell + '</td>' +
             '<td>' + formatCell(v.city) + '</td>' +
-            '<td>' + formatCell(v.salary_from) + '</td>' +
-            '<td>' + formatCell(v.salary_to) + '</td>' +
+            '<td data-sort-num="' + salaryFromSort + '">' + formatCell(v.salary_from) + '</td>' +
+            '<td data-sort-num="' + salaryToSort + '">' + formatCell(v.salary_to) + '</td>' +
             '<td class="my-responses-checkbox-cell"><input type="checkbox" class="my-responses-checkbox" ' + (normalizeSendResumeValue(v.send_resume) ? 'checked ' : '') + 'disabled></td>' +
             '<td>' + formatResumeAtValue(v.resume_at) + '</td>' +
             '<td>' + formatResumeAtValue(v.published_at || (source && (source.published_at || source.created_at))) + '</td>' +
@@ -849,8 +853,8 @@ function buildMyResponsesTableHtml(vacancies) {
                     '<th>Название</th>' +
                     '<th>Работодатель</th>' +
                     '<th>Город</th>' +
-                    '<th>ЗП от</th>' +
-                    '<th>ЗП до</th>' +
+                    '<th class="salary-sortable">ЗП от</th>' +
+                    '<th class="salary-sortable">ЗП до</th>' +
                     '<th>Отклик</th>' +
                     '<th>Дата отклика</th>' +
                     '<th>Дата публикации</th>' +
@@ -3577,9 +3581,10 @@ function buildSalaryTablesHtml(entries) {
         '<td>' + coverageMap['Не заполнена'] + ' (' + pct(coverageMap['Не заполнена']) + ')</td>' +
     '</tr>';
     var statsRows = (entries || []).map(function(entry) {
+        var displayCurrency = entry.currency === 'Не заполнена' ? '—' : entry.currency;
         return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
             '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
-            '<td>' + entry.currency + '</td>' +
+            '<td>' + displayCurrency + '</td>' +
             '<td>' + entry.total_vacancies + '</td>' +
             '<td>' + Math.round(entry.avg_salary) + '</td>' +
             '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
@@ -3594,7 +3599,7 @@ function buildSalaryTablesHtml(entries) {
             '<h4 class="salary-table-title">Сводка вакансий по валютам</h4>' +
             '<div class="vacancy-table-wrap" style="margin-bottom: 16px;">' +
             '<table class="vacancy-table salary-table salary-summary-table">' +
-                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>Не заполнена</th></tr></thead>' +
+                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>—</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
             '</div>' +

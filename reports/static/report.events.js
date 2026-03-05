@@ -1,4 +1,37 @@
 ﻿document.addEventListener('click', function(e) {
+    var sortableHeader = e.target.closest('th.salary-sortable');
+    if (sortableHeader) {
+        var table = sortableHeader.closest('table');
+        var tbody = table && table.tBodies && table.tBodies[0] ? table.tBodies[0] : null;
+        if (!table || !tbody) return;
+        var colIdx = sortableHeader.cellIndex;
+        var currentDir = sortableHeader.dataset.sortDir === 'asc' ? 'asc' : (sortableHeader.dataset.sortDir === 'desc' ? 'desc' : '');
+        var nextDir = currentDir === 'asc' ? 'desc' : 'asc';
+
+        Array.from(table.querySelectorAll('th.salary-sortable')).forEach(function(th) {
+            th.dataset.sortDir = '';
+            th.classList.remove('sort-asc', 'sort-desc');
+        });
+        sortableHeader.dataset.sortDir = nextDir;
+        sortableHeader.classList.add(nextDir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort(function(a, b) {
+            var aCell = a.cells && a.cells[colIdx] ? a.cells[colIdx] : null;
+            var bCell = b.cells && b.cells[colIdx] ? b.cells[colIdx] : null;
+            var aVal = aCell ? Number(aCell.dataset.sortNum) : NaN;
+            var bVal = bCell ? Number(bCell.dataset.sortNum) : NaN;
+            var aMissing = !isFinite(aVal);
+            var bMissing = !isFinite(bVal);
+            if (aMissing && bMissing) return 0;
+            if (aMissing) return 1;
+            if (bMissing) return -1;
+            return nextDir === 'asc' ? (aVal - bVal) : (bVal - aVal);
+        });
+        rows.forEach(function(row) { tbody.appendChild(row); });
+        return;
+    }
+
     var row = e.target.closest('.salary-row');
     if (!row) return;
 

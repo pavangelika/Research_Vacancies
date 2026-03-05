@@ -1931,6 +1931,18 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-results .vacancy-table tbody tr {
     transition: background-color 0.18s ease;
 }
+.vacancy-table th.salary-sortable {
+    cursor: pointer;
+    user-select: none;
+}
+.vacancy-table th.salary-sortable.sort-asc::after {
+    content: " ↑";
+    color: #64748b;
+}
+.vacancy-table th.salary-sortable.sort-desc::after {
+    content: " ↓";
+    color: #64748b;
+}
 .skills-search-results .vacancy-table th:nth-child(1),
 .skills-search-results .vacancy-table td:nth-child(1),
 .skills-search-results .vacancy-table th:last-child,
