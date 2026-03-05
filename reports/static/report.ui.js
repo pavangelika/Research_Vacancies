@@ -1300,7 +1300,7 @@ function summarizeSelectedPeriodsLabel(selectedPeriods) {
     var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return formatPeriodSelectionValue(v); }).filter(Boolean) : [];
     if (!labels.length) return 'За все время';
     var specificLabels = labels.filter(function(label) {
-        return !(isSummaryMonth(label) || label === 'За период');
+        return !(isSummaryMonth(label) || label === 'За период' || label === 'Весь период' || label === 'За все время');
     });
     if (!specificLabels.length) return 'За все время';
     if (specificLabels.length === 1) return specificLabels[0];
@@ -2412,6 +2412,11 @@ function getResolvedGlobalFilterValues(filterKey, options) {
         });
         var includeNorm = (periodBucket.include || []).map(normalizeGlobalPeriodValue).filter(Boolean);
         var excludeNorm = (periodBucket.exclude || []).map(normalizeGlobalPeriodValue).filter(Boolean);
+        if (includeNorm.indexOf('summary') >= 0) {
+            return normalizedAllowed.filter(function(item) {
+                return item.norm === 'summary';
+            }).map(function(item) { return item.raw; });
+        }
         if (includeNorm.length) {
             return normalizedAllowed.filter(function(item) {
                 return includeNorm.indexOf(item.norm) >= 0 && excludeNorm.indexOf(item.norm) < 0;
@@ -2436,7 +2441,7 @@ function normalizeGlobalPeriodValue(value) {
     var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) return 'last_' + String(Number(quick[1]) || 0);
     if (/^\d{4}-\d{2}$/.test(text)) return text;
-    if (text === 'За период' || isSummaryMonth(text)) return 'summary';
+    if (text === 'За период' || text === 'Весь период' || text === 'За все время' || isSummaryMonth(text)) return 'summary';
     return text;
 }
 
@@ -2494,7 +2499,7 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
     if (!labels.length) return list;
     var effectiveLabels = labels.filter(function(label) {
         var text = String(label || '').trim();
-        return !isSummaryMonth(text) && text !== 'За период';
+        return !isSummaryMonth(text) && text !== 'За период' && text !== 'Весь период' && text !== 'За все время';
     });
     if (!effectiveLabels.length) return list;
 
@@ -2816,7 +2821,7 @@ function renderGlobalEmployerFiltered(parentRole) {
     var rows;
     var effectivePeriods = selectedPeriods.filter(function(label) {
         var text = String(label || '').trim();
-        return !isSummaryMonth(text) && text !== 'За период';
+        return !isSummaryMonth(text) && text !== 'За период' && text !== 'Весь период' && text !== 'За все время';
     });
     var allPeriod = !selectedPeriods.length || !effectivePeriods.length;
     if (allPeriod) {
@@ -5634,6 +5639,57 @@ function applyAllRolesViewMode(target, analysisType) {
     return mode;
 }
 
+function getAllRolesSkillsRowsByCurrency(target) {
+    if (!target) return {};
+    if (target._data && target._data.currencyEntries) return target._data.currencyEntries;
+    var parsed = parseJsonDataset(target, 'currencyEntries', {});
+    target._data = target._data || {};
+    target._data.currencyEntries = parsed || {};
+    return target._data.currencyEntries;
+}
+
+function applyAllRolesSkillsCurrency(target, currency, contextText) {
+    if (!target) return;
+    var normalizedCurrency = String(currency || 'RUR').trim().toUpperCase();
+    var rowsByCurrency = getAllRolesSkillsRowsByCurrency(target);
+    var rows = rowsByCurrency[normalizedCurrency] || [];
+    target.dataset.activeCurrency = normalizedCurrency;
+    target._data = target._data || {};
+    target._data.entries = rows;
+    target.dataset.entries = encodeURIComponent(JSON.stringify(rows));
+
+    var tableContainer = target.querySelector('.table-container');
+    if (tableContainer && typeof buildAllRolesSkillsTableHtml === 'function') {
+        tableContainer.innerHTML = buildAllRolesSkillsTableHtml(rows, normalizedCurrency);
+    }
+
+    var switchButtons = target.querySelectorAll('.skills-currency-switch-btn');
+    switchButtons.forEach(function(btn) {
+        btn.classList.toggle('active', String(btn.dataset.currency || '').toUpperCase() === normalizedCurrency);
+    });
+
+    var mode = getAllRolesViewMode('skills');
+    if (mode !== 'table') {
+        var graphId = target.dataset.graphId;
+        if (graphId) renderAllRolesSkillsChartFromTable(target, graphId, contextText);
+    }
+}
+
+function ensureAllRolesSkillsCurrencyControls(target, contextText) {
+    if (!target) return;
+    var switchWrap = target.querySelector('.skills-currency-switch');
+    var defaultCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
+    if (switchWrap && switchWrap.dataset.bound !== '1') {
+        switchWrap.addEventListener('click', function(e) {
+            var btn = e.target.closest('.skills-currency-switch-btn');
+            if (!btn) return;
+            applyAllRolesSkillsCurrency(target, btn.dataset.currency || defaultCurrency, contextText);
+        });
+        switchWrap.dataset.bound = '1';
+    }
+    applyAllRolesSkillsCurrency(target, defaultCurrency, contextText);
+}
+
 function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attempt) {
     if (!target || !graphId) return;
     attempt = attempt || 0;
@@ -5655,7 +5711,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         return {
             skill: skill,
             mention_count: isFinite(count) ? count : 0,
-            avg_skill_cost_rur: isFinite(avgValue) ? avgValue : null
+            avg_skill_cost: isFinite(avgValue) ? avgValue : null
         };
     }).filter(Boolean);
 
@@ -5670,10 +5726,11 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         return (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
     }).slice(0, 100);
     var topByAvgSalary = rows.filter(function(item) {
-        return item.avg_skill_cost_rur !== null && item.avg_skill_cost_rur !== undefined;
+        return item.avg_skill_cost !== null && item.avg_skill_cost !== undefined;
     }).sort(function(a, b) {
-        return (b.avg_skill_cost_rur || 0) - (a.avg_skill_cost_rur || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
+        return (b.avg_skill_cost || 0) - (a.avg_skill_cost || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
     }).slice(0, 100);
+    var activeCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
     var hasAvgSalaryChart = !!topByAvgSalary.length;
     var activeChartKey = (graphEl.dataset.activeSkillsChart === 'avg' && hasAvgSalaryChart) ? 'avg' : 'mentions';
     var buildChartSwitchHtml = function(activeKey) {
@@ -5713,13 +5770,13 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
             return Math.max(max, item.mention_count || 0);
         }, 0) || 1;
         var maxAvg = topByAvgSalary.reduce(function(max, item) {
-            return Math.max(max, item.avg_skill_cost_rur || 0);
+            return Math.max(max, item.avg_skill_cost || 0);
         }, 0) || 1;
         graphEl.classList.add('skills-all-html-chart');
         graphEl.dataset.plotSignature = top.map(function(item) {
             return (item.skill || '') + ':' + (item.mention_count || 0);
         }).join('|') + '|' + topByAvgSalary.map(function(item) {
-            return (item.skill || '') + ':' + (item.avg_skill_cost_rur || 0);
+            return (item.skill || '') + ':' + (item.avg_skill_cost || 0);
         }).join('|') + '|' + (contextText || '') + '|html';
         graphEl.dataset.plotReady = '';
         graphEl.style.minHeight = '480px';
@@ -5742,17 +5799,17 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                     }).join('') +
                 '</div>' +
                 '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
-                    '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате</div>' +
+                    '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате (' + escapeHtml(activeCurrency) + ')</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     (topByAvgSalary.length ? topByAvgSalary.map(function(item) {
-                        var width = Math.max(4, Math.round(((item.avg_skill_cost_rur || 0) / maxAvg) * 100));
+                        var width = Math.max(4, Math.round(((item.avg_skill_cost || 0) / maxAvg) * 100));
                         return '' +
                             '<div class="skills-all-html-row">' +
                                 '<div class="skills-all-html-label">' + escapeHtml(item.skill || '—') + '</div>' +
                                 '<div class="skills-all-html-track">' +
                                     '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.dark : '#546E7A') + ';"></div>' +
                                 '</div>' +
-                                '<div class="skills-all-html-value">' + (item.avg_skill_cost_rur !== null && item.avg_skill_cost_rur !== undefined ? item.avg_skill_cost_rur.toFixed(2) : '—') + '</div>' +
+                                '<div class="skills-all-html-value">' + (item.avg_skill_cost !== null && item.avg_skill_cost !== undefined ? item.avg_skill_cost.toFixed(2) : '—') + '</div>' +
                             '</div>';
                     }).join('') : '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по средней зарплате</div>') +
                 '</div>' +
@@ -5785,7 +5842,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     var signature = top.map(function(item) {
         return (item.skill || '') + ':' + (item.mention_count || 0);
     }).join('|') + '|' + topByAvgSalary.map(function(item) {
-        return (item.skill || '') + ':' + (item.avg_skill_cost_rur || 0);
+        return (item.skill || '') + ':' + (item.avg_skill_cost || 0);
     }).join('|') + '|' + (contextText || '');
     graphEl.classList.add('skills-all-html-chart');
     graphEl.dataset.plotReady = '';
@@ -5798,7 +5855,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                 '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
             '</div>' +
             '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
-                '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате</div>' +
+                '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате (' + escapeHtml(activeCurrency) + ')</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-avg-plotly-host"></div>' +
             '</div>' +
@@ -5821,7 +5878,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         hovertemplate: '<b>%{y}</b><br>Упоминаний: %{x}<extra></extra>'
     }];
     var avgData = [{
-        x: topByAvgSalary.map(function(item) { return item.avg_skill_cost_rur || 0; }),
+        x: topByAvgSalary.map(function(item) { return item.avg_skill_cost || 0; }),
         y: topByAvgSalary.map(function(item) { return item.skill || '—'; }),
         type: 'bar',
         orientation: 'h',
@@ -5829,7 +5886,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
             color: (typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.dark : '#546E7A'),
             line: { width: 0 }
         },
-        hovertemplate: '<b>%{y}</b><br>Средняя з/п: %{x:.2f}<extra></extra>'
+        hovertemplate: '<b>%{y}</b><br>Средняя з/п (' + escapeHtml(activeCurrency) + '): %{x:.2f}<extra></extra>'
     }];
     var layout = {
         margin: { t: 2, b: 8, l: 8, r: 8 },
@@ -6030,11 +6087,8 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
         }
     } else if (analysisType === 'skills' && target) {
         var mode = applyAllRolesViewMode(target, analysisType);
-        var graphId = target.dataset.graphId;
         var allRolesSkillsContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        if (mode !== 'table' && graphId) {
-            renderAllRolesSkillsChartFromTable(target, graphId, allRolesSkillsContext);
-        }
+        ensureAllRolesSkillsCurrencyControls(target, allRolesSkillsContext);
     } else if (analysisType === 'salary' && target) {
         var mode = applyAllRolesViewMode(target, analysisType);
         var rows = parseJsonDataset(target, 'entries', []);
@@ -6062,7 +6116,17 @@ function restoreAllRolesPeriodState(parentRole, analysisType) {
             }
         }
     }
-    buttons[0].click();
+    var allBtn = Array.from(buttons).find(function(btn) {
+        return String(btn.dataset.period || '').trim() === 'all';
+    });
+    if (allBtn) {
+        allBtn.click();
+        return;
+    }
+    var activeBtn = Array.from(buttons).find(function(btn) {
+        return btn.classList.contains('active');
+    });
+    (activeBtn || buttons[0]).click();
 }
 
 // ---------- Анализ активности ----------

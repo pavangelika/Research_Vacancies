@@ -862,17 +862,28 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRo
             vacancy.role ||
             'UNKNOWN_ROLE';
     }
-    function computeSalaryAvgRur(vacancy) {
-        if (!vacancy || vacancy.currency !== 'RUR') return null;
+    function normalizeCurrency(value) {
+        var curr = String(value || '').trim().toUpperCase();
+        if (curr === 'EURO') return 'EUR';
+        if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') return curr;
+        return '';
+    }
+    function computeSalaryMid(vacancy) {
+        if (!vacancy) return null;
         var from = vacancy.salary_from;
         var to = vacancy.salary_to;
         if (from === null || from === undefined) from = null;
         if (to === null || to === undefined) to = null;
-        if (from === null && to === null) return null;
-        var a = from !== null ? Number(from) : Number(to);
-        var b = to !== null ? Number(to) : Number(from);
-        if (isNaN(a) || isNaN(b)) return null;
-        return (a + b) / 2.0;
+        if (!(from === null && to === null)) {
+            var a = from !== null ? Number(from) : Number(to);
+            var b = to !== null ? Number(to) : Number(from);
+            if (!isNaN(a) && !isNaN(b)) return (a + b) / 2.0;
+        }
+        var normalized = vacancy.converted_salary;
+        if (normalized === null || normalized === undefined || normalized === '') normalized = vacancy.calculated_salary;
+        var normalizedNum = Number(normalized);
+        if (!isNaN(normalizedNum) && isFinite(normalizedNum)) return normalizedNum;
+        return null;
     }
     function computeMedian(values) {
         if (!values.length) return 0;
@@ -882,65 +893,95 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRo
         return (sorted[mid - 1] + sorted[mid]) / 2;
     }
 
-    var totals = new Map();
-    var roleCounts = new Map();
+    var currencyBuckets = {
+        RUR: { totals: new Map(), roleCounts: new Map() },
+        USD: { totals: new Map(), roleCounts: new Map() },
+        EUR: { totals: new Map(), roleCounts: new Map() }
+    };
     var roleSet = new Set();
     var excludedSet = new Set((excludedRoles || []).map(r => String(r)));
     (roleContents || []).forEach(rc => {
         var months = getRoleSalaryData(rc);
         var vacancies = collectVacanciesFromSalaryMonthsByMonth(months, month);
         vacancies.forEach(v => {
-            var avg = computeSalaryAvgRur(v);
-            if (avg === null) return;
+            var currency = normalizeCurrency(v && v.currency);
+            if (!currency || !currencyBuckets[currency]) return;
+            var avg = computeSalaryMid(v);
+            if (avg === null || !isFinite(avg)) return;
             if (!v || !v.skills) return;
             var roleName = getRoleName(v);
             if (!roleName) roleName = 'UNKNOWN_ROLE';
             roleSet.add(roleName);
             if (excludedSet.has(roleName)) return;
+            var bucket = currencyBuckets[currency];
             String(v.skills).split(',').map(normalizeSkillName).filter(Boolean).forEach(skill => {
-                var entry = totals.get(skill) || { count: 0, sum: 0, values: [] };
+                var entry = bucket.totals.get(skill) || { count: 0, sum: 0, values: [] };
                 entry.count += 1;
                 entry.sum += avg;
                 entry.values.push(avg);
-                totals.set(skill, entry);
+                bucket.totals.set(skill, entry);
 
                 var roleKey = skill + '||' + roleName;
-                roleCounts.set(roleKey, (roleCounts.get(roleKey) || 0) + 1);
+                bucket.roleCounts.set(roleKey, (bucket.roleCounts.get(roleKey) || 0) + 1);
             });
         });
     });
 
-    var rows = Array.from(totals.entries()).map(([skill, entry]) => {
-        var avg = entry.count ? (entry.sum / entry.count) : 0;
-        var median = computeMedian(entry.values);
-        return {
-            skill: skill,
-            mention_count: entry.count,
-            avg_skill_cost_rur: Math.round(avg * 100) / 100,
-            median_skill_cost_rur: Math.round(median * 100) / 100
-        };
-    });
-    rows.sort((a, b) => b.mention_count - a.mention_count || a.skill.localeCompare(b.skill));
+    function buildRowsForCurrency(currency) {
+        var bucket = currencyBuckets[currency];
+        if (!bucket) return [];
+        var rows = Array.from(bucket.totals.entries()).map(function(entryPair) {
+            var skill = entryPair[0];
+            var entry = entryPair[1];
+            var avg = entry.count ? (entry.sum / entry.count) : 0;
+            var median = computeMedian(entry.values);
+            return {
+                skill: skill,
+                mention_count: entry.count,
+                avg_skill_cost: Math.round(avg * 100) / 100,
+                median_skill_cost: Math.round(median * 100) / 100,
+                currency: currency
+            };
+        });
+        rows.sort(function(a, b) {
+            return (b.mention_count || 0) - (a.mention_count || 0) || String(a.skill || '').localeCompare(String(b.skill || ''));
+        });
 
-    var roleMapBySkill = new Map();
-    roleCounts.forEach((count, key) => {
-        var parts = key.split('||');
-        var skill = parts[0];
-        var role = parts[1];
-        var list = roleMapBySkill.get(skill) || [];
-        list.push({ role: role, count: count });
-        roleMapBySkill.set(skill, list);
+        var roleMapBySkill = new Map();
+        bucket.roleCounts.forEach(function(count, key) {
+            var parts = key.split('||');
+            var skill = parts[0];
+            var role = parts[1];
+            var list = roleMapBySkill.get(skill) || [];
+            list.push({ role: role, count: count });
+            roleMapBySkill.set(skill, list);
+        });
+        rows.forEach(function(row) {
+            var list = roleMapBySkill.get(row.skill) || [];
+            list.sort(function(a, b) { return b.count - a.count || a.role.localeCompare(b.role); });
+            row.roles = list.map(function(r) {
+                var pct = row.mention_count ? (r.count * 100.0 / row.mention_count) : 0;
+                return r.role + ' (' + pct.toFixed(2) + '%)';
+            }).join(', ');
+        });
+        return rows;
+    }
+
+    var rowsByCurrency = {
+        RUR: buildRowsForCurrency('RUR'),
+        USD: buildRowsForCurrency('USD'),
+        EUR: buildRowsForCurrency('EUR')
+    };
+    var currencies = ['RUR', 'USD', 'EUR'].filter(function(curr) {
+        return (rowsByCurrency[curr] || []).length > 0;
     });
-    rows.forEach(row => {
-        var list = roleMapBySkill.get(row.skill) || [];
-        list.sort((a, b) => b.count - a.count || a.role.localeCompare(b.role));
-        var rolesText = list.map(r => {
-            var pct = row.mention_count ? (r.count * 100.0 / row.mention_count) : 0;
-            return r.role + ' (' + pct.toFixed(2) + '%)';
-        }).join(', ');
-        row.roles = rolesText;
-    });
-    return { rows: rows, roles: Array.from(roleSet).sort((a, b) => a.localeCompare(b)) };
+    var defaultCurrency = rowsByCurrency.RUR.length ? 'RUR' : (currencies[0] || 'RUR');
+    return {
+        rows: rowsByCurrency[defaultCurrency] || [],
+        rows_by_currency: rowsByCurrency,
+        currencies: currencies,
+        roles: Array.from(roleSet).sort(function(a, b) { return a.localeCompare(b); })
+    };
 }
 function normalizeSkillName(raw) {
     return String(raw || '')

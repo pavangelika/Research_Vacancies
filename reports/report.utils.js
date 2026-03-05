@@ -50,7 +50,7 @@ function formatMonthTitle(numMonths) {
     return 'За ' + numMonths + ' месяцев';
 }
 function isSummaryMonth(monthStr) {
-    return monthStr && monthStr.startsWith('За ');
+    return String(monthStr || '').trim().startsWith('За ');
 }
 function parseJsonDataset(el, key, fallback) {
     if (el && el._data && el._data[key] !== undefined) return el._data[key];

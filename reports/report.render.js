@@ -136,16 +136,17 @@ function renderStatusIcon(status) {
     }
     return '<span class="status-icon" title="' + escapeHtml(raw || '\u2014') + '" aria-label="' + escapeHtml(raw || '\u2014') + '">' + escapeHtml(raw || '\u2014') + '</span>';
 }
-function buildAllRolesSkillsTableHtml(rows) {
+function buildAllRolesSkillsTableHtml(rows, currency) {
+    var curr = String(currency || '').trim().toUpperCase();
     return '<table class="skills-all-table">' +
-        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя з/п</th><th>Медианная з/п</th><th>Роли</th></tr></thead>' +
+        '<thead><tr><th>Навык</th><th>Упоминаний</th><th>Средняя з/п' + (curr ? ' (' + curr + ')' : '') + '</th><th>Медианная з/п' + (curr ? ' (' + curr + ')' : '') + '</th><th>Роли</th></tr></thead>' +
         '<tbody>' +
             (rows.length ? rows.map(r => (
                 '<tr>' +
                     '<td>' + escapeHtml(r.skill) + '</td>' +
                     '<td>' + r.mention_count + '</td>' +
-                    '<td>' + (r.avg_skill_cost_rur !== null && r.avg_skill_cost_rur !== undefined ? r.avg_skill_cost_rur.toFixed(2) : '—') + '</td>' +
-                    '<td>' + (r.median_skill_cost_rur !== null && r.median_skill_cost_rur !== undefined ? r.median_skill_cost_rur.toFixed(2) : '—') + '</td>' +
+                    '<td>' + (r.avg_skill_cost !== null && r.avg_skill_cost !== undefined ? r.avg_skill_cost.toFixed(2) : '—') + '</td>' +
+                    '<td>' + (r.median_skill_cost !== null && r.median_skill_cost !== undefined ? r.median_skill_cost.toFixed(2) : '—') + '</td>' +
                     '<td>' + (r.roles ? escapeHtml(r.roles) : '—') + '</td>' +
                 '</tr>'
             )).join('') : '<tr><td colspan="5">—</td></tr>') +
@@ -239,6 +240,7 @@ function renderAllRolesContainer(container, roleContents) {
     })).concat([
         { key: 'all', label: allLabel, period: null }
     ]);
+    var defaultAllRolesPeriodIndex = Math.max(0, periodItems.length - 1);
 
     function getRoleFilteredVacancies(roleContent, periodValue) {
         var roleKey = roleContent && (roleContent.dataset.roleId || roleContent.id || roleContent.dataset.roleName) || 'role';
@@ -271,25 +273,45 @@ function renderAllRolesContainer(container, roleContents) {
     }
 
     function computeAllRolesSkillCostSummaryFromVacancies(periodValue) {
-        var roleCounts = new Map();
-        var totals = new Map();
+        var currencyBuckets = {
+            RUR: { totals: new Map(), roleCounts: new Map() },
+            USD: { totals: new Map(), roleCounts: new Map() },
+            EUR: { totals: new Map(), roleCounts: new Map() }
+        };
         var displayNames = new Map();
+        function normalizeCurrency(value) {
+            var curr = String(value || '').trim().toUpperCase();
+            if (curr === 'EURO') return 'EUR';
+            if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') return curr;
+            return '';
+        }
 
         filteredRoleContents.forEach(function(roleContent) {
             var roleName = roleContent.dataset.roleName || roleContent.dataset.roleId || 'UNKNOWN_ROLE';
             var vacancies = getRoleFilteredVacancies(roleContent, periodValue);
             vacancies.forEach(function(vacancy) {
                 if (!vacancy || !vacancy.skills) return;
+                var currency = normalizeCurrency(vacancy.currency);
+                if (!currency || !currencyBuckets[currency]) return;
                 var avg = null;
                 var from = vacancy.salary_from;
                 var to = vacancy.salary_to;
                 if (from === null || from === undefined) from = null;
                 if (to === null || to === undefined) to = null;
-                if (vacancy.currency === 'RUR' && !(from === null && to === null)) {
+                if (!(from === null && to === null)) {
                     var a = from !== null ? Number(from) : Number(to);
                     var b = to !== null ? Number(to) : Number(from);
                     if (!isNaN(a) && !isNaN(b)) avg = (a + b) / 2.0;
                 }
+                // Fallback for records where only normalized salary is available.
+                if (avg === null) {
+                    var normalized = vacancy.converted_salary;
+                    if (normalized === null || normalized === undefined || normalized === '') normalized = vacancy.calculated_salary;
+                    var normalizedNum = Number(normalized);
+                    if (!isNaN(normalizedNum) && isFinite(normalizedNum)) avg = normalizedNum;
+                }
+                if (avg === null) return;
+                var bucket = currencyBuckets[currency];
                 String(vacancy.skills).split(',').forEach(function(rawSkill) {
                     var label = String(rawSkill || '')
                         .replace(/\u200e/g, '')
@@ -301,62 +323,81 @@ function renderAllRolesContainer(container, roleContents) {
                     if (!savedLabel || (savedLabel === savedLabel.toLowerCase() && label !== label.toLowerCase())) {
                         displayNames.set(skill, label || skill);
                     }
-                    var entry = totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
+                    var entry = bucket.totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
                     entry.count += 1;
                     if (avg !== null) {
                         entry.sum += avg;
                         entry.salaryCount += 1;
                         entry.salaryValues.push(avg);
                     }
-                    totals.set(skill, entry);
+                    bucket.totals.set(skill, entry);
                     var roleKey = skill + '||' + roleName;
-                    roleCounts.set(roleKey, (roleCounts.get(roleKey) || 0) + 1);
+                    bucket.roleCounts.set(roleKey, (bucket.roleCounts.get(roleKey) || 0) + 1);
                 });
             });
         });
 
-        var rows = Array.from(totals.entries()).map(function(pair) {
-            var skillKey = pair[0];
-            var entry = pair[1] || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
-            return {
-                skill: displayNames.get(skillKey) || skillKey,
-                _skill_key: skillKey,
-                mention_count: entry.count,
-                avg_skill_cost_rur: entry.salaryCount ? Math.round((entry.sum / entry.salaryCount) * 100) / 100 : null,
-                median_skill_cost_rur: entry.salaryValues.length ? Math.round(computeMedian(entry.salaryValues) * 100) / 100 : null
-            };
-        });
-        rows.sort(function(a, b) {
-            return (b.mention_count - a.mention_count) || a.skill.localeCompare(b.skill);
-        });
-
-        var roleMapBySkill = new Map();
-        roleCounts.forEach(function(count, key) {
-            var parts = key.split('||');
-            var skill = parts[0];
-            var role = parts[1];
-            var list = roleMapBySkill.get(skill) || [];
-            list.push({ role: role, count: count });
-            roleMapBySkill.set(skill, list);
-        });
-        rows.forEach(function(row) {
-            var list = roleMapBySkill.get(row._skill_key) || [];
-            list.sort(function(a, b) {
-                return (b.count - a.count) || a.role.localeCompare(b.role);
+        function buildRows(currency) {
+            var bucket = currencyBuckets[currency];
+            if (!bucket) return [];
+            var rows = Array.from(bucket.totals.entries()).map(function(pair) {
+                var skillKey = pair[0];
+                var entry = pair[1] || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
+                return {
+                    skill: displayNames.get(skillKey) || skillKey,
+                    _skill_key: skillKey,
+                    mention_count: entry.count,
+                    avg_skill_cost: entry.salaryCount ? Math.round((entry.sum / entry.salaryCount) * 100) / 100 : null,
+                    median_skill_cost: entry.salaryValues.length ? Math.round(computeMedian(entry.salaryValues) * 100) / 100 : null,
+                    currency: currency
+                };
             });
-            row.roles = list.map(function(item) {
-                var pct = row.mention_count ? (item.count * 100.0 / row.mention_count) : 0;
-                return item.role + ' (' + pct.toFixed(2) + '%)';
-            }).join(', ');
-            delete row._skill_key;
+            rows.sort(function(a, b) {
+                return (b.mention_count - a.mention_count) || a.skill.localeCompare(b.skill);
+            });
+            var roleMapBySkill = new Map();
+            bucket.roleCounts.forEach(function(count, key) {
+                var parts = key.split('||');
+                var skill = parts[0];
+                var role = parts[1];
+                var list = roleMapBySkill.get(skill) || [];
+                list.push({ role: role, count: count });
+                roleMapBySkill.set(skill, list);
+            });
+            rows.forEach(function(row) {
+                var list = roleMapBySkill.get(row._skill_key) || [];
+                list.sort(function(a, b) {
+                    return (b.count - a.count) || a.role.localeCompare(b.role);
+                });
+                row.roles = list.map(function(item) {
+                    var pct = row.mention_count ? (item.count * 100.0 / row.mention_count) : 0;
+                    return item.role + ' (' + pct.toFixed(2) + '%)';
+                }).join(', ');
+                delete row._skill_key;
+            });
+            return rows;
+        }
+
+        var rowsByCurrency = {
+            RUR: buildRows('RUR'),
+            USD: buildRows('USD'),
+            EUR: buildRows('EUR')
+        };
+        var currencies = ['RUR', 'USD', 'EUR'].filter(function(curr) {
+            return (rowsByCurrency[curr] || []).length > 0;
         });
-        return { rows: rows };
+        var defaultCurrency = rowsByCurrency.RUR.length ? 'RUR' : (currencies[0] || 'RUR');
+        return {
+            rows: rowsByCurrency[defaultCurrency] || [],
+            rows_by_currency: rowsByCurrency,
+            currencies: currencies
+        };
     }
 
     function buildPeriodTabs(prefix, analysisType) {
         return '<div class="tabs month-tabs all-roles-period-tabs">' +
             periodItems.map((p, i) => (
-                '<button class="tab-button month-button all-roles-period-button' + (i === 0 ? ' active' : '') + '" ' +
+                '<button class="tab-button month-button all-roles-period-button' + (i === defaultAllRolesPeriodIndex ? ' active' : '') + '" ' +
                         'data-period="' + (p.period || 'all') + '" ' +
                         'onclick="openAllRolesPeriodTab(event, \'' + prefix + '-' + i + '\', \'' + analysisType + '\')">' +
                     p.label +
@@ -434,7 +475,7 @@ function renderAllRolesContainer(container, roleContents) {
         return '<div id="activity-all-period-' + i + '" class="all-roles-period-content" data-analysis="activity-all" data-period="' + (p.period || 'all') + '" ' +
                     'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" ' +
                 'data-graph-main="' + graphMainId + '" data-graph-age="' + graphAgeId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+                'style="display: ' + (i === defaultAllRolesPeriodIndex ? 'block' : 'none') + ';">' +
                 '<div class="view-toggle-horizontal">' +
                     buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.activity_view_mode || 'together') +
                 '</div>' +
@@ -463,7 +504,7 @@ function renderAllRolesContainer(container, roleContents) {
         var graphId = 'weekday-graph-all-' + i;
         return '<div id="weekday-all-period-' + i + '" class="all-roles-period-content" data-analysis="weekday-all" data-period="' + (p.period || 'all') + '" ' +
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+                'style="display: ' + (i === defaultAllRolesPeriodIndex ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.weekday_view_mode || 'together') +
             '</div>' +
@@ -490,17 +531,25 @@ function renderAllRolesContainer(container, roleContents) {
 
     var skillsPeriodBlocks = periodItems.map((p, i) => {
         var summary = computeAllRolesSkillCostSummaryFromVacancies(p.period);
-        var rows = summary.rows || [];
+        var rowsByCurrency = summary.rows_by_currency || {};
+        var currencies = (summary.currencies && summary.currencies.length) ? summary.currencies : ['RUR'];
+        var defaultCurrency = currencies.indexOf('RUR') >= 0 ? 'RUR' : currencies[0];
+        var rows = rowsByCurrency[defaultCurrency] || summary.rows || [];
         var graphId = 'skills-graph-all-' + i;
         return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.period || 'all') + '" ' +
-                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+                'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-currency-entries="' + encodeURIComponent(JSON.stringify(rowsByCurrency)) + '" data-currencies="' + encodeURIComponent(JSON.stringify(currencies)) + '" data-active-currency="' + escapeHtml(defaultCurrency) + '" data-graph-id="' + graphId + '" ' +
+                'style="display: ' + (i === defaultAllRolesPeriodIndex ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
             '</div>' +
+            '<div class="stacked-chart-switch chart-switch skills-currency-switch">' +
+                currencies.map(function(curr) {
+                    return '<button type="button" class="tab-button stacked-chart-switch-btn skills-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
+                }).join('') +
+            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container">' +
-                    buildAllRolesSkillsTableHtml(rows) +
+                    buildAllRolesSkillsTableHtml(rows, defaultCurrency) +
                 '</div>' +
                 '<div class="plotly-graph all-roles-graph" id="' + graphId + '"></div>' +
             '</div>' +
@@ -520,7 +569,7 @@ function renderAllRolesContainer(container, roleContents) {
         var graphId = 'salary-graph-all-' + i;
         return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-analysis="salary-all" data-period="' + (p.period || 'all') + '" ' +
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-graph-id="' + graphId + '" ' +
-                'style="display: ' + (i === 0 ? 'block' : 'none') + ';">' +
+                'style="display: ' + (i === defaultAllRolesPeriodIndex ? 'block' : 'none') + ';">' +
             '<div class="view-toggle-horizontal">' +
                 buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
             '</div>' +
@@ -583,6 +632,7 @@ function renderAllRolesContainer(container, roleContents) {
     allRolesPeriodBlocks.forEach(function(block) {
         block._data = block._data || {};
         block._data.entries = parseJsonDataset(block, 'entries', []);
+        block._data.currencyEntries = parseJsonDataset(block, 'currencyEntries', {});
     });
 
     var preferred = uiState.global_analysis_type || 'activity';
