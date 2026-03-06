@@ -280,7 +280,13 @@ function switchFromSummaryToAnalysis(analysisType) {
         targetButton = findTargetButton(targetRole);
     }
 
-    if (targetButton) targetButton.click();
+    if (targetButton) {
+        targetButton.click();
+        if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+            var activeRole = getActiveRoleContent();
+            if (activeRole) applyGlobalFiltersToActiveAnalysis(activeRole, analysisType);
+        }
+    }
 }
 
 
