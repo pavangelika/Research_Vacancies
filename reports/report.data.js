@@ -373,6 +373,7 @@ function aggregateWeekdays(roleContents) {
 function aggregateSkillsMonthly(roleContents) {
     var expOrder = getExperienceOrder();
     var byMonth = {};
+    var byTotal = {};
     roleContents.forEach(roleContent => {
         var months = getRoleSkillsMonthlyData(roleContent);
         months.forEach(m => {
@@ -385,6 +386,13 @@ function aggregateSkillsMonthly(roleContents) {
                     bucket.skills.set(s.skill, (bucket.skills.get(s.skill) || 0) + (s.count || 0));
                 });
                 byMonth[m.month][exp.experience] = bucket;
+
+                var totalBucket = byTotal[exp.experience] || { total: 0, skills: new Map() };
+                totalBucket.total += exp.total_vacancies || 0;
+                (exp.skills || []).forEach(s => {
+                    totalBucket.skills.set(s.skill, (totalBucket.skills.get(s.skill) || 0) + (s.count || 0));
+                });
+                byTotal[exp.experience] = totalBucket;
             });
         });
     });
@@ -412,20 +420,7 @@ function aggregateSkillsMonthly(roleContents) {
         return { month: month, experiences: buildExpList(byMonth[month]) };
     });
 
-    if (monthsList.length > 0) {
-        var agg = {};
-        monthsList.forEach(m => {
-            m.experiences.forEach(exp => {
-                var bucket = agg[exp.experience] || { total: 0, skills: new Map() };
-                bucket.total += exp.total_vacancies || 0;
-                exp.skills.forEach(s => {
-                    bucket.skills.set(s.skill, (bucket.skills.get(s.skill) || 0) + (s.count || 0));
-                });
-                agg[exp.experience] = bucket;
-            });
-        });
-        monthsList.unshift({ month: formatMonthTitle(monthsList.length), experiences: buildExpList(agg) });
-    }
+    if (monthsList.length > 0) monthsList.unshift({ month: formatMonthTitle(monthsList.length), experiences: buildExpList(byTotal) });
 
     return monthsList;
 }

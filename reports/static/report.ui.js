@@ -2177,7 +2177,7 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
 
     chip.addEventListener('click', function(e) {
         if (e.target === removeBtn) return;
-        updateGlobalFilterSelection(filterKey, value, 'include');
+        updateGlobalFilterSelection(filterKey, value, 'reset');
     });
     chip.addEventListener('mouseenter', function() {
         chip.style.transform = 'translateY(-1px)';

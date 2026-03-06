@@ -987,17 +987,30 @@ function renderCombinedContainer(container, roleContents) {
     };
     var weekdays = typeof computeWeekdayStatsFromVacancies === 'function' ? computeWeekdayStatsFromVacancies(combinedVacancies) : [];
     var skillsMonthly = [];
+    function toCombinedSkillsMonth(entry, label) {
+        if (!entry) return null;
+        if (Array.isArray(entry.experiences)) return entry;
+        var skills = Array.isArray(entry.skills) ? entry.skills : [];
+        var total = Number(entry.total_vacancies || 0);
+        if (!skills.length && !total) return null;
+        return {
+            month: label || entry.month || 'За период',
+            experiences: [{
+                experience: 'Все',
+                total_vacancies: total,
+                skills: skills
+            }]
+        };
+    }
     if (typeof buildSkillsExpDataFromVacancies === 'function') {
         var combinedSkillsSummary = buildSkillsExpDataFromVacancies(combinedVacanciesRaw, combinedSummaryLabel);
-        if (combinedSkillsSummary && combinedSkillsSummary.experiences && combinedSkillsSummary.experiences.length) {
-            skillsMonthly.push(combinedSkillsSummary);
-        }
+        var normalizedSummary = toCombinedSkillsMonth(combinedSkillsSummary, combinedSummaryLabel);
+        if (normalizedSummary && normalizedSummary.experiences && normalizedSummary.experiences.length) skillsMonthly.push(normalizedSummary);
         combinedMonths.forEach(function(month) {
             var monthVacancies = filterVacanciesBySelectedPeriods(combinedVacanciesRaw, [month]);
             var monthSkills = buildSkillsExpDataFromVacancies(monthVacancies, month);
-            if (monthSkills && monthSkills.experiences && monthSkills.experiences.length) {
-                skillsMonthly.push(monthSkills);
-            }
+            var normalizedMonth = toCombinedSkillsMonth(monthSkills, month);
+            if (normalizedMonth && normalizedMonth.experiences && normalizedMonth.experiences.length) skillsMonthly.push(normalizedMonth);
         });
     } else {
         skillsMonthly = aggregateSkillsMonthly(roleContents);
