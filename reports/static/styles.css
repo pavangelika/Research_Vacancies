@@ -36,6 +36,76 @@
 .my-responses-content .my-responses-checkbox-cell {
     text-align: center;
 }
+.my-responses-mode-tabs {
+    display: flex !important;
+    justify-content: center;
+    margin-bottom: 10px;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+}
+.my-responses-content .my-responses-mode-btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: clamp(8rem, 14vw, 11rem);
+    white-space: nowrap;
+    background: transparent;
+    color: var(--tab-inactive);
+}
+.my-responses-content .my-responses-mode-btn:hover {
+    background-color: var(--tab-hover-bg);
+}
+.my-responses-content .my-responses-mode-btn.active {
+    background-color: var(--primary-light);
+    color: #fff;
+    box-shadow: var(--shadow-medium);
+}
+.my-responses-efficiency {
+    width: 100%;
+}
+.my-responses-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.my-responses-kpi {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.96);
+}
+.my-responses-kpi .label {
+    font-size: 0.76rem;
+    color: #64748b;
+}
+.my-responses-kpi .value {
+    margin-top: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+.my-responses-kpi .value span {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #475569;
+    margin-left: 6px;
+}
+.my-responses-efficiency-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 12px;
+}
+.my-responses-eff-block h4 {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+    color: #334155;
+}
 .my-responses-content .my-responses-checkbox {
     appearance: none;
     -webkit-appearance: none;

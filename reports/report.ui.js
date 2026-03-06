@@ -868,21 +868,149 @@ function buildMyResponsesTableHtml(vacancies) {
     '</div>';
 }
 
+function getMyResponsesViewKey(parentRole) {
+    return 'my_responses_view_' + String((parentRole && parentRole.id) || '');
+}
+function getMyResponsesActiveView(parentRole) {
+    if (!parentRole) return 'responses';
+    return uiState[getMyResponsesViewKey(parentRole)] || 'responses';
+}
+function setMyResponsesActiveView(parentRole, view) {
+    if (!parentRole) return;
+    uiState[getMyResponsesViewKey(parentRole)] = (view === 'efficiency') ? 'efficiency' : 'responses';
+}
+function formatPercent(part, total) {
+    var p = total > 0 ? (part * 100 / total) : 0;
+    return p.toFixed(1) + '%';
+}
+function buildMyResponsesEfficiencyHtml(vacancies) {
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var total = list.length;
+    var withInterview = list.filter(function(v) {
+        return !!(v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v)));
+    }).length;
+    var withResult = list.filter(function(v) {
+        return v && String(v.result || '').trim() !== '';
+    }).length;
+    var withSalary = list.filter(function(v) {
+        return v && ((v.salary_from !== null && v.salary_from !== undefined && String(v.salary_from).trim() !== '') ||
+            (v.salary_to !== null && v.salary_to !== undefined && String(v.salary_to).trim() !== ''));
+    }).length;
+    var archived = list.filter(function(v) {
+        return !!(v && (v.archived === true || v.archived === 1 || v.archived === '1' || v.archived === 'true' || v.archived_at));
+    }).length;
+    var active = Math.max(0, total - archived);
+    var offerCount = list.filter(function(v) {
+        var r = String((v && v.result) || '').toLowerCase();
+        return /оффер|offer|принят|accepted|нанят|успеш/.test(r);
+    }).length;
+
+    var roleMap = {};
+    list.forEach(function(v) {
+        var role = resolveRoleDisplayName(v && v.role_id, v && v.role_name);
+        if (!roleMap[role]) roleMap[role] = { role: role, total: 0, interview: 0, result: 0 };
+        roleMap[role].total += 1;
+        if (v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v))) roleMap[role].interview += 1;
+        if (v && String(v.result || '').trim() !== '') roleMap[role].result += 1;
+    });
+    var roleRows = Object.keys(roleMap).map(function(k) { return roleMap[k]; })
+        .sort(function(a, b) { return (b.total - a.total) || String(a.role).localeCompare(String(b.role), 'ru'); });
+
+    var resultMap = {};
+    list.forEach(function(v) {
+        var key = String((v && v.result) || '').trim();
+        if (!key) key = 'Не заполнено';
+        resultMap[key] = (resultMap[key] || 0) + 1;
+    });
+    var resultRows = Object.keys(resultMap).map(function(k) { return { result: k, total: resultMap[k] }; })
+        .sort(function(a, b) { return (b.total - a.total) || String(a.result).localeCompare(String(b.result), 'ru'); });
+
+    var roleTable = roleRows.length
+        ? ('<table class="vacancy-table"><thead><tr><th>Роль</th><th>Откликов</th><th>Собес заполнен</th><th>Результат указан</th></tr></thead><tbody>' +
+            roleRows.map(function(r) {
+                return '<tr><td>' + escapeHtml(r.role) + '</td><td>' + r.total + '</td><td>' + r.interview + ' (' + formatPercent(r.interview, r.total) + ')</td><td>' + r.result + ' (' + formatPercent(r.result, r.total) + ')</td></tr>';
+            }).join('') +
+        '</tbody></table>')
+        : '<div class="vacancy-empty">Нет данных</div>';
+
+    var resultTable = resultRows.length
+        ? ('<table class="vacancy-table"><thead><tr><th>Результат</th><th>Количество</th><th>Доля</th></tr></thead><tbody>' +
+            resultRows.map(function(r) {
+                return '<tr><td>' + escapeHtml(r.result) + '</td><td>' + r.total + '</td><td>' + formatPercent(r.total, total) + '</td></tr>';
+            }).join('') +
+        '</tbody></table>')
+        : '<div class="vacancy-empty">Нет данных</div>';
+
+    return '' +
+        '<div class="my-responses-kpis">' +
+            '<div class="my-responses-kpi"><div class="label">Откликов</div><div class="value">' + total + '</div></div>' +
+            '<div class="my-responses-kpi"><div class="label">Собес заполнен</div><div class="value">' + withInterview + ' <span>' + formatPercent(withInterview, total) + '</span></div></div>' +
+            '<div class="my-responses-kpi"><div class="label">Результат указан</div><div class="value">' + withResult + ' <span>' + formatPercent(withResult, total) + '</span></div></div>' +
+            '<div class="my-responses-kpi"><div class="label">С оффером</div><div class="value">' + offerCount + ' <span>' + formatPercent(offerCount, total) + '</span></div></div>' +
+            '<div class="my-responses-kpi"><div class="label">С указанием ЗП</div><div class="value">' + withSalary + ' <span>' + formatPercent(withSalary, total) + '</span></div></div>' +
+            '<div class="my-responses-kpi"><div class="label">Активные / Архивные</div><div class="value">' + active + ' / ' + archived + '</div></div>' +
+        '</div>' +
+        '<div class="my-responses-efficiency-grid">' +
+            '<div class="my-responses-eff-block"><h4>Эффективность по ролям</h4><div class="vacancy-table-wrap">' + roleTable + '</div></div>' +
+            '<div class="my-responses-eff-block"><h4>Распределение результатов</h4><div class="vacancy-table-wrap">' + resultTable + '</div></div>' +
+        '</div>';
+}
+function renderMyResponsesPanels(block, parentRole, list) {
+    if (!block) return;
+    var responsesWrap = block.querySelector('.skills-search-results');
+    var efficiencyWrap = block.querySelector('.my-responses-efficiency');
+    var view = getMyResponsesActiveView(parentRole);
+    var buttons = block.querySelectorAll('.my-responses-mode-btn');
+    buttons.forEach(function(btn) {
+        var active = (btn.dataset.view || 'responses') === view;
+        btn.classList.toggle('active', active);
+    });
+    if (responsesWrap) responsesWrap.style.display = view === 'responses' ? 'block' : 'none';
+    if (efficiencyWrap) efficiencyWrap.style.display = view === 'efficiency' ? 'block' : 'none';
+    if (responsesWrap) {
+        var summary = '<div class="skills-search-summary">Найдено откликов: ' + list.length + '</div>';
+        responsesWrap.innerHTML = summary + buildMyResponsesTableHtml(list);
+    }
+    if (efficiencyWrap) efficiencyWrap.innerHTML = buildMyResponsesEfficiencyHtml(list);
+}
 function renderMyResponsesContent(parentRole) {
     if (!parentRole) return;
+    if (typeof ensureMyResponsesTab === 'function') ensureMyResponsesTab(parentRole);
     var block = parentRole.querySelector('.my-responses-content');
     if (!block) return;
-    var results = block.querySelector('.skills-search-results');
-    if (!results) return;
-    results.innerHTML = '<div class="skills-search-summary">Загрузка откликов...</div>';
+    var modeTabs = block.querySelector('.my-responses-mode-tabs');
+    if (!modeTabs) {
+        block.insertAdjacentHTML('afterbegin',
+            '<div class="tabs month-tabs salary-month-tabs my-responses-mode-tabs">' +
+                '<button type="button" class="tab-button month-button salary-month-button my-responses-mode-btn active" data-view="responses">Отклики</button>' +
+                '<button type="button" class="tab-button month-button salary-month-button my-responses-mode-btn" data-view="efficiency">Эффективность откликов</button>' +
+            '</div>');
+    }
+    var responsesWrap = block.querySelector('.skills-search-results');
+    if (!responsesWrap) {
+        block.insertAdjacentHTML('beforeend',
+            '<div class="skills-search-results my-responses-results"><div class="skills-search-hint">Нет откликов</div></div>');
+        responsesWrap = block.querySelector('.skills-search-results');
+    }
+    var efficiencyWrap = block.querySelector('.my-responses-efficiency');
+    if (!efficiencyWrap) {
+        block.insertAdjacentHTML('beforeend',
+            '<div class="my-responses-efficiency" style="display:none;"><div class="skills-search-hint">Нет данных</div></div>');
+        efficiencyWrap = block.querySelector('.my-responses-efficiency');
+    }
+    if (!responsesWrap || !efficiencyWrap) return;
+    responsesWrap.innerHTML = '<div class="skills-search-summary">Загрузка откликов...</div>';
+    efficiencyWrap.innerHTML = '<div class="skills-search-summary">Расчет эффективности...</div>';
     fetchMyResponsesVacancies().then(function(vacancies) {
         var list = Array.isArray(vacancies) ? vacancies : [];
-        var summary = '<div class="skills-search-summary">Найдено откликов: ' + list.length + '</div>';
-        results.innerHTML = summary + buildMyResponsesTableHtml(list);
+        block._data = block._data || {};
+        block._data.responses = list;
+        renderMyResponsesPanels(block, parentRole, list);
     }).catch(function() {
         var local = collectMyResponsesVacancies();
-        var summary = '<div class="skills-search-summary">Найдено откликов: ' + local.length + '</div>';
-        results.innerHTML = summary + buildMyResponsesTableHtml(local);
+        block._data = block._data || {};
+        block._data.responses = local;
+        renderMyResponsesPanels(block, parentRole, local);
     });
 }
 
@@ -1115,10 +1243,47 @@ function ensureMyResponsesTab(parentRole) {
         block.setAttribute('data-analysis', analysisId);
         block.style.display = 'none';
         block.innerHTML =
+            '<div class="tabs month-tabs salary-month-tabs my-responses-mode-tabs">' +
+                '<button type="button" class="tab-button month-button salary-month-button my-responses-mode-btn active" data-view="responses">Отклики</button>' +
+                '<button type="button" class="tab-button month-button salary-month-button my-responses-mode-btn" data-view="efficiency">Эффективность откликов</button>' +
+            '</div>' +
             '<div class="skills-search-results my-responses-results">' +
                 '<div class="skills-search-hint">Нет откликов</div>' +
+            '</div>' +
+            '<div class="my-responses-efficiency" style="display:none;">' +
+                '<div class="skills-search-hint">Нет данных</div>' +
             '</div>';
         parentRole.appendChild(block);
+    }
+    var modeTabs = block.querySelector('.my-responses-mode-tabs');
+    if (!modeTabs) {
+        var tabsHtml = '' +
+            '<div class="tabs month-tabs salary-month-tabs my-responses-mode-tabs">' +
+                '<button type="button" class="tab-button month-button salary-month-button my-responses-mode-btn active" data-view="responses">Отклики</button>' +
+                '<button type="button" class="tab-button month-button salary-month-button my-responses-mode-btn" data-view="efficiency">Эффективность откликов</button>' +
+            '</div>';
+        block.insertAdjacentHTML('afterbegin', tabsHtml);
+    }
+    var resultsWrap = block.querySelector('.skills-search-results');
+    if (!resultsWrap) {
+        block.insertAdjacentHTML('beforeend',
+            '<div class="skills-search-results my-responses-results"><div class="skills-search-hint">Нет откликов</div></div>');
+    }
+    var efficiencyWrap = block.querySelector('.my-responses-efficiency');
+    if (!efficiencyWrap) {
+        block.insertAdjacentHTML('beforeend',
+            '<div class="my-responses-efficiency" style="display:none;"><div class="skills-search-hint">Нет данных</div></div>');
+    }
+    if (!block.dataset.modeBound) {
+        block.addEventListener('click', function(e) {
+            var btn = e.target.closest('.my-responses-mode-btn');
+            if (!btn) return;
+            var view = btn.dataset.view || 'responses';
+            setMyResponsesActiveView(parentRole, view);
+            var list = (block._data && Array.isArray(block._data.responses)) ? block._data.responses : [];
+            renderMyResponsesPanels(block, parentRole, list);
+        });
+        block.dataset.modeBound = '1';
     }
 }
 
@@ -1296,6 +1461,7 @@ function switchAnalysis(evt, analysisId) {
     } else if (analysisType === 'my-responses') {
         if (myResponsesBlock) {
             myResponsesBlock.style.display = 'block';
+            setMyResponsesActiveView(parentRole, 'responses');
             renderMyResponsesContent(parentRole);
         }
     } else if (analysisType === 'salary') {
