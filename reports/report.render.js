@@ -12,7 +12,7 @@
         var replyCell = v.apply_alternate_url
             ? '<a class="vacancy-apply-link" href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url) + '">отклик</a>'
             : '—';
-        var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
+        var roleCell = showRole ? escapeHtml(v.role_name || 'Роль') : '';
         var employerCell = formatCell(v.employer);
         if (v.employer) {
             employerCell = '<button class="employer-link" type="button" ' +
@@ -166,7 +166,7 @@ function buildAllRolesSalaryTableHtml(rows, currency) {
         '<tbody>' +
             (list.length ? list.map(function(row) {
                 return '<tr>' +
-                    '<td>' + escapeHtml(row.name || '') + ' [ID: ' + escapeHtml(row.id || '') + ']</td>' +
+                    '<td>' + escapeHtml(row.name || '') + '</td>' +
                     '<td>' + (row.count || 0) + '</td>' +
                     '<td>' + (row.avg_salary !== null && row.avg_salary !== undefined ? Number(row.avg_salary).toFixed(2) : '—') + '</td>' +
                     '<td>' + (row.median_salary !== null && row.median_salary !== undefined ? Number(row.median_salary).toFixed(2) : '—') + '</td>' +
@@ -567,7 +567,7 @@ function renderAllRolesContainer(container, roleContents) {
                             '</tr>'
                         ) : '';
                         return '<tr class="activity-all-row">' +
-                            '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
+                            '<td>' + escapeHtml(r.name) + '</td>' +
                             '<td' + leadActive + '>' + r.active + '</td>' +
                             '<td>' + r.archived + '</td>' +
                             '<td>' + r.total + '</td>' +
@@ -639,7 +639,7 @@ function renderAllRolesContainer(container, roleContents) {
                         '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архив/день</th></tr></thead>' +
                         '<tbody>' +
                             rows.map(r => (
-                                '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
+                                '<tr><td>' + escapeHtml(r.name) + '</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
                             )).join('') +
                         '</tbody>' +
                     '</table>' +
@@ -730,7 +730,6 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     container.innerHTML =
-        '<h2>Сводно по всем ролям</h2>' +
         '<div class="role-period-label">Период публикации: 19.01.2026 - 03.03.2026</div>' +
         '<div class="tabs summary-return-tabs">' +
             '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'activity\')">Динамика вакансий</button>' +
@@ -866,9 +865,7 @@ function renderCombinedContainer(container, roleContents) {
         ? formatMonthTitle(combinedEmployerPeriods.length)
         : 'За период';
 
-    var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
     var period = computePublicationPeriod(combinedVacancies) || '—';
-    var roleTitle = '[ID: ' + ids.join(', ') + ']';
     var combinedSummaryLabel = combinedMonths.length && typeof formatMonthTitle === 'function'
         ? formatMonthTitle(combinedMonths.length)
         : 'За период';
@@ -1151,7 +1148,6 @@ function renderCombinedContainer(container, roleContents) {
     );
 
     container.innerHTML =
-        '<h2>' + roleTitle + '</h2>' +
         '<div class="role-period-label">Период публикации: ' + period + '</div>' +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Динамика вакансий</button>' +
@@ -1397,5 +1393,6 @@ function closeEmployerModal() {
     backdrop.style.display = 'none';
     document.body.style.overflow = '';
 }
+
 
 
