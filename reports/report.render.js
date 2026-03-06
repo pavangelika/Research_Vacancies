@@ -739,7 +739,7 @@ function renderAllRolesContainer(container, roleContents) {
             '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-search\')">Поиск по навыкам</button>' +
             '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'salary\')">Вилка зарплат</button>' +
             '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'employer-analysis\')">Анализ компаний</button>' +
-            '<button type="button" class="tab-button summary-return-tab active">Сводный отчет</button>' +
+            '<button type="button" class="tab-button summary-return-tab active">Сравнительный анализ</button>' +
         '</div>' +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Динамика по ролям</button>' +

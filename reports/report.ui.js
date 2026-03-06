@@ -711,93 +711,6 @@ function collectMyResponsesVacancies() {
     return filtered;
 }
 
-function parseMyResponseDate(value) {
-    if (!value) return null;
-    return parsePublishedAtDate(value);
-}
-
-function getMyResponsesPeriodOptionsFromList(items) {
-    var list = Array.isArray(items) ? items : [];
-    var months = Array.from(new Set(list.map(function(item) {
-        var d = parseMyResponseDate(item && (item.resume_at || item.response_at || item.responded_at || item.published_at));
-        if (!d) return '';
-        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-    }).filter(Boolean))).sort().reverse();
-    var allLabel = months.length
-        ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
-        : 'За период';
-    return dedupeFilterOptions([
-        { value: 'today', label: 'Сегодня' },
-        { value: 'last_3', label: 'За 3 дня' },
-        { value: 'last_7', label: 'За 7 дней' },
-        { value: 'last_14', label: 'За 14 дней' }
-    ].concat(months.map(function(month) {
-        return { value: month, label: month };
-    })).concat([
-        { value: allLabel, label: allLabel }
-    ]));
-}
-
-function filterMyResponsesBySelectedPeriods(items, selectedPeriods) {
-    var list = Array.isArray(items) ? items.slice() : [];
-    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean) : [];
-    if (!labels.length) return list;
-    var effectiveLabels = labels.filter(function(label) {
-        var text = String(label || '').trim();
-        return !isSummaryMonth(text) && text !== 'За период' && text !== 'Весь период' && text !== 'За все время';
-    });
-    if (!effectiveLabels.length) return list;
-
-    var monthSet = new Set();
-    var maxQuickDays = 0;
-    var useToday = false;
-    effectiveLabels.forEach(function(label) {
-        var text = String(label || '').trim();
-        if (text === 'Сегодня' || /^today$/i.test(text)) {
-            useToday = true;
-            return;
-        }
-        if (/^\d{4}-\d{2}$/.test(text)) {
-            monthSet.add(text);
-            return;
-        }
-        var match = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
-        if (match) {
-            var days = Number(match[1]) || 0;
-            if (days > maxQuickDays) maxQuickDays = days;
-        }
-    });
-
-    var dated = list.map(function(item) {
-        return {
-            item: item,
-            date: parseMyResponseDate(item && (item.resume_at || item.response_at || item.responded_at || item.published_at))
-        };
-    });
-    var maxDate = null;
-    dated.forEach(function(row) {
-        if (!row.date) return;
-        if (!maxDate || row.date > maxDate) maxDate = row.date;
-    });
-    var quickCutoff = null;
-    if (maxDate && maxQuickDays > 0) {
-        quickCutoff = new Date(maxDate.getTime() - maxQuickDays * 24 * 60 * 60 * 1000);
-    }
-    if (!monthSet.size && !quickCutoff && !useToday) return list;
-
-    return dated.filter(function(row) {
-        var d = row.date;
-        if (!d) return false;
-        var month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-        if (monthSet.has(month)) return true;
-        if (useToday && maxDate && isSameCalendarDay(d, maxDate)) return true;
-        if (quickCutoff && d >= quickCutoff) return true;
-        return false;
-    }).map(function(row) {
-        return row.item;
-    });
-}
-
 function fetchMyResponsesVacancies() {
     var nonce = Date.now();
     var endpoint = '/api/vacancies/responses?_ts=' + nonce;
@@ -1047,9 +960,6 @@ function renderMyResponsesPanels(block, parentRole, list) {
     if (!block) return;
     var responsesWrap = block.querySelector('.skills-search-results');
     var efficiencyWrap = block.querySelector('.my-responses-efficiency');
-    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'my-responses');
-    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
-    var filteredList = filterMyResponsesBySelectedPeriods(list, selectedPeriods);
     var view = getMyResponsesActiveView(parentRole);
     var buttons = block.querySelectorAll('.my-responses-mode-btn');
     buttons.forEach(function(btn) {
@@ -1059,10 +969,10 @@ function renderMyResponsesPanels(block, parentRole, list) {
     if (responsesWrap) responsesWrap.style.display = view === 'responses' ? 'block' : 'none';
     if (efficiencyWrap) efficiencyWrap.style.display = view === 'efficiency' ? 'block' : 'none';
     if (responsesWrap) {
-        var summary = '<div class="skills-search-summary">Найдено откликов: ' + filteredList.length + '</div>';
-        responsesWrap.innerHTML = summary + buildMyResponsesTableHtml(filteredList);
+        var summary = '<div class="skills-search-summary">Найдено откликов: ' + list.length + '</div>';
+        responsesWrap.innerHTML = summary + buildMyResponsesTableHtml(list);
     }
-    if (efficiencyWrap) efficiencyWrap.innerHTML = buildMyResponsesEfficiencyHtml(filteredList);
+    if (efficiencyWrap) efficiencyWrap.innerHTML = buildMyResponsesEfficiencyHtml(list);
 }
 function renderMyResponsesContent(parentRole) {
     if (!parentRole) return;
@@ -1097,13 +1007,11 @@ function renderMyResponsesContent(parentRole) {
         block._data = block._data || {};
         block._data.responses = list;
         renderMyResponsesPanels(block, parentRole, list);
-        refreshExistingGlobalFilterUi(parentRole, 'my-responses');
     }).catch(function() {
         var local = collectMyResponsesVacancies();
         block._data = block._data || {};
         block._data.responses = local;
         renderMyResponsesPanels(block, parentRole, local);
-        refreshExistingGlobalFilterUi(parentRole, 'my-responses');
     });
 }
 
@@ -2347,13 +2255,6 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
                 if (!item || !item.month) return null;
                 return { value: item.month, label: item.label || item.month };
             }).filter(Boolean));
-        }
-        if (current === 'my-responses') {
-            var responsesBlock = activeRole.querySelector('.my-responses-content');
-            var responsesList = (responsesBlock && responsesBlock._data && Array.isArray(responsesBlock._data.responses))
-                ? responsesBlock._data.responses
-                : collectMyResponsesVacancies();
-            return getMyResponsesPeriodOptionsFromList(responsesList);
         }
         return [];
     }
@@ -4074,11 +3975,6 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     else if (current === 'activity') renderGlobalActivityFiltered(parentRole);
     else if (current === 'weekday') renderGlobalWeekdayFiltered(parentRole);
     else if (current === 'skills-search') applyGlobalFiltersToSkillsSearch(parentRole);
-    else if (current === 'my-responses') {
-        var block = parentRole.querySelector('.my-responses-content');
-        var list = (block && block._data && Array.isArray(block._data.responses)) ? block._data.responses : null;
-        if (block && list) renderMyResponsesPanels(block, parentRole, list);
-    }
     else if (current === 'employer-analysis') renderGlobalEmployerFiltered(parentRole);
     else if (current === 'totals') renderGlobalTotalsFiltered(parentRole);
 }
