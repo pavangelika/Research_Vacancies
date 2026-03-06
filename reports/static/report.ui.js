@@ -737,6 +737,80 @@ function fetchMyResponsesVacancies() {
     });
 }
 
+function getMyResponseIdCandidates(item) {
+    if (!item || typeof item !== 'object') return [];
+    var values = [item.id, item.vacancy_id, item.vacancyId, item.hh_id, item.hhId];
+    var seen = new Set();
+    var out = [];
+    values.forEach(function(value) {
+        var normalized = String(value === null || value === undefined ? '' : value).trim();
+        if (!normalized || seen.has(normalized)) return;
+        seen.add(normalized);
+        out.push(normalized);
+    });
+    return out;
+}
+
+function applyMyResponsesGlobalFilters(parentRole, vacancies) {
+    var list = Array.isArray(vacancies) ? vacancies.slice() : [];
+    var roleVacancies = (getRoleVacancies(parentRole) || []).slice();
+    var roleVacancyMap = new Map();
+    roleVacancies.forEach(function(vacancy) {
+        getMyResponseIdCandidates(vacancy).forEach(function(id) {
+            if (!roleVacancyMap.has(id)) roleVacancyMap.set(id, vacancy);
+        });
+    });
+    if (roleVacancyMap.size) {
+        var matchedByRole = [];
+        var enriched = [];
+        list.forEach(function(item) {
+            var source = null;
+            getMyResponseIdCandidates(item).some(function(id) {
+                if (!roleVacancyMap.has(id)) return false;
+                source = roleVacancyMap.get(id);
+                return true;
+            });
+            var merged = source ? Object.assign({}, source, item) : item;
+            enriched.push(merged);
+            if (source) matchedByRole.push(merged);
+        });
+        list = matchedByRole.length ? matchedByRole : enriched;
+    }
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'my-responses');
+    var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'my-responses');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var periodInput = list.slice();
+    var periodFiltered = filterVacanciesBySelectedPeriods(periodInput, selectedPeriods);
+    if (periodFiltered.length || !selectedPeriods.length) {
+        list = periodFiltered;
+    } else {
+        var hasPeriodSource = periodInput.some(function(vacancy) {
+            return !!parsePublishedAtDate(vacancy && vacancy.published_at);
+        });
+        list = hasPeriodSource ? periodFiltered : periodInput;
+    }
+    var expInput = list.slice();
+    var expFiltered = filterVacanciesBySelectedExperiences(expInput, selectedExps);
+    if (expFiltered.length || !selectedExps.length) {
+        list = expFiltered;
+    } else {
+        var hasExpSource = expInput.some(function(vacancy) {
+            return !!normalizeExperience(vacancy && (vacancy._experience || vacancy.experience || ''));
+        });
+        list = hasExpSource ? expFiltered : expInput;
+    }
+    list = list.filter(function(vacancy) {
+        return vacancy && normalizeSendResumeValue(vacancy.send_resume);
+    });
+    list.sort(function(a, b) {
+        var aTs = Date.parse(a && a.resume_at ? a.resume_at : '') || 0;
+        var bTs = Date.parse(b && b.resume_at ? b.resume_at : '') || 0;
+        return bTs - aTs;
+    });
+    return list;
+}
+
 function formatResumeAtValue(value) {
     var text = String(value || '').trim();
     if (!text) return '—';
@@ -1004,11 +1078,13 @@ function renderMyResponsesContent(parentRole) {
     efficiencyWrap.innerHTML = '<div class="skills-search-summary">Расчет эффективности...</div>';
     fetchMyResponsesVacancies().then(function(vacancies) {
         var list = Array.isArray(vacancies) ? vacancies : [];
+        list = applyMyResponsesGlobalFilters(parentRole, list);
         block._data = block._data || {};
         block._data.responses = list;
         renderMyResponsesPanels(block, parentRole, list);
     }).catch(function() {
         var local = collectMyResponsesVacancies();
+        local = applyMyResponsesGlobalFilters(parentRole, local);
         block._data = block._data || {};
         block._data.responses = local;
         renderMyResponsesPanels(block, parentRole, local);
@@ -1296,7 +1372,7 @@ function ensureMyResponsesTabs(scope) {
 }
 
 function ensureTotalsTab(parentRole) {
-    if (!parentRole || parentRole.id === 'role-all' || parentRole.id === 'role-combined') return;
+    if (!parentRole || parentRole.id === 'role-all') return;
     var tabs = parentRole.querySelector('.tabs.analysis-tabs');
     if (!tabs) return;
     var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
@@ -1309,7 +1385,7 @@ function ensureTotalsTab(parentRole) {
         tab.className = 'tab-button analysis-button';
         tab.setAttribute('data-analysis-id', analysisId);
         tab.setAttribute('onclick', "switchAnalysis(event, '" + analysisId + "')");
-        tab.textContent = 'Итоги';
+        tab.textContent = 'Дашборд';
         var summaryBtn = tabs.querySelector('.summary-report-btn');
         if (summaryBtn) tabs.insertBefore(tab, summaryBtn);
         else tabs.appendChild(tab);
@@ -1333,11 +1409,112 @@ function ensureTotalsTabs(scope) {
     });
 }
 
+function ensureDetailAnalysisGroup(parentRole) {
+    if (!parentRole) return;
+    if (parentRole.id === 'role-all') return;
+    var topTabs = parentRole.querySelector('.tabs.analysis-tabs');
+    if (!topTabs) return;
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
+    if (!roleSuffix) return;
+    var detailMainId = 'detail-' + roleSuffix;
+
+    var detailMainBtn = topTabs.querySelector('.analysis-button[data-analysis-id="' + detailMainId + '"]');
+    if (!detailMainBtn) {
+        detailMainBtn = document.createElement('button');
+        detailMainBtn.className = 'tab-button analysis-button detail-main-button';
+        detailMainBtn.setAttribute('data-analysis-id', detailMainId);
+        detailMainBtn.textContent = 'Детальный анализ';
+        detailMainBtn.setAttribute('onclick', "openDetailAnalysis(event)");
+        topTabs.insertBefore(detailMainBtn, topTabs.firstChild || null);
+    }
+
+    var detailTabs = parentRole.querySelector('.tabs.detail-analysis-tabs');
+    if (!detailTabs) {
+        detailTabs = document.createElement('div');
+        detailTabs.className = 'tabs detail-analysis-tabs';
+        detailTabs.style.display = 'none';
+        detailTabs.style.justifyContent = 'center';
+        detailTabs.style.marginTop = '8px';
+        if (topTabs.nextSibling) parentRole.insertBefore(detailTabs, topTabs.nextSibling);
+        else parentRole.appendChild(detailTabs);
+    }
+
+    var order = ['activity', 'weekday', 'skills-monthly', 'salary', 'employer-analysis'];
+    var moved = [];
+    order.forEach(function(prefix) {
+        var selector = '.analysis-button[data-analysis-id^="' + prefix + '-"]';
+        var btn = topTabs.querySelector(selector) || detailTabs.querySelector(selector);
+        if (!btn || btn === detailMainBtn) return;
+        btn.classList.add('detail-analysis-button');
+        moved.push(btn);
+    });
+    moved.forEach(function(btn) { detailTabs.appendChild(btn); });
+}
+
+function ensureDetailAnalysisGroups(scope) {
+    var root = scope || document;
+    root.querySelectorAll('.role-content').forEach(function(roleContent) {
+        ensureDetailAnalysisGroup(roleContent);
+    });
+}
+
+function openDetailAnalysis(evt) {
+    var parentRole = evt.currentTarget.closest('.role-content');
+    if (!parentRole) return;
+    ensureDetailAnalysisGroup(parentRole);
+
+    var topButtons = parentRole.querySelectorAll('.tabs.analysis-tabs > .analysis-button');
+    topButtons.forEach(function(btn) { btn.classList.remove('active'); });
+    evt.currentTarget.classList.add('active');
+
+    var detailTabs = parentRole.querySelector('.tabs.detail-analysis-tabs');
+    if (detailTabs) detailTabs.style.display = 'flex';
+
+    var preferred = parentRole.dataset.lastDetailAnalysisType || (uiState.global_analysis_type || '');
+    if (!/^(activity|weekday|skills-monthly|salary|employer-analysis)$/.test(preferred)) preferred = 'activity';
+
+    var target = detailTabs ? detailTabs.querySelector('.analysis-button[data-analysis-id^="' + preferred + '-"]') : null;
+    if (!target && detailTabs) target = detailTabs.querySelector('.analysis-button[data-analysis-id]');
+    if (target) target.click();
+}
+
+function reorderPrimaryAnalysisTabs(parentRole) {
+    if (!parentRole) return;
+    if (parentRole.id === 'role-all') return;
+    var tabs = parentRole.querySelector('.tabs.analysis-tabs');
+    if (!tabs) return;
+    var ordered = [];
+    function push(node) {
+        if (!node) return;
+        if (ordered.indexOf(node) >= 0) return;
+        ordered.push(node);
+    }
+    push(tabs.querySelector('.analysis-button[data-analysis-id^="totals-"]'));
+    push(tabs.querySelector('.analysis-button[data-analysis-id^="detail-"]'));
+    push(tabs.querySelector('.summary-report-btn'));
+    push(tabs.querySelector('.analysis-button[data-analysis-id^="skills-search-"]'));
+    push(tabs.querySelector('.analysis-button[data-analysis-id^="my-responses-"]'));
+
+    var allButtons = Array.from(tabs.querySelectorAll('.analysis-button'));
+    var rest = allButtons.filter(function(btn) { return ordered.indexOf(btn) < 0; });
+    ordered.concat(rest).forEach(function(btn) { tabs.appendChild(btn); });
+}
+
+function reorderPrimaryAnalysisTabsAll(scope) {
+    var root = scope || document;
+    root.querySelectorAll('.role-content').forEach(function(roleContent) {
+        reorderPrimaryAnalysisTabs(roleContent);
+    });
+}
+
 function applyAnalysisTabNaming(root) {
     var scope = root || document;
     if (typeof ensureMyResponsesTabs === 'function') ensureMyResponsesTabs(scope);
     if (typeof ensureTotalsTabs === 'function') ensureTotalsTabs(scope);
+    if (typeof ensureDetailAnalysisGroups === 'function') ensureDetailAnalysisGroups(scope);
+    if (typeof reorderPrimaryAnalysisTabsAll === 'function') reorderPrimaryAnalysisTabsAll(scope);
     var mapDefault = {
+        detail: 'Детальный анализ',
         activity: 'Динамика вакансий',
         weekday: 'Дни активности',
         salary: 'Вилка зарплат',
@@ -1351,28 +1528,31 @@ function applyAnalysisTabNaming(root) {
         employer: 'Анализ компаний'
     };
     scope.querySelectorAll('.analysis-button[data-analysis-id]').forEach(function(btn) {
+        if (btn.dataset && btn.dataset.preserveLabel === '1') return;
         var id = String(btn.dataset.analysisId || '');
         var tabsHost = btn.closest('.tabs');
-        var hasSummaryTab = !!(tabsHost && Array.from(tabsHost.querySelectorAll('button')).some(function(node) {
-            return String(node.textContent || '').trim() === 'Сводный отчет';
-        }));
+        var hasSummaryTab = !!(tabsHost && tabsHost.querySelector('.summary-report-btn'));
         if (hasSummaryTab) {
-            if (id.indexOf('activity-') === 0) btn.textContent = mapDefault.activity;
+            if (id.indexOf('detail-') === 0) btn.textContent = mapDefault.detail;
+            else if (id.indexOf('activity-') === 0) btn.textContent = mapDefault.activity;
             else if (id.indexOf('weekday-') === 0) btn.textContent = mapDefault.weekday;
             else if (id.indexOf('salary-') === 0) btn.textContent = mapDefault.salary;
             else if (id.indexOf('employer-analysis-') === 0) btn.textContent = mapDefault.employer;
             return;
         }
         var isSummary = /-all$/.test(id);
-        if (id.indexOf('activity-') === 0) btn.textContent = isSummary ? mapSummary.activity : mapDefault.activity;
+        if (id.indexOf('detail-') === 0) btn.textContent = mapDefault.detail;
+        else if (id.indexOf('activity-') === 0) btn.textContent = isSummary ? mapSummary.activity : mapDefault.activity;
         else if (id.indexOf('weekday-') === 0) btn.textContent = isSummary ? mapSummary.weekday : mapDefault.weekday;
         else if (id.indexOf('skills-monthly-') === 0 && isSummary) btn.textContent = mapSummary.skills;
         else if (id.indexOf('salary-') === 0) btn.textContent = isSummary ? mapSummary.salary : mapDefault.salary;
         else if (id.indexOf('employer-analysis-') === 0) btn.textContent = isSummary ? mapSummary.employer : mapDefault.employer;
     });
     scope.querySelectorAll('.summary-return-tab[onclick]').forEach(function(btn) {
+        if (btn.dataset && btn.dataset.preserveLabel === '1') return;
         var onClick = String(btn.getAttribute('onclick') || '');
-        if (onClick.indexOf("switchFromSummaryToAnalysis('activity')") >= 0) btn.textContent = mapDefault.activity;
+        if (onClick.indexOf("switchFromSummaryToAnalysis('detail')") >= 0) btn.textContent = mapDefault.detail;
+        else if (onClick.indexOf("switchFromSummaryToAnalysis('activity')") >= 0) btn.textContent = mapDefault.activity;
         else if (onClick.indexOf("switchFromSummaryToAnalysis('weekday')") >= 0) btn.textContent = mapDefault.weekday;
         else if (onClick.indexOf("switchFromSummaryToAnalysis('skills-search')") >= 0) btn.textContent = 'Поиск по навыкам';
         else if (onClick.indexOf("switchFromSummaryToAnalysis('salary')") >= 0) btn.textContent = mapDefault.salary;
@@ -1380,773 +1560,10 @@ function applyAnalysisTabNaming(root) {
     });
 }
 
-// ---------- Переключение типов анализа ----------
-function switchAnalysis(evt, analysisId) {
-    applyAnalysisTabNaming(document);
-    var parentRole = evt.currentTarget.closest('.role-content');
-    ensureMyResponsesTab(parentRole);
-    ensureTotalsTab(parentRole);
-    var roleId = parentRole.id;
-    var analysisButtons = parentRole.getElementsByClassName("analysis-button");
-    for (var i = 0; i < analysisButtons.length; i++) {
-        analysisButtons[i].className = analysisButtons[i].className.replace(" active", "");
-    }
-    evt.currentTarget.className += " active";
+// ---------- Переключение типов анализа вынесено в report.analysis-switch.js ----------
+// ---------- Навигация ролей вынесена в report.role-navigation.js ----------
 
-    var activityBlocks = parentRole.querySelectorAll('.activity-only');
-    var weekdayBlock = parentRole.querySelector('.weekday-content');
-    var skillsMonthlyBlock = parentRole.querySelector('.skills-monthly-content');
-    var skillsSearchBlock = parentRole.querySelector('.skills-search-content');
-    var myResponsesBlock = parentRole.querySelector('.my-responses-content');
-    var totalsBlock = parentRole.querySelector('.totals-content');
-    var salaryBlock = parentRole.querySelector('.salary-content');
-    var employerAnalysisBlock = parentRole.querySelector('.employer-analysis-content');
-
-    var analysisType;
-    if (analysisId.includes('activity')) analysisType = 'activity';
-    else if (analysisId.includes('weekday')) analysisType = 'weekday';
-    else if (analysisId.includes('skills-monthly')) analysisType = 'skills-monthly';
-    else if (analysisId.includes('skills-search')) analysisType = 'skills-search';
-    else if (analysisId.includes('my-responses')) analysisType = 'my-responses';
-    else if (analysisId.includes('totals')) analysisType = 'totals';
-    else if (analysisId.includes('salary')) analysisType = 'salary';
-    else if (analysisId.includes('employer-analysis')) analysisType = 'employer-analysis';
-
-    uiState.global_analysis_type = analysisType;
-    uiState[getAnalysisStateKey(roleId)] = analysisType;
-
-    activityBlocks.forEach(block => block.style.display = 'none');
-    if (weekdayBlock) weekdayBlock.style.display = 'none';
-    if (skillsMonthlyBlock) skillsMonthlyBlock.style.display = 'none';
-    if (skillsSearchBlock) skillsSearchBlock.style.display = 'none';
-    if (myResponsesBlock) myResponsesBlock.style.display = 'none';
-    if (totalsBlock) totalsBlock.style.display = 'none';
-    if (salaryBlock) salaryBlock.style.display = 'none';
-    if (employerAnalysisBlock) employerAnalysisBlock.style.display = 'none';
-
-    if (analysisType === 'activity') {
-        activityBlocks.forEach(block => block.style.display = 'block');
-        normalizeActivityControls(parentRole);
-        if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'activity');
-        else if (roleId === 'role-combined' && !parentRole.querySelector('.activity-month-tabs .month-button, .tabs.month-tabs.activity-only .month-button')) {
-            var combinedBlock = activityBlocks[0];
-            if (combinedBlock) {
-                var viewBtns = combinedBlock.querySelectorAll('.view-mode-btn');
-                setActiveViewButton(viewBtns, uiState.activity_view_mode);
-                var combinedContainer = combinedBlock.querySelector('.view-mode-container');
-                applyViewMode(combinedContainer, uiState.activity_view_mode);
-                var combinedEntries = (combinedBlock._data && combinedBlock._data.entries) ? combinedBlock._data.entries : parseJsonDataset(combinedBlock, 'entries', []);
-                var combinedTableWrap = combinedBlock.querySelector('.table-container');
-                if (combinedTableWrap) combinedTableWrap.innerHTML = buildActivityTableHtml(combinedEntries || []);
-                var combinedGraph = combinedBlock.querySelector('.plotly-graph');
-                if (combinedGraph && combinedGraph.id) {
-                    buildActivityBarChart(combinedGraph.id, combinedEntries);
-                    applyChartTitleContext(combinedGraph.id, 'Количество вакансий по опыту', buildChartContextLabel((combinedBlock.dataset.month || '').trim(), null));
-                }
-                applyActivityModeSizing(combinedContainer, uiState.activity_view_mode);
-            }
-        }
-        else restoreActivityState(parentRole, roleId);
-    } else if (analysisType === 'weekday') {
-        weekdayBlock.style.display = 'block';
-        normalizeWeekdayControls(parentRole);
-        if (roleId === 'role-all') {
-            restoreAllRolesPeriodState(parentRole, 'weekday');
-        } else {
-            var weekdays = parseJsonDataset(weekdayBlock, 'weekdays', []);
-            var tableWrap = weekdayBlock.querySelector('.table-container');
-            if (tableWrap) tableWrap.innerHTML = buildWeekdayTableHtml(weekdays || []);
-            var viewBtns = weekdayBlock.querySelectorAll('.view-mode-btn');
-            setActiveViewButton(viewBtns, uiState.weekday_view_mode);
-            applyViewMode(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
-            var weekdayPeriods = getResolvedGlobalFilterValues('periods', getGlobalFilterOptions(parentRole, 'periods', 'weekday'));
-            var weekdayGraphId = 'weekday-graph-' + analysisId.split('-')[1];
-            buildWeekdayBarChart(analysisId.split('-')[1], weekdayBlock);
-            applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(weekdayPeriods), null));
-            applyWeekdayModeSizing(weekdayBlock.querySelector('.view-mode-container'), uiState.weekday_view_mode);
-        }
-    } else if (analysisType === 'skills-monthly') {
-        skillsMonthlyBlock.style.display = 'block';
-        normalizeSkillsMonthlyControls(parentRole);
-        if (roleId === 'role-all') {
-            uiState.skills_monthly_view_mode = uiState.skills_monthly_view_mode || 'together';
-            restoreAllRolesPeriodState(parentRole, 'skills');
-            var forceAllRolesSkillsRender = function() {
-                var visibleSkillsPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="skills-monthly-all"]')).find(function(node) {
-                    return (node.style.display || '') === 'block';
-                }) || parentRole.querySelector('.all-roles-period-content[data-analysis="skills-monthly-all"]');
-                if (!visibleSkillsPeriod || (uiState.skills_monthly_view_mode || 'together') === 'table') return;
-                var forcedGraphId = visibleSkillsPeriod.dataset.graphId;
-                if (!forcedGraphId) return;
-                var forcedContext = buildChartContextLabel(
-                    ((parentRole.querySelector('.all-roles-period-button.active') || {}).textContent || '').trim(),
-                    null
-                );
-                var viewContainer = visibleSkillsPeriod.querySelector('.view-mode-container');
-                if (viewContainer) {
-                    viewContainer.style.display = 'flex';
-                    var forcedTable = viewContainer.querySelector('.table-container');
-                    var forcedGraph = document.getElementById(forcedGraphId);
-                    if (forcedTable && (uiState.skills_monthly_view_mode || 'together') !== 'graph') forcedTable.style.display = 'block';
-                    if (forcedGraph) forcedGraph.style.display = 'block';
-                }
-                renderAllRolesSkillsChartFromTable(visibleSkillsPeriod, forcedGraphId, forcedContext);
-            };
-            forceAllRolesSkillsRender();
-            requestAnimationFrame(forceAllRolesSkillsRender);
-            setTimeout(forceAllRolesSkillsRender, 60);
-            setTimeout(forceAllRolesSkillsRender, 180);
-        } else restoreSkillsMonthlyState(parentRole, roleId);
-    } else if (analysisType === 'skills-search') {
-        if (skillsSearchBlock) {
-            skillsSearchBlock.style.display = 'block';
-            initSkillsSearch(parentRole);
-        }
-    } else if (analysisType === 'my-responses') {
-        if (myResponsesBlock) {
-            myResponsesBlock.style.display = 'block';
-            setMyResponsesActiveView(parentRole, 'responses');
-            renderMyResponsesContent(parentRole);
-        }
-    } else if (analysisType === 'totals') {
-        if (totalsBlock) {
-            totalsBlock.style.display = 'block';
-            renderGlobalTotalsFiltered(parentRole);
-        }
-    } else if (analysisType === 'salary') {
-        salaryBlock.style.display = 'block';
-        normalizeSalaryControls(parentRole);
-        if (roleId === 'role-all') restoreAllRolesPeriodState(parentRole, 'salary');
-        else restoreSalaryState(parentRole, roleId);
-        applySalaryStatusIcons(parentRole);
-    } else if (analysisType === 'employer-analysis') {
-        if (employerAnalysisBlock) {
-            employerAnalysisBlock.style.display = 'block';
-            initEmployerAnalysisFilter(employerAnalysisBlock);
-        }
-    }
-    parentRole.dataset.activeAnalysis = analysisType || '';
-    syncSharedFilterPanel(parentRole, analysisType, true);
-    updateViewToggleIcons(parentRole);
-}
-
-function switchFromSummaryToAnalysis(analysisType) {
-    var ctx = uiState.roleSelectionContext;
-
-    function findTargetButton(roleContent) {
-        if (!roleContent) return null;
-        return Array.from(roleContent.querySelectorAll('.analysis-button')).find(function(btn) {
-            var id = btn.dataset.analysisId || '';
-            return id.indexOf(analysisType + '-') === 0;
-        }) || null;
-    }
-
-    var targetRole = null;
-    var targetButton = null;
-    if (ctx && typeof ctx.getOrder === 'function') {
-        var order = ctx.getOrder();
-        var selected = typeof ctx.getSelected === 'function' ? Array.from(ctx.getSelected()) : [];
-        var preferredOrder = order.length ? order.slice() : selected.slice();
-        var first = preferredOrder[0];
-        if (first !== undefined && first !== null) {
-            if (typeof ctx.exitAllRolesMode === 'function') {
-                ctx.exitAllRolesMode(new Set(selected), preferredOrder);
-            } else {
-                if (typeof ctx.applySelection === 'function') {
-                    ctx.applySelection(new Set(selected), preferredOrder);
-                }
-                setSummaryModeActive(false);
-            }
-            targetRole = getActiveRoleContent();
-            targetButton = findTargetButton(targetRole);
-        }
-    }
-
-    if (!targetButton) {
-        setSummaryModeActive(false);
-        targetRole = getActiveRoleContent();
-        targetButton = findTargetButton(targetRole);
-    }
-
-    if (targetButton) targetButton.click();
-}
-
-function getActiveRoleContent(preferredRole) {
-    if (preferredRole && preferredRole.classList && preferredRole.classList.contains('role-content')) return preferredRole;
-    var visible = Array.from(document.querySelectorAll('.role-content')).find(function(node) {
-        return (node.style.display || '') === 'block';
-    });
-    return visible || null;
-}
-
-function ensureSharedFilterPanel() {
-    var host = document.getElementById('role-selector');
-    if (!host) return null;
-    var panel = document.getElementById('global-shared-filter-panel');
-    if (!panel) {
-        panel = document.createElement('div');
-        panel.id = 'global-shared-filter-panel';
-        panel.className = 'shared-filter-panel';
-        panel.style.display = 'none';
-        panel.style.margin = '6px 0 10px';
-        panel.style.padding = '8px 10px';
-        panel.style.border = '1px solid rgba(148, 163, 184, 0.28)';
-        panel.style.borderRadius = '18px';
-        panel.style.background = 'rgba(255, 255, 255, 0.9)';
-        panel.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.05)';
-        panel.style.backdropFilter = 'blur(14px)';
-        panel.style.position = 'relative';
-        panel.style.zIndex = '50';
-        panel.style.overflow = 'visible';
-
-        var title = document.createElement('div');
-        title.className = 'shared-filter-panel-title';
-        title.textContent = '';
-        title.style.fontWeight = '600';
-        title.style.marginBottom = '0';
-
-        var hint = document.createElement('div');
-        hint.className = 'shared-filter-panel-hint';
-        hint.textContent = '';
-        hint.style.fontSize = '10px';
-        hint.style.color = '#94a3b8';
-        hint.style.marginBottom = '0';
-
-        var body = document.createElement('div');
-        body.className = 'shared-filter-panel-body';
-        body.style.display = 'flex';
-        body.style.flexWrap = 'nowrap';
-        body.style.alignItems = 'flex-start';
-        body.style.gap = '6px';
-        body.style.overflowX = 'auto';
-        body.style.overflowY = 'visible';
-
-        var chips = document.createElement('div');
-        chips.className = 'shared-filter-active-chips';
-        chips.style.display = 'flex';
-        chips.style.flexWrap = 'wrap';
-        chips.style.gap = '8px';
-        chips.style.marginTop = '10px';
-
-        panel.appendChild(title);
-        panel.appendChild(hint);
-        panel.appendChild(body);
-        panel.appendChild(chips);
-        host.appendChild(panel);
-
-        if (!document.body.dataset.globalFilterMenusBound) {
-            document.addEventListener('click', function(e) {
-                var target = e.target;
-                if (target && target.closest && target.closest('.global-filter-dropdown')) return;
-                document.querySelectorAll('.global-filter-menu').forEach(function(menu) {
-                    menu.style.display = 'none';
-                    if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-                });
-                document.querySelectorAll('.global-filter-trigger-arrow').forEach(function(arrow) {
-                    arrow.textContent = '\u25BE';
-                });
-                document.querySelectorAll('.summary-filter-trigger-arrow').forEach(function(arrow) {
-                    arrow.textContent = '\u25BE';
-                });
-            });
-            document.body.dataset.globalFilterMenusBound = '1';
-        }
-    }
-    return panel;
-}
-
-function hideSharedFilterSources(parentRole) {
-    if (!parentRole) return;
-    [
-        '.activity-month-tabs',
-        '.tabs.month-tabs.activity-only',
-        '.monthly-skills-month-tabs',
-        '.monthly-skills-exp-tabs',
-        '.salary-month-tabs',
-        '.salary-exp-tabs',
-        '.employer-period-chips',
-        '.summary-analysis-menu-legacy',
-        '.all-roles-period-tabs'
-    ].forEach(function(selector) {
-        parentRole.querySelectorAll(selector).forEach(function(node) {
-            node.style.display = 'none';
-        });
-    });
-    parentRole.querySelectorAll('.all-roles-shared-period-tabs').forEach(function(node) {
-        node.style.display = '';
-    });
-}
-
-function getSummaryAnalysisButtons(activeRole) {
-    if (!activeRole || activeRole.id !== 'role-all') return [];
-    return Array.from(activeRole.querySelectorAll('.analysis-tabs .analysis-button'));
-}
-
-function getAllRolesPeriodButtons(activeRole) {
-    if (!activeRole || activeRole.id !== 'role-all') return [];
-    var current = activeRole.dataset.activeAnalysis || 'activity';
-    var content = activeRole.querySelector('.all-roles-period-content[data-analysis="' + current + '-all"]');
-    if (!content) {
-        var visibleBlock = Array.from(activeRole.querySelectorAll('.all-roles-period-content')).find(function(node) {
-            return (node.style.display || '') === 'block';
-        });
-        if (visibleBlock) {
-            current = String(visibleBlock.dataset.analysis || '').replace(/-all$/, '');
-        }
-    }
-    var host = activeRole.querySelector('.' + (current === 'activity' ? 'activity-only' : current === 'weekday' ? 'weekday-content' : current === 'skills-monthly' ? 'skills-monthly-content' : 'salary-content'));
-    if (!host) return [];
-    return Array.from(host.querySelectorAll('.all-roles-period-tabs .all-roles-period-button'));
-}
-
-function syncAllRolesSharedFilterButtons(activeRole, analysisType) {
-    if (!activeRole || activeRole.id !== 'role-all') return;
-    var host = activeRole.querySelector('.all-roles-shared-filter-buttons');
-    if (!host) return;
-
-    var current = String(analysisType || activeRole.dataset.activeAnalysis || 'activity').replace(/-all$/, '');
-    host.innerHTML = '';
-    host.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
-    host.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
-}
-
-function syncAllRolesSharedPeriodTabs(activeRole, periodValue) {
-    if (!activeRole || activeRole.id !== 'role-all') return;
-    var sharedButtons = Array.from(activeRole.querySelectorAll('.all-roles-shared-period-tabs .all-roles-period-button'));
-    if (!sharedButtons.length) return;
-
-    var targetPeriod = periodValue;
-    if (!targetPeriod) {
-        var current = activeRole.dataset.activeAnalysis || 'activity';
-        var visibleContent = activeRole.querySelector('.all-roles-period-content[data-analysis="' + current + '-all"][style*="display: block"]');
-        if (visibleContent) targetPeriod = visibleContent.dataset.period || 'all';
-    }
-    if (!targetPeriod) targetPeriod = 'all';
-
-    sharedButtons.forEach(function(btn) {
-        btn.classList.toggle('active', (btn.dataset.period || 'all') === targetPeriod);
-    });
-}
-
-function openAllRolesSharedPeriodTab(evt, periodValue) {
-    var parentRole = evt.currentTarget.closest('.role-content');
-    if (!parentRole || parentRole.id !== 'role-all') return;
-    var buttons = getAllRolesPeriodButtons(parentRole);
-    if (!buttons.length) return;
-
-    var target = null;
-    buttons.forEach(function(btn) {
-        if ((btn.dataset.period || 'all') === String(periodValue || 'all')) {
-            target = btn;
-        }
-    });
-    if (!target) target = buttons[0];
-    if (target) target.click();
-}
-
-function createAllRolesPeriodControl(activeRole) {
-    var buttons = getAllRolesPeriodButtons(activeRole);
-    var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown all-roles-period-dropdown';
-    wrap.dataset.filterKey = 'periods';
-    wrap.style.marginTop = '4px';
-    wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
-
-    var caption = document.createElement('div');
-    caption.textContent = 'Период';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
-    wrap.appendChild(caption);
-
-    var trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    trigger.style.width = '100%';
-    trigger.style.borderRadius = '999px';
-    trigger.style.padding = '5px 10px';
-    trigger.style.minHeight = '34px';
-    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    trigger.style.display = 'flex';
-    trigger.style.alignItems = 'center';
-    trigger.style.justifyContent = 'space-between';
-    if (!buttons.length) {
-        trigger.textContent = 'Недоступно';
-        trigger.disabled = true;
-        wrap.appendChild(trigger);
-        return wrap;
-    }
-
-    var activeBtn = buttons.find(function(btn) { return btn.classList.contains('active'); }) || buttons[0];
-    var label = document.createElement('span');
-    label.className = 'global-filter-trigger-label';
-    label.textContent = ((activeBtn && activeBtn.textContent) || '').trim() || 'Выбрать период';
-    label.style.overflow = 'hidden';
-    label.style.textOverflow = 'ellipsis';
-    label.style.whiteSpace = 'nowrap';
-    label.style.maxWidth = 'calc(100% - 18px)';
-    trigger.appendChild(label);
-
-    var arrow = document.createElement('span');
-    arrow.className = 'summary-filter-trigger-arrow';
-    arrow.textContent = '\u25BE';
-    arrow.style.fontSize = '12px';
-    arrow.style.opacity = '0.8';
-    trigger.appendChild(arrow);
-    wrap.appendChild(trigger);
-
-    var menu = document.createElement('div');
-    menu.className = 'global-filter-menu all-roles-period-menu';
-    menu.style.display = 'none';
-    menu.style.marginTop = '0';
-    menu.style.padding = '6px';
-    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '12px';
-    menu.style.background = 'var(--card-background, #fff)';
-    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '220px';
-    menu.style.maxWidth = 'calc(100vw - 48px)';
-
-    buttons.forEach(function(sourceBtn, idx) {
-        var item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'tab-button summary-filter-item global-filter-option-row';
-        item.textContent = (sourceBtn.textContent || '').trim();
-        item.style.display = 'block';
-        item.style.width = '100%';
-        item.style.boxSizing = 'border-box';
-        item.style.margin = idx < buttons.length - 1 ? '0 0 2px' : '0';
-        item.style.textAlign = 'left';
-        item.style.borderRadius = '8px';
-        item.style.padding = '5px 8px';
-        if (sourceBtn.classList.contains('active')) {
-            item.classList.add('active');
-            item.style.fontWeight = '600';
-        }
-        item.addEventListener('click', function() {
-            sourceBtn.click();
-            menu.style.display = 'none';
-            arrow.textContent = '\u25BE';
-            syncSharedFilterPanel(getActiveRoleContent(activeRole), activeRole.dataset.activeAnalysis || '');
-        });
-        menu.appendChild(item);
-    });
-
-    trigger.addEventListener('click', function() {
-        document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(other) {
-            if (other !== menu) other.style.display = 'none';
-        });
-        document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(otherArrow) {
-            if (otherArrow !== arrow) otherArrow.textContent = '\u25BE';
-        });
-        var nextState = menu.style.display === 'none' ? 'block' : 'none';
-        menu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        arrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
-    });
-
-    wrap.appendChild(menu);
-    return wrap;
-}
-
-function createSummaryAnalysisControl(activeRole) {
-    var buttons = getSummaryAnalysisButtons(activeRole);
-    if (!buttons.length) return null;
-
-    var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown summary-filter-dropdown';
-    wrap.style.marginTop = '4px';
-    wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
-
-    var caption = document.createElement('div');
-    caption.textContent = 'Раздел';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
-    wrap.appendChild(caption);
-
-    var activeBtn = buttons.find(function(btn) { return btn.classList.contains('active'); }) || buttons[0];
-
-    var trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger summary-filter-trigger skills-search-dropdown-btn';
-    trigger.style.width = '100%';
-    trigger.style.borderRadius = '999px';
-    trigger.style.padding = '5px 10px';
-    trigger.style.minHeight = '34px';
-    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    trigger.style.display = 'flex';
-    trigger.style.alignItems = 'center';
-    trigger.style.justifyContent = 'space-between';
-
-    var triggerLabel = document.createElement('span');
-    triggerLabel.textContent = ((activeBtn && activeBtn.textContent) || '').trim() || 'Выбрать раздел';
-    triggerLabel.style.overflow = 'hidden';
-    triggerLabel.style.textOverflow = 'ellipsis';
-    triggerLabel.style.whiteSpace = 'nowrap';
-    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
-    trigger.appendChild(triggerLabel);
-
-    var triggerArrow = document.createElement('span');
-    triggerArrow.className = 'summary-filter-trigger-arrow';
-    triggerArrow.textContent = '\u25BE';
-    triggerArrow.style.fontSize = '12px';
-    triggerArrow.style.opacity = '0.8';
-    trigger.appendChild(triggerArrow);
-
-    wrap.appendChild(trigger);
-
-    var menu = document.createElement('div');
-    menu.className = 'global-filter-menu summary-filter-menu';
-    menu.style.display = 'none';
-    menu.style.marginTop = '0';
-    menu.style.padding = '6px';
-    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '12px';
-    menu.style.background = 'var(--card-background, #fff)';
-    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '220px';
-    menu.style.maxWidth = 'calc(100vw - 48px)';
-
-    buttons.forEach(function(sourceBtn, idx) {
-        var item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'tab-button summary-filter-item global-filter-option-row';
-        item.textContent = (sourceBtn.textContent || '').trim();
-        item.style.display = 'block';
-        item.style.width = '100%';
-        item.style.boxSizing = 'border-box';
-        item.style.margin = idx < buttons.length - 1 ? '0 0 2px' : '0';
-        item.style.textAlign = 'left';
-        item.style.borderRadius = '8px';
-        item.style.padding = '5px 8px';
-        if (sourceBtn.classList.contains('active')) {
-            item.classList.add('active');
-            item.style.fontWeight = '600';
-        }
-        item.addEventListener('click', function() {
-            sourceBtn.click();
-            menu.style.display = 'none';
-            triggerArrow.textContent = '\u25BE';
-            syncSharedFilterPanel(getActiveRoleContent(activeRole), activeRole.dataset.activeAnalysis || '');
-        });
-        menu.appendChild(item);
-    });
-
-    trigger.addEventListener('click', function() {
-        document.querySelectorAll('#global-shared-filter-panel .global-filter-menu').forEach(function(other) {
-            if (other !== menu) other.style.display = 'none';
-        });
-        document.querySelectorAll('#global-shared-filter-panel .summary-filter-trigger-arrow').forEach(function(arrow) {
-            if (arrow !== triggerArrow) arrow.textContent = '\u25BE';
-        });
-        var nextState = menu.style.display === 'none' ? 'block' : 'none';
-        menu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
-    });
-
-    wrap.appendChild(menu);
-    return wrap;
-}
-
-function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {
-    var group = document.createElement('div');
-    group.className = 'shared-filter-group';
-    group.style.marginTop = '8px';
-
-    var caption = document.createElement('div');
-    caption.textContent = label;
-    caption.style.fontSize = '12px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
-    caption.style.color = 'var(--text-secondary, #52606d)';
-    group.appendChild(caption);
-
-    var tabs = document.createElement('div');
-    tabs.className = 'tabs shared-filter-tabs';
-    tabs.style.justifyContent = 'flex-start';
-    if (!buttons || !buttons.length) {
-        var emptyBtn = document.createElement('button');
-        emptyBtn.type = 'button';
-        emptyBtn.className = 'tab-button shared-filter-proxy-button';
-        emptyBtn.textContent = 'Недоступно';
-        emptyBtn.disabled = true;
-        emptyBtn.style.opacity = '0.6';
-        tabs.appendChild(emptyBtn);
-        group.appendChild(tabs);
-        if (typeof extraBuilder === 'function') {
-            var emptyExtra = extraBuilder();
-            if (emptyExtra) group.appendChild(emptyExtra);
-        }
-        return group;
-    }
-    buttons.forEach(function(sourceBtn) {
-        if (!sourceBtn) return;
-        var proxy = document.createElement('button');
-        proxy.type = 'button';
-        proxy.className = 'tab-button shared-filter-proxy-button';
-        var isPressed = sourceBtn.getAttribute && sourceBtn.getAttribute('aria-pressed') === 'true';
-        if ((sourceBtn.classList && sourceBtn.classList.contains('active')) || isPressed) proxy.classList.add('active');
-        proxy.textContent = (sourceBtn.dataset && sourceBtn.dataset.proxyLabel) ? sourceBtn.dataset.proxyLabel : (sourceBtn.textContent || '').trim();
-        proxy.addEventListener('click', function() {
-            sourceBtn.click();
-            syncSharedFilterPanel(getActiveRoleContent(parentRole), analysisType);
-        });
-        tabs.appendChild(proxy);
-    });
-    group.appendChild(tabs);
-
-    if (typeof extraBuilder === 'function') {
-        var extra = extraBuilder();
-        if (extra) group.appendChild(extra);
-    }
-    return group;
-}
-
-function dedupeFilterOptions(options) {
-    var seen = new Set();
-    return (options || []).filter(function(item) {
-        if (!item || !item.value) return false;
-        var key = String(item.value);
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
-}
-
-function normalizePeriodOptionValue(value) {
-    var text = String(value || '').trim();
-    if (!text) return '';
-    if (text === 'Сегодня' || /^today$/i.test(text)) return 'today';
-    var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
-    if (quick) return 'last_' + String(Number(quick[1]) || 0);
-    return text;
-}
-
-function formatPeriodSelectionValue(value) {
-    var text = normalizePeriodOptionValue(value);
-    if (!text) return '';
-    if (text === 'today') return 'Сегодня';
-    var quick = text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
-    if (quick) return 'За ' + String(Number(quick[1]) || 0) + ' дня';
-    return text;
-}
-
-function summarizeSelectedPeriodsLabel(selectedPeriods) {
-    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return formatPeriodSelectionValue(v); }).filter(Boolean) : [];
-    if (!labels.length) return 'За все время';
-    var specificLabels = labels.filter(function(label) {
-        return !(isSummaryMonth(label) || label === 'За период' || label === 'Весь период' || label === 'За все время');
-    });
-    if (!specificLabels.length) return 'За все время';
-    if (specificLabels.length === 1) return specificLabels[0];
-    return 'По выбранному периоду';
-}
-
-function summarizeChartPeriodLabel(selectedPeriods) {
-    var bucket = ensureGlobalFilterBucket('periods');
-    var explicit = (bucket.include || []).map(function(value) {
-        return normalizePeriodOptionValue(value);
-    }).filter(Boolean);
-    var quickOnly = explicit.filter(function(value) {
-        return /^last_\d+$/i.test(String(value || '').trim());
-    });
-    if (quickOnly.length) return summarizeSelectedPeriodsLabel(quickOnly);
-    var panelLabel = '';
-    var panelNode = document.querySelector('#global-shared-filter-panel .global-filter-dropdown[data-filter-key="periods"] .global-filter-trigger-label');
-    if (panelNode) panelLabel = String(panelNode.textContent || '').trim();
-    if (panelLabel && panelLabel !== 'Все' && panelLabel !== 'Недоступно' && panelLabel !== 'Выбрать') {
-        return panelLabel;
-    }
-    return summarizeSelectedPeriodsLabel(selectedPeriods);
-}
-
-function getCurrentGlobalPeriodDisplayLabel() {
-    var panelNode = document.querySelector('#global-shared-filter-panel .global-filter-dropdown[data-filter-key="periods"] .global-filter-trigger-label');
-    var label = panelNode ? String(panelNode.textContent || '').trim() : '';
-    if (!label || label === 'Все' || label === 'Недоступно' || label === 'Выбрать') return '';
-    return label;
-}
-
-function resolveChartPeriodLabel(selectedPeriods) {
-    return getCurrentGlobalPeriodDisplayLabel() || summarizeChartPeriodLabel(selectedPeriods);
-}
-
-function resolveChartExperienceLabel(selectedExps, expOptions) {
-    var selected = Array.isArray(selectedExps) ? selectedExps.filter(Boolean) : [];
-    if (!selected.length) return null;
-    var allowed = Array.isArray(expOptions) ? expOptions.map(function(item) {
-        return normalizeExperience(item && item.value);
-    }).filter(Boolean) : [];
-    var selectedNorm = Array.from(new Set(selected.map(function(item) {
-        return normalizeExperience(item);
-    }).filter(Boolean)));
-    if (allowed.length) {
-        var allowedNorm = Array.from(new Set(allowed));
-        var allSelected = allowedNorm.length === selectedNorm.length && allowedNorm.every(function(item) {
-            return selectedNorm.indexOf(item) !== -1;
-        });
-        if (allSelected) return 'Все';
-    }
-    return selected.join(', ');
-}
-
-function ensureGlobalFilterBucket(filterKey) {
-    if (!uiState.global_filters) uiState.global_filters = {};
-    if (!uiState.global_filters[filterKey]) uiState.global_filters[filterKey] = { include: [], exclude: [] };
-    if (!Array.isArray(uiState.global_filters[filterKey].include)) uiState.global_filters[filterKey].include = [];
-    if (!Array.isArray(uiState.global_filters[filterKey].exclude)) uiState.global_filters[filterKey].exclude = [];
-    return uiState.global_filters[filterKey];
-}
-
-function ensureGlobalFilterModeState() {
-    if (!uiState.global_filter_modes) uiState.global_filter_modes = {};
-    ['roles', 'periods', 'experiences'].forEach(function(key) {
-        if (typeof uiState.global_filter_modes[key] !== 'boolean') uiState.global_filter_modes[key] = false;
-    });
-    return uiState.global_filter_modes;
-}
-
-function isGlobalFilterMultiEnabled(filterKey) {
-    return !!ensureGlobalFilterModeState()[filterKey];
-}
-
-function setGlobalFilterMultiEnabled(filterKey, enabled) {
-    ensureGlobalFilterModeState()[filterKey] = !!enabled;
-    if (!enabled) {
-        var bucket = ensureGlobalFilterBucket(filterKey);
-        var singleInclude = bucket.include.length ? [bucket.include[0]] : [];
-        var singleExclude = singleInclude.length ? [] : (bucket.exclude.length ? [bucket.exclude[0]] : []);
-        bucket.include = singleInclude;
-        bucket.exclude = singleExclude;
-    }
-}
-
-function applyGlobalFilterIconButtonStyle(button, isActive) {
-    if (!button) return;
-    button.style.borderRadius = '999px';
-    button.style.padding = '0';
-    button.style.width = '28px';
-    button.style.height = '28px';
-    button.style.display = 'inline-flex';
-    button.style.alignItems = 'center';
-    button.style.justifyContent = 'center';
-    button.style.border = '1px solid ' + (isActive ? 'rgba(59, 130, 246, 0.26)' : 'rgba(148, 163, 184, 0.22)');
-    button.style.background = isActive ? 'rgba(239, 246, 255, 0.92)' : 'rgba(248, 250, 252, 0.92)';
-    button.style.color = isActive ? '#2563eb' : '#475569';
-    button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-}
+// ---------- Shared filters вынесены в report.filters.js ----------
 
 function sortExperienceFilterOptions(options) {
     var rank = {
@@ -2163,6 +1580,28 @@ function sortExperienceFilterOptions(options) {
         if (aRank !== bRank) return aRank - bRank;
         return aLabel.localeCompare(bLabel, 'ru');
     });
+}
+
+function buildPeriodFilterOptionsFromVacancies(vacancies) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var months = Array.from(new Set(list.map(function(vacancy) {
+        var date = parsePublishedAtDate(vacancy && vacancy.published_at);
+        if (!date) return '';
+        return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+    }).filter(Boolean))).sort().reverse();
+    var totalLabel = months.length
+        ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
+        : 'За период';
+    return dedupeFilterOptions([
+        { value: 'today', label: 'Сегодня' },
+        { value: 'last_3', label: 'За 3 дня' },
+        { value: 'last_7', label: 'За 7 дней' },
+        { value: 'last_14', label: 'За 14 дней' }
+    ].concat(months.map(function(month) {
+        return { value: month, label: month };
+    })).concat([
+        { value: totalLabel, label: totalLabel }
+    ]));
 }
 
 function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
@@ -2251,12 +1690,13 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         if (current === 'skills-search') {
             var searchBlock = activeRole.querySelector('.skills-search-content');
             var items = (searchBlock && searchBlock._data && Array.isArray(searchBlock._data.periodItems)) ? searchBlock._data.periodItems : [];
-            return dedupeFilterOptions(items.map(function(item) {
+            var searchOptions = dedupeFilterOptions(items.map(function(item) {
                 if (!item || !item.month) return null;
                 return { value: item.month, label: item.label || item.month };
             }).filter(Boolean));
+            if (searchOptions.length) return searchOptions;
         }
-        return [];
+        return buildPeriodFilterOptionsFromVacancies(getRoleVacancies(activeRole) || []);
     }
     if (filterKey === 'experiences') {
         if (current === 'skills-monthly') {
@@ -3316,6 +2756,12 @@ function filterVacanciesBySelectedExperiences(vacancies, selectedExps) {
     var list = dedupeVacanciesById((vacancies || []).slice());
     var values = Array.isArray(selectedExps) ? selectedExps.filter(Boolean) : [];
     if (!values.length) return list;
+    var labels = typeof getExperienceLabels === 'function' ? getExperienceLabels() : { total: 'Всего' };
+    var hasAllSelection = values.some(function(exp) {
+        var text = String(exp || '').trim();
+        return text === 'Все' || text === 'Все категории' || normalizeExperience(text) === labels.total;
+    });
+    if (hasAllSelection) return list;
     var allowed = new Set(values.map(function(exp) { return normalizeExperience(exp); }).filter(Boolean));
     if (!allowed.size) return list;
     return list.filter(function(v) {
@@ -3358,6 +2804,14 @@ function buildSkillsExpDataFromVacancies(vacancies, label) {
     };
 }
 
+function getSkillsSourceVacancies(parentRole) {
+    if (!parentRole) return [];
+    if (parentRole.id === 'role-combined' && parentRole._data && Array.isArray(parentRole._data.skillsVacancies)) {
+        return parentRole._data.skillsVacancies.slice();
+    }
+    return (getRoleVacancies(parentRole) || []).slice();
+}
+
 function renderGlobalSkillsFiltered(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.skills-monthly-content');
@@ -3370,7 +2824,7 @@ function renderGlobalSkillsFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = getRoleVacancies(parentRole);
+    var vacancies = getSkillsSourceVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
 
@@ -3975,6 +3429,7 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     else if (current === 'activity') renderGlobalActivityFiltered(parentRole);
     else if (current === 'weekday') renderGlobalWeekdayFiltered(parentRole);
     else if (current === 'skills-search') applyGlobalFiltersToSkillsSearch(parentRole);
+    else if (current === 'my-responses') renderMyResponsesContent(parentRole);
     else if (current === 'employer-analysis') renderGlobalEmployerFiltered(parentRole);
     else if (current === 'totals') renderGlobalTotalsFiltered(parentRole);
 }
@@ -5748,7 +5203,7 @@ function renderSkillsExpContent(expDiv, expData) {
 function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
     if (!parentRole || !block || !monthTabs || block.dataset.skillsFiltersReady === '1') return;
 
-    var vacancies = getRoleVacancies(parentRole);
+    var vacancies = getSkillsSourceVacancies(parentRole);
     if (!vacancies || !vacancies.length) {
         var salaryMonths = getRoleSalaryData(parentRole);
         vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
@@ -8228,13 +7683,5 @@ function applySalaryViewMode(expDiv, entries) {
     }
 
 }
-
-
-
-
-
-
-
-
 
 

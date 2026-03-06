@@ -299,6 +299,7 @@ function renderAllRolesContainer(container, roleContents) {
 
     function computeAllRolesSkillCostSummaryFromVacancies(periodValue) {
         var currencyBuckets = {
+            ALL: { totals: new Map(), roleCounts: new Map() },
             RUR: { totals: new Map(), roleCounts: new Map() },
             USD: { totals: new Map(), roleCounts: new Map() },
             EUR: { totals: new Map(), roleCounts: new Map() }
@@ -316,8 +317,6 @@ function renderAllRolesContainer(container, roleContents) {
             var vacancies = getRoleFilteredVacancies(roleContent, periodValue);
             vacancies.forEach(function(vacancy) {
                 if (!vacancy || !vacancy.skills) return;
-                var currency = normalizeCurrency(vacancy.currency);
-                if (!currency || !currencyBuckets[currency]) return;
                 var avg = null;
                 var from = vacancy.salary_from;
                 var to = vacancy.salary_to;
@@ -335,8 +334,7 @@ function renderAllRolesContainer(container, roleContents) {
                     var normalizedNum = Number(normalized);
                     if (!isNaN(normalizedNum) && isFinite(normalizedNum)) avg = normalizedNum;
                 }
-                if (avg === null) return;
-                var bucket = currencyBuckets[currency];
+                var currency = normalizeCurrency(vacancy.currency);
                 String(vacancy.skills).split(',').forEach(function(rawSkill) {
                     var label = String(rawSkill || '')
                         .replace(/\u200e/g, '')
@@ -348,16 +346,26 @@ function renderAllRolesContainer(container, roleContents) {
                     if (!savedLabel || (savedLabel === savedLabel.toLowerCase() && label !== label.toLowerCase())) {
                         displayNames.set(skill, label || skill);
                     }
-                    var entry = bucket.totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
-                    entry.count += 1;
-                    if (avg !== null) {
-                        entry.sum += avg;
-                        entry.salaryCount += 1;
-                        entry.salaryValues.push(avg);
+                    var allBucket = currencyBuckets.ALL;
+                    var allEntry = allBucket.totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
+                    allEntry.count += 1;
+                    allBucket.totals.set(skill, allEntry);
+                    var allRoleKey = skill + '||' + roleName;
+                    allBucket.roleCounts.set(allRoleKey, (allBucket.roleCounts.get(allRoleKey) || 0) + 1);
+
+                    if (currency && currencyBuckets[currency]) {
+                        var bucket = currencyBuckets[currency];
+                        var entry = bucket.totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
+                        entry.count += 1;
+                        if (avg !== null) {
+                            entry.sum += avg;
+                            entry.salaryCount += 1;
+                            entry.salaryValues.push(avg);
+                        }
+                        bucket.totals.set(skill, entry);
+                        var roleKey = skill + '||' + roleName;
+                        bucket.roleCounts.set(roleKey, (bucket.roleCounts.get(roleKey) || 0) + 1);
                     }
-                    bucket.totals.set(skill, entry);
-                    var roleKey = skill + '||' + roleName;
-                    bucket.roleCounts.set(roleKey, (bucket.roleCounts.get(roleKey) || 0) + 1);
                 });
             });
         });
@@ -404,14 +412,15 @@ function renderAllRolesContainer(container, roleContents) {
         }
 
         var rowsByCurrency = {
+            ALL: buildRows('ALL'),
             RUR: buildRows('RUR'),
             USD: buildRows('USD'),
             EUR: buildRows('EUR')
         };
-        var currencies = ['RUR', 'USD', 'EUR'].filter(function(curr) {
+        var currencies = ['ALL', 'RUR', 'USD', 'EUR'].filter(function(curr) {
             return (rowsByCurrency[curr] || []).length > 0;
         });
-        var defaultCurrency = rowsByCurrency.RUR.length ? 'RUR' : (currencies[0] || 'RUR');
+        var defaultCurrency = rowsByCurrency.ALL.length ? 'ALL' : (rowsByCurrency.RUR.length ? 'RUR' : (currencies[0] || 'ALL'));
         return {
             rows: rowsByCurrency[defaultCurrency] || [],
             rows_by_currency: rowsByCurrency,
@@ -728,29 +737,131 @@ function renderAllRolesContainer(container, roleContents) {
         buildPeriodTabs('salary-all-period', 'salary') +
         salaryPeriodBlocks +
     '</div>';
+    var allRolesFilteredVacancies = [];
+    filteredRoleContents.forEach(function(roleContent) {
+        allRolesFilteredVacancies = allRolesFilteredVacancies.concat(getRoleFilteredVacancies(roleContent, null) || []);
+    });
+    allRolesFilteredVacancies = dedupeVacanciesById(allRolesFilteredVacancies);
+    var allRolesEmployerMonths = Array.from(new Set(allRolesFilteredVacancies.map(function(vacancy) {
+        var d = parsePublishedAtDate(vacancy && vacancy.published_at);
+        if (!d) return '';
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }).filter(Boolean))).sort();
+    var allRolesEmployerRows = [];
+    if (typeof buildEmployerAnalysisRowsFromVacancies === 'function') {
+        allRolesEmployerMonths.forEach(function(month) {
+            var monthVacancies = filterVacanciesBySelectedPeriods(allRolesFilteredVacancies, [month]);
+            allRolesEmployerRows = allRolesEmployerRows.concat(buildEmployerAnalysisRowsFromVacancies(monthVacancies, month));
+        });
+    }
+    var allRolesEmployerAllLabel = allRolesEmployerMonths.length && typeof formatMonthTitle === 'function'
+        ? formatMonthTitle(allRolesEmployerMonths.length)
+        : 'За период';
+    var skillsSearchHtml = '<div class="skills-search-content" data-analysis="skills-search-all" style="display: none;">' +
+        '<div class="skills-search-panel">' +
+            '<div class="skills-search-panel-header">' +
+                '<div class="skills-search-summary-line"></div>' +
+                '<button class="skills-search-toggle" type="button" aria-expanded="true">\u25B2</button>' +
+                '<button class="skills-search-select-all" type="button">Выбрать все</button>' +
+                '<button class="skills-search-reset-skills" type="button">Сбросить навыки</button>' +
+                '<div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">' +
+                    '<button class="skills-search-dropdown-btn" type="button" data-value="or">Логика</button>' +
+                    '<div class="skills-search-dropdown-menu"></div>' +
+                '</div>' +
+                '<div class="skills-search-dropdown skills-search-sort-inline" data-filter="sort">' +
+                    '<button class="skills-search-dropdown-btn" type="button" data-value="count">Сортировка</button>' +
+                    '<div class="skills-search-dropdown-menu"></div>' +
+                '</div>' +
+                '<div class="skills-search-dropdown" data-filter="status">' +
+                    '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
+                    '<div class="skills-search-dropdown-menu"></div>' +
+                '</div>' +
+                '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
+                    '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
+                    '<div class="skills-search-dropdown-menu"></div>' +
+                '</div>' +
+                '<div class="skills-search-dropdown" data-filter="country">' +
+                    '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
+                    '<div class="skills-search-dropdown-menu"></div>' +
+                '</div>' +
+                '<button class="skills-search-clear" type="button">\u2715</button>' +
+            '</div>' +
+            '<div class="skills-search-buttons"></div>' +
+        '</div>' +
+        '<div class="skills-search-results"><div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div></div>' +
+    '</div>';
+    var employerHtml = '<div class="employer-analysis-content" data-analysis="employer-analysis-all" style="display: none;">' +
+        (allRolesEmployerRows.length ? (
+            '<div class="employer-topbar">' +
+                '<div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">' +
+                    '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + allRolesEmployerAllLabel + '</button>' +
+                '</div>' +
+                '<div class="employer-view-toggle employer-side-toggle">' +
+                    '<button class="view-mode-btn together-btn employer-view-btn active" data-view="together" title="Вместе">◫</button>' +
+                    '<button class="view-mode-btn table-btn employer-view-btn" data-view="table" title="Таблица">▤</button>' +
+                    '<button class="view-mode-btn graph-btn employer-view-btn" data-view="graph" title="График">◔</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="analysis-flex employer-analysis-view" style="justify-content: center; align-items: flex-start;">' +
+                '<div class="employer-analysis-main">' +
+                    '<div class="table-container employer-analysis-table-container" style="margin: 0 auto;">' +
+                        '<table>' +
+                            '<thead>' +
+                                '<tr>' +
+                                    '<th>Месяц</th><th>Фактор</th><th>Значение фактора</th><th>Количество</th>' +
+                                    '<th>Средняя зарплата, RUR</th><th>Средняя зарплата, USD</th><th>Средняя зарплата, EUR</th><th>Средняя зарплата, Другая валюта</th>' +
+                                '</tr>' +
+                            '</thead>' +
+                            '<tbody>' + buildCombinedEmployerRawRowsHtml(allRolesEmployerRows) + '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                    '<div class="plotly-graph employer-analysis-graph" id="employer-analysis-graph-all" style="display: none;"></div>' +
+                '</div>' +
+            '</div>'
+        ) : '<p>Нет данных анализа работодателей для выбранных ролей</p>') +
+    '</div>';
+
+    var summaryReturnTabs = Array.isArray(uiState.summary_return_tabs) ? uiState.summary_return_tabs.slice() : [];
+    if (!summaryReturnTabs.length) {
+        summaryReturnTabs = [
+            { type: 'totals', label: 'Дашборд' },
+            { type: 'detail', label: 'Детальный анализ' },
+            { type: 'summary', label: 'Сравнительный анализ' },
+            { type: 'skills-search', label: 'Поиск по навыкам' },
+            { type: 'my-responses', label: 'Мои отклики' }
+        ];
+    }
+    var allRolesPeriod = computePublicationPeriod(allVacancies) || '—';
+    var summaryReturnTabsHtml = '<div class="tabs summary-return-tabs">' +
+        summaryReturnTabs.map(function(item) {
+            var type = String((item && item.type) || '').trim();
+            var label = String((item && item.label) || '').trim();
+            if (!type || !label) return '';
+            if (type === 'summary') {
+                return '<button type="button" class="tab-button summary-return-tab active" data-preserve-label="1">' + escapeHtml(label) + '</button>';
+            }
+            return '<button type="button" class="tab-button analysis-button summary-return-tab" data-preserve-label="1" onclick="switchFromSummaryToAnalysis(\'' + type + '\')">' + escapeHtml(label) + '</button>';
+        }).join('') +
+    '</div>';
 
     container.innerHTML =
-        '<div class="role-period-label">Период публикации: 19.01.2026 - 03.03.2026</div>' +
-        '<div class="tabs summary-return-tabs">' +
-            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'activity\')">Динамика вакансий</button>' +
-            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'weekday\')">Дни активности</button>' +
-            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-monthly\')">Топ-навыки</button>' +
-            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'skills-search\')">Поиск по навыкам</button>' +
-            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'salary\')">Вилка зарплат</button>' +
-            '<button type="button" class="tab-button analysis-button summary-return-tab" onclick="switchFromSummaryToAnalysis(\'employer-analysis\')">Анализ компаний</button>' +
-            '<button type="button" class="tab-button summary-return-tab active">Сравнительный анализ</button>' +
-        '</div>' +
+        '<div class="role-period-label">Период публикации: ' + allRolesPeriod + '</div>' +
+        summaryReturnTabsHtml +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Динамика по ролям</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Лидер публикаций</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Стоимость навыков</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Топ-навыки</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Вилка по ролям</button>' +
         '</div>' +
         buildSharedPeriodTabs() +
         activityHtml +
         weekdayHtml +
         skillsHtml +
-        salaryHtml;
+        skillsSearchHtml +
+        salaryHtml +
+        employerHtml;
+    container._data = container._data || {};
+    container._data.vacancies = allRolesFilteredVacancies;
 
     var allRolesPeriodBlocks = container.querySelectorAll('.all-roles-period-content');
     allRolesPeriodBlocks.forEach(function(block) {
@@ -849,11 +960,12 @@ function addSummaryTabs(root) {
     });
 }
 function renderCombinedContainer(container, roleContents) {
-    var combinedVacancies = [];
+    var combinedVacanciesRaw = [];
 
     roleContents.forEach(function(roleContent) {
-        combinedVacancies = combinedVacancies.concat(getRoleVacancies(roleContent) || []);
+        combinedVacanciesRaw = combinedVacanciesRaw.concat(getRoleVacancies(roleContent) || []);
     });
+    var combinedVacancies = combinedVacanciesRaw.slice();
     combinedVacancies = dedupeVacanciesById(combinedVacancies);
     var combinedMonths = Array.from(new Set(combinedVacancies.map(function(vacancy) {
         var published = typeof parsePublishedAtDate === 'function' ? parsePublishedAtDate(vacancy && vacancy.published_at) : null;
@@ -876,12 +988,12 @@ function renderCombinedContainer(container, roleContents) {
     var weekdays = typeof computeWeekdayStatsFromVacancies === 'function' ? computeWeekdayStatsFromVacancies(combinedVacancies) : [];
     var skillsMonthly = [];
     if (typeof buildSkillsExpDataFromVacancies === 'function') {
-        var combinedSkillsSummary = buildSkillsExpDataFromVacancies(combinedVacancies, combinedSummaryLabel);
+        var combinedSkillsSummary = buildSkillsExpDataFromVacancies(combinedVacanciesRaw, combinedSummaryLabel);
         if (combinedSkillsSummary && combinedSkillsSummary.experiences && combinedSkillsSummary.experiences.length) {
             skillsMonthly.push(combinedSkillsSummary);
         }
         combinedMonths.forEach(function(month) {
-            var monthVacancies = filterVacanciesBySelectedPeriods(combinedVacancies, [month]);
+            var monthVacancies = filterVacanciesBySelectedPeriods(combinedVacanciesRaw, [month]);
             var monthSkills = buildSkillsExpDataFromVacancies(monthVacancies, month);
             if (monthSkills && monthSkills.experiences && monthSkills.experiences.length) {
                 skillsMonthly.push(monthSkills);
@@ -1166,6 +1278,7 @@ function renderCombinedContainer(container, roleContents) {
 
     container._data = container._data || {};
     container._data.vacancies = combinedVacancies;
+    container._data.skillsVacancies = combinedVacanciesRaw;
 
     var monthBlocks = container.querySelectorAll('.month-content');
     monthBlocks.forEach(function(block) {
@@ -1234,16 +1347,20 @@ function showSingleRole(idx) {
     var targetId = 'role-' + idx;
     var roleContent = document.getElementById(targetId);
     if (!roleContent) return;
-    var salaryMonths = getRoleSalaryData(roleContent);
-    var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+    var allVacancies = dedupeVacanciesById((getRoleVacancies(roleContent) || []).slice());
+    if (!allVacancies.length) {
+        var salaryMonths = getRoleSalaryData(roleContent);
+        allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
+    }
     var period = computePublicationPeriod(allVacancies) || '';
     var h2 = roleContent.querySelector('h2');
     var periodNode = roleContent.querySelector('.role-period-label');
     if (period) {
-        if (!periodNode && h2) {
+        if (!periodNode) {
             periodNode = document.createElement('div');
             periodNode.className = 'role-period-label';
-            h2.insertAdjacentElement('afterend', periodNode);
+            if (h2) h2.insertAdjacentElement('afterend', periodNode);
+            else roleContent.insertAdjacentElement('afterbegin', periodNode);
         }
         if (periodNode) periodNode.textContent = 'Период публикации: ' + period;
     } else if (periodNode && periodNode.parentElement) {
@@ -1266,6 +1383,60 @@ function showSingleRole(idx) {
     if (firstButton) firstButton.click();
     updateRoleSelectionUI(new Set([String(idx)]));
 }
+function getSelectedRoleContents(selectedIndices) {
+    return Array.from(selectedIndices || []).map(function(idx) {
+        return getRoleContentByIndex(idx);
+    }).filter(Boolean);
+}
+function resolveRoleViewMode(selectedIndices) {
+    if (uiState.all_roles_active) return 'all';
+    if (!selectedIndices || !selectedIndices.size) return 'empty';
+    if (selectedIndices.size === 1) return 'single';
+    return 'combined';
+}
+function buildUnifiedTabsDataContract(selectedIndices) {
+    var normalizedSelected = selectedIndices instanceof Set ? selectedIndices : new Set(Array.from(selectedIndices || []));
+    var selectedRoleContents = getSelectedRoleContents(normalizedSelected);
+    return {
+        version: 1,
+        mode: resolveRoleViewMode(normalizedSelected),
+        selected_indices: Array.from(normalizedSelected),
+        selected_role_ids: selectedRoleContents.map(function(roleContent) {
+            return String(roleContent.dataset.roleId || roleContent.id || '');
+        }),
+        selected_role_names: selectedRoleContents.map(function(roleContent) {
+            return String(roleContent.dataset.roleName || roleContent.dataset.roleId || roleContent.id || '');
+        }),
+        active_analysis: uiState.global_analysis_type || 'activity',
+        tabs: {
+            activity: { key: 'activity', enabled: true },
+            weekday: { key: 'weekday', enabled: true },
+            salary: { key: 'salary', enabled: true },
+            skills_monthly: { key: 'skills-monthly', enabled: true },
+            employer_analysis: { key: 'employer-analysis', enabled: true }
+        },
+        all_roles_active: !!uiState.all_roles_active,
+        global_filters: uiState.global_filters || {}
+    };
+}
+function findAnalysisButtonByType(container, analysisType) {
+    if (!container) return null;
+    var targetType = String(analysisType || '').trim();
+    if (!targetType) return null;
+    return Array.from(container.querySelectorAll('.analysis-button[data-analysis-id]')).find(function(btn) {
+        var id = String((btn.dataset && btn.dataset.analysisId) || '');
+        return id.indexOf(targetType + '-') === 0;
+    }) || null;
+}
+function getActiveRoleContainerForContext(context) {
+    if (!context) return null;
+    if (context.mode === 'all') return context.allRoles || null;
+    if (context.mode === 'combined' || context.mode === 'empty') return context.combined || null;
+    if (context.mode === 'single' && context.selectedIndices && context.selectedIndices.size === 1) {
+        return getRoleContentByIndex(Array.from(context.selectedIndices)[0]);
+    }
+    return null;
+}
 function buildAllRolesRenderSignature(selectedIndices) {
     var roleIds = Array.from(selectedIndices || []).map(function(idx) {
         var roleContent = getRoleContentByIndex(idx);
@@ -1278,53 +1449,83 @@ function buildAllRolesRenderSignature(selectedIndices) {
         experiences: filters.experiences || null
     });
 }
+function getUnifiedRoleStrategies() {
+    return {
+        all: function(context) {
+            context.roleContents.forEach(function(content) {
+                content.style.display = 'none';
+            });
+            if (context.combined) context.combined.style.display = 'none';
+            if (!context.allRoles) return;
+            context.allRoles.style.display = 'block';
+            var selectedContents = context.selectedRoleContents.length ? context.selectedRoleContents : getAllRoleContents();
+            var renderSignature = buildAllRolesRenderSignature(context.selectedIndices);
+            if (context.allRoles.dataset.renderSignature !== renderSignature) {
+                renderAllRolesContainer(context.allRoles, selectedContents);
+                context.allRoles.dataset.renderSignature = renderSignature;
+                return;
+            }
+            var preferred = uiState.global_analysis_type || 'activity';
+            var targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
+            if (targetButton) targetButton.click();
+        },
+        empty: function(context) {
+            context.roleContents.forEach(function(content) {
+                content.style.display = 'none';
+            });
+            if (context.allRoles) context.allRoles.style.display = 'none';
+            if (!context.combined) return;
+            context.combined.style.display = 'block';
+            context.combined.innerHTML = '<div style="padding:16px 12px;color:var(--text-secondary, #52606d);text-align:center;">Нет выбранных ролей</div>';
+        },
+        single: function(context) {
+            if (context.combined) context.combined.style.display = 'none';
+            var idx = context.selectedIndices.size === 1 ? Array.from(context.selectedIndices)[0] : '1';
+            showSingleRole(idx);
+        },
+        combined: function(context) {
+            context.roleContents.forEach(function(content) {
+                content.style.display = 'none';
+            });
+            if (!context.combined) return;
+            context.combined.style.display = 'block';
+            renderCombinedContainer(context.combined, context.selectedRoleContents);
+        }
+    };
+}
+function renderRoleViewWithStrategy(context) {
+    var strategies = getUnifiedRoleStrategies();
+    var strategy = strategies[context.mode];
+    if (!strategy) strategy = strategies.single;
+    strategy(context);
+}
+function renderRoleViewUnifiedV2(context) {
+    renderRoleViewWithStrategy(context);
+    var activeContainer = getActiveRoleContainerForContext(context);
+    if (!activeContainer) return;
+    activeContainer.__unifiedTabsDataContract = context.contract;
+    var activeAnalysis = context.contract ? context.contract.active_analysis : '';
+    if (activeAnalysis === 'activity' || activeAnalysis === 'weekday' || activeAnalysis === 'salary' || activeAnalysis === 'skills-monthly' || activeAnalysis === 'employer-analysis') {
+        var targetBtn = findAnalysisButtonByType(activeContainer, activeAnalysis);
+        if (targetBtn && !targetBtn.classList.contains('active')) targetBtn.click();
+    }
+}
 function updateRoleView(selectedIndices) {
+    var normalizedSelected = selectedIndices instanceof Set ? selectedIndices : new Set(Array.from(selectedIndices || []));
     var combined = document.getElementById('role-combined');
     var allRoles = document.getElementById('role-all');
     var roleContents = Array.from(document.querySelectorAll('.role-content')).filter(c => c.id !== 'role-combined');
-    if (uiState.all_roles_active) {
-        roleContents.forEach(c => c.style.display = 'none');
-        if (combined) combined.style.display = 'none';
-        if (allRoles) {
-            allRoles.style.display = 'block';
-            var selectedContents = Array.from(selectedIndices || []).map(i => getRoleContentByIndex(i)).filter(Boolean);
-            var renderSignature = buildAllRolesRenderSignature(selectedIndices);
-            if (allRoles.dataset.renderSignature !== renderSignature) {
-                renderAllRolesContainer(allRoles, selectedContents.length ? selectedContents : getAllRoleContents());
-                allRoles.dataset.renderSignature = renderSignature;
-            } else {
-                var preferred = uiState.global_analysis_type || 'activity';
-                var targetButton = allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
-                if (targetButton) targetButton.click();
-            }
-        }
-        return;
-    }
-
-    if (!selectedIndices || !selectedIndices.size) {
-        roleContents.forEach(c => c.style.display = 'none');
-        if (allRoles) allRoles.style.display = 'none';
-        if (combined) {
-            combined.style.display = 'block';
-            combined.innerHTML = '<div style="padding:16px 12px;color:var(--text-secondary, #52606d);text-align:center;">Нет выбранных ролей</div>';
-        }
-        return;
-    }
-
-    if (selectedIndices.size <= 1) {
-        if (combined) combined.style.display = 'none';
-        var idx = selectedIndices.size === 1 ? Array.from(selectedIndices)[0] : '1';
-        var roleContent = getRoleContentByIndex(idx);
-        showSingleRole(idx);
-        return;
-    }
-
-    roleContents.forEach(c => c.style.display = 'none');
-    if (combined) {
-        var selectedContents = Array.from(selectedIndices).map(i => getRoleContentByIndex(i)).filter(Boolean);
-        combined.style.display = 'block';
-        renderCombinedContainer(combined, selectedContents);
-    }
+    var contract = buildUnifiedTabsDataContract(normalizedSelected);
+    var context = {
+        mode: contract.mode,
+        contract: contract,
+        selectedIndices: normalizedSelected,
+        selectedRoleContents: getSelectedRoleContents(normalizedSelected),
+        combined: combined,
+        allRoles: allRoles,
+        roleContents: roleContents
+    };
+    renderRoleViewUnifiedV2(context);
 }
 function buildRowContext(row) {
     var headerCells = Array.from(row.closest('table').querySelectorAll('thead th'))

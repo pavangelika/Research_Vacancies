@@ -783,6 +783,41 @@ document.addEventListener("DOMContentLoaded", function() {
         commitSelection(new Set([idx]), [idx]);
     }
 
+    function resolveAnalysisTypeFromId(analysisId) {
+        var id = String(analysisId || '');
+        if (id.indexOf('detail-') === 0) return 'detail';
+        if (id.indexOf('activity') >= 0) return 'activity';
+        if (id.indexOf('weekday') >= 0) return 'weekday';
+        if (id.indexOf('skills-monthly') >= 0) return 'skills-monthly';
+        if (id.indexOf('skills-search') >= 0) return 'skills-search';
+        if (id.indexOf('my-responses') >= 0) return 'my-responses';
+        if (id.indexOf('totals') >= 0) return 'totals';
+        if (id.indexOf('salary') >= 0) return 'salary';
+        if (id.indexOf('employer-analysis') >= 0) return 'employer-analysis';
+        return '';
+    }
+
+    function captureSummaryReturnTabs() {
+        var activeRole = (typeof getActiveRoleContent === 'function') ? getActiveRoleContent() : null;
+        if (!activeRole || activeRole.id === 'role-all') return;
+        var host = activeRole.querySelector('.tabs.analysis-tabs');
+        if (!host) return;
+        var seen = new Set();
+        var items = [];
+        Array.from(host.children).forEach(function(btn) {
+            if (!btn.classList || !btn.classList.contains('analysis-button')) return;
+            var isSummaryBtn = btn.classList.contains('summary-report-btn');
+            var type = isSummaryBtn ? 'summary' : resolveAnalysisTypeFromId((btn.dataset && btn.dataset.analysisId) || '');
+            if (!type || seen.has(type)) return;
+            seen.add(type);
+            items.push({
+                type: type,
+                label: String(btn.textContent || '').trim()
+            });
+        });
+        if (items.length) uiState.summary_return_tabs = items;
+    }
+
     function ensureSummaryAnalysisTabs() {
         document.querySelectorAll('.analysis-tabs').forEach(function(tabs) {
             var parentRole = tabs.closest('.role-content');
@@ -796,7 +831,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'tab-button analysis-button summary-report-btn';
-                btn.textContent = 'Сводный отчет';
+                btn.textContent = 'Сравнительный анализ';
                 tabs.appendChild(btn);
             }
             btn.classList.add('analysis-button');
@@ -809,10 +844,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 btn.dataset.bound = '1';
             }
         });
+        if (typeof applyAnalysisTabNaming === 'function') applyAnalysisTabNaming(document);
     }
 
     function setAllRolesMode(isActive) {
         if (isActive) {
+            captureSummaryReturnTabs();
             if (!selected.size) {
                 var allIndices = buttons.map(function(btn) { return btn.dataset.roleIndex; }).filter(Boolean);
                 if (allIndices.length) {
