@@ -707,9 +707,6 @@ function renderAllRolesContainer(container, roleContents) {
         return '<div id="salary-all-period-' + i + '" class="all-roles-period-content" data-analysis="salary-all" data-period="' + (p.period || 'all') + '" ' +
                 'data-entries="' + encodeURIComponent(JSON.stringify(rows)) + '" data-currency-entries="' + encodeURIComponent(JSON.stringify(rowsByCurrency)) + '" data-currencies="' + encodeURIComponent(JSON.stringify(currencies)) + '" data-active-currency="' + escapeHtml(defaultCurrency) + '" data-graph-id="' + graphId + '" ' +
                 'style="display: ' + (i === defaultAllRolesPeriodIndex ? 'block' : 'none') + ';">' +
-            '<div class="view-toggle-horizontal">' +
-                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
-            '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     buildAllRolesSalaryTableHtml(rows, defaultCurrency) +
