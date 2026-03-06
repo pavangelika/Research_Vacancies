@@ -2533,6 +2533,26 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
         var disabled = false;
         var options = getGlobalFilterOptions(activeRole, key, current);
         labelNode.textContent = summarizeGlobalFilterSelection(key, options, disabled);
+
+        var bucket = ensureGlobalFilterBucket(key);
+        var selectedValues = bucket && Array.isArray(bucket.include) ? bucket.include : [];
+        wrap.querySelectorAll('.global-filter-option-row[data-filter-value]').forEach(function(row) {
+            var rowValue = row.dataset.filterValue || '';
+            var selected = false;
+            if (key === 'periods') {
+                var rowNorm = normalizeGlobalPeriodValue(rowValue);
+                selected = selectedValues.some(function(v) { return normalizeGlobalPeriodValue(v) === rowNorm; });
+            } else if (key === 'experiences') {
+                var rowExpNorm = normalizeExperience(rowValue);
+                selected = selectedValues.some(function(v) { return normalizeExperience(v) === rowExpNorm; });
+            } else {
+                selected = selectedValues.indexOf(rowValue) >= 0;
+            }
+            row.classList.toggle('active', selected);
+            row.style.background = selected ? '#eef2f6' : 'transparent';
+            var label = row.querySelector('div');
+            if (label) label.style.fontWeight = selected ? '600' : '400';
+        });
     });
 
     var rolesWrap = panel.querySelector('.global-filter-dropdown[data-filter-key="roles"]');
@@ -3103,6 +3123,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         options.forEach(function(option) {
             var row = document.createElement('div');
             row.className = 'skills-search-dropdown-item global-filter-option-row';
+            row.dataset.filterValue = option.value;
             row.style.display = 'grid';
             row.style.gridTemplateColumns = '1fr';
             row.style.gap = '4px';
@@ -3116,11 +3137,38 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
             row.title = '';
             row.addEventListener('click', function() {
-                var isIncluded = bucket.include.indexOf(option.value) >= 0;
+                var isIncluded = false;
+                if (filterKey === 'periods') {
+                    var clickPeriodNorm = normalizeGlobalPeriodValue(option.value);
+                    isIncluded = (bucket.include || []).some(function(v) {
+                        return normalizeGlobalPeriodValue(v) === clickPeriodNorm;
+                    });
+                } else if (filterKey === 'experiences') {
+                    var clickExpNorm = normalizeExperience(option.value);
+                    isIncluded = (bucket.include || []).some(function(v) {
+                        return normalizeExperience(v) === clickExpNorm;
+                    });
+                } else {
+                    isIncluded = bucket.include.indexOf(option.value) >= 0;
+                }
                 updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include');
             });
             var label = document.createElement('div');
-            var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
+            var isIncludedNow = false;
+            if (filterKey === 'periods') {
+                var optionNorm = normalizeGlobalPeriodValue(option.value);
+                isIncludedNow = (bucket.include || []).some(function(v) {
+                    return normalizeGlobalPeriodValue(v) === optionNorm;
+                });
+            } else if (filterKey === 'experiences') {
+                var optionExpNorm = normalizeExperience(option.value);
+                isIncludedNow = (bucket.include || []).some(function(v) {
+                    return normalizeExperience(v) === optionExpNorm;
+                });
+            } else {
+                isIncludedNow = bucket.include.indexOf(option.value) >= 0;
+            }
+            row.classList.toggle('active', isIncludedNow);
             label.textContent = option.label;
             label.style.fontWeight = isIncludedNow ? '600' : '400';
             label.style.fontSize = '12px';

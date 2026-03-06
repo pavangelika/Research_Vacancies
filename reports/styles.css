@@ -2880,6 +2880,13 @@ tbody tr:hover {
     transform: translateY(-1px);
 }
 
+.shared-filter-panel .global-filter-dropdown .global-filter-option-row.active,
+.shared-filter-panel .global-filter-dropdown .summary-filter-item.active {
+    background: #eef2f6 !important;
+    color: #2c3e50 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
 .shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .global-filter-option-row,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .summary-filter-item {
     display: block !important;
