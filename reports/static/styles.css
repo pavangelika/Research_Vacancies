@@ -106,6 +106,83 @@
     font-size: 0.9rem;
     color: #334155;
 }
+.totals-content {
+    width: 100%;
+}
+.totals-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.totals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 12px;
+}
+.totals-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+}
+.totals-kpis-inline {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.totals-kpi {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.96);
+}
+.totals-kpi .label {
+    font-size: 0.76rem;
+    color: #64748b;
+}
+.totals-kpi .value {
+    margin-top: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+.totals-kpi .value span {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #475569;
+    margin-left: 6px;
+}
+.totals-card {
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.96);
+}
+.totals-card h3 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    color: #334155;
+}
+.totals-switch {
+    justify-content: center;
+    margin-bottom: 8px;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border: none;
+}
+.totals-switch-btn {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+}
+.totals-note {
+    font-size: 0.84rem;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+.totals-warning {
+    font-size: 0.82rem;
+    color: #b45309;
+    margin-top: 6px;
+}
 .my-responses-content .my-responses-checkbox {
     appearance: none;
     -webkit-appearance: none;
@@ -373,6 +450,15 @@ h1 {
 .analysis-tabs { margin-top: 8px; margin-bottom: 8px; }
 .analysis-button { font-size: 0.85rem; padding: 6px 10px; }
 .analysis-button.active { background-color: var(--primary-dark); }
+.detailed-analysis-content {
+    display: none;
+    width: 100%;
+}
+.detailed-analysis-tabs {
+    justify-content: center;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
 
 /* Месяцы и опыт */
 .month-tabs, .monthly-skills-month-tabs, .monthly-skills-exp-tabs,
@@ -954,7 +1040,7 @@ tr:hover { background-color: #f0f4f9; }
 }
 
 /* Адаптивность */
-@media (max-width: 600px) {
+@media (max-width: 600px) and (pointer: coarse) {
     body { padding: 10px; }
     h1 { font-size: 1.5rem; }
     .salary-display-flex {
@@ -3082,7 +3168,7 @@ tbody tr:hover {
     background: rgba(148, 163, 184, 0.06);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 720px) and (pointer: coarse) {
     h1 {
         font-size: 1.45rem;
     }
