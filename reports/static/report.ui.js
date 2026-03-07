@@ -1832,6 +1832,11 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
                 var label = (btn.textContent || '').trim();
                 return { value: normalizePeriodOptionValue(label), label: label };
             }).filter(function(item) { return !!item.value; });
+            if (current === 'salary') {
+                found = found.filter(function(item) {
+                    return !isMyResponsesPeriodLabel(item && item.label);
+                });
+            }
             if (found.length) return dedupeFilterOptions(found);
         }
         if (current === 'skills-search') {
@@ -2144,7 +2149,6 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
             if (rolesArrow) rolesArrow.textContent = '\u25B4';
         }
     }
-
     renderActiveGlobalFilterChips(panel, activeRole, current);
     applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
@@ -2197,17 +2201,17 @@ function applyGlobalRoleFilter() {
     ctx.applySelection(new Set(next), next);
 }
 
-function updateGlobalFilterSelection(filterKey, value, action) {
+function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var previousInclude = bucket.include.slice();
     if (filterKey === 'roles') bucket.exclude = [];
     if (action === 'reset') {
-        bucket.include = bucket.include.filter(function(v) { return v !== value; });
-        bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
+        bucket.include = bucket.include.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
+        bucket.exclude = bucket.exclude.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
     } else if (action === 'include') {
         if (isGlobalFilterMultiEnabled(filterKey)) {
-            if (bucket.include.indexOf(value) < 0) bucket.include.push(value);
-            bucket.exclude = bucket.exclude.filter(function(v) { return v !== value; });
+            if (!isGlobalFilterOptionIncluded(filterKey, bucket, value)) bucket.include.push(value);
+            bucket.exclude = bucket.exclude.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
         } else {
             bucket.include = value ? [value] : [];
             bucket.exclude = [];
@@ -2215,8 +2219,8 @@ function updateGlobalFilterSelection(filterKey, value, action) {
     } else if (action === 'exclude') {
         if (filterKey === 'roles') return;
         if (isGlobalFilterMultiEnabled(filterKey)) {
-            if (bucket.exclude.indexOf(value) < 0) bucket.exclude.push(value);
-            bucket.include = bucket.include.filter(function(v) { return v !== value; });
+            if (!bucket.exclude.some(function(v) { return isSameGlobalFilterValue(filterKey, v, value); })) bucket.exclude.push(value);
+            bucket.include = bucket.include.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
         } else {
             bucket.exclude = value ? [value] : [];
             bucket.include = [];
@@ -2253,6 +2257,11 @@ function updateGlobalFilterSelection(filterKey, value, action) {
             }
         }
         applyGlobalRoleFilter();
+        return;
+    }
+    if (skipPanelRefresh) {
+        var activeRole = getActiveRoleContent();
+        if (activeRole) applyGlobalFiltersToActiveAnalysis(activeRole, activeRole.dataset.activeAnalysis || '');
         return;
     }
     refreshExistingGlobalFilterUi();
@@ -2634,7 +2643,14 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     allBtn.textContent = '\u2713';
     bindGlobalFilterTooltip(allBtn, 'Выбрать все');
     applyGlobalFilterIconButtonStyle(allBtn, false);
-    allBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'all'); });
+    allBtn.addEventListener('click', function() {
+        var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
+        updateGlobalFilterSelection(filterKey, '', 'all', keepOpen);
+        if (keepOpen) {
+            triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+            syncOptionRowsVisualState();
+        }
+    });
     controls.appendChild(allBtn);
 
     var multiBtn = document.createElement('button');
@@ -2657,7 +2673,14 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     clearBtn.textContent = '\u21BA';
     bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
     applyGlobalFilterIconButtonStyle(clearBtn, false);
-    clearBtn.addEventListener('click', function() { updateGlobalFilterSelection(filterKey, '', 'clear'); });
+    clearBtn.addEventListener('click', function() {
+        var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
+        updateGlobalFilterSelection(filterKey, '', 'clear', keepOpen);
+        if (keepOpen) {
+            triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+            syncOptionRowsVisualState();
+        }
+    });
     controls.appendChild(clearBtn);
     menu.appendChild(controls);
 
@@ -2690,6 +2713,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         options.forEach(function(option) {
             var row = document.createElement('div');
             row.className = 'skills-search-dropdown-item global-filter-option-row';
+            row.dataset.optionValue = option.value;
             row.style.display = 'grid';
             row.style.gridTemplateColumns = '1fr';
             row.style.gap = '4px';
@@ -2703,30 +2727,47 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
             row.title = '';
             row.addEventListener('click', function() {
-                var isIncluded = bucket.include.indexOf(option.value) >= 0;
-                updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include');
+                var isIncluded = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
+                var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
+                updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include', keepOpen);
+                if (keepOpen) {
+                    triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+                    syncOptionRowsVisualState();
+                }
             });
             var label = document.createElement('div');
-            var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
+            var isIncludedNow = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
             label.textContent = option.label;
             label.style.fontWeight = isIncludedNow ? '600' : '400';
             label.style.fontSize = '12px';
             row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
             row.addEventListener('mouseenter', function() {
+                var isSelected = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 row.style.transform = 'translateX(4px) translateY(-1px)';
                 row.style.boxShadow = '0 6px 14px rgba(148, 163, 184, 0.12)';
-                if (!isIncludedNow) {
+                if (!isSelected) {
                     row.style.background = 'rgba(248, 250, 252, 0.98)';
                 }
             });
             row.addEventListener('mouseleave', function() {
+                var isSelected = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 row.style.transform = 'translateX(0) translateY(0)';
                 row.style.boxShadow = 'none';
-                row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
+                row.style.background = isSelected ? '#eef2f6' : 'transparent';
             });
             row.appendChild(label);
             menu.appendChild(row);
         });
+        function syncOptionRowsVisualState() {
+            Array.from(menu.querySelectorAll('.global-filter-option-row')).forEach(function(node) {
+                var nodeLabel = node.querySelector('div');
+                var value = node.dataset ? node.dataset.optionValue : '';
+                var selected = isGlobalFilterOptionIncluded(filterKey, bucket, value);
+                node.style.background = selected ? '#eef2f6' : 'transparent';
+                if (nodeLabel) nodeLabel.style.fontWeight = selected ? '600' : '400';
+            });
+        }
+        syncOptionRowsVisualState();
         if (searchInput) {
             searchInput.addEventListener('input', function() {
                 var q = String(searchInput.value || '').trim().toLowerCase();
@@ -2787,6 +2828,28 @@ function getResolvedGlobalFilterValues(filterKey, options) {
     var exclude = (bucket.exclude || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
     if (include.length) return include.filter(function(v) { return exclude.indexOf(v) < 0; });
     return allowed.filter(function(v) { return exclude.indexOf(v) < 0; });
+}
+
+function isMyResponsesPeriodLabel(label) {
+    var text = String(label || '').trim().toLowerCase();
+    return text === 'отклики' || text === 'эффективность откликов';
+}
+
+function isGlobalFilterOptionIncluded(filterKey, bucket, optionValue) {
+    var include = (bucket && Array.isArray(bucket.include)) ? bucket.include : [];
+    return include.some(function(value) {
+        return isSameGlobalFilterValue(filterKey, value, optionValue);
+    });
+}
+
+function isSameGlobalFilterValue(filterKey, left, right) {
+    if (filterKey === 'periods') {
+        return normalizeGlobalPeriodValue(left) === normalizeGlobalPeriodValue(right);
+    }
+    if (filterKey === 'experiences') {
+        return normalizeExperience(left) === normalizeExperience(right);
+    }
+    return String(left || '') === String(right || '');
 }
 
 function normalizeGlobalPeriodValue(value) {

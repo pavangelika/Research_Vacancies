@@ -858,8 +858,11 @@ function renderAllRolesContainer(container, roleContents) {
         block._data.currencyEntries = parseJsonDataset(block, 'currencyEntries', {});
     });
 
-    var preferred = uiState.global_analysis_type || 'activity';
+    var preferred = normalizeAnalysisTypeForButtonLookup(currentAnalysis || uiState.global_analysis_type || 'activity');
     var preferredButton = container.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
+    if (!preferredButton && preferred !== 'activity') {
+        preferredButton = container.querySelector('.analysis-button[data-analysis-id="activity-all"]');
+    }
     if (preferredButton) preferredButton.click();
     else {
         var analysisButton = container.querySelector('.analysis-tabs .analysis-button');
@@ -1330,7 +1333,7 @@ function renderCombinedContainer(container, roleContents) {
 
     addSummaryTabs(container);
 
-    var savedType = uiState[getAnalysisStateKey(container.id)] || uiState.global_analysis_type || 'totals';
+    var savedType = normalizeAnalysisTypeForButtonLookup(uiState[getAnalysisStateKey(container.id)] || uiState.global_analysis_type || 'activity');
     var targetButton = container.querySelector(".analysis-button[data-analysis-id='" + savedType + "-combined']");
     if (targetButton) targetButton.click();
     else {
@@ -1371,7 +1374,7 @@ function showSingleRole(idx) {
         node.style.display = 'none';
     });
     roleContent.style.display = 'block';
-    var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(targetId)];
+    var savedType = normalizeAnalysisTypeForButtonLookup(uiState.global_analysis_type || uiState[getAnalysisStateKey(targetId)]);
     if (savedType) {
         var targetButton = roleContent.querySelector(".analysis-button[data-analysis-id='" + savedType + '-' + idx + "']");
         if (targetButton) {
@@ -1408,7 +1411,7 @@ function buildUnifiedTabsDataContract(selectedIndices) {
         selected_role_names: selectedRoleContents.map(function(roleContent) {
             return String(roleContent.dataset.roleName || roleContent.dataset.roleId || roleContent.id || '');
         }),
-        active_analysis: uiState.global_analysis_type || 'totals',
+        active_analysis: normalizeAnalysisTypeForButtonLookup(uiState.global_analysis_type || 'activity'),
         tabs: {
             activity: { key: 'activity', enabled: true },
             weekday: { key: 'weekday', enabled: true },
@@ -1420,9 +1423,14 @@ function buildUnifiedTabsDataContract(selectedIndices) {
         global_filters: uiState.global_filters || {}
     };
 }
+function normalizeAnalysisTypeForButtonLookup(analysisType) {
+    var normalized = String(analysisType || '').trim();
+    if (normalized === 'detail-analysis') return 'detail';
+    return normalized;
+}
 function findAnalysisButtonByType(container, analysisType) {
     if (!container) return null;
-    var targetType = String(analysisType || '').trim();
+    var targetType = normalizeAnalysisTypeForButtonLookup(analysisType);
     if (!targetType) return null;
     return Array.from(container.querySelectorAll('.analysis-button[data-analysis-id]')).find(function(btn) {
         var id = String((btn.dataset && btn.dataset.analysisId) || '');
@@ -1466,7 +1474,7 @@ function getUnifiedRoleStrategies() {
                 context.allRoles.dataset.renderSignature = renderSignature;
                 return;
             }
-            var preferred = uiState.global_analysis_type || 'totals';
+            var preferred = normalizeAnalysisTypeForButtonLookup(context.allRoles.dataset.activeAnalysis || uiState.global_analysis_type || 'activity');
             var targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
             if (!targetButton) targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="activity-all"]');
             if (targetButton) targetButton.click();
@@ -1507,10 +1515,9 @@ function renderRoleViewUnifiedV2(context) {
     if (!activeContainer) return;
     activeContainer.__unifiedTabsDataContract = context.contract;
     var activeAnalysis = context.contract ? context.contract.active_analysis : '';
-    if (activeAnalysis === 'activity' || activeAnalysis === 'weekday' || activeAnalysis === 'salary' || activeAnalysis === 'skills-monthly' || activeAnalysis === 'employer-analysis') {
-        var targetBtn = findAnalysisButtonByType(activeContainer, activeAnalysis);
-        if (targetBtn && !targetBtn.classList.contains('active')) targetBtn.click();
-    }
+    var targetBtn = findAnalysisButtonByType(activeContainer, activeAnalysis);
+    if (!targetBtn) targetBtn = findAnalysisButtonByType(activeContainer, activeContainer.dataset.activeAnalysis || '');
+    if (targetBtn && !targetBtn.classList.contains('active')) targetBtn.click();
 }
 function updateRoleView(selectedIndices) {
     var normalizedSelected = selectedIndices instanceof Set ? selectedIndices : new Set(Array.from(selectedIndices || []));

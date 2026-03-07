@@ -5,7 +5,7 @@ const CHART_COLORS = {
 };
 
 let uiState = {
-    global_analysis_type: null,
+    global_analysis_type: 'totals',
     global_filters: {
         roles: { include: [], exclude: [] },
         periods: { include: [], exclude: [] },
