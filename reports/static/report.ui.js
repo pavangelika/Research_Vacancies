@@ -639,8 +639,8 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
             { key: 'avg_salary', label: 'Средняя', color: CHART_COLORS.dark },
             { key: 'median_salary', label: 'Медианная', color: CHART_COLORS.medium },
             { key: 'mode_salary', label: 'Мода', color: CHART_COLORS.light },
-            { key: 'min_salary', label: 'Минимальная', color: '#8fbcd4' },
-            { key: 'max_salary', label: 'Максимальная', color: '#4f7f9d' }
+            { key: 'min_salary', label: 'Минимальная', color: CHART_COLORS.light },
+            { key: 'max_salary', label: 'Максимальная', color: CHART_COLORS.dark }
         ];
         var activeMetric = metricDefs.find(function(item) { return item.key === metricKey; }) || metricDefs[0];
         var signature = list.map(function(r) {
@@ -3521,7 +3521,7 @@ function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextTe
         x: labels,
         y: values,
         type: 'bar',
-        marker: { color: '#5f8db0' },
+        marker: { color: CHART_COLORS.medium },
         hovertemplate: '%{x}: %{y}<extra></extra>'
     }], {
         margin: { t: 22, r: 22, b: 84, l: 60 },
@@ -3548,8 +3548,8 @@ function buildTotalsWeekdayChart(graphId, weekdays, contextText) {
     var pubs = list.map(function(item) { return Number(item.publications || 0); });
     var arch = list.map(function(item) { return Number(item.archives || 0); });
     Plotly.newPlot(el, [
-        { x: labels, y: pubs, type: 'bar', name: 'Публикации', marker: { color: '#3a6b92' } },
-        { x: labels, y: arch, type: 'bar', name: 'Архивы', marker: { color: '#94a3b8' } }
+        { x: labels, y: pubs, type: 'bar', name: 'Публикации', marker: { color: CHART_COLORS.light } },
+        { x: labels, y: arch, type: 'bar', name: 'Архивы', marker: { color: CHART_COLORS.dark } }
     ], {
         barmode: 'group',
         margin: { t: 22, r: 22, b: 84, l: 60 },
@@ -3953,7 +3953,7 @@ function renderMarketTrends(parentRole, mountNode) {
             customdata: demandTop.map(function(r) { return r.name; }),
             type: 'bar',
             marker: {
-                color: demandTop.map(function(r) { return r.demandDelta >= 0 ? '#3a6b92' : '#c2410c'; })
+                color: demandTop.map(function(r) { return r.demandDelta >= 0 ? CHART_COLORS.light : CHART_COLORS.dark; })
             },
             hovertemplate: '%{customdata}<br>Δ спрос: %{y}<extra></extra>'
         }], { margin: { t: 24, r: 20, b: 110, l: 60 }, height: 360 }, { responsive: true, displayModeBar: false });
@@ -3969,7 +3969,7 @@ function renderMarketTrends(parentRole, mountNode) {
             customdata: salaryTop.map(function(r) { return r.name; }),
             type: 'bar',
             marker: {
-                color: salaryTop.map(function(r) { return getSalaryDelta(r) >= 0 ? '#3a6b92' : '#c2410c'; })
+                color: salaryTop.map(function(r) { return getSalaryDelta(r) >= 0 ? CHART_COLORS.light : CHART_COLORS.dark; })
             },
             hovertemplate: '%{customdata}<br>Δ з/п: %{y}<extra></extra>'
         }], { margin: { t: 24, r: 20, b: 110, l: 60 }, height: 360 }, { responsive: true, displayModeBar: false });
@@ -4099,9 +4099,10 @@ function renderGlobalTotalsFiltered(parentRole) {
                 escapeHtml(row.employer) +
               '</button>'
             : '—';
-        var status = row.responded
-            ? '<span class="totals-response-pill done">Был отклик</span>'
-            : '<span class="totals-response-pill none">Нет отклика</span>';
+        var status = '<label class="totals-ios-checkbox-wrap" title="' + (row.responded ? 'Был отклик' : 'Нет отклика') + '">' +
+            '<input type="checkbox" class="totals-ios-checkbox" ' + (row.responded ? 'checked ' : '') + 'disabled>' +
+            '<span class="totals-ios-checkbox-ui"></span>' +
+        '</label>';
         return '<tr>' +
             '<td>' + vacancyLink + '</td>' +
             '<td>' + employerCell + '</td>' +
