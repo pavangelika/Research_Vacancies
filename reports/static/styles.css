@@ -112,17 +112,17 @@
 .totals-layout {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 .totals-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 12px;
+    gap: 10px;
 }
 .totals-kpis {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+    gap: 8px;
 }
 .totals-kpis-inline {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -130,16 +130,16 @@
 .totals-kpi {
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: rgba(255, 255, 255, 0.96);
 }
 .totals-kpi .label {
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     color: #64748b;
 }
 .totals-kpi .value {
     margin-top: 4px;
-    font-size: 1rem;
+    font-size: 0.96rem;
     font-weight: 600;
     color: #0f172a;
 }
@@ -152,12 +152,12 @@
 .totals-card {
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 12px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: rgba(255, 255, 255, 0.96);
 }
 .totals-card h3 {
-    margin: 0 0 8px;
-    font-size: 0.95rem;
+    margin: 0 0 6px;
+    font-size: 0.92rem;
     color: #334155;
 }
 .totals-switch {
@@ -176,12 +176,99 @@
 .totals-note {
     font-size: 0.84rem;
     color: #64748b;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
+}
+.totals-apply-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    color: #1d4ed8;
+    text-decoration: none;
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+.totals-apply-link:hover {
+    background: rgba(59, 130, 246, 0.08);
+}
+.totals-response-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+.totals-response-pill.done {
+    color: #166534;
+    background: rgba(34, 197, 94, 0.14);
+    border: 1px solid rgba(34, 197, 94, 0.28);
+}
+.totals-response-pill.none {
+    color: #9a3412;
+    background: rgba(251, 146, 60, 0.14);
+    border: 1px solid rgba(251, 146, 60, 0.28);
 }
 .totals-warning {
     font-size: 0.82rem;
     color: #b45309;
     margin-top: 6px;
+}
+.totals-card .vacancy-table-wrap {
+    overflow: auto;
+}
+.totals-card .vacancy-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+}
+.totals-card .vacancy-table tbody tr:nth-child(odd) {
+    background: rgba(248, 250, 252, 0.68);
+}
+.totals-table-compact th,
+.totals-table-compact td {
+    font-size: 0.78rem;
+    padding: 6px 8px;
+}
+.totals-table-compact td:first-child,
+.totals-table-compact th:first-child {
+    max-width: 220px;
+}
+.market-trends-content {
+    width: 100%;
+}
+.market-trends-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.market-trends-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+}
+.market-trends-list {
+    margin: 0;
+    padding-left: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.market-trends-list li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.82rem;
+    border-bottom: 1px dashed rgba(148, 163, 184, 0.28);
+    padding-bottom: 4px;
+}
+.market-trends-list li strong {
+    color: #1e3a8a;
+    font-weight: 700;
 }
 .my-responses-content .my-responses-checkbox {
     appearance: none;

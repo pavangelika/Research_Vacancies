@@ -172,7 +172,16 @@ function handleTotalsAnalysisSwitch(ctx) {
     var totalsBlock = ctx.blocks.totalsBlock;
     if (!totalsBlock) return;
     totalsBlock.style.display = 'block';
-    renderGlobalTotalsFiltered(ctx.parentRole);
+    totalsBlock.innerHTML = '<div class="skills-search-hint">Загрузка итогов...</div>';
+    requestAnimationFrame(function() {
+        try {
+            renderGlobalTotalsFiltered(ctx.parentRole);
+        } catch (err) {
+            console.error('renderGlobalTotalsFiltered failed', err);
+            var msg = (err && err.message) ? String(err.message) : 'unknown_error';
+            totalsBlock.innerHTML = '<div class="skills-search-hint">Не удалось загрузить дашборд: ' + escapeHtml(msg) + '</div>';
+        }
+    });
 }
 function handleSalaryAnalysisSwitch(ctx) {
     var parentRole = ctx.parentRole;

@@ -299,7 +299,6 @@ function renderAllRolesContainer(container, roleContents) {
 
     function computeAllRolesSkillCostSummaryFromVacancies(periodValue) {
         var currencyBuckets = {
-            ALL: { totals: new Map(), roleCounts: new Map() },
             RUR: { totals: new Map(), roleCounts: new Map() },
             USD: { totals: new Map(), roleCounts: new Map() },
             EUR: { totals: new Map(), roleCounts: new Map() }
@@ -346,13 +345,6 @@ function renderAllRolesContainer(container, roleContents) {
                     if (!savedLabel || (savedLabel === savedLabel.toLowerCase() && label !== label.toLowerCase())) {
                         displayNames.set(skill, label || skill);
                     }
-                    var allBucket = currencyBuckets.ALL;
-                    var allEntry = allBucket.totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
-                    allEntry.count += 1;
-                    allBucket.totals.set(skill, allEntry);
-                    var allRoleKey = skill + '||' + roleName;
-                    allBucket.roleCounts.set(allRoleKey, (allBucket.roleCounts.get(allRoleKey) || 0) + 1);
-
                     if (currency && currencyBuckets[currency]) {
                         var bucket = currencyBuckets[currency];
                         var entry = bucket.totals.get(skill) || { count: 0, sum: 0, salaryCount: 0, salaryValues: [] };
@@ -412,15 +404,14 @@ function renderAllRolesContainer(container, roleContents) {
         }
 
         var rowsByCurrency = {
-            ALL: buildRows('ALL'),
             RUR: buildRows('RUR'),
             USD: buildRows('USD'),
             EUR: buildRows('EUR')
         };
-        var currencies = ['ALL', 'RUR', 'USD', 'EUR'].filter(function(curr) {
+        var currencies = ['RUR', 'USD', 'EUR'].filter(function(curr) {
             return (rowsByCurrency[curr] || []).length > 0;
         });
-        var defaultCurrency = rowsByCurrency.ALL.length ? 'ALL' : (rowsByCurrency.RUR.length ? 'RUR' : (currencies[0] || 'ALL'));
+        var defaultCurrency = rowsByCurrency.RUR.length ? 'RUR' : (currencies[0] || 'RUR');
         return {
             rows: rowsByCurrency[defaultCurrency] || [],
             rows_by_currency: rowsByCurrency,
@@ -666,8 +657,8 @@ function renderAllRolesContainer(container, roleContents) {
     var skillsPeriodBlocks = periodItems.map((p, i) => {
         var summary = computeAllRolesSkillCostSummaryFromVacancies(p.period);
         var rowsByCurrency = summary.rows_by_currency || {};
-        var currencies = (summary.currencies && summary.currencies.length) ? summary.currencies : ['RUR'];
-        var defaultCurrency = currencies.indexOf('RUR') >= 0 ? 'RUR' : currencies[0];
+        var currencies = ['RUR', 'USD', 'EUR'];
+        var defaultCurrency = 'RUR';
         var rows = rowsByCurrency[defaultCurrency] || summary.rows || [];
         var graphId = 'skills-graph-all-' + i;
         return '<div id="skills-all-period-' + i + '" class="all-roles-period-content" data-analysis="skills-monthly-all" data-period="' + (p.period || 'all') + '" ' +
@@ -1339,7 +1330,7 @@ function renderCombinedContainer(container, roleContents) {
 
     addSummaryTabs(container);
 
-    var savedType = uiState[getAnalysisStateKey(container.id)] || uiState.global_analysis_type || 'activity';
+    var savedType = uiState[getAnalysisStateKey(container.id)] || uiState.global_analysis_type || 'totals';
     var targetButton = container.querySelector(".analysis-button[data-analysis-id='" + savedType + "-combined']");
     if (targetButton) targetButton.click();
     else {
@@ -1417,7 +1408,7 @@ function buildUnifiedTabsDataContract(selectedIndices) {
         selected_role_names: selectedRoleContents.map(function(roleContent) {
             return String(roleContent.dataset.roleName || roleContent.dataset.roleId || roleContent.id || '');
         }),
-        active_analysis: uiState.global_analysis_type || 'activity',
+        active_analysis: uiState.global_analysis_type || 'totals',
         tabs: {
             activity: { key: 'activity', enabled: true },
             weekday: { key: 'weekday', enabled: true },
@@ -1475,8 +1466,9 @@ function getUnifiedRoleStrategies() {
                 context.allRoles.dataset.renderSignature = renderSignature;
                 return;
             }
-            var preferred = uiState.global_analysis_type || 'activity';
+            var preferred = uiState.global_analysis_type || 'totals';
             var targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
+            if (!targetButton) targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="activity-all"]');
             if (targetButton) targetButton.click();
         },
         empty: function(context) {
