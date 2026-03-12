@@ -1037,6 +1037,8 @@ def fetch_salary_data(mapping):
             v.experience,
             v.archived,
             v.archived_at,
+            v.send_resume,
+            v.resume_at,
             v.published_at,
             e.accredited_it_employer,
             e.rating,
@@ -1167,7 +1169,7 @@ def fetch_salary_data(mapping):
     for row in vacancy_rows:
         (vac_id, name, employer, city, salary_from, salary_to, currency,
          skills, requirement, responsibility, apply_alternate_url, role_id,
-         experience, archived, archived_at, published_at,
+         experience, archived, archived_at, send_resume, resume_at, published_at,
          accredited_it_employer, rating, trusted, employer_url) = row
 
         if role_id is None:
@@ -1208,6 +1210,7 @@ def fetch_salary_data(mapping):
 
         published_iso = published_at.isoformat() if published_at else None
         archived_iso = archived_at.isoformat() if archived_at else None
+        resume_iso = resume_at.isoformat() if resume_at else None
         vacancy_obj = {
             'id': vac_id,
             'name': name,
@@ -1221,6 +1224,8 @@ def fetch_salary_data(mapping):
             'converted_salary': converted_salary,
             'published_at': published_iso,
             'archived_at': archived_iso,
+            'send_resume': bool(send_resume) if send_resume is not None else False,
+            'resume_at': resume_iso,
             'role_id': role_key,
             'role_name': role_name,
             'experience': experience,
@@ -1573,6 +1578,7 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
     template = env.get_template('report_template.html')
     current_date = datetime.now().strftime("%d.%m.%Y")
     current_time = datetime.now().strftime("%H:%M")
+    asset_version = datetime.now().strftime("%Y%m%d%H%M%S")
 
     for role in roles_data:
         role_id = role['id']
@@ -1582,7 +1588,8 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
                            skills_monthly_roles=skills_monthly_data,
                            salary_roles=salary_data,
                            employer_analysis_roles=employer_analysis_data,
-                           current_date=current_date, current_time=current_time)
+                           current_date=current_date, current_time=current_time,
+                           asset_version=asset_version)
 
 
 def save_report(html_content):

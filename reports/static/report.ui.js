@@ -686,6 +686,10 @@ function normalizeSendResumeValue(value) {
     return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'да';
 }
 
+function isRespondedVacancy(vacancy) {
+    return !!(vacancy && (normalizeSendResumeValue(vacancy.send_resume) || vacancy.__is_response_item === true));
+}
+
 function collectMyResponsesVacancies() {
     var roleContents = [];
     if (typeof getSelectableRoleContents === 'function') {
@@ -701,7 +705,7 @@ function collectMyResponsesVacancies() {
     });
     combined = typeof dedupeVacanciesById === 'function' ? dedupeVacanciesById(combined) : combined;
     var filtered = combined.filter(function(vacancy) {
-        return vacancy && normalizeSendResumeValue(vacancy.send_resume);
+        return isRespondedVacancy(vacancy);
     });
     filtered.sort(function(a, b) {
         var aTs = Date.parse(a && a.resume_at ? a.resume_at : '') || 0;
@@ -875,7 +879,7 @@ function applyMyResponsesGlobalFilters(parentRole, vacancies) {
         list = periodInput;
     }
     list = list.filter(function(vacancy) {
-        return vacancy && (normalizeSendResumeValue(vacancy.send_resume) || vacancy.__is_response_item === true);
+        return isRespondedVacancy(vacancy);
     });
     list.sort(function(a, b) {
         var aTs = Date.parse(a && (a.resume_at || a.published_at) ? (a.resume_at || a.published_at) : '') || 0;
@@ -1798,7 +1802,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
                     allRoleVacancies = (getRoleVacancies(activeRole) || []).slice();
                 }
                 responsesList = allRoleVacancies.filter(function(v) {
-                    return normalizeSendResumeValue(v && v.send_resume);
+                    return isRespondedVacancy(v);
                 });
             }
             return buildPeriodFilterOptionsFromResponseItems(responsesList);
@@ -3427,7 +3431,7 @@ function totalsComputeTopVacanciesBySalary(vacancies, currency) {
             employerUrl: String(v.employer_url || '').trim(),
             salary: Number(salaryValue),
             currency: curr,
-            responded: !!(v.send_resume === true || v.send_resume === 1 || v.send_resume === '1' || String(v.send_resume || '').toLowerCase() === 'true')
+            responded: isRespondedVacancy(v)
         };
     }).filter(Boolean).sort(function(a, b) {
         return (b.salary - a.salary)
@@ -3516,7 +3520,7 @@ function totalsBuild14dTrend(vacancies, windowDays) {
             b.ageSum += Number(age);
             b.ageCount += 1;
         }
-        var responded = !!(v.send_resume === true || v.send_resume === 1 || v.send_resume === '1' || v.send_resume === 'true');
+        var responded = isRespondedVacancy(v);
         if (responded) {
             b.responses += 1;
             var hasInterview = !!(v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v));
@@ -4107,11 +4111,11 @@ function renderGlobalTotalsFiltered(parentRole) {
     var responseRowsSource = Array.isArray(uiState.my_responses_cache) ? uiState.my_responses_cache.slice() : [];
     if (!responseRowsSource.length) {
         responseRowsSource = allRoleVacancies.filter(function(v) {
-            return normalizeSendResumeValue(v && v.send_resume);
+            return isRespondedVacancy(v);
         });
     }
     var responseRows = filterMyResponsesBySelectedPeriods(responseRowsSource, selectedPeriods).filter(function(v) {
-        return !!(v && (normalizeSendResumeValue(v.send_resume) || v.__is_response_item === true));
+        return isRespondedVacancy(v);
     });
     var responseInterview = responseRows.filter(function(v) {
         return !!(v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v)));
