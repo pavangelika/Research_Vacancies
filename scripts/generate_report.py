@@ -5,6 +5,7 @@ import psycopg2
 import shutil
 import logging
 import urllib.request
+import socket
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
 
@@ -111,9 +112,15 @@ def get_db_connection():
         DB_NAME = os.getenv("DB_NAME", "mydb")
         DB_HOST = os.getenv("DB_HOST", "postgres")
         DB_PORT = os.getenv("DB_PORT", "5432")
+        resolved_host = DB_HOST
+        try:
+            socket.gethostbyname(DB_HOST)
+        except OSError:
+            logging.warning("DB_HOST=%s недоступен, используем localhost", DB_HOST)
+            resolved_host = "127.0.0.1"
         database_url = os.environ.get(
             'DATABASE_URL',
-            f'postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
+            f'postgresql://{DB_USER}:{DB_PASS}@{resolved_host}:{DB_PORT}/{DB_NAME}'
         )
         conn = psycopg2.connect(database_url)
         logging.info("Database connection established")

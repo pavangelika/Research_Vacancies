@@ -1,6 +1,7 @@
 import os
 import logging
 import time
+import socket
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
@@ -18,10 +19,20 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
 
+def get_resolved_db_host() -> str:
+    host = (DB_HOST or "").strip() or "localhost"
+    try:
+        socket.gethostbyname(host)
+        return host
+    except OSError:
+        logger.warning("DB_HOST=%s недоступен, используем localhost", host)
+        return "127.0.0.1"
+
+
 def create_database():
     # Подключаемся к серверу PostgreSQL (к базе данных по умолчанию)
     conn = psycopg2.connect(
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
         user=DB_USER,
         password=DB_PASS,
@@ -62,7 +73,7 @@ def init_table():
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
         cur.execute(
@@ -120,7 +131,7 @@ def mark_resume_sent(vacancy_id: str) -> bool:
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
         cur.execute(
@@ -134,6 +145,8 @@ def mark_resume_sent(vacancy_id: str) -> bool:
         )
         updated = cur.rowcount > 0
         conn.commit()
+        if not updated:
+            logger.warning("Не удалось отметить отклик: vacancy_id=%s не найдена в БД", vacancy_id)
         return updated
 
 
@@ -146,7 +159,7 @@ def get_sent_resume_vacancies() -> list[dict]:
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
         cur.execute(
@@ -225,7 +238,7 @@ def get_vacancy_details(vacancy_id: str) -> dict | None:
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
         cur.execute(
@@ -297,7 +310,7 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
         cur.execute(
@@ -375,7 +388,7 @@ def save_vacancies(vacancies: list[dict]):
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
 
@@ -436,7 +449,7 @@ def update_archived_status(
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASS,
-            host=DB_HOST,
+            host=get_resolved_db_host(),
             port=DB_PORT,
     ) as conn, conn.cursor() as cur:
 
@@ -540,7 +553,7 @@ def init_employers():
         dbname=DB_NAME,
         user=DB_USER,
         password=DB_PASS,
-        host=DB_HOST,
+        host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
 
@@ -587,7 +600,7 @@ def update_employers(vacancies: list[dict]):
             dbname=DB_NAME,
             user=DB_USER,
             password=DB_PASS,
-            host=DB_HOST,
+            host=get_resolved_db_host(),
             port=DB_PORT,
     ) as conn, conn.cursor() as cur:
 

@@ -718,7 +718,7 @@ function collectMyResponsesVacancies() {
 function fetchMyResponsesVacancies() {
     var nonce = Date.now();
     var endpoint = '/api/vacancies/responses?_ts=' + nonce;
-    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/responses?_ts=' + nonce;
+    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/responses?_ts=' + nonce;
     function doGet(url) {
         return fetch(url, {
             method: 'GET',
@@ -746,7 +746,7 @@ function fetchMyResponsesVacancies() {
         return doGet(fallbackEndpoint);
     }
     return doGet(endpoint).catch(function() {
-        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw new Error('responses_api_failed');
+        if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('responses_api_failed');
         return doGet(fallbackEndpoint);
     });
 }
@@ -1173,7 +1173,7 @@ function fetchMyResponseDetails(vacancyId) {
     var id = String(vacancyId || '').trim();
     if (!id) return Promise.reject(new Error('vacancy_id_required'));
     var endpoint = '/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
-    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
+    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
     function doGet(url) {
         return fetch(url, {
             method: 'GET',
@@ -1188,7 +1188,7 @@ function fetchMyResponseDetails(vacancyId) {
     }
     if (window.location && window.location.protocol === 'file:') return doGet(fallbackEndpoint);
     return doGet(endpoint).catch(function() {
-        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw new Error('details_api_failed');
+        if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('details_api_failed');
         return doGet(fallbackEndpoint);
     });
 }
@@ -1197,7 +1197,7 @@ function saveMyResponseDetails(vacancyId, fields, forceOverwrite) {
     var id = String(vacancyId || '').trim();
     if (!id) return Promise.reject(new Error('vacancy_id_required'));
     var endpoint = '/api/vacancies/details';
-    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/details';
+    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/details';
     var payload = JSON.stringify({
         vacancy_id: id,
         fields: fields || {},
@@ -1215,7 +1215,7 @@ function saveMyResponseDetails(vacancyId, fields, forceOverwrite) {
     }
     if (window.location && window.location.protocol === 'file:') return doPost(fallbackEndpoint);
     return doPost(endpoint).catch(function() {
-        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw new Error('save_details_api_failed');
+        if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('save_details_api_failed');
         return doPost(fallbackEndpoint);
     });
 }

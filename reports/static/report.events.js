@@ -303,7 +303,7 @@ function openResumeActionModal(payload) {
 function postSendResume(vacancyId) {
     if (!vacancyId) return Promise.resolve({ ok: false, updated: false });
     var endpoint = '/api/vacancies/send-resume';
-    var fallbackEndpoint = 'http://localhost:8000/api/vacancies/send-resume';
+    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/send-resume';
     var payload = JSON.stringify({ vacancy_id: String(vacancyId).trim() });
     function doPost(url) {
         return fetch(url, {
@@ -311,15 +311,22 @@ function postSendResume(vacancyId) {
             headers: { 'Content-Type': 'application/json' },
             body: payload
         }).then(function(resp) {
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            return resp.json();
+            return resp.json().catch(function() {
+                return {};
+            }).then(function(data) {
+                if (!resp.ok) {
+                    var message = data && data.error ? String(data.error) : ('HTTP ' + resp.status);
+                    throw new Error(message);
+                }
+                return data;
+            });
         });
     }
     if (window.location && window.location.protocol === 'file:') {
         return doPost(fallbackEndpoint);
     }
     return doPost(endpoint).catch(function(err) {
-        if (String(window.location && window.location.origin || '').indexOf('localhost:8000') >= 0) throw err;
+        if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw err;
         return doPost(fallbackEndpoint);
     });
 }
@@ -340,6 +347,7 @@ document.addEventListener('click', function(e) {
         if (result.sendResume) {
             postSendResume(result.vacancyId).then(function(apiResult) {
                 if (!apiResult || !apiResult.updated) {
+                    alert('Не удалось сохранить отклик в БД: вакансия не найдена.');
                     console.warn('send_resume not updated, vacancy id not found:', result.vacancyId);
                     return;
                 }
@@ -358,6 +366,7 @@ document.addEventListener('click', function(e) {
                     }
                 });
             }).catch(function(err) {
+                alert('Не удалось сохранить отклик в БД. Проверьте, что сервер отчёта и база данных доступны.');
                 console.error('send_resume update failed:', err);
             });
         }

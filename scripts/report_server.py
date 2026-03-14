@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 REPORTS_DIR = Path(os.environ.get("REPORTS_OUTPUT_DIR", str(PROJECT_ROOT / "reports"))).resolve()
 HOST = os.environ.get("REPORT_SERVER_HOST", "0.0.0.0")
-PORT = int(os.environ.get("REPORT_SERVER_PORT", "8000"))
+PORT = int(os.environ.get("REPORT_SERVER_PORT", "9000"))
 
 
 class ReportHandler(SimpleHTTPRequestHandler):
@@ -79,7 +79,14 @@ class ReportHandler(SimpleHTTPRequestHandler):
                 self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
                 return
 
-            self._send_json(HTTPStatus.OK, {"ok": True, "updated": bool(updated), "vacancy_id": vacancy_id})
+            if not updated:
+                self._send_json(
+                    HTTPStatus.NOT_FOUND,
+                    {"ok": False, "updated": False, "error": "vacancy_not_found", "vacancy_id": vacancy_id},
+                )
+                return
+
+            self._send_json(HTTPStatus.OK, {"ok": True, "updated": True, "vacancy_id": vacancy_id})
             return
 
         if parsed.path == "/api/vacancies/details":
