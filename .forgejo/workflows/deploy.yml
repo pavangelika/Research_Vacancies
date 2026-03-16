@@ -1,0 +1,35 @@
+name: Deploy Docker Compose
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create runtime env file
+        shell: bash
+        run: |
+          cat > .env <<EOF
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASS=${{ secrets.DB_PASS }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          EOF
+
+      - name: Validate Docker Compose config
+        shell: bash
+        run: docker compose config
+
+      - name: Deploy stack
+        shell: bash
+        run: docker compose up -d --build --remove-orphans
+
+      - name: Show running containers
+        shell: bash
+        run: docker compose ps
