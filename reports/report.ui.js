@@ -3889,6 +3889,17 @@ function marketTrendsFmtNum(value) {
     if (value === null || value === undefined || !isFinite(value)) return '—';
     return totalsFormatNumber(value);
 }
+function marketTrendsFmtMoney(value, currency) {
+    if (value === null || value === undefined || !isFinite(value)) return '—';
+    var curr = normalizeTotalsCurrency(currency || 'RUR');
+    var amount = Number(value) || 0;
+    if (curr === 'RUR') {
+        var sign = amount < 0 ? '-' : '';
+        var roundedThousands = Math.round(Math.abs(amount) / 1000);
+        return sign + totalsFormatNumber(roundedThousands) + 'К ' + curr;
+    }
+    return marketTrendsFmtNum(amount) + ' ' + curr;
+}
 function marketTrendsComputeSalaryStats(list, currency) {
     var curr = normalizeTotalsCurrency(currency || 'RUR');
     var vals = (list || []).map(function(v) {
@@ -3983,6 +3994,27 @@ function formatMarketTrendsRoleLabel(row) {
     var experience = String(row && row.experience || '').trim();
     return experience ? (roleName + ' · ' + experience) : roleName;
 }
+function getMarketTrendsRoleDisplay(row, showExperience) {
+    var roleName = String(row && (row.name || row.id || 'Роль') || '').trim() || 'Роль';
+    var experience = showExperience ? String(row && row.experience || '').trim() : '';
+    return { role: roleName, experience: experience };
+}
+function getMarketTrendsExperienceGradientColor(row, fallbackColor) {
+    var experience = normalizeExperience(row && row.experience || '');
+    if (!experience) return fallbackColor;
+    var palette = ['#d7e1e8', '#bccad3', '#9aaeb9', '#748d9a'];
+    var order = typeof getExperienceOrder === 'function'
+        ? getExperienceOrder()
+        : {
+            'Нет опыта': 0,
+            'От 1 года до 3 лет': 1,
+            'От 3 до 6 лет': 2,
+            'Более 6 лет': 3
+        };
+    var idx = Object.prototype.hasOwnProperty.call(order, experience) ? Number(order[experience]) : -1;
+    if (!isFinite(idx) || idx < 0) return fallbackColor;
+    return palette[Math.min(idx, palette.length - 1)] || fallbackColor;
+}
 function formatRussianCount(value, forms) {
     var n = Math.abs(Number(value) || 0);
     var mod10 = n % 10;
@@ -4061,6 +4093,7 @@ function renderMarketTrends(parentRole, mountNode) {
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var periodLabel = resolveChartPeriodLabel(selectedPeriodsForTrends);
     var hasExplicitExperienceFilter = hasExplicitMarketTrendsExperienceFilter(expOptions);
+    var showRoleExperience = !hasExplicitExperienceFilter;
     var splitMetricsByExperience = !hasExplicitExperienceFilter && Array.isArray(expOptions) && expOptions.length > 0;
     var expLabel = hasExplicitExperienceFilter
         ? resolveChartExperienceLabel(selectedExps, expOptions)
@@ -4262,7 +4295,7 @@ function renderMarketTrends(parentRole, mountNode) {
                 var fallbackSegments = buildSegments(fallbackMetrics);
                 if (fallbackSegments.salaryUp.length || fallbackSegments.salaryDown.length) {
                     useSalaryFallback = true;
-                    salaryFallbackNote = 'Сравнение зарплаты: ' + recentDaysFallback + ' дн (' + fmtDate(fbRecentStartTs) + ' - ' + fmtDate(fbRecentEndTs) + ') против ' + prevDaysFallback + ' дн (' + fmtDate(fbPrevStartTs) + ' - ' + fmtDate(fbPrevEndTs) + ').';
+                    salaryFallbackNote = 'Сравнение зарплаты: ' + recentDaysFallback + ' дн (' + fmtDate(fbRecentStartTs) + ' - ' + fmtDate(fbRecentEndTs) + ') против ' + prevDaysFallback + ' дн (' + fmtDate(fbPrevStartTs) + ' - ' + fmtDate(fbPrevEndTs) + ')';
                     metrics = fallbackMetrics;
                     recentStartTs = fbRecentStartTs;
                     prevStartTs = fbPrevStartTs;
@@ -4298,13 +4331,15 @@ function renderMarketTrends(parentRole, mountNode) {
     }
 
     function buildTrendLeadCard(eyebrow, title, row, valueText, toneClass) {
-        var label = row ? formatMarketTrendsRoleLabel(row) : 'Нет данных';
+        var label = row ? getMarketTrendsRoleDisplay(row, showRoleExperience) : { role: 'Нет данных', experience: '' };
         var value = String(valueText || '—').trim() || '—';
         return '<section class="totals-card market-trends-hero-card' + (toneClass ? ' ' + toneClass : '') + '">' +
             '<div class="market-trends-card-eyebrow">' + escapeHtml(eyebrow || '') + '</div>' +
             '<h3>' + escapeHtml(title || '') + '</h3>' +
             '<div class="market-trends-hero-value">' + escapeHtml(value) + '</div>' +
-            '<div class="market-trends-hero-label">' + escapeHtml(label) + '</div>' +
+            '<div class="market-trends-hero-label"><span class="market-trends-role-primary">' + escapeHtml(label.role) + '</span>' +
+            (label.experience ? '<span class="market-trends-role-secondary">' + escapeHtml(label.experience) + '</span>' : '') +
+            '</div>' +
         '</section>';
     }
     function buildFocusTrendLeadCard(roleName, metricLabel, valueText, toneClass) {
@@ -4313,12 +4348,23 @@ function renderMarketTrends(parentRole, mountNode) {
             '<div class="market-trends-hero-value"> ' + escapeHtml(metricLabel || '') + ' ' + escapeHtml(valueText || '—') + '</div>' +
         '</section>';
     }
+    function buildFocusMetricCard(title, valueText, toneClass) {
+        return '<section class="totals-card market-trends-hero-card market-trends-focus-card' + (toneClass ? ' ' + toneClass : '') + '">' +
+            '<div class="market-trends-focus-metric">' +
+                '<div class="market-trends-card-eyebrow">' + escapeHtml(title || '') + '</div>' +
+                '<div class="market-trends-hero-value">' + escapeHtml(valueText || '—') + '</div>' +
+            '</div>' +
+        '</section>';
+    }
     function buildRoleList(items, formatter, toneClass) {
         if (!items.length) return '<li class="market-trends-empty">Нет данных</li>';
         return items.map(function(r) {
+            var label = getMarketTrendsRoleDisplay(r, showRoleExperience);
             return '<li class="' + escapeHtml(toneClass || '') + '">' +
                 '<span class="market-trends-rank">' + escapeHtml(String(items.indexOf(r) + 1)) + '</span>' +
-                '<span class="market-trends-item-label">' + escapeHtml(formatMarketTrendsRoleLabel(r)) + '</span>' +
+                '<span class="market-trends-item-label"><span class="market-trends-role-primary">' + escapeHtml(label.role) + '</span>' +
+                (label.experience ? '<span class="market-trends-role-secondary">' + escapeHtml(label.experience) + '</span>' : '') +
+                '</span>' +
                 '<strong>' + formatter(r) + '</strong>' +
             '</li>';
         }).join('');
@@ -4349,16 +4395,30 @@ function renderMarketTrends(parentRole, mountNode) {
     var salaryDeltaLeader = salaryUp[0] || salaryDown[0] || null;
     var focusDemandTone = focusMetrics && focusMetrics.demandDelta > 0 ? 'is-positive' : (focusMetrics && focusMetrics.demandDelta < 0 ? 'is-negative' : 'is-neutral');
     var focusSalaryTone = focusMetrics && getSalaryDelta(focusMetrics) > 0 ? 'is-positive' : (focusMetrics && getSalaryDelta(focusMetrics) < 0 ? 'is-negative' : 'is-neutral');
+    var focusRoleName = focusMetrics ? (focusMetrics.name || focusMetrics.id || 'Роль') : '';
     block.innerHTML =
         '<div class="market-trends-layout">' +
             '<div class="market-trends-head">' +
                 '<div class="market-trends-context">' +
-                    '<span class="market-trends-context-text">Сравнение: ' + recentDays + ' дн (' + fmtDate(recentStartTs) + ' - ' + fmtDate(anchorTs) + ') против ' + baselineDays + ' дн (' + fmtDate(prevStartTs) + ' - ' + fmtDate(prevEndTs) + ').</span>' +
-                    (useSalaryFallback && salaryFallbackNote ? '<span class="market-trends-context-text">' + escapeHtml(salaryFallbackNote) + '</span>' : '') +
+                    '<span class="market-trends-context-text">Сравнение: ' + recentDays + ' дн (' + fmtDate(recentStartTs) + ' - ' + fmtDate(anchorTs) + ') против ' + baselineDays + ' дн (' + fmtDate(prevStartTs) + ' - ' + fmtDate(prevEndTs) + ')</span>' +
                     (!hasSalaryForCurrency ? '<span class="totals-warning market-trends-inline-warning">По валюте ' + escapeHtml(currency) + ' нет данных по зарплате в выбранном периоде/опыте.</span>' : '') +
                 '</div>' +
             '</div>' +
-            '<div class="market-trends-summary-grid">' +
+            (focusMetrics
+                ? '<section class="totals-card market-trends-focus-panel">' +
+                    '<div class="market-trends-section-head">' +
+                        '<div class="market-trends-focus-role-chip">Для роли</div>' +
+                        '<h3>' + escapeHtml(focusRoleName) + '</h3>' +
+                        '<div class="market-trends-section-meta">Ключевые показатели за выбранный период</div>' +
+                    '</div>' +
+                    '<div class="market-trends-summary-grid market-trends-summary-grid-focus">' +
+                        buildFocusMetricCard('Спрос', formatVacancyCount(focusMetrics.recentCount), 'is-neutral') +
+                        buildFocusMetricCard('Рост', marketTrendsFmtPct(focusMetrics.demandPct), focusDemandTone) +
+                        buildFocusMetricCard('Зарплата', getRecentSalaryMetric(focusMetrics) !== null ? marketTrendsFmtMoney(getRecentSalaryMetric(focusMetrics), currency) : '—', 'is-neutral') +
+                        buildFocusMetricCard('Изменение', getSalaryDelta(focusMetrics) !== null ? (((getSalaryDelta(focusMetrics) || 0) > 0 ? '+' : ((getSalaryDelta(focusMetrics) || 0) < 0 ? '-' : '')) + marketTrendsFmtMoney(Math.abs(getSalaryDelta(focusMetrics)), currency)) : '—', focusSalaryTone) +
+                    '</div>' +
+                '</section>'
+                : '<div class="market-trends-summary-grid">' +
                 (focusMetrics
                     ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Спрос', formatVacancyCount(focusMetrics.recentCount), 'is-neutral')
                     : buildTrendLeadCard('Спрос', 'Лидер периода', demandLeader, demandLeader ? (demandLeader.recentCount + ' вакансий') : '—', 'is-positive')) +
@@ -4366,21 +4426,37 @@ function renderMarketTrends(parentRole, mountNode) {
                     ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Рост', marketTrendsFmtPct(focusMetrics.demandPct), focusDemandTone)
                     : buildTrendLeadCard('Рост', 'Быстрый рост', growthLeader, growthLeader ? marketTrendsFmtPct(growthLeader.demandPct) : '—', 'is-positive')) +
                 (focusMetrics
-                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Зарплата', getRecentSalaryMetric(focusMetrics) !== null ? (marketTrendsFmtNum(getRecentSalaryMetric(focusMetrics)) + ' ' + currency) : '—', 'is-neutral')
-                    : buildTrendLeadCard('Зарплата', 'Высокая ' + salaryMetricLabel.toLowerCase(), salaryLeader, salaryLeader ? (marketTrendsFmtNum(getRecentSalaryMetric(salaryLeader)) + ' ' + currency) : '—', 'is-neutral')) +
+                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Зарплата', getRecentSalaryMetric(focusMetrics) !== null ? marketTrendsFmtMoney(getRecentSalaryMetric(focusMetrics), currency) : '—', 'is-neutral')
+                    : buildTrendLeadCard('Зарплата', 'Высокая ' + salaryMetricLabel.toLowerCase(), salaryLeader, salaryLeader ? marketTrendsFmtMoney(getRecentSalaryMetric(salaryLeader), currency) : '—', 'is-neutral')) +
                 (focusMetrics
-                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Изменение', getSalaryDelta(focusMetrics) !== null ? (((getSalaryDelta(focusMetrics) || 0) > 0 ? '+' : '') + marketTrendsFmtNum(getSalaryDelta(focusMetrics)) + ' ' + currency) : '—', focusSalaryTone)
-                    : buildTrendLeadCard('Изменение', 'Рост зарплаты', salaryDeltaLeader, salaryDeltaLeader ? (((getSalaryDelta(salaryDeltaLeader) || 0) > 0 ? '+' : '') + marketTrendsFmtNum(getSalaryDelta(salaryDeltaLeader)) + ' ' + currency) : '—', (salaryDeltaLeader && (getSalaryDelta(salaryDeltaLeader) || 0) > 0) ? 'is-positive' : 'is-negative')) +
-            '</div>' +
-            '<div class="market-trends-grid">' +
-                buildInsightCard('Лидеры спроса', 'по числу вакансий', onHorse, function(r) { return r.recentCount + ' вакансий'; }, 'is-positive') +
-                buildInsightCard('Снижение спроса', 'по числу вакансий', notDemanded, function(r) { return r.recentCount + ' вакансий'; }, 'is-negative') +
-                buildInsightCard('Быстрый рост', 'к предыдущему периоду', suddenDemand, function(r) { return marketTrendsFmtPct(r.demandPct); }, 'is-positive') +
-                buildInsightCard('Высокая зарплата', salaryMetricLabel.toLowerCase() + ' по ролям', paysMore, function(r) { return marketTrendsFmtNum(getRecentSalaryMetric(r)) + ' ' + currency; }, 'is-neutral') +
-                buildInsightCard('Низкая зарплата', salaryMetricLabel.toLowerCase() + ' по ролям', paysLess, function(r) { return marketTrendsFmtNum(getRecentSalaryMetric(r)) + ' ' + currency; }, 'is-neutral') +
-                buildInsightCard('Рост зарплаты', 'изменение к прошлому периоду', salaryUp, function(r) { return '+' + marketTrendsFmtNum(getSalaryDelta(r)) + ' ' + currency; }, 'is-positive') +
-                buildInsightCard('Снижение зарплаты', 'изменение к прошлому периоду', salaryDown, function(r) { return marketTrendsFmtNum(getSalaryDelta(r)) + ' ' + currency; }, 'is-negative') +
-            '</div>' +
+                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Изменение', getSalaryDelta(focusMetrics) !== null ? (((getSalaryDelta(focusMetrics) || 0) > 0 ? '+' : ((getSalaryDelta(focusMetrics) || 0) < 0 ? '-' : '')) + marketTrendsFmtMoney(Math.abs(getSalaryDelta(focusMetrics)), currency)) : '—', focusSalaryTone)
+                    : buildTrendLeadCard('Изменение', 'Рост зарплаты', salaryDeltaLeader, salaryDeltaLeader ? (((getSalaryDelta(salaryDeltaLeader) || 0) > 0 ? '+' : ((getSalaryDelta(salaryDeltaLeader) || 0) < 0 ? '-' : '')) + marketTrendsFmtMoney(Math.abs(getSalaryDelta(salaryDeltaLeader)), currency)) : '—', (salaryDeltaLeader && (getSalaryDelta(salaryDeltaLeader) || 0) > 0) ? 'is-positive' : 'is-negative')) +
+            '</div>') +
+            '<section class="market-trends-section">' +
+                '<div class="market-trends-section-head">' +
+                    '<div class="market-trends-focus-role-chip">Рынок</div>' +
+                    '<h3>Спрос</h3>' +
+                    '<div class="market-trends-section-meta">Кто растёт, кто снижается и кто лидирует по числу вакансий</div>' +
+                '</div>' +
+                '<div class="market-trends-grid">' +
+                    buildInsightCard('Лидеры спроса', 'по числу вакансий', onHorse, function(r) { return r.recentCount + ' вакансий'; }, 'is-positive') +
+                    buildInsightCard('Снижение спроса', 'по числу вакансий', notDemanded, function(r) { return r.recentCount + ' вакансий'; }, 'is-negative') +
+                    buildInsightCard('Быстрый рост', 'к предыдущему периоду', suddenDemand, function(r) { return marketTrendsFmtPct(r.demandPct); }, 'is-positive') +
+                '</div>' +
+            '</section>' +
+            '<section class="market-trends-section">' +
+                '<div class="market-trends-section-head">' +
+                    '<div class="market-trends-focus-role-chip">Рынок</div>' +
+                    '<h3>Зарплата</h3>' +
+                    '<div class="market-trends-section-meta">Роли с высокой, низкой и меняющейся зарплатой</div>' +
+                '</div>' +
+                '<div class="market-trends-grid">' +
+                    buildInsightCard('Высокая зарплата', salaryMetricLabel.toLowerCase() + ' по ролям', paysMore, function(r) { return marketTrendsFmtMoney(getRecentSalaryMetric(r), currency); }, 'is-neutral') +
+                    buildInsightCard('Низкая зарплата', salaryMetricLabel.toLowerCase() + ' по ролям', paysLess, function(r) { return marketTrendsFmtMoney(getRecentSalaryMetric(r), currency); }, 'is-neutral') +
+                    buildInsightCard('Рост зарплаты', 'изменение к прошлому периоду', salaryUp, function(r) { return '+' + marketTrendsFmtMoney(Math.abs(getSalaryDelta(r)), currency); }, 'is-positive') +
+                    buildInsightCard('Снижение зарплаты', 'изменение к прошлому периоду', salaryDown, function(r) { return '-' + marketTrendsFmtMoney(Math.abs(getSalaryDelta(r)), currency); }, 'is-negative') +
+                '</div>' +
+            '</section>' +
             '<div class="market-trends-grid market-trends-graphs">' +
                 '<section class="totals-card market-trends-chart-card"><div class="market-trends-card-head"><div class="market-trends-card-eyebrow">вакансии</div><h3>Изменение спроса по ролям</h3></div><div class="plotly-graph" id="' + demandGraphId + '"></div></section>' +
                 '<section class="totals-card market-trends-chart-card"><div class="market-trends-card-head"><div class="market-trends-card-eyebrow">' + escapeHtml(currency) + ' · ' + escapeHtml(salaryMetricLabel.toLowerCase()) + '</div><h3>Изменение зарплаты по ролям</h3></div><div class="plotly-graph" id="' + salaryGraphId + '"></div></section>' +
@@ -4414,12 +4490,13 @@ function renderMarketTrends(parentRole, mountNode) {
             customdata: demandTop.map(function(r) { return formatMarketTrendsRoleLabel(r); }),
             type: 'bar',
             marker: {
-                color: demandTop.map(function(r) { return r.demandDelta >= 0 ? CHART_COLORS.light : CHART_COLORS.dark; })
+                color: demandTop.map(function(r) {
+                    var fallback = r.demandDelta >= 0 ? CHART_COLORS.light : CHART_COLORS.dark;
+                    return hasExplicitExperienceFilter ? fallback : getMarketTrendsExperienceGradientColor(r, fallback);
+                })
             },
             hovertemplate: '%{customdata}<br>Δ спрос: %{y}<extra></extra>'
         }], { margin: { t: 24, r: 20, b: 110, l: 60 }, height: 360 }, { responsive: true, displayModeBar: false });
-        applyChartTitleContext(demandGraphId, 'Изменение спроса (последние ' + recentDays + 'д vs предыдущие ' + baselineDays + 'д)', contextText);
-
         var salaryTop = metrics.slice().filter(function(r) { return getSalaryDelta(r) !== null; }).sort(function(a, b) {
             return (Math.abs(getSalaryDelta(b)) - Math.abs(getSalaryDelta(a)))
                 || (getSalaryDelta(b) - getSalaryDelta(a));
@@ -4430,11 +4507,13 @@ function renderMarketTrends(parentRole, mountNode) {
             customdata: salaryTop.map(function(r) { return formatMarketTrendsRoleLabel(r); }),
             type: 'bar',
             marker: {
-                color: salaryTop.map(function(r) { return getSalaryDelta(r) >= 0 ? CHART_COLORS.light : CHART_COLORS.dark; })
+                color: salaryTop.map(function(r) {
+                    var fallback = getSalaryDelta(r) >= 0 ? CHART_COLORS.light : CHART_COLORS.dark;
+                    return hasExplicitExperienceFilter ? fallback : getMarketTrendsExperienceGradientColor(r, fallback);
+                })
             },
             hovertemplate: '%{customdata}<br>Δ з/п: %{y}<extra></extra>'
         }], { margin: { t: 24, r: 20, b: 110, l: 60 }, height: 360 }, { responsive: true, displayModeBar: false });
-        applyChartTitleContext(salaryGraphId, 'Изменение зарплаты (' + salaryMetricLabel.toLowerCase() + ', последние ' + recentDays + 'д vs предыдущие ' + baselineDays + 'д)', contextText);
     }
 }
 function renderGlobalTotalsFiltered(parentRole) {
