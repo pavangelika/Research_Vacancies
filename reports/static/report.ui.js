@@ -4401,7 +4401,6 @@ function renderGlobalTotalsFiltered(parentRole) {
             }).join('') +
         '</div>';
     }
-
     function topVacancyRowHtml(row) {
         var vacancyLink = row.id
             ? '<a href="https://surgut.hh.ru/vacancy/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener">' + escapeHtml(row.name || String(row.id)) + '</a>'
@@ -4424,7 +4423,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<td>' + vacancyLink + '</td>' +
             '<td>' + employerCell + '</td>' +
             '<td>' + totalsFormatNumber(row.salary) + '</td>' +
-            '<td>' + status + '</td>' +
+            '<td class="totals-status-cell">' + status + '</td>' +
         '</tr>';
     }
     function topSkillRowHtml(row) {
@@ -4528,10 +4527,10 @@ function renderGlobalTotalsFiltered(parentRole) {
                             '<h3>' + topTitlePrefix + ' вакансий по зарплате</h3>' +
                         '</div>' +
                         buildSwitchRow('totals_vacancy_order', [
-                            { value: 'high', label: 'Самые высокие' },
-                            { value: 'low', label: 'Самые низкие' }
+                            { value: 'high', label: 'Выше' },
+                            { value: 'low', label: 'Ниже' }
                         ], vacancyOrder) +
-                        '<div class="vacancy-table-wrap"><table class="vacancy-table"><thead><tr><th>Вакансия</th><th>Работодатель</th><th>Зарплата</th><th>Статус отклика</th></tr></thead><tbody>' +
+                        '<div class="vacancy-table-wrap"><table class="vacancy-table"><thead><tr><th>Вакансия</th><th>Работодатель</th><th>Зарплата</th><th>Отклик</th></tr></thead><tbody>' +
                             (topVacancies.length ? topVacancies.map(topVacancyRowHtml).join('') : '<tr><td colspan="4">Нет данных</td></tr>') +
                         '</tbody></table></div>' +
                     '</section>' +
@@ -4540,8 +4539,8 @@ function renderGlobalTotalsFiltered(parentRole) {
                             '<h3>' + topTitlePrefix + ' работодателей по зарплате</h3>' +
                         '</div>' +
                         buildSwitchRow('totals_company_order', [
-                            { value: 'high', label: 'Самые высокие' },
-                            { value: 'low', label: 'Самые низкие' }
+                            { value: 'high', label: 'Выше' },
+                            { value: 'low', label: 'Ниже' }
                         ], companyOrder) +
                         '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Работодатель</th><th>Вакансий</th><th>Мин</th><th>Средняя</th><th>Мода</th><th>Медиана</th><th>Макс</th></tr></thead><tbody>' +
                             (topCompanies.length ? topCompanies.map(topCompanyRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
@@ -4554,8 +4553,8 @@ function renderGlobalTotalsFiltered(parentRole) {
                             '<h3>' + topTitlePrefix + ' навыков</h3>' +
                         '</div>' +
                         buildSwitchRow('totals_skills_order', [
-                            { value: 'most', label: 'Самые востребованные' },
-                            { value: 'least', label: 'Самые невостребованные' }
+                            { value: 'most', label: 'Чаще' },
+                            { value: 'least', label: 'Реже' }
                         ], skillsOrder) +
                         '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Навык</th><th>Упоминаний</th><th>Мин</th><th>Средняя</th><th>Мода</th><th>Медиана</th><th>Макс</th></tr></thead><tbody>' +
                             (topSkills.length ? topSkills.map(topSkillRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
@@ -4566,11 +4565,11 @@ function renderGlobalTotalsFiltered(parentRole) {
                             '<h3>' + topTitlePrefix + ' работодателей по скорости закрытия вакансий</h3>' +
                         '</div>' +
                         buildSwitchRow('totals_closing_window', [
-                            { value: 'lte_7', label: 'За 7 дней' },
-                            { value: 'lte_14', label: '14 дней' },
-                            { value: 'lte_30', label: 'До 30 дней' },
-                            { value: 'gt_30', label: 'Более 30 дней' },
-                            { value: 'gt_60', label: 'Более 60 дней' }
+                            { value: 'lte_7', label: '7д' },
+                            { value: 'lte_14', label: '14д' },
+                            { value: 'lte_30', label: '30д' },
+                            { value: 'gt_30', label: '30+' },
+                            { value: 'gt_60', label: '60+' }
                         ], closingWindow) +
                         '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Работодатель</th><th>Закрыто</th><th>Мин дней</th><th>Средняя</th><th>Мода</th><th>Медиана</th><th>Макс дней</th></tr></thead><tbody>' +
                             (topClosingCompanies.length ? topClosingCompanies.map(topClosingCompanyRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
