@@ -2135,13 +2135,10 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
     var rolesWrap = panel.querySelector('.global-filter-dropdown[data-filter-key="roles"]');
     if (rolesWrap) {
         var rolesBucket = ensureGlobalFilterBucket('roles');
-        var selectedRoles = rolesBucket.include || [];
         rolesWrap.querySelectorAll('.skills-search-dropdown-item[data-role-value]').forEach(function(row) {
             var roleValue = row.dataset.roleValue || '';
-            var selected = selectedRoles.indexOf(roleValue) >= 0;
-            row.style.background = selected ? '#eef2f6' : 'transparent';
             var label = row.querySelector('div');
-            if (label) label.style.fontWeight = selected ? '600' : '400';
+            applyRoleFilterOptionVisualState(row, label, rolesBucket, roleValue);
         });
         if (uiState.keep_roles_filter_open) {
             var rolesMenu = rolesWrap.querySelector('.global-filter-menu');
@@ -2206,10 +2203,29 @@ function applyGlobalRoleFilter() {
     ctx.applySelection(new Set(next), next);
 }
 
+function isRoleFilterOptionExcluded(bucket, optionValue) {
+    var exclude = (bucket && Array.isArray(bucket.exclude)) ? bucket.exclude : [];
+    return exclude.some(function(value) {
+        return isSameGlobalFilterValue('roles', value, optionValue);
+    });
+}
+
+function applyRoleFilterOptionVisualState(row, labelNode, bucket, optionValue) {
+    if (!row) return;
+    var included = isGlobalFilterOptionIncluded('roles', bucket, optionValue);
+    var excluded = isRoleFilterOptionExcluded(bucket, optionValue);
+    row.style.background = included ? '#eef2f6' : (excluded ? '#fee2e2' : 'transparent');
+    row.style.color = excluded ? '#991b1b' : '#0f172a';
+    row.style.border = excluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
+    if (labelNode) {
+        labelNode.style.fontWeight = (included || excluded) ? '600' : '400';
+        labelNode.style.color = excluded ? '#991b1b' : '#0f172a';
+    }
+}
+
 function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var previousInclude = bucket.include.slice();
-    if (filterKey === 'roles') bucket.exclude = [];
     if (action === 'reset') {
         bucket.include = bucket.include.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
         bucket.exclude = bucket.exclude.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
@@ -2222,7 +2238,6 @@ function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh)
             bucket.exclude = [];
         }
     } else if (action === 'exclude') {
-        if (filterKey === 'roles') return;
         if (isGlobalFilterMultiEnabled(filterKey)) {
             if (!bucket.exclude.some(function(v) { return isSameGlobalFilterValue(filterKey, v, value); })) bucket.exclude.push(value);
             bucket.include = bucket.include.filter(function(v) { return !isSameGlobalFilterValue(filterKey, v, value); });
@@ -2246,7 +2261,6 @@ function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh)
         }
         bucket.exclude = [];
     } else if (action === 'clear_excluded') {
-        if (filterKey === 'roles') return;
         bucket.exclude = [];
     }
     if (filterKey === 'roles') {
@@ -2475,9 +2489,14 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 
     function reorderRoleRows() {
         var selectedRoles = bucket.include || [];
+        var excludedRoles = bucket.exclude || [];
         var selectedRank = {};
+        var excludedRank = {};
         selectedRoles.forEach(function(value, idx) {
             selectedRank[String(value)] = idx;
+        });
+        excludedRoles.forEach(function(value, idx) {
+            excludedRank[String(value)] = idx;
         });
         var rows = Array.from(menu.querySelectorAll('.skills-search-dropdown-item[data-role-value]'));
         rows.sort(function(a, b) {
@@ -2487,6 +2506,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
             var bSelected = Object.prototype.hasOwnProperty.call(selectedRank, bValue);
             if (aSelected && bSelected) return selectedRank[aValue] - selectedRank[bValue];
             if (aSelected !== bSelected) return aSelected ? -1 : 1;
+            var aExcluded = Object.prototype.hasOwnProperty.call(excludedRank, aValue);
+            var bExcluded = Object.prototype.hasOwnProperty.call(excludedRank, bValue);
+            if (aExcluded && bExcluded) return excludedRank[aValue] - excludedRank[bValue];
+            if (aExcluded !== bExcluded) return aExcluded ? -1 : 1;
             var aLabel = String(a.textContent || '').trim();
             var bLabel = String(b.textContent || '').trim();
             return aLabel.localeCompare(bLabel, 'ru');
@@ -2498,13 +2521,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 
     function syncRolesControlVisualState() {
         triggerLabel.textContent = summarizeGlobalFilterSelection('roles', options, false);
-        var selectedRoles = bucket.include || [];
         menu.querySelectorAll('.skills-search-dropdown-item[data-role-value]').forEach(function(node) {
             var roleValue = node.dataset.roleValue || '';
-            var selected = selectedRoles.indexOf(roleValue) >= 0;
-            node.style.background = selected ? '#eef2f6' : 'transparent';
             var labelNode = node.querySelector('div');
-            if (labelNode) labelNode.style.fontWeight = selected ? '600' : '400';
+            applyRoleFilterOptionVisualState(node, labelNode, bucket, roleValue);
         });
         reorderRoleRows();
     }
@@ -2527,15 +2547,16 @@ function createUnifiedRolesControl(activeRole, analysisType) {
             if (isGlobalFilterMultiEnabled('roles')) uiState.keep_roles_filter_open = true;
             if (isSummaryModeActive() && !isGlobalFilterMultiEnabled('roles')) setSummaryModeActive(false);
             var isIncluded = bucket.include.indexOf(option.value) >= 0;
-            updateGlobalFilterSelection('roles', option.value, isIncluded ? 'reset' : 'include');
+            var isExcluded = isRoleFilterOptionExcluded(bucket, option.value);
+            var action = isIncluded ? 'exclude' : (isExcluded ? 'reset' : 'include');
+            if (!isGlobalFilterMultiEnabled('roles')) action = isIncluded ? 'reset' : 'include';
+            updateGlobalFilterSelection('roles', option.value, action);
             syncRolesControlVisualState();
         });
         var label = document.createElement('div');
-        var isIncludedNow = bucket.include.indexOf(option.value) >= 0;
         label.textContent = option.label;
-        label.style.fontWeight = isIncludedNow ? '600' : '400';
         label.style.fontSize = '12px';
-        row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
+        applyRoleFilterOptionVisualState(row, label, bucket, option.value);
         row.appendChild(label);
         menu.appendChild(row);
     });
@@ -3962,6 +3983,17 @@ function formatMarketTrendsRoleLabel(row) {
     var experience = String(row && row.experience || '').trim();
     return experience ? (roleName + ' · ' + experience) : roleName;
 }
+function formatRussianCount(value, forms) {
+    var n = Math.abs(Number(value) || 0);
+    var mod10 = n % 10;
+    var mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return String(n) + ' ' + forms[0];
+    if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return String(n) + ' ' + forms[1];
+    return String(n) + ' ' + forms[2];
+}
+function formatVacancyCount(value) {
+    return formatRussianCount(value, ['вакансия', 'вакансии', 'вакансий']);
+}
 function resolveMarketTrendsBaseline(selectedPeriods) {
     var list = Array.isArray(selectedPeriods) ? selectedPeriods.slice() : [];
     var normalized = list.map(function(item) { return normalizeGlobalPeriodValue(item); }).filter(Boolean);
@@ -4049,7 +4081,47 @@ function renderMarketTrends(parentRole, mountNode) {
         mode: 'Мода'
     };
     var salaryMetricLabel = salaryMetricLabelMap[salaryMetric] || 'Медиана';
-    var roleContents = (typeof getAllRoleContents === 'function') ? getAllRoleContents() : [];
+    var baseRoleContents = [];
+    if (parentRole && parentRole.id === 'role-all' && Array.isArray(parentRole.__selectedRoleContents) && parentRole.__selectedRoleContents.length) {
+        baseRoleContents = parentRole.__selectedRoleContents.slice();
+    } else if (typeof getAllRoleContents === 'function') {
+        baseRoleContents = getAllRoleContents();
+    }
+    var roleMetaByIndex = (typeof getRoleMetaList === 'function' ? getRoleMetaList() : []).reduce(function(map, item) {
+        map[String(item && item.index || '')] = item || null;
+        return map;
+    }, {});
+    var focusRoleContent = null;
+    if (parentRole && parentRole.id !== 'role-all') {
+        focusRoleContent = parentRole;
+    } else if (baseRoleContents.length === 1) {
+        focusRoleContent = baseRoleContents[0];
+    } else {
+        var includedRoleIds = uiState && uiState.global_filters && uiState.global_filters.roles && Array.isArray(uiState.global_filters.roles.include)
+            ? uiState.global_filters.roles.include.map(function(value) { return String(value || '').trim(); }).filter(Boolean)
+            : [];
+        if (includedRoleIds.length === 1) {
+            var focusRoleMeta = roleMetaByIndex[includedRoleIds[0]] || null;
+            var focusRoleId = focusRoleMeta ? String(focusRoleMeta.id || '').trim() : includedRoleIds[0];
+            focusRoleContent = baseRoleContents.find(function(rc) {
+                return rc && rc.dataset && String(rc.dataset.roleId || '').trim() === focusRoleId;
+            }) || null;
+        }
+    }
+    var roleContents = baseRoleContents.slice();
+    var excludedTrendRoleIds = Array.isArray(uiState.market_trends_excluded_roles)
+        ? uiState.market_trends_excluded_roles.map(function(value) {
+            var key = String(value || '').trim();
+            var meta = roleMetaByIndex[key] || null;
+            return meta ? String(meta.id || '').trim() : key;
+        }).filter(Boolean)
+        : [];
+    if (excludedTrendRoleIds.length) {
+        roleContents = roleContents.filter(function(rc) {
+            var roleId = rc && rc.dataset ? String(rc.dataset.roleId || '').trim() : '';
+            return excludedTrendRoleIds.indexOf(roleId) < 0;
+        });
+    }
     var allVacancies = [];
     roleContents.forEach(function(rc) { allVacancies = allVacancies.concat(getRoleVacancies(rc) || []); });
     allVacancies = dedupeVacanciesById(allVacancies || []);
@@ -4057,12 +4129,16 @@ function renderMarketTrends(parentRole, mountNode) {
         allVacancies = filterVacanciesBySelectedExperiences(allVacancies, selectedExps);
     }
     var periodFilteredVacancies = filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends);
+    if (!periodFilteredVacancies.length) {
+        block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
+        return;
+    }
     var windowCfg = resolveMarketTrendsWindow(selectedPeriodsForTrends, allVacancies);
     var recentDays = Math.max(1, Number(windowCfg.days) || 7);
     var baselineDays = recentDays;
-    var anchor = getLatestPublishedAtDate(periodFilteredVacancies.length ? periodFilteredVacancies : allVacancies);
+    var anchor = getLatestPublishedAtDate(periodFilteredVacancies);
     if (!anchor) {
-        block.innerHTML = '<div class="skills-search-hint">Нет данных для трендов рынка</div>';
+        block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
         return;
     }
     var anchorTs = anchor.getTime();
@@ -4206,12 +4282,55 @@ function renderMarketTrends(parentRole, mountNode) {
     var salaryUp = segments.salaryUp;
     var salaryDown = segments.salaryDown;
     var hasSalaryForCurrency = segments.hasSalaryForCurrency;
+    var focusMetrics = null;
+    if (focusRoleContent) {
+        var focusRoleId = focusRoleContent && focusRoleContent.dataset ? String(focusRoleContent.dataset.roleId || '').trim() : '';
+        if (focusRoleId && excludedTrendRoleIds.indexOf(focusRoleId) >= 0) {
+            focusRoleContent = null;
+        }
+    }
+    if (focusRoleContent) {
+        var focusVacancies = dedupeVacanciesById(getRoleVacancies(focusRoleContent) || []);
+        if (hasExplicitExperienceFilter) {
+            focusVacancies = filterVacanciesBySelectedExperiences(focusVacancies, selectedExps);
+        }
+        focusMetrics = marketTrendsBuildRoleMetricsWindowed(focusRoleContent, focusVacancies, currency, recentStartTs, anchorTs, prevStartTs, prevEndTs);
+    }
 
-    function buildRoleList(items, formatter) {
-        if (!items.length) return '<li>Нет данных</li>';
+    function buildTrendLeadCard(eyebrow, title, row, valueText, toneClass) {
+        var label = row ? formatMarketTrendsRoleLabel(row) : 'Нет данных';
+        var value = String(valueText || '—').trim() || '—';
+        return '<section class="totals-card market-trends-hero-card' + (toneClass ? ' ' + toneClass : '') + '">' +
+            '<div class="market-trends-card-eyebrow">' + escapeHtml(eyebrow || '') + '</div>' +
+            '<h3>' + escapeHtml(title || '') + '</h3>' +
+            '<div class="market-trends-hero-value">' + escapeHtml(value) + '</div>' +
+            '<div class="market-trends-hero-label">' + escapeHtml(label) + '</div>' +
+        '</section>';
+    }
+    function buildFocusTrendLeadCard(roleName, metricLabel, valueText, toneClass) {
+        return '<section class="totals-card market-trends-hero-card' + (toneClass ? ' ' + toneClass : '') + '">' +
+            '<div class="market-trends-card-eyebrow">Для роли ' + escapeHtml(roleName || 'Роль') + '</div>' +
+            '<div class="market-trends-hero-value"> ' + escapeHtml(metricLabel || '') + ' ' + escapeHtml(valueText || '—') + '</div>' +
+        '</section>';
+    }
+    function buildRoleList(items, formatter, toneClass) {
+        if (!items.length) return '<li class="market-trends-empty">Нет данных</li>';
         return items.map(function(r) {
-            return '<li><span>' + escapeHtml(formatMarketTrendsRoleLabel(r)) + '</span><strong>' + formatter(r) + '</strong></li>';
+            return '<li class="' + escapeHtml(toneClass || '') + '">' +
+                '<span class="market-trends-rank">' + escapeHtml(String(items.indexOf(r) + 1)) + '</span>' +
+                '<span class="market-trends-item-label">' + escapeHtml(formatMarketTrendsRoleLabel(r)) + '</span>' +
+                '<strong>' + formatter(r) + '</strong>' +
+            '</li>';
         }).join('');
+    }
+    function buildInsightCard(title, subtitle, items, formatter, toneClass) {
+        return '<section class="totals-card market-trends-insight-card">' +
+            '<div class="market-trends-card-head">' +
+                '<div class="market-trends-card-eyebrow">' + escapeHtml(subtitle || '') + '</div>' +
+                '<h3>' + escapeHtml(title || '') + '</h3>' +
+            '</div>' +
+            '<ul class="market-trends-list">' + buildRoleList(items, formatter, toneClass) + '</ul>' +
+        '</section>';
     }
     function buildSwitchRow(stateKey, values, currentValue, extraClass) {
         var switchClass = 'tabs month-tabs totals-switch' + (extraClass ? ' ' + extraClass : '');
@@ -4222,53 +4341,49 @@ function renderMarketTrends(parentRole, mountNode) {
             }).join('') +
         '</div>';
     }
-    function rowHtml(r) {
-        return '<tr>' +
-            '<td>' + escapeHtml(r.name || r.id || 'Роль') + '</td>' +
-            (splitMetricsByExperience ? '<td>' + escapeHtml(r.experience || '—') + '</td>' : '') +
-            '<td>' + r.recentCount + '</td>' +
-            '<td>' + r.prevCount + '</td>' +
-            '<td>' + (r.demandDelta > 0 ? '+' : '') + r.demandDelta + '</td>' +
-            '<td>' + marketTrendsFmtPct(r.demandPct) + '</td>' +
-            '<td>' + marketTrendsFmtNum(getRecentSalaryMetric(r)) + '</td>' +
-            '<td>' + marketTrendsFmtNum(getSalaryDelta(r)) + '</td>' +
-            '<td>' + marketTrendsFmtPct(getSalaryDeltaPct(r)) + '</td>' +
-        '</tr>';
-    }
-
     var demandGraphId = 'market-trends-demand-graph-' + roleSuffix;
     var salaryGraphId = 'market-trends-salary-graph-' + roleSuffix;
+    var demandLeader = onHorse[0] || suddenDemand[0] || null;
+    var growthLeader = suddenDemand[0] || onHorse[0] || null;
+    var salaryLeader = paysMore[0] || null;
+    var salaryDeltaLeader = salaryUp[0] || salaryDown[0] || null;
+    var focusDemandTone = focusMetrics && focusMetrics.demandDelta > 0 ? 'is-positive' : (focusMetrics && focusMetrics.demandDelta < 0 ? 'is-negative' : 'is-neutral');
+    var focusSalaryTone = focusMetrics && getSalaryDelta(focusMetrics) > 0 ? 'is-positive' : (focusMetrics && getSalaryDelta(focusMetrics) < 0 ? 'is-negative' : 'is-neutral');
     block.innerHTML =
         '<div class="market-trends-layout">' +
             '<div class="market-trends-head">' +
-                buildSwitchRow('market_trends_currency', [
-                    { value: 'RUR', label: 'RUR' },
-                    { value: 'USD', label: 'USD' },
-                    { value: 'EUR', label: 'EUR' }
-                ], currency, 'market-trends-currency-switch') +
-                buildSwitchRow('market_trends_salary_metric', [
-                    { value: 'min', label: 'Мин' },
-                    { value: 'max', label: 'Макс' },
-                    { value: 'avg', label: 'Средняя' },
-                    { value: 'median', label: 'Медиана' },
-                    { value: 'mode', label: 'Мода' }
-                ], salaryMetric, 'market-trends-currency-switch market-trends-metric-switch') +
-                (splitMetricsByExperience ? '<div class="totals-note market-trends-note">Без фильтра по опыту роли показаны отдельно по каждому уровню опыта.</div>' : '') +
-                '<div class="totals-note market-trends-note">Сравнение: последние ' + recentDays + ' дн (' + fmtDate(recentStartTs) + ' - ' + fmtDate(anchorTs) + ') против предыдущих ' + baselineDays + ' дн (' + fmtDate(prevStartTs) + ' - ' + fmtDate(prevEndTs) + ').</div>' +
-                (!hasSalaryForCurrency ? '<div class="totals-warning">По валюте ' + escapeHtml(currency) + ' нет данных по зарплате в выбранном периоде/опыте.</div>' : '') +
+                '<div class="market-trends-context">' +
+                    '<span class="market-trends-context-text">Сравнение: ' + recentDays + ' дн (' + fmtDate(recentStartTs) + ' - ' + fmtDate(anchorTs) + ') против ' + baselineDays + ' дн (' + fmtDate(prevStartTs) + ' - ' + fmtDate(prevEndTs) + ').</span>' +
+                    (useSalaryFallback && salaryFallbackNote ? '<span class="market-trends-context-text">' + escapeHtml(salaryFallbackNote) + '</span>' : '') +
+                    (!hasSalaryForCurrency ? '<span class="totals-warning market-trends-inline-warning">По валюте ' + escapeHtml(currency) + ' нет данных по зарплате в выбранном периоде/опыте.</span>' : '') +
+                '</div>' +
+            '</div>' +
+            '<div class="market-trends-summary-grid">' +
+                (focusMetrics
+                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Спрос', formatVacancyCount(focusMetrics.recentCount), 'is-neutral')
+                    : buildTrendLeadCard('Спрос', 'Лидер периода', demandLeader, demandLeader ? (demandLeader.recentCount + ' вакансий') : '—', 'is-positive')) +
+                (focusMetrics
+                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Рост', marketTrendsFmtPct(focusMetrics.demandPct), focusDemandTone)
+                    : buildTrendLeadCard('Рост', 'Быстрый рост', growthLeader, growthLeader ? marketTrendsFmtPct(growthLeader.demandPct) : '—', 'is-positive')) +
+                (focusMetrics
+                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Зарплата', getRecentSalaryMetric(focusMetrics) !== null ? (marketTrendsFmtNum(getRecentSalaryMetric(focusMetrics)) + ' ' + currency) : '—', 'is-neutral')
+                    : buildTrendLeadCard('Зарплата', 'Высокая ' + salaryMetricLabel.toLowerCase(), salaryLeader, salaryLeader ? (marketTrendsFmtNum(getRecentSalaryMetric(salaryLeader)) + ' ' + currency) : '—', 'is-neutral')) +
+                (focusMetrics
+                    ? buildFocusTrendLeadCard(focusMetrics.name || focusMetrics.id || 'Роль', 'Изменение', getSalaryDelta(focusMetrics) !== null ? (((getSalaryDelta(focusMetrics) || 0) > 0 ? '+' : '') + marketTrendsFmtNum(getSalaryDelta(focusMetrics)) + ' ' + currency) : '—', focusSalaryTone)
+                    : buildTrendLeadCard('Изменение', 'Рост зарплаты', salaryDeltaLeader, salaryDeltaLeader ? (((getSalaryDelta(salaryDeltaLeader) || 0) > 0 ? '+' : '') + marketTrendsFmtNum(getSalaryDelta(salaryDeltaLeader)) + ' ' + currency) : '—', (salaryDeltaLeader && (getSalaryDelta(salaryDeltaLeader) || 0) > 0) ? 'is-positive' : 'is-negative')) +
             '</div>' +
             '<div class="market-trends-grid">' +
-                '<section class="totals-card"><h3>Кто на коне</h3><ul class="market-trends-list">' + buildRoleList(onHorse, function(r) { return r.recentCount + ' вакансий'; }) + '</ul></section>' +
-                '<section class="totals-card"><h3>Кто не востребован</h3><ul class="market-trends-list">' + buildRoleList(notDemanded, function(r) { return r.recentCount + ' вакансий'; }) + '</ul></section>' +
-                '<section class="totals-card"><h3>Внезапно стал востребован</h3><ul class="market-trends-list">' + buildRoleList(suddenDemand, function(r) { return marketTrendsFmtPct(r.demandPct); }) + '</ul></section>' +
-                '<section class="totals-card"><h3>Кому платят больше (' + salaryMetricLabel + ')</h3><ul class="market-trends-list">' + buildRoleList(paysMore, function(r) { return marketTrendsFmtNum(getRecentSalaryMetric(r)) + ' ' + currency; }) + '</ul></section>' +
-                '<section class="totals-card"><h3>Кому платят меньше (' + salaryMetricLabel + ')</h3><ul class="market-trends-list">' + buildRoleList(paysLess, function(r) { return marketTrendsFmtNum(getRecentSalaryMetric(r)) + ' ' + currency; }) + '</ul></section>' +
-                '<section class="totals-card"><h3>Недавно стали платить больше (' + salaryMetricLabel + ')</h3><ul class="market-trends-list">' + buildRoleList(salaryUp, function(r) { return '+' + marketTrendsFmtNum(getSalaryDelta(r)) + ' ' + currency; }) + '</ul></section>' +
-                '<section class="totals-card"><h3>Недавно зарплата стала меньше (' + salaryMetricLabel + ')</h3><ul class="market-trends-list">' + buildRoleList(salaryDown, function(r) { return marketTrendsFmtNum(getSalaryDelta(r)) + ' ' + currency; }) + '</ul></section>' +
+                buildInsightCard('Лидеры спроса', 'по числу вакансий', onHorse, function(r) { return r.recentCount + ' вакансий'; }, 'is-positive') +
+                buildInsightCard('Снижение спроса', 'по числу вакансий', notDemanded, function(r) { return r.recentCount + ' вакансий'; }, 'is-negative') +
+                buildInsightCard('Быстрый рост', 'к предыдущему периоду', suddenDemand, function(r) { return marketTrendsFmtPct(r.demandPct); }, 'is-positive') +
+                buildInsightCard('Высокая зарплата', salaryMetricLabel.toLowerCase() + ' по ролям', paysMore, function(r) { return marketTrendsFmtNum(getRecentSalaryMetric(r)) + ' ' + currency; }, 'is-neutral') +
+                buildInsightCard('Низкая зарплата', salaryMetricLabel.toLowerCase() + ' по ролям', paysLess, function(r) { return marketTrendsFmtNum(getRecentSalaryMetric(r)) + ' ' + currency; }, 'is-neutral') +
+                buildInsightCard('Рост зарплаты', 'изменение к прошлому периоду', salaryUp, function(r) { return '+' + marketTrendsFmtNum(getSalaryDelta(r)) + ' ' + currency; }, 'is-positive') +
+                buildInsightCard('Снижение зарплаты', 'изменение к прошлому периоду', salaryDown, function(r) { return marketTrendsFmtNum(getSalaryDelta(r)) + ' ' + currency; }, 'is-negative') +
             '</div>' +
-            '<div class="market-trends-grid">' +
-                '<section class="totals-card"><h3>Изменение спроса по ролям</h3><div class="plotly-graph" id="' + demandGraphId + '"></div></section>' +
-                '<section class="totals-card"><h3>Изменение зарплаты по ролям: ' + salaryMetricLabel + ' (' + currency + ')</h3><div class="plotly-graph" id="' + salaryGraphId + '"></div></section>' +
+            '<div class="market-trends-grid market-trends-graphs">' +
+                '<section class="totals-card market-trends-chart-card"><div class="market-trends-card-head"><div class="market-trends-card-eyebrow">вакансии</div><h3>Изменение спроса по ролям</h3></div><div class="plotly-graph" id="' + demandGraphId + '"></div></section>' +
+                '<section class="totals-card market-trends-chart-card"><div class="market-trends-card-head"><div class="market-trends-card-eyebrow">' + escapeHtml(currency) + ' · ' + escapeHtml(salaryMetricLabel.toLowerCase()) + '</div><h3>Изменение зарплаты по ролям</h3></div><div class="plotly-graph" id="' + salaryGraphId + '"></div></section>' +
             '</div>' +
         '</div>';
 
@@ -4707,6 +4822,10 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
     body.appendChild(createUnifiedRolesControl(activeRole, currentForFilters));
+    if (typeof createMarketTrendsExcludedRolesControl === 'function') {
+        var trendsExcludedRolesControl = createMarketTrendsExcludedRolesControl(activeRole, currentForFilters);
+        if (trendsExcludedRolesControl) body.appendChild(trendsExcludedRolesControl);
+    }
     body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
     if (typeof createTotalsTopFilterControl === 'function') {

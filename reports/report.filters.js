@@ -384,112 +384,117 @@ function createSummaryAnalysisControl(activeRole) {
 
 function createTotalsTopFilterControl(activeRole, analysisType) {
     if (!activeRole || String(analysisType || '') !== 'totals') return null;
-    if (String(uiState.totals_dashboard_mode || 'overview').trim() !== 'top') return null;
+    var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
+    var isTopMode = dashboardMode === 'top';
+    var isMarketTrendsMode = dashboardMode === 'market-trends';
+    if (!isTopMode && !isMarketTrendsMode) return null;
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control';
 
     var caption = document.createElement('div');
     caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Фильтры топа';
+    caption.textContent = isMarketTrendsMode ? 'Фильтры трендов' : 'Фильтры топа';
     wrap.appendChild(caption);
 
-    var limitValue = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
-    uiState.totals_top_limit = limitValue;
+    if (isTopMode) {
+        var limitValue = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
+        uiState.totals_top_limit = limitValue;
 
-    var limitWrap = document.createElement('div');
-    limitWrap.className = 'totals-top-filter-limit';
+        var limitWrap = document.createElement('div');
+        limitWrap.className = 'totals-top-filter-limit';
 
-    var limitHead = document.createElement('div');
-    limitHead.className = 'totals-top-filter-limit-head';
+        var limitHead = document.createElement('div');
+        limitHead.className = 'totals-top-filter-limit-head';
 
-    var limitLabel = document.createElement('span');
-    limitLabel.textContent = 'Размер топа';
-    limitHead.appendChild(limitLabel);
+        var limitLabel = document.createElement('span');
+        limitLabel.textContent = 'Размер топа';
+        limitHead.appendChild(limitLabel);
 
-    var limitBadge = document.createElement('strong');
-    limitBadge.className = 'totals-top-filter-badge';
-    limitBadge.textContent = 'Топ-' + limitValue;
-    limitHead.appendChild(limitBadge);
-    limitWrap.appendChild(limitHead);
+        var limitBadge = document.createElement('strong');
+        limitBadge.className = 'totals-top-filter-badge';
+        limitBadge.textContent = 'Топ-' + limitValue;
+        limitHead.appendChild(limitBadge);
+        limitWrap.appendChild(limitHead);
 
-    var limitControls = document.createElement('div');
-    limitControls.className = 'totals-top-filter-limit-controls';
+        var limitControls = document.createElement('div');
+        limitControls.className = 'totals-top-filter-limit-controls';
 
-    var range = document.createElement('input');
-    range.type = 'range';
-    range.min = '15';
-    range.max = '200';
-    range.step = '1';
-    range.value = String(limitValue);
-    range.className = 'totals-top-filter-range';
-    limitControls.appendChild(range);
+        var range = document.createElement('input');
+        range.type = 'range';
+        range.min = '15';
+        range.max = '200';
+        range.step = '1';
+        range.value = String(limitValue);
+        range.className = 'totals-top-filter-range';
+        limitControls.appendChild(range);
 
-    var numberInput = document.createElement('input');
-    numberInput.type = 'number';
-    numberInput.min = '15';
-    numberInput.max = '200';
-    numberInput.step = '1';
-    numberInput.value = String(limitValue);
-    numberInput.className = 'totals-top-filter-number';
-    limitControls.appendChild(numberInput);
-    limitWrap.appendChild(limitControls);
-    wrap.appendChild(limitWrap);
+        var numberInput = document.createElement('input');
+        numberInput.type = 'number';
+        numberInput.min = '15';
+        numberInput.max = '200';
+        numberInput.step = '1';
+        numberInput.value = String(limitValue);
+        numberInput.className = 'totals-top-filter-number';
+        limitControls.appendChild(numberInput);
+        limitWrap.appendChild(limitControls);
+        wrap.appendChild(limitWrap);
 
-    function updateRangeProgress(rawValue) {
-        var min = Number(range.min) || 15;
-        var max = Number(range.max) || 200;
-        var current = normalizeTotalsTopLimit(rawValue);
-        var percent = max > min ? ((current - min) * 100 / (max - min)) : 0;
-        range.style.setProperty('--range-progress', percent + '%');
-        return current;
-    }
-
-    function syncLimitPreview(rawValue) {
-        var next = normalizeTotalsTopLimit(rawValue);
-        range.value = String(next);
-        numberInput.value = String(next);
-        limitBadge.textContent = 'Топ-' + next;
-        updateRangeProgress(next);
-        return next;
-    }
-
-    function applyTopLimit(rawValue) {
-        var next = syncLimitPreview(rawValue);
-        if (uiState.totals_top_limit === next) return;
-        uiState.totals_top_limit = next;
-        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
-    }
-
-    range.addEventListener('input', function() {
-        syncLimitPreview(range.value);
-    });
-    range.addEventListener('change', function() {
-        applyTopLimit(range.value);
-    });
-    numberInput.addEventListener('input', function() {
-        var rawValue = String(numberInput.value || '').trim();
-        if (!rawValue) {
-            limitBadge.textContent = 'Топ-' + uiState.totals_top_limit;
-            range.value = String(uiState.totals_top_limit);
-            updateRangeProgress(uiState.totals_top_limit);
-            return;
+        function updateRangeProgress(rawValue) {
+            var min = Number(range.min) || 15;
+            var max = Number(range.max) || 200;
+            var current = normalizeTotalsTopLimit(rawValue);
+            var percent = max > min ? ((current - min) * 100 / (max - min)) : 0;
+            range.style.setProperty('--range-progress', percent + '%');
+            return current;
         }
-        var preview = normalizeTotalsTopLimit(rawValue);
-        range.value = String(preview);
-        limitBadge.textContent = 'Топ-' + preview;
-        updateRangeProgress(preview);
-    });
-    numberInput.addEventListener('change', function() {
-        applyTopLimit(numberInput.value);
-    });
-    numberInput.addEventListener('keydown', function(evt) {
-        if (evt.key === 'Enter') {
-            evt.preventDefault();
+
+        function syncLimitPreview(rawValue) {
+            var next = normalizeTotalsTopLimit(rawValue);
+            range.value = String(next);
+            numberInput.value = String(next);
+            limitBadge.textContent = 'Топ-' + next;
+            updateRangeProgress(next);
+            return next;
+        }
+
+        function applyTopLimit(rawValue) {
+            var next = syncLimitPreview(rawValue);
+            if (uiState.totals_top_limit === next) return;
+            uiState.totals_top_limit = next;
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+        }
+
+        range.addEventListener('input', function() {
+            syncLimitPreview(range.value);
+        });
+        range.addEventListener('change', function() {
+            applyTopLimit(range.value);
+        });
+        numberInput.addEventListener('input', function() {
+            var rawValue = String(numberInput.value || '').trim();
+            if (!rawValue) {
+                limitBadge.textContent = 'Топ-' + uiState.totals_top_limit;
+                range.value = String(uiState.totals_top_limit);
+                updateRangeProgress(uiState.totals_top_limit);
+                return;
+            }
+            var preview = normalizeTotalsTopLimit(rawValue);
+            range.value = String(preview);
+            limitBadge.textContent = 'Топ-' + preview;
+            updateRangeProgress(preview);
+        });
+        numberInput.addEventListener('change', function() {
             applyTopLimit(numberInput.value);
-        }
-    });
-    updateRangeProgress(limitValue);
+        });
+        numberInput.addEventListener('keydown', function(evt) {
+            if (evt.key === 'Enter') {
+                evt.preventDefault();
+                applyTopLimit(numberInput.value);
+            }
+        });
+        updateRangeProgress(limitValue);
+    }
 
     var currencyWrap = document.createElement('div');
     currencyWrap.className = 'totals-top-filter-currency';
@@ -503,8 +508,9 @@ function createTotalsTopFilterControl(activeRole, analysisType) {
     currencyTabs.className = 'totals-top-filter-chip-row';
     currencyWrap.appendChild(currencyTabs);
 
-    var currentCurrency = normalizeTotalsCurrency(uiState.totals_top_currency || 'RUR');
-    uiState.totals_top_currency = currentCurrency;
+    var currencyStateKey = isMarketTrendsMode ? 'market_trends_currency' : 'totals_top_currency';
+    var currentCurrency = normalizeTotalsCurrency(uiState[currencyStateKey] || 'RUR');
+    uiState[currencyStateKey] = currentCurrency;
     var currencyButtons = [];
     ['RUR', 'USD', 'EUR'].forEach(function(currency) {
         var button = document.createElement('button');
@@ -514,8 +520,8 @@ function createTotalsTopFilterControl(activeRole, analysisType) {
         button.setAttribute('aria-pressed', currency === currentCurrency ? 'true' : 'false');
         if (currency === currentCurrency) button.classList.add('active');
         button.addEventListener('click', function() {
-            if (uiState.totals_top_currency === currency) return;
-            uiState.totals_top_currency = currency;
+            if (uiState[currencyStateKey] === currency) return;
+            uiState[currencyStateKey] = currency;
             currencyButtons.forEach(function(other) {
                 other.classList.toggle('active', other === button);
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
@@ -527,6 +533,285 @@ function createTotalsTopFilterControl(activeRole, analysisType) {
     });
     wrap.appendChild(currencyWrap);
 
+    if (isMarketTrendsMode) {
+        var metricWrap = document.createElement('div');
+        metricWrap.className = 'totals-top-filter-currency';
+
+        var metricLabel = document.createElement('div');
+        metricLabel.className = 'totals-top-filter-subtitle';
+        metricLabel.textContent = 'Зарплата';
+        metricWrap.appendChild(metricLabel);
+
+        var metricTabs = document.createElement('div');
+        metricTabs.className = 'totals-top-filter-chip-row';
+        metricWrap.appendChild(metricTabs);
+
+        var currentMetric = String(uiState.market_trends_salary_metric || 'median').toLowerCase();
+        if (['min', 'max', 'avg', 'median', 'mode'].indexOf(currentMetric) < 0) currentMetric = 'median';
+        uiState.market_trends_salary_metric = currentMetric;
+        var metricButtons = [];
+        [
+            { value: 'min', label: 'Мин' },
+            { value: 'avg', label: 'Средн' },
+            { value: 'median', label: 'Медиана' },
+            { value: 'mode', label: 'Мода' },
+            { value: 'max', label: 'Макс' }
+        ].forEach(function(metric) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'totals-top-filter-chip';
+            button.textContent = metric.label;
+            button.setAttribute('aria-pressed', metric.value === currentMetric ? 'true' : 'false');
+            if (metric.value === currentMetric) button.classList.add('active');
+            button.addEventListener('click', function() {
+                if (uiState.market_trends_salary_metric === metric.value) return;
+                uiState.market_trends_salary_metric = metric.value;
+                metricButtons.forEach(function(other) {
+                    other.classList.toggle('active', other === button);
+                    other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+                });
+                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            });
+            metricButtons.push(button);
+            metricTabs.appendChild(button);
+        });
+        wrap.appendChild(metricWrap);
+
+    }
+
+    return wrap;
+}
+
+function createMarketTrendsExcludedRolesControl(activeRole, analysisType) {
+    if (!activeRole || String(analysisType || '') !== 'totals') return null;
+    if (String(uiState.totals_dashboard_mode || 'overview').trim() !== 'market-trends') return null;
+
+    var roleOptions = (typeof getRoleMetaList === 'function')
+        ? getRoleMetaList().map(function(item) {
+            return {
+                value: String(item.index || ''),
+                label: String(item.name || item.id || item.index || ''),
+                roleId: String(item.id || '')
+            };
+        }).filter(function(item) { return !!item.value; })
+        : ((typeof getGlobalFilterOptions === 'function')
+            ? getGlobalFilterOptions(null, 'roles', null)
+            : []);
+    if (!Array.isArray(uiState.market_trends_excluded_roles)) uiState.market_trends_excluded_roles = [];
+
+    var wrap = document.createElement('div');
+    wrap.className = 'global-filter-dropdown skills-search-dropdown';
+    wrap.dataset.filterKey = 'market-trends-excluded-roles';
+    wrap.style.marginTop = '4px';
+    wrap.style.flex = '0 0 auto';
+    wrap.style.minWidth = '280px';
+    wrap.style.width = '280px';
+
+    var caption = document.createElement('div');
+    caption.textContent = 'Исключить роли';
+    caption.style.fontSize = '10px';
+    caption.style.fontWeight = '600';
+    caption.style.marginBottom = '4px';
+    caption.style.color = '#94a3b8';
+    wrap.appendChild(caption);
+
+    var getExcludedRoles = function() {
+        var allowed = roleOptions.map(function(item) { return String(item.value || ''); });
+        return uiState.market_trends_excluded_roles.filter(function(value) {
+            return allowed.indexOf(String(value || '')) >= 0;
+        });
+    };
+    var setExcludedRoles = function(nextValues) {
+        uiState.market_trends_excluded_roles = Array.from(new Set((nextValues || []).map(function(value) {
+            return String(value || '').trim();
+        }).filter(Boolean)));
+    };
+    var summarizeExcludedRoles = function() {
+        var selected = getExcludedRoles();
+        if (!selected.length) return 'Не исключать';
+        if (selected.length === 1) {
+            var item = roleOptions.find(function(option) { return String(option.value || '') === selected[0]; });
+            return item ? item.label : '1 роль';
+        }
+        return 'Исключено: ' + selected.length;
+    };
+
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
+    trigger.style.width = '100%';
+    trigger.style.borderRadius = '999px';
+    trigger.style.padding = '5px 10px';
+    trigger.style.minHeight = '34px';
+    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
+    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
+    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+    trigger.style.display = 'flex';
+    trigger.style.alignItems = 'center';
+    trigger.style.justifyContent = 'space-between';
+
+    var triggerLabel = document.createElement('span');
+    triggerLabel.className = 'global-filter-trigger-label';
+    triggerLabel.textContent = summarizeExcludedRoles();
+    triggerLabel.style.overflow = 'hidden';
+    triggerLabel.style.textOverflow = 'ellipsis';
+    triggerLabel.style.whiteSpace = 'nowrap';
+    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
+    trigger.appendChild(triggerLabel);
+
+    var triggerArrow = document.createElement('span');
+    triggerArrow.className = 'global-filter-trigger-arrow';
+    triggerArrow.textContent = '\u25BE';
+    triggerArrow.style.fontSize = '12px';
+    triggerArrow.style.opacity = '0.8';
+    trigger.appendChild(triggerArrow);
+    wrap.appendChild(trigger);
+
+    var menu = document.createElement('div');
+    menu.className = 'global-filter-menu skills-search-dropdown-menu';
+    menu.style.display = 'none';
+    menu.style.marginTop = '0';
+    menu.style.padding = '6px';
+    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
+    menu.style.borderRadius = '12px';
+    menu.style.background = 'var(--card-background, #fff)';
+    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
+    menu.style.width = '280px';
+    menu.style.maxWidth = 'calc(100vw - 48px)';
+    menu.style.maxHeight = '280px';
+    menu.style.overflowY = 'auto';
+    bindGlobalFilterMenuScrollLock(menu);
+
+    var controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '8px';
+    controls.style.flexWrap = 'wrap';
+    controls.style.marginBottom = '2px';
+    controls.style.padding = '4px 2px';
+
+    var excludeAllBtn = document.createElement('button');
+    excludeAllBtn.type = 'button';
+    excludeAllBtn.className = 'tab-button skills-search-dropdown-item';
+    excludeAllBtn.textContent = '\u2212';
+    bindGlobalFilterTooltip(excludeAllBtn, 'Исключить все роли');
+    applyGlobalFilterIconButtonStyle(excludeAllBtn, false);
+    excludeAllBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setExcludedRoles(roleOptions.map(function(item) { return item.value; }));
+        syncExcludedRolesVisualState();
+        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+    });
+    controls.appendChild(excludeAllBtn);
+
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'tab-button skills-search-dropdown-item';
+    clearBtn.textContent = '\u21BA';
+    bindGlobalFilterTooltip(clearBtn, 'Сбросить исключения');
+    applyGlobalFilterIconButtonStyle(clearBtn, false);
+    clearBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setExcludedRoles([]);
+        syncExcludedRolesVisualState();
+        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+    });
+    controls.appendChild(clearBtn);
+    menu.appendChild(controls);
+
+    var search = document.createElement('input');
+    search.type = 'text';
+    search.className = 'global-filter-search';
+    search.placeholder = 'Поиск роли';
+    search.style.width = '100%';
+    search.style.boxSizing = 'border-box';
+    search.style.marginBottom = '2px';
+    search.style.marginLeft = '2px';
+    search.style.marginRight = '2px';
+    search.style.padding = '7px 10px';
+    search.style.fontSize = '12px';
+    search.style.border = '1px solid var(--border-color, #d9e2ec)';
+    search.style.borderRadius = '8px';
+    menu.appendChild(search);
+
+    function syncExcludedRolesVisualState() {
+        var selected = getExcludedRoles();
+        triggerLabel.textContent = summarizeExcludedRoles();
+        Array.from(menu.querySelectorAll('.global-filter-option-row')).forEach(function(node) {
+            var value = String((node.dataset && node.dataset.optionValue) || '');
+            var labelNode = node.querySelector('div');
+            var isExcluded = selected.indexOf(value) >= 0;
+            node.style.background = isExcluded ? '#fee2e2' : 'transparent';
+            node.style.color = isExcluded ? '#991b1b' : '#0f172a';
+            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
+            if (labelNode) {
+                labelNode.style.fontWeight = isExcluded ? '600' : '400';
+                labelNode.style.color = isExcluded ? '#991b1b' : '#0f172a';
+            }
+        });
+    }
+
+    roleOptions.forEach(function(option) {
+        var row = document.createElement('div');
+        row.className = 'skills-search-dropdown-item global-filter-option-row';
+        row.dataset.optionValue = option.value;
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr';
+        row.style.gap = '4px';
+        row.style.width = '100%';
+        row.style.boxSizing = 'border-box';
+        row.style.alignItems = 'center';
+        row.style.marginBottom = '2px';
+        row.style.padding = '5px 8px';
+        row.style.borderRadius = '8px';
+        row.style.cursor = 'pointer';
+        row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
+        row.title = '';
+        row.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var selected = getExcludedRoles();
+            var value = String(option.value || '');
+            if (selected.indexOf(value) >= 0) {
+                setExcludedRoles(selected.filter(function(item) { return item !== value; }));
+            } else {
+                selected.push(value);
+                setExcludedRoles(selected);
+            }
+            syncExcludedRolesVisualState();
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+        });
+        var label = document.createElement('div');
+        label.textContent = option.label;
+        label.style.fontSize = '12px';
+        row.appendChild(label);
+        menu.appendChild(row);
+    });
+    syncExcludedRolesVisualState();
+
+    search.addEventListener('input', function() {
+        var q = String(search.value || '').trim().toLowerCase();
+        Array.from(menu.children).forEach(function(node) {
+            if (node === controls || node === search) return;
+            var text = (node.textContent || '').trim().toLowerCase();
+            node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+        });
+    });
+
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var nextState = menu.style.display === 'none' ? 'block' : 'none';
+        closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
+        menu.style.display = nextState;
+        if (nextState === 'block') {
+            positionGlobalFilterMenu(trigger, menu);
+            triggerArrow.textContent = '\u25B4';
+        } else {
+            restoreGlobalFilterMenuHost(menu);
+            triggerArrow.textContent = '\u25BE';
+        }
+    });
+
+    wrap.appendChild(menu);
+    menu.__host = wrap;
     return wrap;
 }
 

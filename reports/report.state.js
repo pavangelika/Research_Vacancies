@@ -25,6 +25,7 @@ let uiState = {
     totals_skills_order: 'most',
     totals_company_order: 'high',
     totals_closing_window: 'lte_7',
+    market_trends_excluded_roles: [],
     all_roles_active: false,
     all_roles_periods: { activity: null, weekday: null, skills: null, salary: null },
     all_roles_excluded: [],
