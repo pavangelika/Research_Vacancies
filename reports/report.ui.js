@@ -1724,6 +1724,29 @@ function buildPeriodFilterOptionsFromVacancies(vacancies) {
         { value: totalLabel, label: totalLabel }
     ]));
 }
+function buildTotalsPeriodFilterOptions(vacancies, dashboardMode) {
+    var mode = String(dashboardMode || '').trim();
+    if (mode === 'market-trends') {
+        var list = dedupeVacanciesById((vacancies || []).slice());
+        var months = Array.from(new Set(list.map(function(vacancy) {
+            var date = parsePublishedAtDate(vacancy && vacancy.published_at);
+            if (!date) return '';
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+        }).filter(Boolean))).sort().reverse();
+        var totalLabel = months.length
+            ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
+            : 'За период';
+        return dedupeFilterOptions([
+            { value: 'last_7', label: 'За 7 дней' },
+            { value: 'last_14', label: 'За 14 дней' }
+        ].concat(months.map(function(month) {
+            return { value: month, label: month };
+        })).concat([
+            { value: totalLabel, label: totalLabel }
+        ]));
+    }
+    return buildPeriodFilterOptionsFromVacancies(vacancies);
+}
 
 function buildPeriodFilterOptionsFromResponseItems(vacancies) {
     var list = dedupeVacanciesById((vacancies || []).slice());
@@ -1765,24 +1788,10 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
                 vacancies = vacancies.concat(getRoleVacancies(roleContent) || []);
             });
             vacancies = dedupeVacanciesById(vacancies);
-            var months = Array.from(new Set(vacancies.map(function(v) {
-                var d = parsePublishedAtDate(v && v.published_at);
-                if (!d) return '';
-                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-            }).filter(Boolean))).sort().reverse();
-            var totalLabel = months.length
-                ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(months.length) : 'За период')
-                : 'За период';
-            return dedupeFilterOptions([
-                { value: 'Сегодня', label: 'Сегодня' },
-                { value: 'За 3 дня', label: 'За 3 дня' },
-                { value: 'За 7 дней', label: 'За 7 дней' },
-                { value: 'За 14 дней', label: 'За 14 дней' }
-            ].concat(months.map(function(month) {
-                return { value: month, label: month };
-            })).concat([
-                { value: totalLabel, label: totalLabel }
-            ]));
+            if (current === 'totals') {
+                return buildTotalsPeriodFilterOptions(vacancies, uiState.totals_dashboard_mode);
+            }
+            return buildPeriodFilterOptionsFromVacancies(vacancies);
         }
         if (filterKey === 'experiences') {
             var summaryVacancies = [];
@@ -1821,22 +1830,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         else if (current === 'employer-analysis') selectors = ['.employer-period-chips .employer-period-chip'];
         else if (current === 'totals') {
             var totalsVacancies = dedupeVacanciesById(getRoleVacancies(activeRole) || []);
-            var totalsMonths = Array.from(new Set(totalsVacancies.map(function(vacancy) {
-                var date = parsePublishedAtDate(vacancy && vacancy.published_at);
-                if (!date) return '';
-                return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-            }).filter(Boolean))).sort().reverse();
-            var totalsLabel = totalsMonths.length
-                ? (typeof formatMonthTitle === 'function' ? formatMonthTitle(totalsMonths.length) : 'За период')
-                : 'За период';
-            return dedupeFilterOptions([
-                { value: 'last_7', label: 'За 7 дней' },
-                { value: 'last_14', label: 'За 14 дней' }
-            ].concat(totalsMonths.map(function(month) {
-                return { value: month, label: month };
-            })).concat([
-                { value: totalsLabel, label: totalsLabel }
-            ]));
+            return buildTotalsPeriodFilterOptions(totalsVacancies, uiState.totals_dashboard_mode);
         }
         for (var i = 0; i < selectors.length; i++) {
             var found = Array.from(activeRole.querySelectorAll(selectors[i])).map(function(btn) {
@@ -3948,6 +3942,26 @@ function marketTrendsBuildRoleMetricsWindowed(roleContent, vacancies, currency, 
         prevSalary: prevSalary
     };
 }
+function hasExplicitMarketTrendsExperienceFilter(expOptions) {
+    var bucket = uiState && uiState.global_filters && uiState.global_filters.experiences
+        ? uiState.global_filters.experiences
+        : { include: [], exclude: [] };
+    var allowedNorm = (expOptions || []).map(function(item) {
+        return normalizeExperience(item && item.value);
+    }).filter(Boolean);
+    var includeNorm = (bucket.include || []).map(normalizeExperience).filter(function(value) {
+        return allowedNorm.indexOf(value) >= 0;
+    });
+    var excludeNorm = (bucket.exclude || []).map(normalizeExperience).filter(function(value) {
+        return allowedNorm.indexOf(value) >= 0;
+    });
+    return !!(includeNorm.length || excludeNorm.length);
+}
+function formatMarketTrendsRoleLabel(row) {
+    var roleName = String(row && (row.name || row.id || 'Роль') || '').trim() || 'Роль';
+    var experience = String(row && row.experience || '').trim();
+    return experience ? (roleName + ' · ' + experience) : roleName;
+}
 function resolveMarketTrendsBaseline(selectedPeriods) {
     var list = Array.isArray(selectedPeriods) ? selectedPeriods.slice() : [];
     var normalized = list.map(function(item) { return normalizeGlobalPeriodValue(item); }).filter(Boolean);
@@ -4014,7 +4028,11 @@ function renderMarketTrends(parentRole, mountNode) {
     var selectedPeriodsForTrends = selectedPeriods.slice();
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var periodLabel = resolveChartPeriodLabel(selectedPeriodsForTrends);
-    var expLabel = resolveChartExperienceLabel(selectedExps, expOptions);
+    var hasExplicitExperienceFilter = hasExplicitMarketTrendsExperienceFilter(expOptions);
+    var splitMetricsByExperience = !hasExplicitExperienceFilter && Array.isArray(expOptions) && expOptions.length > 0;
+    var expLabel = hasExplicitExperienceFilter
+        ? resolveChartExperienceLabel(selectedExps, expOptions)
+        : (splitMetricsByExperience ? 'Все категории отдельно' : resolveChartExperienceLabel(selectedExps, expOptions));
     var contextText = buildChartContextLabel(periodLabel, expLabel);
 
     var currency = normalizeTotalsCurrency(uiState.market_trends_currency || 'RUR');
@@ -4035,7 +4053,9 @@ function renderMarketTrends(parentRole, mountNode) {
     var allVacancies = [];
     roleContents.forEach(function(rc) { allVacancies = allVacancies.concat(getRoleVacancies(rc) || []); });
     allVacancies = dedupeVacanciesById(allVacancies || []);
-    allVacancies = filterVacanciesBySelectedExperiences(allVacancies, selectedExps);
+    if (hasExplicitExperienceFilter) {
+        allVacancies = filterVacanciesBySelectedExperiences(allVacancies, selectedExps);
+    }
     var periodFilteredVacancies = filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends);
     var windowCfg = resolveMarketTrendsWindow(selectedPeriodsForTrends, allVacancies);
     var recentDays = Math.max(1, Number(windowCfg.days) || 7);
@@ -4061,11 +4081,36 @@ function renderMarketTrends(parentRole, mountNode) {
     }
 
     function collectMetricsByWindows(recentStart, recentEnd, prevStart, prevEnd) {
-        return roleContents.map(function(rc) {
+        var rows = [];
+        roleContents.forEach(function(rc) {
             var list = dedupeVacanciesById(getRoleVacancies(rc) || []);
-            list = filterVacanciesBySelectedExperiences(list, selectedExps);
-            return marketTrendsBuildRoleMetricsWindowed(rc, list, currency, recentStart, recentEnd, prevStart, prevEnd);
-        }).filter(function(row) {
+            if (hasExplicitExperienceFilter || !splitMetricsByExperience) {
+                var filteredList = filterVacanciesBySelectedExperiences(list, selectedExps);
+                var filteredRow = marketTrendsBuildRoleMetricsWindowed(rc, filteredList, currency, recentStart, recentEnd, prevStart, prevEnd);
+                filteredRow.experience = selectedExps.length === 1 ? String(selectedExps[0] || '').trim() : '';
+                filteredRow.roleAxisId = String(filteredRow.id || '').trim();
+                rows.push(filteredRow);
+                return;
+            }
+            (expOptions || []).forEach(function(option) {
+                var expValue = String(option && option.value || '').trim();
+                if (!expValue) return;
+                var expRow = marketTrendsBuildRoleMetricsWindowed(
+                    rc,
+                    filterVacanciesBySelectedExperiences(list, [expValue]),
+                    currency,
+                    recentStart,
+                    recentEnd,
+                    prevStart,
+                    prevEnd
+                );
+                expRow.roleAxisId = String(expRow.id || '').trim();
+                expRow.id = String(expRow.id || '') + '::' + normalizeExperience(expValue);
+                expRow.experience = expValue;
+                rows.push(expRow);
+            });
+        });
+        return rows.filter(function(row) {
             var hasSalary = row && row.recentSalary && row.prevSalary
                 && ([row.recentSalary.min, row.recentSalary.max, row.recentSalary.avg, row.recentSalary.median, row.recentSalary.mode,
                     row.prevSalary.min, row.prevSalary.max, row.prevSalary.avg, row.prevSalary.median, row.prevSalary.mode]
@@ -4165,7 +4210,7 @@ function renderMarketTrends(parentRole, mountNode) {
     function buildRoleList(items, formatter) {
         if (!items.length) return '<li>Нет данных</li>';
         return items.map(function(r) {
-            return '<li><span>' + escapeHtml(r.name || r.id || 'Роль') + '</span><strong>' + formatter(r) + '</strong></li>';
+            return '<li><span>' + escapeHtml(formatMarketTrendsRoleLabel(r)) + '</span><strong>' + formatter(r) + '</strong></li>';
         }).join('');
     }
     function buildSwitchRow(stateKey, values, currentValue, extraClass) {
@@ -4180,6 +4225,7 @@ function renderMarketTrends(parentRole, mountNode) {
     function rowHtml(r) {
         return '<tr>' +
             '<td>' + escapeHtml(r.name || r.id || 'Роль') + '</td>' +
+            (splitMetricsByExperience ? '<td>' + escapeHtml(r.experience || '—') + '</td>' : '') +
             '<td>' + r.recentCount + '</td>' +
             '<td>' + r.prevCount + '</td>' +
             '<td>' + (r.demandDelta > 0 ? '+' : '') + r.demandDelta + '</td>' +
@@ -4207,6 +4253,7 @@ function renderMarketTrends(parentRole, mountNode) {
                     { value: 'median', label: 'Медиана' },
                     { value: 'mode', label: 'Мода' }
                 ], salaryMetric, 'market-trends-currency-switch market-trends-metric-switch') +
+                (splitMetricsByExperience ? '<div class="totals-note market-trends-note">Без фильтра по опыту роли показаны отдельно по каждому уровню опыта.</div>' : '') +
                 '<div class="totals-note market-trends-note">Сравнение: последние ' + recentDays + ' дн (' + fmtDate(recentStartTs) + ' - ' + fmtDate(anchorTs) + ') против предыдущих ' + baselineDays + ' дн (' + fmtDate(prevStartTs) + ' - ' + fmtDate(prevEndTs) + ').</div>' +
                 (!hasSalaryForCurrency ? '<div class="totals-warning">По валюте ' + escapeHtml(currency) + ' нет данных по зарплате в выбранном периоде/опыте.</div>' : '') +
             '</div>' +
@@ -4223,13 +4270,6 @@ function renderMarketTrends(parentRole, mountNode) {
                 '<section class="totals-card"><h3>Изменение спроса по ролям</h3><div class="plotly-graph" id="' + demandGraphId + '"></div></section>' +
                 '<section class="totals-card"><h3>Изменение зарплаты по ролям: ' + salaryMetricLabel + ' (' + currency + ')</h3><div class="plotly-graph" id="' + salaryGraphId + '"></div></section>' +
             '</div>' +
-            '<section class="totals-card">' +
-                '<h3>Сводная таблица по ролям</h3>' +
-                '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact">' +
-                    '<thead><tr><th>Роль</th><th>' + recentDays + 'д текущ.</th><th>' + baselineDays + ' дн</th><th>Δ спрос</th><th>Δ спрос %</th><th>' + salaryMetricLabel + '</th><th>Δ з/п</th><th>Δ з/п %</th></tr></thead>' +
-                    '<tbody>' + (metrics.length ? metrics.slice(0, limit).map(rowHtml).join('') : '<tr><td colspan="8">Нет данных</td></tr>') + '</tbody>' +
-                '</table></div>' +
-            '</section>' +
         '</div>';
 
     block.querySelectorAll('.totals-switch-btn').forEach(function(btn) {
@@ -4254,9 +4294,9 @@ function renderMarketTrends(parentRole, mountNode) {
         if (salaryEl) salaryEl.innerHTML = '<div class="skills-search-hint">График временно недоступен</div>';
     } else {
         Plotly.newPlot(demandGraphId, [{
-            x: demandTop.map(function(r) { return buildRoleAxisTick(r.id); }),
+            x: demandTop.map(function(r) { return buildRoleAxisTick(r.roleAxisId || r.id); }),
             y: demandTop.map(function(r) { return r.demandDelta; }),
-            customdata: demandTop.map(function(r) { return r.name; }),
+            customdata: demandTop.map(function(r) { return formatMarketTrendsRoleLabel(r); }),
             type: 'bar',
             marker: {
                 color: demandTop.map(function(r) { return r.demandDelta >= 0 ? CHART_COLORS.light : CHART_COLORS.dark; })
@@ -4270,9 +4310,9 @@ function renderMarketTrends(parentRole, mountNode) {
                 || (getSalaryDelta(b) - getSalaryDelta(a));
         }).slice(0, limit);
         Plotly.newPlot(salaryGraphId, [{
-            x: salaryTop.map(function(r) { return buildRoleAxisTick(r.id); }),
+            x: salaryTop.map(function(r) { return buildRoleAxisTick(r.roleAxisId || r.id); }),
             y: salaryTop.map(function(r) { return getSalaryDelta(r); }),
-            customdata: salaryTop.map(function(r) { return r.name; }),
+            customdata: salaryTop.map(function(r) { return formatMarketTrendsRoleLabel(r); }),
             type: 'bar',
             marker: {
                 color: salaryTop.map(function(r) { return getSalaryDelta(r) >= 0 ? CHART_COLORS.light : CHART_COLORS.dark; })
