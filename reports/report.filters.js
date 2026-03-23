@@ -459,7 +459,13 @@ function formatPeriodSelectionValue(value) {
     if (!text) return '';
     if (text === 'today') return 'Сегодня';
     var quick = text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
-    if (quick) return 'За ' + String(Number(quick[1]) || 0) + ' дня';
+    if (quick) {
+        var days = Number(quick[1]) || 0;
+        var mod10 = days % 10;
+        var mod100 = days % 100;
+        var dayWord = (mod10 === 1 && mod100 !== 11) ? 'день' : (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14) ? 'дня' : 'дней');
+        return 'За ' + String(days) + ' ' + dayWord;
+    }
     return text;
 }
 
@@ -557,11 +563,15 @@ function applyGlobalFilterIconButtonStyle(button, isActive) {
     if (!button) return;
     button.style.borderRadius = '999px';
     button.style.padding = '0';
-    button.style.width = '28px';
-    button.style.height = '28px';
+    button.style.width = '34px';
+    button.style.minWidth = '34px';
+    button.style.height = '34px';
+    button.style.minHeight = '34px';
     button.style.display = 'inline-flex';
     button.style.alignItems = 'center';
     button.style.justifyContent = 'center';
+    button.style.gap = '0';
+    button.style.margin = '0';
     button.style.border = '1px solid ' + (isActive ? 'rgba(59, 130, 246, 0.26)' : 'rgba(148, 163, 184, 0.22)');
     button.style.background = isActive ? 'rgba(239, 246, 255, 0.92)' : 'rgba(248, 250, 252, 0.92)';
     button.style.color = isActive ? '#2563eb' : '#475569';

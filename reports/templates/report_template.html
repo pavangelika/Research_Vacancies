@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Анализ вакансий с HH - {{ current_date }} {{ current_time }}</title>
     <link rel="stylesheet" href="styles.css?v={{ asset_version }}">
     <script src="plotly-2.27.0.min.js?v={{ asset_version }}" charset="utf-8"></script>
@@ -28,8 +29,9 @@
         <div class="report-updated-at">Сборка UI: {{ asset_version }}</div>
     </div>
 
-    <!-- Вкладки по ролям -->
-    <div id="role-selector" class="role-selector"></div>
+    <div class="report-layout">
+        <!-- Вкладки по ролям -->
+        <div id="role-selector" class="role-selector"></div>
 
     {% for role in roles %}
     {% set role_index = loop.index %}
@@ -273,8 +275,9 @@
     </div>
     {% endfor %}
 
-    <div id="role-combined" class="role-content" style="display: none;"></div>
-    <div id="role-all" class="role-content" style="display: none;"></div>
+        <div id="role-combined" class="role-content" style="display: none;"></div>
+        <div id="role-all" class="role-content" style="display: none;"></div>
+    </div>
 
     <div id="vacancy-modal-backdrop" class="vacancy-modal-backdrop" style="display: none;">
         <div class="vacancy-modal" role="dialog" aria-modal="true" aria-labelledby="vacancy-modal-title">

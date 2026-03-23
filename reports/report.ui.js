@@ -2283,21 +2283,7 @@ function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
     var host = panel.querySelector('.shared-filter-active-chips');
     if (!host) return;
     host.innerHTML = '';
-
-    var defs = [
-        { key: 'roles', title: 'Роль', options: getGlobalFilterOptions(activeRole, 'roles', analysisType), disabled: false }
-    ];
-
-    defs.forEach(function(def) {
-        if (def.disabled) return;
-        var bucket = ensureGlobalFilterBucket(def.key);
-        var labels = {};
-        (def.options || []).forEach(function(item) { labels[item.value] = item.label; });
-        (bucket.include || []).forEach(function(value) {
-            if (!labels[value]) return;
-            host.appendChild(createActiveRoleFilterChip(def.key, value, labels[value], 'include'));
-        });
-    });
+    host.style.display = 'none';
 }
 
 function createActiveRoleFilterChip(filterKey, value, labelText, state) {
@@ -2423,10 +2409,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';
-    controls.style.gap = '4px';
+    controls.style.gap = '8px';
     controls.style.flexWrap = 'wrap';
-    controls.style.marginBottom = '0';
-    controls.style.padding = '2px';
+    controls.style.marginBottom = '2px';
+    controls.style.padding = '4px 2px';
 
     var allBtn = document.createElement('button');
     allBtn.type = 'button';
@@ -2493,6 +2479,29 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     search.style.borderRadius = '8px';
     menu.appendChild(search);
 
+    function reorderRoleRows() {
+        var selectedRoles = bucket.include || [];
+        var selectedRank = {};
+        selectedRoles.forEach(function(value, idx) {
+            selectedRank[String(value)] = idx;
+        });
+        var rows = Array.from(menu.querySelectorAll('.skills-search-dropdown-item[data-role-value]'));
+        rows.sort(function(a, b) {
+            var aValue = String(a.dataset.roleValue || '');
+            var bValue = String(b.dataset.roleValue || '');
+            var aSelected = Object.prototype.hasOwnProperty.call(selectedRank, aValue);
+            var bSelected = Object.prototype.hasOwnProperty.call(selectedRank, bValue);
+            if (aSelected && bSelected) return selectedRank[aValue] - selectedRank[bValue];
+            if (aSelected !== bSelected) return aSelected ? -1 : 1;
+            var aLabel = String(a.textContent || '').trim();
+            var bLabel = String(b.textContent || '').trim();
+            return aLabel.localeCompare(bLabel, 'ru');
+        });
+        rows.forEach(function(row) {
+            menu.appendChild(row);
+        });
+    }
+
     function syncRolesControlVisualState() {
         triggerLabel.textContent = summarizeGlobalFilterSelection('roles', options, false);
         var selectedRoles = bucket.include || [];
@@ -2503,6 +2512,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
             var labelNode = node.querySelector('div');
             if (labelNode) labelNode.style.fontWeight = selected ? '600' : '400';
         });
+        reorderRoleRows();
     }
 
     options.forEach(function(option) {
@@ -2550,7 +2560,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
         closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
         menu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
+        if (nextState === 'block') {
+            reorderRoleRows();
+            positionGlobalFilterMenu(trigger, menu);
+        }
         triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
     });
 
@@ -2568,6 +2581,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     });
     if (uiState.keep_roles_filter_open) {
         menu.style.display = 'block';
+        reorderRoleRows();
         positionGlobalFilterMenu(trigger, menu);
         triggerArrow.textContent = '\u25B4';
     }
@@ -2644,10 +2658,10 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';
-    controls.style.gap = '4px';
+    controls.style.gap = '8px';
     controls.style.flexWrap = 'wrap';
-    controls.style.marginBottom = '0';
-    controls.style.padding = '2px';
+    controls.style.marginBottom = '2px';
+    controls.style.padding = '4px 2px';
     var allBtn = document.createElement('button');
     allBtn.type = 'button';
     allBtn.className = 'tab-button skills-search-dropdown-item';
@@ -2657,10 +2671,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     allBtn.addEventListener('click', function() {
         var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
         updateGlobalFilterSelection(filterKey, '', 'all', keepOpen);
-        if (keepOpen) {
-            triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
-            syncOptionRowsVisualState();
-        }
+        triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+        syncOptionRowsVisualState();
     });
     controls.appendChild(allBtn);
 
@@ -2687,10 +2699,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     clearBtn.addEventListener('click', function() {
         var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
         updateGlobalFilterSelection(filterKey, '', 'clear', keepOpen);
-        if (keepOpen) {
-            triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
-            syncOptionRowsVisualState();
-        }
+        triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+        syncOptionRowsVisualState();
     });
     controls.appendChild(clearBtn);
     menu.appendChild(controls);
@@ -2741,10 +2751,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
                 var isIncluded = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
                 updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include', keepOpen);
-                if (keepOpen) {
-                    triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
-                    syncOptionRowsVisualState();
-                }
+                triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+                syncOptionRowsVisualState();
             });
             var label = document.createElement('div');
             var isIncludedNow = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
@@ -3604,7 +3612,7 @@ function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextTe
         };
     }).filter(Boolean);
     if (!items.length) {
-        el.innerHTML = '<div class="skills-search-hint">Нет данных для графика</div>';
+        el.innerHTML = '';
         return;
     }
 
@@ -3662,6 +3670,71 @@ function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextTe
                 }).join('') +
             '</div>' +
         '</div>';
+}
+function isMobileFilterViewport() {
+    return !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 960px)').matches);
+}
+function setMobileFilterPanelOpen(open) {
+    var nextOpen = !!open && isMobileFilterViewport();
+    var body = document.body;
+    if (!body) return;
+    body.classList.toggle('mobile-filters-open', nextOpen);
+    var btn = document.getElementById('mobile-filter-toggle');
+    if (btn) {
+        btn.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+        btn.setAttribute('aria-label', nextOpen ? 'Закрыть панель фильтров' : 'Открыть панель фильтров');
+        btn.textContent = nextOpen ? '✕' : '☰';
+    }
+}
+function ensureMobileFilterPanelControls() {
+    if (typeof document === 'undefined') return;
+    var body = document.body;
+    var roleSelector = document.getElementById('role-selector');
+    if (!body || !roleSelector) return;
+
+    var backdrop = document.getElementById('mobile-filter-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'mobile-filter-backdrop';
+        body.appendChild(backdrop);
+    }
+
+    var btn = document.getElementById('mobile-filter-toggle');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'mobile-filter-toggle';
+        btn.textContent = '☰';
+        btn.setAttribute('aria-label', 'Открыть панель фильтров');
+        btn.setAttribute('aria-expanded', 'false');
+        body.appendChild(btn);
+    }
+
+    if (!btn.dataset.bound) {
+        btn.addEventListener('click', function() {
+            setMobileFilterPanelOpen(!document.body.classList.contains('mobile-filters-open'));
+        });
+        btn.dataset.bound = '1';
+    }
+    if (!backdrop.dataset.bound) {
+        backdrop.addEventListener('click', function() {
+            setMobileFilterPanelOpen(false);
+        });
+        backdrop.dataset.bound = '1';
+    }
+    if (!window.__mobileFilterPanelResizeBound) {
+        window.__mobileFilterPanelResizeBound = true;
+        window.addEventListener('resize', function() {
+            if (!isMobileFilterViewport()) setMobileFilterPanelOpen(false);
+        });
+    }
+    if (!document.body.dataset.mobileFilterEscBound) {
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') setMobileFilterPanelOpen(false);
+        });
+        document.body.dataset.mobileFilterEscBound = '1';
+    }
+    if (!isMobileFilterViewport()) setMobileFilterPanelOpen(false);
 }
 function buildTotalsWeekdayChart(graphId, weekdays, contextText) {
     var el = document.getElementById(graphId);
@@ -4417,6 +4490,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     hideSharedFilterSources(activeRole);
     var panel = ensureSharedFilterPanel();
     if (!panel) return;
+    ensureMobileFilterPanelControls();
     if (uiState.keep_roles_filter_open) {
         refreshExistingGlobalFilterUi(parentRole, analysisType);
         return;
