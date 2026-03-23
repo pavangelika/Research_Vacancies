@@ -35,10 +35,12 @@ function ensureSharedFilterPanel() {
         var body = document.createElement('div');
         body.className = 'shared-filter-panel-body';
         body.style.display = 'flex';
-        body.style.flexWrap = 'nowrap';
+        body.style.flexWrap = 'wrap';
         body.style.alignItems = 'flex-start';
         body.style.gap = '6px';
-        body.style.overflowX = 'auto';
+        body.style.width = '100%';
+        body.style.maxWidth = '100%';
+        body.style.overflowX = 'visible';
         body.style.overflowY = 'visible';
 
         var chips = document.createElement('div');
@@ -377,6 +379,154 @@ function createSummaryAnalysisControl(activeRole) {
     });
 
     wrap.appendChild(menu);
+    return wrap;
+}
+
+function createTotalsTopFilterControl(activeRole, analysisType) {
+    if (!activeRole || String(analysisType || '') !== 'totals') return null;
+    if (String(uiState.totals_dashboard_mode || 'overview').trim() !== 'top') return null;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'totals-top-filter-control';
+
+    var caption = document.createElement('div');
+    caption.className = 'totals-top-filter-title';
+    caption.textContent = 'Фильтры топа';
+    wrap.appendChild(caption);
+
+    var limitValue = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
+    uiState.totals_top_limit = limitValue;
+
+    var limitWrap = document.createElement('div');
+    limitWrap.className = 'totals-top-filter-limit';
+
+    var limitHead = document.createElement('div');
+    limitHead.className = 'totals-top-filter-limit-head';
+
+    var limitLabel = document.createElement('span');
+    limitLabel.textContent = 'Размер топа';
+    limitHead.appendChild(limitLabel);
+
+    var limitBadge = document.createElement('strong');
+    limitBadge.className = 'totals-top-filter-badge';
+    limitBadge.textContent = 'Топ-' + limitValue;
+    limitHead.appendChild(limitBadge);
+    limitWrap.appendChild(limitHead);
+
+    var limitControls = document.createElement('div');
+    limitControls.className = 'totals-top-filter-limit-controls';
+
+    var range = document.createElement('input');
+    range.type = 'range';
+    range.min = '15';
+    range.max = '200';
+    range.step = '1';
+    range.value = String(limitValue);
+    range.className = 'totals-top-filter-range';
+    limitControls.appendChild(range);
+
+    var numberInput = document.createElement('input');
+    numberInput.type = 'number';
+    numberInput.min = '15';
+    numberInput.max = '200';
+    numberInput.step = '1';
+    numberInput.value = String(limitValue);
+    numberInput.className = 'totals-top-filter-number';
+    limitControls.appendChild(numberInput);
+    limitWrap.appendChild(limitControls);
+    wrap.appendChild(limitWrap);
+
+    function updateRangeProgress(rawValue) {
+        var min = Number(range.min) || 15;
+        var max = Number(range.max) || 200;
+        var current = normalizeTotalsTopLimit(rawValue);
+        var percent = max > min ? ((current - min) * 100 / (max - min)) : 0;
+        range.style.setProperty('--range-progress', percent + '%');
+        return current;
+    }
+
+    function syncLimitPreview(rawValue) {
+        var next = normalizeTotalsTopLimit(rawValue);
+        range.value = String(next);
+        numberInput.value = String(next);
+        limitBadge.textContent = 'Топ-' + next;
+        updateRangeProgress(next);
+        return next;
+    }
+
+    function applyTopLimit(rawValue) {
+        var next = syncLimitPreview(rawValue);
+        if (uiState.totals_top_limit === next) return;
+        uiState.totals_top_limit = next;
+        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+    }
+
+    range.addEventListener('input', function() {
+        syncLimitPreview(range.value);
+    });
+    range.addEventListener('change', function() {
+        applyTopLimit(range.value);
+    });
+    numberInput.addEventListener('input', function() {
+        var rawValue = String(numberInput.value || '').trim();
+        if (!rawValue) {
+            limitBadge.textContent = 'Топ-' + uiState.totals_top_limit;
+            range.value = String(uiState.totals_top_limit);
+            updateRangeProgress(uiState.totals_top_limit);
+            return;
+        }
+        var preview = normalizeTotalsTopLimit(rawValue);
+        range.value = String(preview);
+        limitBadge.textContent = 'Топ-' + preview;
+        updateRangeProgress(preview);
+    });
+    numberInput.addEventListener('change', function() {
+        applyTopLimit(numberInput.value);
+    });
+    numberInput.addEventListener('keydown', function(evt) {
+        if (evt.key === 'Enter') {
+            evt.preventDefault();
+            applyTopLimit(numberInput.value);
+        }
+    });
+    updateRangeProgress(limitValue);
+
+    var currencyWrap = document.createElement('div');
+    currencyWrap.className = 'totals-top-filter-currency';
+
+    var currencyLabel = document.createElement('div');
+    currencyLabel.className = 'totals-top-filter-subtitle';
+    currencyLabel.textContent = 'Валюта';
+    currencyWrap.appendChild(currencyLabel);
+
+    var currencyTabs = document.createElement('div');
+    currencyTabs.className = 'totals-top-filter-chip-row';
+    currencyWrap.appendChild(currencyTabs);
+
+    var currentCurrency = normalizeTotalsCurrency(uiState.totals_top_currency || 'RUR');
+    uiState.totals_top_currency = currentCurrency;
+    var currencyButtons = [];
+    ['RUR', 'USD', 'EUR'].forEach(function(currency) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'totals-top-filter-chip';
+        button.textContent = currency;
+        button.setAttribute('aria-pressed', currency === currentCurrency ? 'true' : 'false');
+        if (currency === currentCurrency) button.classList.add('active');
+        button.addEventListener('click', function() {
+            if (uiState.totals_top_currency === currency) return;
+            uiState.totals_top_currency = currency;
+            currencyButtons.forEach(function(other) {
+                other.classList.toggle('active', other === button);
+                other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+            });
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+        });
+        currencyButtons.push(button);
+        currencyTabs.appendChild(button);
+    });
+    wrap.appendChild(currencyWrap);
+
     return wrap;
 }
 

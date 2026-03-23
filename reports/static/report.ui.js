@@ -3313,6 +3313,40 @@ function totalsMetricLabel(metric) {
     if (metric === 'mode') return 'Мода';
     return 'Средняя';
 }
+function normalizeTotalsTopLimit(value) {
+    var num = Number(value);
+    if (!isFinite(num)) num = 15;
+    num = Math.round(num);
+    if (num < 15) num = 15;
+    if (num > 200) num = 200;
+    return num;
+}
+function normalizeTotalsTopOrder(value, allowed, fallback) {
+    var current = String(value || '').trim().toLowerCase();
+    return (allowed || []).indexOf(current) >= 0 ? current : fallback;
+}
+function normalizeTotalsClosingWindow(value) {
+    return normalizeTotalsTopOrder(value, ['lte_7', 'lte_14', 'lte_30', 'gt_30', 'gt_60'], 'lte_7');
+}
+function totalsClosingWindowLabel(value) {
+    var current = normalizeTotalsClosingWindow(value);
+    if (current === 'lte_14') return 'До 14 дней';
+    if (current === 'lte_30') return 'До 30 дней';
+    if (current === 'gt_30') return 'Более 30 дней';
+    if (current === 'gt_60') return 'Более 60 дней';
+    return 'До 7 дней';
+}
+function totalsSortSkillsRows(rows, sortOrder) {
+    var order = normalizeTotalsTopOrder(sortOrder, ['most', 'least'], 'most');
+    return (rows || []).slice().sort(function(a, b) {
+        if (order === 'least') {
+            return (a.mentions - b.mentions)
+                || String(a.skill).localeCompare(String(b.skill), 'ru');
+        }
+        return (b.mentions - a.mentions)
+            || String(a.skill).localeCompare(String(b.skill), 'ru');
+    });
+}
 function totalsComputeSalaryByCurrency(vacancies) {
     var buckets = {
         RUR: { currency: 'RUR', total: 0, withSalary: 0, values: [] },
@@ -3427,18 +3461,26 @@ function totalsComputeCompanyStats(vacancies, currency) {
         return (b.total - a.total) || String(a.employer).localeCompare(String(b.employer), 'ru');
     });
 }
-function totalsComputeCompanySalaryLeaders(vacancies, currency) {
+function totalsComputeCompanySalaryLeaders(vacancies, currency, direction) {
+    var order = normalizeTotalsTopOrder(direction, ['high', 'low'], 'high');
     return totalsComputeCompanyStats(vacancies, currency).filter(function(row) {
         return row.avg !== null && row.avg !== undefined && isFinite(row.avg);
     }).sort(function(a, b) {
+        if (order === 'low') {
+            return (Number(a.avg || 0) - Number(b.avg || 0))
+                || (Number(a.median || 0) - Number(b.median || 0))
+                || (b.total - a.total)
+                || String(a.employer).localeCompare(String(b.employer), 'ru');
+        }
         return (Number(b.avg || 0) - Number(a.avg || 0))
             || (Number(b.median || 0) - Number(a.median || 0))
             || (b.total - a.total)
             || String(a.employer).localeCompare(String(b.employer), 'ru');
     });
 }
-function totalsComputeTopVacanciesBySalary(vacancies, currency) {
+function totalsComputeTopVacanciesBySalary(vacancies, currency, direction) {
     var curr = normalizeTotalsCurrency(currency || 'RUR');
+    var order = normalizeTotalsTopOrder(direction, ['high', 'low'], 'high');
     return (vacancies || []).map(function(v) {
         if (!v) return null;
         var isArchived = !!(v.archived === true || v.archived === 1 || v.archived === '1' || String(v.archived || '').toLowerCase() === 'true' || v.archived_at);
@@ -3459,8 +3501,68 @@ function totalsComputeTopVacanciesBySalary(vacancies, currency) {
             responded: isRespondedVacancy(v)
         };
     }).filter(Boolean).sort(function(a, b) {
+        if (order === 'low') {
+            return (a.salary - b.salary)
+                || Number(String(b.id || '').replace(/[^\d]/g, '') || 0) - Number(String(a.id || '').replace(/[^\d]/g, '') || 0);
+        }
         return (b.salary - a.salary)
             || Number(String(b.id || '').replace(/[^\d]/g, '') || 0) - Number(String(a.id || '').replace(/[^\d]/g, '') || 0);
+    });
+}
+function totalsMatchClosingWindow(ageDays, windowKey) {
+    if (ageDays === null || ageDays === undefined || !isFinite(ageDays)) return false;
+    var key = normalizeTotalsClosingWindow(windowKey);
+    if (key === 'lte_14') return ageDays <= 14;
+    if (key === 'lte_30') return ageDays <= 30;
+    if (key === 'gt_30') return ageDays > 30;
+    if (key === 'gt_60') return ageDays > 60;
+    return ageDays <= 7;
+}
+function totalsComputeEmployerClosingSpeed(vacancies, windowKey) {
+    var key = normalizeTotalsClosingWindow(windowKey);
+    var map = new Map();
+    (vacancies || []).forEach(function(v) {
+        if (!v || !v.employer) return;
+        var ageDays = computeVacancyAgeDays(v);
+        if (!totalsMatchClosingWindow(ageDays, key)) return;
+        var employer = String(v.employer || '').trim();
+        if (!employer) return;
+        var row = map.get(employer) || {
+            employer: employer,
+            total: 0,
+            values: [],
+            accredited: '',
+            rating: '',
+            trusted: '',
+            url: ''
+        };
+        row.total += 1;
+        row.values.push(Number(ageDays));
+        if (!row.accredited && v.employer_accredited !== undefined && v.employer_accredited !== null) row.accredited = String(v.employer_accredited);
+        if (!row.rating && v.employer_rating !== undefined && v.employer_rating !== null) row.rating = String(v.employer_rating);
+        if (!row.trusted && v.employer_trusted !== undefined && v.employer_trusted !== null) row.trusted = String(v.employer_trusted);
+        if (!row.url && v.employer_url) row.url = String(v.employer_url);
+        map.set(employer, row);
+    });
+    return Array.from(map.values()).map(function(row) {
+        var vals = row.values.slice();
+        return {
+            employer: row.employer,
+            total: row.total,
+            accredited: row.accredited,
+            rating: row.rating,
+            trusted: row.trusted,
+            url: row.url,
+            avg: vals.length ? vals.reduce(function(sum, val) { return sum + val; }, 0) / vals.length : null,
+            median: vals.length ? computeMedian(vals) : null,
+            mode: vals.length ? computeMode(vals) : null,
+            min: vals.length ? Math.min.apply(Math, vals) : null,
+            max: vals.length ? Math.max.apply(Math, vals) : null
+        };
+    }).sort(function(a, b) {
+        return (b.total - a.total)
+            || (Number(a.avg || 0) - Number(b.avg || 0))
+            || String(a.employer).localeCompare(String(b.employer), 'ru');
     });
 }
 function computeVacancyAgeDays(vacancy) {
@@ -4200,7 +4302,10 @@ function renderGlobalTotalsFiltered(parentRole) {
     vacancies = dedupeVacanciesById(vacancies || []);
 
     var salaryRows = totalsComputeSalaryByCurrency(vacancies);
-    var currencies = salaryRows.filter(function(row) { return row.total > 0; }).map(function(row) { return row.currency; });
+    var currencies = salaryRows.filter(function(row) { return row.withSalary > 0; }).map(function(row) { return row.currency; });
+    if (!currencies.length) {
+        currencies = salaryRows.filter(function(row) { return row.total > 0; }).map(function(row) { return row.currency; });
+    }
     if (!currencies.length) currencies = ['RUR', 'USD', 'EUR'];
     var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
     if (dashboardMode !== 'overview' && dashboardMode !== 'top' && dashboardMode !== 'market-trends') dashboardMode = 'overview';
@@ -4208,16 +4313,19 @@ function renderGlobalTotalsFiltered(parentRole) {
     var salaryCurrency = normalizeTotalsCurrency(uiState.totals_salary_currency || currencies[0]);
     if (currencies.indexOf(salaryCurrency) < 0) salaryCurrency = currencies[0];
     uiState.totals_salary_currency = salaryCurrency;
-    var skillsCurrency = normalizeTotalsCurrency(uiState.totals_skills_currency || salaryCurrency);
-    if (currencies.indexOf(skillsCurrency) < 0) skillsCurrency = salaryCurrency;
-    uiState.totals_skills_currency = skillsCurrency;
-    var companyCurrency = normalizeTotalsCurrency(uiState.totals_company_currency || salaryCurrency);
-    if (currencies.indexOf(companyCurrency) < 0) companyCurrency = salaryCurrency;
-    uiState.totals_company_currency = companyCurrency;
-
-    var vacancyCurrency = normalizeTotalsCurrency(uiState.totals_vacancy_currency || salaryCurrency);
-    if (currencies.indexOf(vacancyCurrency) < 0) vacancyCurrency = salaryCurrency;
-    uiState.totals_vacancy_currency = vacancyCurrency;
+    var topCurrency = normalizeTotalsCurrency(uiState.totals_top_currency || salaryCurrency);
+    if (currencies.indexOf(topCurrency) < 0) topCurrency = currencies[0];
+    uiState.totals_top_currency = topCurrency;
+    var topLimit = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
+    uiState.totals_top_limit = topLimit;
+    var vacancyOrder = normalizeTotalsTopOrder(uiState.totals_vacancy_order, ['high', 'low'], 'high');
+    uiState.totals_vacancy_order = vacancyOrder;
+    var skillsOrder = normalizeTotalsTopOrder(uiState.totals_skills_order, ['most', 'least'], 'most');
+    uiState.totals_skills_order = skillsOrder;
+    var companyOrder = normalizeTotalsTopOrder(uiState.totals_company_order, ['high', 'low'], 'high');
+    uiState.totals_company_order = companyOrder;
+    var closingWindow = normalizeTotalsClosingWindow(uiState.totals_closing_window);
+    uiState.totals_closing_window = closingWindow;
 
     var totalCount = vacancies.length;
     var archivedCount = vacancies.filter(function(v) {
@@ -4230,12 +4338,13 @@ function renderGlobalTotalsFiltered(parentRole) {
     }).length;
     var avgAge = computeAvgLifetimeDays(vacancies || []);
 
-    var selectedSalary = salaryRows.find(function(r) { return r.currency === salaryCurrency; }) || null;
-    var skillsRows = totalsComputeSkillsCost(vacancies || [], skillsCurrency).slice(0, 30);
-    var companyRows = totalsComputeCompanySalaryLeaders(vacancies || [], companyCurrency).slice(0, 30);
-    var topVacancies = totalsComputeTopVacanciesBySalary(vacancies || [], vacancyCurrency).slice(0, 15);
-    var topSkills = skillsRows.slice(0, 15);
-    var topCompanies = companyRows.slice(0, 15);
+    var skillsRows = totalsSortSkillsRows(totalsComputeSkillsCost(vacancies || [], topCurrency), skillsOrder);
+    var companyRows = totalsComputeCompanySalaryLeaders(vacancies || [], topCurrency, companyOrder);
+    var closingRows = totalsComputeEmployerClosingSpeed(vacancies || [], closingWindow);
+    var topVacancies = totalsComputeTopVacanciesBySalary(vacancies || [], topCurrency, vacancyOrder).slice(0, topLimit);
+    var topSkills = skillsRows.slice(0, topLimit);
+    var topCompanies = companyRows.slice(0, topLimit);
+    var topClosingCompanies = closingRows.slice(0, topLimit);
     var allRoleVacancies = [];
     if (typeof getAllRoleContents === 'function') {
         getAllRoleContents().forEach(function(roleContent) {
@@ -4281,7 +4390,7 @@ function renderGlobalTotalsFiltered(parentRole) {
         '</div>';
     }
     function buildDashboardModeSwitchRow(currentValue) {
-        return '<div class="tabs month-tabs salary-month-tabs totals-switch totals-dashboard-switch">' +
+        return '<div class="tabs month-tabs totals-switch totals-dashboard-switch">' +
             [
                 { value: 'overview', label: 'Общие' },
                 { value: 'top', label: 'Топ' },
@@ -4315,7 +4424,6 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<td>' + vacancyLink + '</td>' +
             '<td>' + employerCell + '</td>' +
             '<td>' + totalsFormatNumber(row.salary) + '</td>' +
-            '<td>' + escapeHtml(row.currency || '') + '</td>' +
             '<td>' + status + '</td>' +
         '</tr>';
     }
@@ -4324,10 +4432,10 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<td>' + escapeHtml(row.skill || '—') + '</td>' +
             '<td>' + (row.mentions || 0) + '</td>' +
             '<td>' + totalsFormatNumber(row.min) + '</td>' +
-            '<td>' + totalsFormatNumber(row.max) + '</td>' +
             '<td>' + totalsFormatNumber(row.avg) + '</td>' +
-            '<td>' + totalsFormatNumber(row.median) + '</td>' +
             '<td>' + totalsFormatNumber(row.mode) + '</td>' +
+            '<td>' + totalsFormatNumber(row.median) + '</td>' +
+            '<td>' + totalsFormatNumber(row.max) + '</td>' +
         '</tr>';
     }
     function topCompanyRowHtml(row) {
@@ -4345,10 +4453,31 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<td>' + employerCell + '</td>' +
             '<td>' + (row.total || 0) + '</td>' +
             '<td>' + totalsFormatNumber(row.min) + '</td>' +
-            '<td>' + totalsFormatNumber(row.max) + '</td>' +
             '<td>' + totalsFormatNumber(row.avg) + '</td>' +
-            '<td>' + totalsFormatNumber(row.median) + '</td>' +
             '<td>' + totalsFormatNumber(row.mode) + '</td>' +
+            '<td>' + totalsFormatNumber(row.median) + '</td>' +
+            '<td>' + totalsFormatNumber(row.max) + '</td>' +
+        '</tr>';
+    }
+    function topClosingCompanyRowHtml(row) {
+        var employerCell = row.employer
+            ? '<button class="employer-link" type="button" ' +
+                'data-employer="' + escapeHtml(row.employer) + '" ' +
+                'data-accredited="' + escapeHtml(row.accredited || '') + '" ' +
+                'data-rating="' + escapeHtml(row.rating || '') + '" ' +
+                'data-trusted="' + escapeHtml(row.trusted || '') + '" ' +
+                'data-url="' + escapeHtml(row.url || '') + '">' +
+                escapeHtml(row.employer) +
+              '</button>'
+            : '—';
+        return '<tr>' +
+            '<td>' + employerCell + '</td>' +
+            '<td>' + (row.total || 0) + '</td>' +
+            '<td>' + totalsFormatNumber(row.min) + '</td>' +
+            '<td>' + totalsFormatNumber(row.avg) + '</td>' +
+            '<td>' + totalsFormatNumber(row.mode) + '</td>' +
+            '<td>' + totalsFormatNumber(row.median) + '</td>' +
+            '<td>' + totalsFormatNumber(row.max) + '</td>' +
         '</tr>';
     }
 
@@ -4389,31 +4518,65 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '</div>' +
             '</div>' +
         '</div>';
+    var topTitlePrefix = 'Топ-' + topLimit;
     var topHtml =
-        '<div class="totals-layout">' +
-            '<section class="totals-card">' +
-                '<h3>Топ-15 вакансий по зарплате</h3>' +
-                buildSwitchRow('totals_vacancy_currency', currencies.map(function(curr) { return { value: curr, label: curr }; }), vacancyCurrency) +
-                '<div class="vacancy-table-wrap"><table class="vacancy-table"><thead><tr><th>Вакансия</th><th>Работодатель</th><th>Зарплата</th><th>Валюта</th><th>Статус отклика</th></tr></thead><tbody>' +
-                    (topVacancies.length ? topVacancies.map(topVacancyRowHtml).join('') : '<tr><td colspan="5">Нет данных</td></tr>') +
-                '</tbody></table></div>' +
-            '</section>' +
-
-            '<div class="totals-grid">' +
-                '<section class="totals-card">' +
-                    '<h3>Топ-15 навыков</h3>' +
-                    buildSwitchRow('totals_skills_currency', currencies.map(function(curr) { return { value: curr, label: curr }; }), skillsCurrency) +
-                    '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Навык</th><th>Упоминаний</th><th>Мин</th><th>Макс</th><th>Средняя</th><th>Медиана</th><th>Мода</th></tr></thead><tbody>' +
-                        (topSkills.length ? topSkills.map(topSkillRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
-                    '</tbody></table></div>' +
-                '</section>' +
-                '<section class="totals-card">' +
-                    '<h3>Топ-15 работодателей</h3>' +
-                    buildSwitchRow('totals_company_currency', currencies.map(function(curr) { return { value: curr, label: curr }; }), companyCurrency) +
-                    '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Работодатель</th><th>Вакансий</th><th>Мин</th><th>Макс</th><th>Средняя</th><th>Медиана</th><th>Мода</th></tr></thead><tbody>' +
-                        (topCompanies.length ? topCompanies.map(topCompanyRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
-                    '</tbody></table></div>' +
-                '</section>' +
+        '<div class="totals-layout totals-top-layout">' +
+            '<div class="totals-top-columns">' +
+                '<div class="totals-top-column">' +
+                    '<section class="totals-card">' +
+                        '<div class="totals-card-head">' +
+                            '<h3>' + topTitlePrefix + ' вакансий по зарплате</h3>' +
+                        '</div>' +
+                        buildSwitchRow('totals_vacancy_order', [
+                            { value: 'high', label: 'Самые высокие' },
+                            { value: 'low', label: 'Самые низкие' }
+                        ], vacancyOrder) +
+                        '<div class="vacancy-table-wrap"><table class="vacancy-table"><thead><tr><th>Вакансия</th><th>Работодатель</th><th>Зарплата</th><th>Статус отклика</th></tr></thead><tbody>' +
+                            (topVacancies.length ? topVacancies.map(topVacancyRowHtml).join('') : '<tr><td colspan="4">Нет данных</td></tr>') +
+                        '</tbody></table></div>' +
+                    '</section>' +
+                    '<section class="totals-card">' +
+                        '<div class="totals-card-head">' +
+                            '<h3>' + topTitlePrefix + ' работодателей по зарплате</h3>' +
+                        '</div>' +
+                        buildSwitchRow('totals_company_order', [
+                            { value: 'high', label: 'Самые высокие' },
+                            { value: 'low', label: 'Самые низкие' }
+                        ], companyOrder) +
+                        '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Работодатель</th><th>Вакансий</th><th>Мин</th><th>Средняя</th><th>Мода</th><th>Медиана</th><th>Макс</th></tr></thead><tbody>' +
+                            (topCompanies.length ? topCompanies.map(topCompanyRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
+                        '</tbody></table></div>' +
+                    '</section>' +
+                '</div>' +
+                '<div class="totals-top-column">' +
+                    '<section class="totals-card">' +
+                        '<div class="totals-card-head">' +
+                            '<h3>' + topTitlePrefix + ' навыков</h3>' +
+                        '</div>' +
+                        buildSwitchRow('totals_skills_order', [
+                            { value: 'most', label: 'Самые востребованные' },
+                            { value: 'least', label: 'Самые невостребованные' }
+                        ], skillsOrder) +
+                        '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Навык</th><th>Упоминаний</th><th>Мин</th><th>Средняя</th><th>Мода</th><th>Медиана</th><th>Макс</th></tr></thead><tbody>' +
+                            (topSkills.length ? topSkills.map(topSkillRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
+                        '</tbody></table></div>' +
+                    '</section>' +
+                    '<section class="totals-card">' +
+                        '<div class="totals-card-head">' +
+                            '<h3>' + topTitlePrefix + ' работодателей по скорости закрытия вакансий</h3>' +
+                        '</div>' +
+                        buildSwitchRow('totals_closing_window', [
+                            { value: 'lte_7', label: 'За 7 дней' },
+                            { value: 'lte_14', label: '14 дней' },
+                            { value: 'lte_30', label: 'До 30 дней' },
+                            { value: 'gt_30', label: 'Более 30 дней' },
+                            { value: 'gt_60', label: 'Более 60 дней' }
+                        ], closingWindow) +
+                        '<div class="vacancy-table-wrap"><table class="vacancy-table totals-table-compact"><thead><tr><th>Работодатель</th><th>Закрыто</th><th>Мин дней</th><th>Средняя</th><th>Мода</th><th>Медиана</th><th>Макс дней</th></tr></thead><tbody>' +
+                            (topClosingCompanies.length ? topClosingCompanies.map(topClosingCompanyRowHtml).join('') : '<tr><td colspan="7">Нет данных</td></tr>') +
+                        '</tbody></table></div>' +
+                    '</section>' +
+                '</div>' +
             '</div>' +
         '</div>';
     block.innerHTML = buildDashboardModeSwitchRow(dashboardMode) + (
@@ -4429,6 +4592,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             if (!key || !value) return;
             uiState[key] = value;
             renderGlobalTotalsFiltered(parentRole);
+            if (key === 'totals_dashboard_mode') syncSharedFilterPanel(parentRole, 'totals', true);
         });
     });
     if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading) {
@@ -4506,6 +4670,10 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     body.appendChild(createUnifiedRolesControl(activeRole, currentForFilters));
     body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
+    if (typeof createTotalsTopFilterControl === 'function') {
+        var totalsTopControl = createTotalsTopFilterControl(activeRole, currentForFilters);
+        if (totalsTopControl) body.appendChild(totalsTopControl);
+    }
     panel.style.display = body.children.length ? 'block' : 'none';
     renderActiveGlobalFilterChips(panel, activeRole, currentForFilters);
     if (!skipActiveApply) applyGlobalFiltersToActiveAnalysis(activeRole, current);
