@@ -1083,15 +1083,24 @@ function parseInterviewDateValue(value) {
     if (isNaN(date.getTime())) return null;
     return date;
 }
+function getResponseCalendarNowTimestamp() {
+    return Date.now();
+}
+function hasInterviewDetailsBeyondSchedule(item) {
+    if (!item || typeof item !== 'object') return false;
+    var keys = ['hr_name', 'interview_stages', 'company_type', 'result', 'feedback', 'offer_salary', 'pros', 'cons'];
+    return keys.some(function(key) {
+        var value = item[key];
+        return value !== null && value !== undefined && String(value).trim() !== '';
+    });
+}
 function isResponseCalendarPendingResultItem(item) {
     var interviewDate = parseInterviewDateValue(item && item.interview_date);
     if (!interviewDate) return false;
-    var interviewDayKey = formatCalendarDayKey(interviewDate);
-    var todayKey = formatCalendarDayKey(new Date());
-    if (!interviewDayKey || interviewDayKey >= todayKey) return false;
+    if (interviewDate.getTime() >= getResponseCalendarNowTimestamp()) return false;
     var updatedAt = parseInterviewDateValue(item && item.updated_at);
     if (!updatedAt) return true;
-    return formatCalendarDayKey(updatedAt) < interviewDayKey;
+    return updatedAt.getTime() < interviewDate.getTime();
 }
 function formatInterviewTimeLabel(value) {
     var date = parseInterviewDateValue(value);
@@ -1300,12 +1309,7 @@ function formatMyResponseOfferValue(item) {
     return '—';
 }
 function hasInterviewContent(item) {
-    if (!item || typeof item !== 'object') return false;
-    var keys = ['hr_name', 'interview_date', 'interview_stages', 'company_type', 'result', 'feedback', 'offer_salary', 'pros', 'cons'];
-    return keys.some(function(key) {
-        var value = item[key];
-        return value !== null && value !== undefined && String(value).trim() !== '';
-    });
+    return hasInterviewDetailsBeyondSchedule(item);
 }
 function hasScheduledInterview(item) {
     return !!parseInterviewDateValue(item && item.interview_date);
@@ -1635,6 +1639,7 @@ function summarizeResponseCalendarMonth(monthKey, responses, eventsByDay) {
     var todayKey = formatCalendarDayKey(todayDate);
     var todayStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
     var upcomingEnd = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + 7);
+    var nowTs = getResponseCalendarNowTimestamp();
     var total = 0;
     var daysWithEvents = 0;
     var todayCount = 0;
@@ -1659,7 +1664,7 @@ function summarizeResponseCalendarMonth(monthKey, responses, eventsByDay) {
             return;
         }
         if (formatCalendarDayKey(interviewDate) < todayKey) overdue += 1;
-        if (interviewDate.getTime() >= todayStart.getTime() && interviewDate.getTime() < upcomingEnd.getTime()) upcomingWeek += 1;
+        if (interviewDate.getTime() >= nowTs && interviewDate.getTime() < upcomingEnd.getTime()) upcomingWeek += 1;
         scheduledItems.push(Object.assign({}, item || {}, {
             dayKey: formatCalendarDayKey(interviewDate)
         }));
@@ -1671,7 +1676,7 @@ function summarizeResponseCalendarMonth(monthKey, responses, eventsByDay) {
 
     var nearestItem = null;
     for (var i = 0; i < scheduledItems.length; i++) {
-        if ((scheduledItems[i].dayKey || '') >= todayKey) {
+        if (resolveResponseCalendarItemTimestamp(scheduledItems[i]) >= nowTs) {
             nearestItem = scheduledItems[i];
             break;
         }
@@ -1839,11 +1844,14 @@ function buildResponseCalendarTodayItems(eventsByDay) {
 
 function buildResponseCalendarUpcomingItems(eventsByDay, dayCount) {
     var today = new Date();
+    var nowTs = getResponseCalendarNowTimestamp();
     var items = [];
     for (var i = 0; i < dayCount; i++) {
         var currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
         var dayKey = formatCalendarDayKey(currentDate);
         (eventsByDay[dayKey] || []).forEach(function(item) {
+            var interviewDate = parseInterviewDateValue(item && item.interview_date);
+            if (!interviewDate || interviewDate.getTime() < nowTs) return;
             items.push(Object.assign({}, item || {}, {
                 week_day_label: formatResponseCalendarRelativeDayLabel(dayKey)
             }));
@@ -2122,17 +2130,6 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
     var agendaHtml = buildResponseCalendarAgendaHtml(selectedEvents, monthSummary.total > 0, hasInterviews, nearestItem, unscheduledItems);
     var weekHtml = buildResponseCalendarWeekHtml(weekEvents);
     var pendingResultHtml = buildResponseCalendarPendingResultHtml(pendingResultItems);
-    var todaySectionHtml = selectedIsToday ? '' : (
-        '<div class="response-calendar-agenda-section">' +
-            '<div class="response-calendar-agenda-head">' +
-                '<div class="response-calendar-agenda-title">Сегодня</div>' +
-            '</div>' +
-            '<div class="response-calendar-agenda-list">' + (todayEvents.length
-                ? buildResponseCalendarAgendaHtml(todayEvents, true, hasInterviews, nearestItem, unscheduledItems)
-                : buildResponseCalendarEmptyHtml('Сегодня событий нет.', '', '', null, { compact: true })) + '</div>' +
-        '</div>'
-    );
-
     return '' +
         '<div class="response-calendar-shell">' +
             '<section class="response-calendar-panel response-calendar-panel--board">' +
@@ -2154,7 +2151,6 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
                     '<div class="response-calendar-agenda-head">' +
                         '<div class="response-calendar-agenda-headline">' +
                             '<div class="response-calendar-agenda-title">Фокус на дне</div>' +
-                            (selectedIsToday ? '<span class="response-calendar-agenda-date-pill is-inline">Сегодня</span>' : '') +
                         '</div>' +
                         '<div class="response-calendar-agenda-date' + (selectedIsToday ? ' is-today' : '') + '">' +
                             '<span class="response-calendar-agenda-date-text">' + escapeHtml(formatCalendarDayLabel(effectiveSelectedDay)) + '</span>' +
@@ -2162,7 +2158,6 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
                     '</div>' +
                     '<div class="response-calendar-agenda-list">' + agendaHtml + '</div>' +
                 '</div>' +
-                todaySectionHtml +
                 '<div class="response-calendar-agenda-section">' +
                     '<div class="response-calendar-agenda-head">' +
                         '<div class="response-calendar-agenda-title">Ближайшие 7 дней</div>' +

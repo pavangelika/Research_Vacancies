@@ -19,6 +19,10 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
 
+def has_interview_details(values: list) -> bool:
+    return any(v is not None and str(v).strip() != "" for v in values)
+
+
 def get_resolved_db_host() -> str:
     host = (DB_HOST or "").strip() or "localhost"
     try:
@@ -220,8 +224,8 @@ def get_sent_resume_vacancies() -> list[dict]:
 
     result = []
     for row in rows:
-        interview_values = [row[15], row[16], row[17], row[18], row[19], row[20], row[21], row[22], row[23]]
-        interview_filled = any(v is not None and str(v).strip() != "" for v in interview_values)
+        interview_values = [row[15], row[17], row[18], row[19], row[20], row[21], row[22], row[23]]
+        interview_filled = has_interview_details(interview_values)
         result.append({
             "id": row[0],
             "role_id": row[1],
