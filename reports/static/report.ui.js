@@ -2608,7 +2608,7 @@ function applyAnalysisTabNaming(root) {
         if (onClick.indexOf("switchFromSummaryToAnalysis('detail')") >= 0) btn.textContent = mapDefault.detail;
         else if (onClick.indexOf("switchFromSummaryToAnalysis('activity')") >= 0) btn.textContent = mapDefault.activity;
         else if (onClick.indexOf("switchFromSummaryToAnalysis('weekday')") >= 0) btn.textContent = mapDefault.weekday;
-        else if (onClick.indexOf("switchFromSummaryToAnalysis('skills-search')") >= 0) btn.textContent = 'Поиск по навыкам';
+        else if (onClick.indexOf("switchFromSummaryToAnalysis('skills-search')") >= 0) btn.textContent = 'Поиск вакансий';
         else if (onClick.indexOf("switchFromSummaryToAnalysis('salary')") >= 0) btn.textContent = mapDefault.salary;
         else if (onClick.indexOf("switchFromSummaryToAnalysis('employer-analysis')") >= 0) btn.textContent = mapDefault.employer;
     });
@@ -2789,7 +2789,12 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         return buildPeriodFilterOptionsFromVacancies(getRoleVacancies(activeRole) || []);
     }
     if (filterKey === 'status') {
-        if (current === 'skills-search') return [];
+        if (current === 'skills-search') {
+            return [
+                { value: 'open', label: 'Открытая' },
+                { value: 'archived', label: 'Архивная' }
+            ];
+        }
         if (!isResponsesCalendarAnalysis(current)) {
             var statusVacancies = [];
             if (activeRole.id === 'role-all') {
@@ -2816,6 +2821,28 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             { value: 'RUR', label: 'RUR' },
             { value: 'USD', label: 'USD' },
             { value: 'EUR', label: 'EUR' }
+        ];
+    }
+    if (filterKey === 'currency' && current === 'skills-search') {
+        return [
+            { value: 'rur', label: 'RUR' },
+            { value: 'usd', label: 'USD' },
+            { value: 'eur', label: 'EUR' },
+            { value: 'other', label: 'Другая' },
+            { value: 'none', label: 'Не заполнена' }
+        ];
+    }
+    if (filterKey === 'country' && current === 'skills-search') {
+        return [
+            { value: 'none', label: 'Не определена' },
+            { value: 'ru', label: 'Россия' },
+            { value: 'not_ru', label: 'Не Россия' }
+        ];
+    }
+    if ((filterKey === 'accreditation' || filterKey === 'cover_letter_required' || filterKey === 'has_test') && current === 'skills-search') {
+        return [
+            { value: 'true', label: 'Да' },
+            { value: 'false', label: 'Нет' }
         ];
     }
     if (filterKey === 'interview' && isResponsesCalendarAnalysis(current)) {
@@ -5945,6 +5972,13 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     if (statusOptions.length) {
         body.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
     }
+    if (currentForFilters === 'skills-search') {
+        body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('accreditation', 'ИТ-аккредитация', getGlobalFilterOptions(activeRole, 'accreditation', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('cover_letter_required', 'Сопроводительное письмо', getGlobalFilterOptions(activeRole, 'cover_letter_required', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('has_test', 'Тестовое задание', getGlobalFilterOptions(activeRole, 'has_test', currentForFilters), false));
+    }
     if (isResponsesCalendarAnalysis(currentForFilters)) {
         body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false));
@@ -6665,55 +6699,47 @@ function getSkillsSearchBooleanFilterDefs() {
 
 function ensureSkillsSearchBooleanFilters(block) {
     if (!block) return;
-    var header = block.querySelector('.skills-search-panel-header');
-    if (!header) return;
-
-    var wrap = header.querySelector('.skills-search-bool-filters');
-    if (!wrap) {
-        wrap = document.createElement('div');
-        wrap.className = 'skills-search-bool-filters';
-        var clearBtn = header.querySelector('.skills-search-clear');
-        if (clearBtn) header.insertBefore(wrap, clearBtn);
-        else header.appendChild(wrap);
-    }
-
-    if (!wrap.dataset.ready) {
-        var defs = getSkillsSearchBooleanFilterDefs();
-        wrap.innerHTML =
-            '<span class="skills-search-bool-title">Опции:</span>' +
-            defs.map(function(item) {
-                return '<label class="skills-search-bool-option">' +
-                    '<input class="skills-search-bool-checkbox" type="checkbox" data-factor="' + escapeHtml(item.key) + '">' +
-                    '<span>' + escapeHtml(item.label) + '</span>' +
-                '</label>';
-            }).join('');
-        wrap.dataset.ready = '1';
-    }
-
-    if (!wrap.dataset.bound) {
-        wrap.addEventListener('change', function(e) {
-            var checkbox = e.target && e.target.closest ? e.target.closest('.skills-search-bool-checkbox') : null;
-            if (!checkbox) return;
-            updateSkillsSearchData(block);
-        });
-        wrap.dataset.bound = '1';
-    }
+    getSkillsSearchBooleanFilterDefs().forEach(function(item) {
+        var dropdown = block.querySelector('.skills-search-dropdown[data-filter="' + item.key + '"]');
+        if (!dropdown || dropdown.dataset.ready) return;
+        renderSkillsSearchDropdown(dropdown, [
+            { value: 'true', label: 'Да' },
+            { value: 'false', label: 'Нет' }
+        ], item.label, 'Все', false, true);
+        dropdown.dataset.ready = '1';
+        setSkillsSearchDropdownValue(dropdown, 'all');
+    });
 }
 
 function getSkillsSearchBooleanFilterValues(block) {
-    if (!block) return [];
-    return Array.from(block.querySelectorAll('.skills-search-bool-checkbox:checked'))
-        .map(function(input) { return (input.dataset.factor || '').trim(); })
-        .filter(Boolean);
+    if (!block) return {};
+    return getSkillsSearchBooleanFilterDefs().reduce(function(result, item) {
+        var value = getSkillsSearchFilterValue(block, item.key) || 'all';
+        result[item.key] = (value === 'true' || value === 'false') ? value : 'all';
+        return result;
+    }, {});
 }
 
 function setSkillsSearchBooleanFilterValues(block, values) {
     if (!block) return;
-    var selected = new Set((values || []).map(function(value) {
-        return String(value || '').trim();
-    }).filter(Boolean));
-    block.querySelectorAll('.skills-search-bool-checkbox').forEach(function(input) {
-        input.checked = selected.has((input.dataset.factor || '').trim());
+    var nextValues = {};
+    getSkillsSearchBooleanFilterDefs().forEach(function(item) {
+        nextValues[item.key] = 'all';
+    });
+    if (Array.isArray(values)) {
+        values.forEach(function(value) {
+            var key = String(value || '').trim();
+            if (Object.prototype.hasOwnProperty.call(nextValues, key)) nextValues[key] = 'true';
+        });
+    } else if (values && typeof values === 'object') {
+        Object.keys(nextValues).forEach(function(key) {
+            var rawValue = String(values[key] || 'all').trim().toLowerCase();
+            nextValues[key] = (rawValue === 'true' || rawValue === 'false') ? rawValue : 'all';
+        });
+    }
+    getSkillsSearchBooleanFilterDefs().forEach(function(item) {
+        var dropdown = block.querySelector('.skills-search-dropdown[data-filter="' + item.key + '"]');
+        if (dropdown) setSkillsSearchDropdownValue(dropdown, nextValues[item.key]);
     });
 }
 
@@ -6735,8 +6761,20 @@ function updateSkillsSearchData(block) {
     var parentRole = block.closest('.role-content');
     var globalPeriodOptions = getGlobalFilterOptions(parentRole, 'periods', 'skills-search');
     var globalExpOptions = getGlobalFilterOptions(parentRole, 'experiences', 'skills-search');
+    var globalStatusOptions = getGlobalFilterOptions(parentRole, 'status', 'skills-search');
+    var globalCurrencyOptions = getGlobalFilterOptions(parentRole, 'currency', 'skills-search');
+    var globalCountryOptions = getGlobalFilterOptions(parentRole, 'country', 'skills-search');
+    var globalAccreditationOptions = getGlobalFilterOptions(parentRole, 'accreditation', 'skills-search');
+    var globalCoverOptions = getGlobalFilterOptions(parentRole, 'cover_letter_required', 'skills-search');
+    var globalHasTestOptions = getGlobalFilterOptions(parentRole, 'has_test', 'skills-search');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', globalPeriodOptions);
     var selectedExps = getResolvedGlobalFilterValues('experiences', globalExpOptions);
+    var selectedGlobalStatuses = getResolvedGlobalFilterValues('status', globalStatusOptions);
+    var selectedGlobalCurrencies = getResolvedGlobalFilterValues('currency', globalCurrencyOptions);
+    var selectedGlobalCountries = getResolvedGlobalFilterValues('country', globalCountryOptions);
+    var selectedGlobalAccreditation = getResolvedGlobalFilterValues('accreditation', globalAccreditationOptions);
+    var selectedGlobalCover = getResolvedGlobalFilterValues('cover_letter_required', globalCoverOptions);
+    var selectedGlobalHasTest = getResolvedGlobalFilterValues('has_test', globalHasTestOptions);
     var baseVacancies = (block._data.vacancies || []).slice();
     if (selectedPeriods.length) {
         baseVacancies = filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods);
@@ -6756,7 +6794,8 @@ function updateSkillsSearchData(block) {
         }
     }
     var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
-    var selectedBooleanFactors = getSkillsSearchBooleanFilterValues(block);
+    var booleanFilterValues = getSkillsSearchBooleanFilterValues(block);
+    var booleanFilterDefs = getSkillsSearchBooleanFilterDefs();
 
     var filteredBase = baseVacancies.filter(v => {
         if (!v) return false;
@@ -6766,14 +6805,41 @@ function updateSkillsSearchData(block) {
         if (globalExpOptions.length && selectedExps.length && allowedGlobal.length === 0) {
             return false;
         }
-        if (selectedBooleanFactors.length) {
-            for (var i = 0; i < selectedBooleanFactors.length; i += 1) {
-                if (!getSkillsSearchVacancyBooleanValue(v, selectedBooleanFactors[i])) return false;
+        if (booleanFilterDefs.length) {
+            for (var i = 0; i < booleanFilterDefs.length; i += 1) {
+                var filterKey = booleanFilterDefs[i].key;
+                var filterValue = booleanFilterValues[filterKey] || 'all';
+                if (filterValue === 'all') continue;
+                var boolValue = getSkillsSearchVacancyBooleanValue(v, filterKey);
+                if (filterValue === 'true' && !boolValue) return false;
+                if (filterValue === 'false' && boolValue) return false;
             }
+        }
+        if (selectedGlobalAccreditation.length) {
+            var vacancyAccredited = getSkillsSearchVacancyBooleanValue(v, 'accreditation');
+            if (selectedGlobalAccreditation.indexOf(vacancyAccredited ? 'true' : 'false') < 0) return false;
+        }
+        if (selectedGlobalCover.length) {
+            var vacancyCover = getSkillsSearchVacancyBooleanValue(v, 'cover_letter_required');
+            if (selectedGlobalCover.indexOf(vacancyCover ? 'true' : 'false') < 0) return false;
+        }
+        if (selectedGlobalHasTest.length) {
+            var vacancyHasTest = getSkillsSearchVacancyBooleanValue(v, 'has_test');
+            if (selectedGlobalHasTest.indexOf(vacancyHasTest ? 'true' : 'false') < 0) return false;
+        }
+        if (selectedGlobalStatuses.length) {
+            var globalStatus = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
+            var globalStatusKey = globalStatus === 'Архивная' ? 'archived' : 'open';
+            if (selectedGlobalStatuses.indexOf(globalStatusKey) < 0) return false;
         }
         if (statusVal !== 'all') {
             var status = v._status || (v.archived_at ? '????????' : '????????');
             if (status !== statusVal) return false;
+        }
+        if (selectedGlobalCountries.length) {
+            var globalCountry = (v.country || '').trim();
+            var globalCountryKey = globalCountry ? (globalCountry === 'Россия' ? 'ru' : 'not_ru') : 'none';
+            if (selectedGlobalCountries.indexOf(globalCountryKey) < 0) return false;
         }
         if (countryVal !== 'all') {
             var country = (v.country || '').trim();
@@ -6803,6 +6869,15 @@ function updateSkillsSearchData(block) {
                   } else if (selNorm === 'none' && isCurrencyEmpty) match = true;
               });
               if (!match) return false;
+          }
+          if (selectedGlobalCurrencies.length) {
+              var globalCurrRaw = v.currency;
+              var globalCurrNorm = String(globalCurrRaw || '').trim().toUpperCase();
+              var globalCurrencyKey = (!globalCurrNorm || globalCurrNorm === '—' || globalCurrNorm === '-') ? 'none'
+                  : ((globalCurrNorm === 'RUR' || globalCurrNorm === 'RUB') ? 'rur'
+                  : (globalCurrNorm === 'USD' ? 'usd'
+                  : (globalCurrNorm === 'EUR' ? 'eur' : 'other')));
+              if (selectedGlobalCurrencies.indexOf(globalCurrencyKey) < 0) return false;
           } else if (currencyVal !== 'all') {
               var currRaw2 = v.currency;
               if (currRaw2 !== currencyVal) return false;

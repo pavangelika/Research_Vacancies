@@ -134,6 +134,13 @@ function syncAllRolesSharedFilterButtons(activeRole, analysisType) {
     if (statusOptions.length) {
         host.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
     }
+    if (current === 'skills-search') {
+        host.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', current), false));
+        host.appendChild(createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', current), false));
+        host.appendChild(createGlobalFilterDropdown('accreditation', 'ИТ-аккредитация', getGlobalFilterOptions(activeRole, 'accreditation', current), false));
+        host.appendChild(createGlobalFilterDropdown('cover_letter_required', 'Сопроводительное письмо', getGlobalFilterOptions(activeRole, 'cover_letter_required', current), false));
+        host.appendChild(createGlobalFilterDropdown('has_test', 'Тестовое задание', getGlobalFilterOptions(activeRole, 'has_test', current), false));
+    }
 }
 
 function syncAllRolesSharedPeriodTabs(activeRole, periodValue) {

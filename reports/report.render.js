@@ -770,19 +770,35 @@ function renderAllRolesContainer(container, roleContents) {
                     '<button class="skills-search-dropdown-btn" type="button" data-value="count">Сортировка</button>' +
                     '<div class="skills-search-dropdown-menu"></div>' +
                 '</div>' +
-                '<div class="skills-search-dropdown" data-filter="status">' +
-                    '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
-                    '<div class="skills-search-dropdown-menu"></div>' +
-                '</div>' +
-                '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
-                    '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
-                    '<div class="skills-search-dropdown-menu"></div>' +
-                '</div>' +
-                '<div class="skills-search-dropdown" data-filter="country">' +
-                    '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
-                    '<div class="skills-search-dropdown-menu"></div>' +
-                '</div>' +
                 '<button class="skills-search-clear" type="button">\u2715</button>' +
+            '</div>' +
+            '<div class="skills-search-filters">' +
+                '<div class="skills-search-filter-bar">' +
+                    '<div class="skills-search-dropdown" data-filter="status">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="country">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="accreditation">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">ИТ-аккредитация</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="cover_letter_required">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Сопроводительное письмо</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                    '<div class="skills-search-dropdown" data-filter="has_test">' +
+                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Тестовое задание</button>' +
+                        '<div class="skills-search-dropdown-menu"></div>' +
+                    '</div>' +
+                '</div>' +
             '</div>' +
             '<div class="skills-search-buttons"></div>' +
         '</div>' +
@@ -825,7 +841,7 @@ function renderAllRolesContainer(container, roleContents) {
             { type: 'totals', label: 'Дашборд' },
             { type: 'detail', label: 'Детальный анализ' },
             { type: 'summary', label: 'Сравнительный анализ' },
-            { type: 'skills-search', label: 'Поиск по навыкам' },
+            { type: 'skills-search', label: 'Поиск вакансий' },
             { type: 'my-responses', label: 'Мои отклики' }
         ];
     }
@@ -1151,19 +1167,35 @@ function renderCombinedContainer(container, roleContents) {
                         '<button class="skills-search-dropdown-btn" type="button" data-value="count">Сортировка</button>' +
                         '<div class="skills-search-dropdown-menu"></div>' +
                     '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="status">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="country">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
                     '<button class="skills-search-clear" type="button">&#10005;</button>' +
+                '</div>' +
+                '<div class="skills-search-filters">' +
+                    '<div class="skills-search-filter-bar">' +
+                        '<div class="skills-search-dropdown" data-filter="status">' +
+                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
+                            '<div class="skills-search-dropdown-menu"></div>' +
+                        '</div>' +
+                        '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
+                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
+                            '<div class="skills-search-dropdown-menu"></div>' +
+                        '</div>' +
+                        '<div class="skills-search-dropdown" data-filter="country">' +
+                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
+                            '<div class="skills-search-dropdown-menu"></div>' +
+                        '</div>' +
+                        '<div class="skills-search-dropdown" data-filter="accreditation">' +
+                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">ИТ-аккредитация</button>' +
+                            '<div class="skills-search-dropdown-menu"></div>' +
+                        '</div>' +
+                        '<div class="skills-search-dropdown" data-filter="cover_letter_required">' +
+                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Сопроводительное письмо</button>' +
+                            '<div class="skills-search-dropdown-menu"></div>' +
+                        '</div>' +
+                        '<div class="skills-search-dropdown" data-filter="has_test">' +
+                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Тестовое задание</button>' +
+                            '<div class="skills-search-dropdown-menu"></div>' +
+                        '</div>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="skills-search-buttons"></div>' +
             '</div>' +
@@ -1279,7 +1311,7 @@ function renderCombinedContainer(container, roleContents) {
             '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Динамика вакансий</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Дни активности</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Топ-навыки</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-search-combined" onclick="switchAnalysis(event, \'skills-search-combined\')">Поиск по навыкам</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-search-combined" onclick="switchAnalysis(event, \'skills-search-combined\')">Поиск вакансий</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Вилка зарплат</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="employer-analysis-combined" onclick="switchAnalysis(event, \'employer-analysis-combined\')">Анализ компаний</button>' +
         '</div>' +
