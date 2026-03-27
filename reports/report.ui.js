@@ -7,6 +7,7 @@
     }
     var targetRole = document.getElementById(roleId);
     if (typeof ensureMyResponsesTab === 'function') ensureMyResponsesTab(targetRole);
+    if (typeof ensureResponseCalendarTab === 'function') ensureResponseCalendarTab(targetRole);
     if (typeof ensureTotalsTab === 'function') ensureTotalsTab(targetRole);
     targetRole.style.display = "block";
     targetRole.classList.remove('role-switch-enter');
@@ -216,8 +217,11 @@ function normalizeUnifiedChartLayout(data, layout) {
     if (!layout || typeof layout !== 'object') return;
     var traces = Array.isArray(data) ? data.filter(Boolean) : [];
     var isHorizontal = isHorizontalBarChartData(traces);
+    var fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     layout.height = resolveUnifiedChartHeight(traces);
     layout.autosize = true;
+    layout.font = layout.font || {};
+    layout.font.family = fontFamily;
     layout.margin = layout.margin || {};
     layout.margin.t = 8;
     layout.margin.b = isHorizontal ? 28 : Math.max(Number(layout.margin.b) || 0, 20);
@@ -232,11 +236,17 @@ function normalizeUnifiedChartLayout(data, layout) {
         var axis = layout[key];
         if (!axis || typeof axis !== 'object') return;
         axis.automargin = true;
+        axis.tickfont = axis.tickfont || {};
+        axis.tickfont.family = fontFamily;
     });
     layout.xaxis = layout.xaxis || {};
     layout.yaxis = layout.yaxis || {};
     layout.xaxis.automargin = true;
     layout.yaxis.automargin = true;
+    layout.xaxis.tickfont = layout.xaxis.tickfont || {};
+    layout.yaxis.tickfont = layout.yaxis.tickfont || {};
+    layout.xaxis.tickfont.family = fontFamily;
+    layout.yaxis.tickfont.family = fontFamily;
     if (isHorizontal) layout.yaxis.autorange = 'reversed';
 }
 function stripAxisTitles(layout) {
@@ -878,9 +888,33 @@ function applyMyResponsesGlobalFilters(parentRole, vacancies) {
     } else {
         list = periodInput;
     }
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'my-responses');
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     list = list.filter(function(vacancy) {
-        return isRespondedVacancy(vacancy);
+        if (!isRespondedVacancy(vacancy)) return false;
+        if (!selectedStatuses.length) return true;
+        var statusValue = isArchivedResponseVacancy(vacancy) ? 'archived' : 'open';
+        return selectedStatuses.indexOf(statusValue) >= 0;
     });
+    var currencyOptions = getGlobalFilterOptions(parentRole, 'currency', 'my-responses');
+    var selectedCurrencies = getResolvedGlobalFilterValues('currency', currencyOptions);
+    if (selectedCurrencies.length) {
+        list = list.filter(function(vacancy) {
+            var rawCurrency = String(vacancy && (vacancy.currency || vacancy.salary_currency) || '').trim();
+            var vacancyCurrency = normalizeTotalsCurrency(rawCurrency);
+            var normalizedValue = rawCurrency ? vacancyCurrency : 'none';
+            return selectedCurrencies.indexOf(normalizedValue) >= 0;
+        });
+    }
+    var offerOptions = getGlobalFilterOptions(parentRole, 'offer', 'my-responses');
+    var selectedOffers = getResolvedGlobalFilterValues('offer', offerOptions);
+    if (selectedOffers.length) {
+        list = list.filter(function(vacancy) {
+            var hasOffer = hasOfferContent(vacancy);
+            var offerValue = hasOffer ? 'yes' : 'no';
+            return selectedOffers.indexOf(offerValue) >= 0;
+        });
+    }
     list.sort(function(a, b) {
         var aTs = Date.parse(a && (a.resume_at || a.published_at) ? (a.resume_at || a.published_at) : '') || 0;
         var bTs = Date.parse(b && (b.resume_at || b.published_at) ? (b.resume_at || b.published_at) : '') || 0;
@@ -900,6 +934,271 @@ function formatResumeAtValue(value) {
     var hh = String(date.getHours()).padStart(2, '0');
     var min = String(date.getMinutes()).padStart(2, '0');
     return dd + '.' + mm + '.' + yyyy + ' ' + hh + ':' + min;
+}
+function isArchivedResponseVacancy(item) {
+    return !!(item && (item.archived === true || item.archived === 1 || item.archived === '1' || item.archived === 'true' || item.archived_at));
+}
+function getMyResponseStatusLabel(item) {
+    return isArchivedResponseVacancy(item) ? 'Архивная' : 'Открытая';
+}
+function normalizeMyResponsesCurrencyFilter(value) {
+    var normalized = normalizeTotalsCurrency(value || '');
+    return ['RUR', 'USD', 'EUR'].indexOf(normalized) >= 0 ? normalized : 'all';
+}
+function normalizeMyResponsesOfferFilter(value) {
+    var normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'yes' || normalized === 'true' || normalized === 'with') return 'yes';
+    if (normalized === 'no' || normalized === 'false' || normalized === 'without') return 'no';
+    return 'all';
+}
+function isResponsesCalendarAnalysis(analysisType) {
+    return analysisType === 'my-responses' || analysisType === 'responses-calendar';
+}
+function findMyResponseItemById(vacancyId) {
+    var id = String(vacancyId || '').trim();
+    if (!id) return null;
+    var cache = Array.isArray(uiState.my_responses_cache) ? uiState.my_responses_cache : [];
+    for (var i = 0; i < cache.length; i++) {
+        var item = cache[i];
+        var ids = getMyResponseIdCandidates(item);
+        if (ids.indexOf(id) >= 0) return item;
+    }
+    return null;
+}
+function getResponseCalendarMonthStateKey(parentRole) {
+    return 'responses_calendar_month_' + String((parentRole && parentRole.id) || '');
+}
+function getResponseCalendarSelectedDayStateKey(parentRole) {
+    return 'responses_calendar_selected_day_' + String((parentRole && parentRole.id) || '');
+}
+function formatCalendarMonthKey(date) {
+    if (!(date instanceof Date) || isNaN(date.getTime())) return '';
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+}
+function parseCalendarMonthKey(value) {
+    var text = String(value || '').trim();
+    var match = text.match(/^(\d{4})-(\d{2})$/);
+    if (!match) return null;
+    var year = Number(match[1]);
+    var month = Number(match[2]);
+    if (!isFinite(year) || !isFinite(month) || month < 1 || month > 12) return null;
+    return new Date(year, month - 1, 1);
+}
+function shiftCalendarMonthKey(monthKey, delta) {
+    var base = parseCalendarMonthKey(monthKey) || new Date();
+    base = new Date(base.getFullYear(), base.getMonth() + Number(delta || 0), 1);
+    return formatCalendarMonthKey(base);
+}
+function parseInterviewDateValue(value) {
+    var text = String(value || '').trim();
+    if (!text) return null;
+    var date = new Date(text);
+    if (isNaN(date.getTime())) return null;
+    return date;
+}
+function formatInterviewTimeLabel(value) {
+    var date = parseInterviewDateValue(value);
+    if (!date) return 'Без времени';
+    return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+}
+function formatCalendarDayKey(date) {
+    if (!(date instanceof Date) || isNaN(date.getTime())) return '';
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+function formatCalendarDayLabel(dayKey) {
+    var date = parseInterviewDateValue(dayKey);
+    if (!date) return 'Выберите дату';
+    var weekdays = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+    var months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    return weekdays[date.getDay()] + ', ' + date.getDate() + ' ' + months[date.getMonth()];
+}
+function formatCalendarMonthLabel(monthKey) {
+    var date = parseCalendarMonthKey(monthKey);
+    if (!date) return 'Календарь';
+    var months = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    return months[date.getMonth()] + ' ' + date.getFullYear();
+}
+function getResponseCalendarMonthPickerOpenStateKey(parentRole) {
+    return 'responses_calendar_month_picker_open_' + String((parentRole && parentRole.id) || '');
+}
+function getResponseCalendarMonthPickerYearStateKey(parentRole) {
+    return 'responses_calendar_month_picker_year_' + String((parentRole && parentRole.id) || '');
+}
+function buildResponseCalendarMonthPickerHtml(parentRole, monthKey) {
+    var selectedDate = parseCalendarMonthKey(monthKey) || new Date();
+    var openKey = getResponseCalendarMonthPickerOpenStateKey(parentRole);
+    var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
+    var pickerOpen = uiState[openKey] === true;
+    var pickerYear = Number(uiState[yearKey]);
+    if (!isFinite(pickerYear)) pickerYear = selectedDate.getFullYear();
+    var monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    return '' +
+        '<div class="response-calendar-month-picker-wrap' + (pickerOpen ? ' is-open' : '') + '">' +
+            '<button type="button" class="response-calendar-month-picker-shell" aria-label="Выбрать месяц" aria-expanded="' + (pickerOpen ? 'true' : 'false') + '">' +
+                '<span class="response-calendar-month-picker-value">' + escapeHtml(formatCalendarMonthLabel(monthKey)) + '</span>' +
+                '<span class="response-calendar-month-picker-icon" aria-hidden="true">▾</span>' +
+            '</button>' +
+            (pickerOpen ? (
+                '<div class="response-calendar-month-popover">' +
+                    '<div class="response-calendar-month-popover-head">' +
+                        '<button type="button" class="response-calendar-month-year-btn" data-shift="-1" aria-label="Предыдущий год">‹</button>' +
+                        '<div class="response-calendar-month-year-label">' + pickerYear + '</div>' +
+                        '<button type="button" class="response-calendar-month-year-btn" data-shift="1" aria-label="Следующий год">›</button>' +
+                    '</div>' +
+                    '<div class="response-calendar-month-grid">' +
+                        monthNames.map(function(label, index) {
+                            var optionKey = pickerYear + '-' + String(index + 1).padStart(2, '0');
+                            var isActive = optionKey === monthKey;
+                            return '<button type="button" class="response-calendar-month-option' + (isActive ? ' active' : '') + '" data-month-key="' + optionKey + '">' + label + '</button>';
+                        }).join('') +
+                    '</div>' +
+                '</div>'
+            ) : '') +
+        '</div>';
+}
+function buildMyResponseSummaryRows(vacancyId, item, source) {
+    var merged = Object.assign({}, source || {}, item || {});
+    var responseIds = getMyResponseIdCandidates(merged);
+    var resolvedId = String(vacancyId || responseIds[0] || (source && source.id) || '').trim();
+    return [
+        { label: 'ID', value: resolvedId },
+        { label: 'Название', value: merged.name },
+        { label: 'Работодатель', value: merged.employer },
+        { label: 'Город', value: merged.city },
+        { label: 'ЗП от', value: formatCompactThousandsValue(merged.salary_from) },
+        { label: 'ЗП до', value: formatCompactThousandsValue(merged.salary_to) },
+        { label: 'Валюта', value: merged.currency || merged.salary_currency || '—' },
+        { label: 'Оффер', value: formatMyResponseOfferValue(merged) },
+        { label: 'Дата отклика', value: formatResumeAtValue(merged.resume_at) },
+        { label: 'Дата публикации', value: formatResumeAtValue(merged.published_at || merged.created_at) },
+        { label: 'Статус', value: getMyResponseStatusLabel(merged) },
+        { label: 'Дата архивации', value: formatResumeAtValue(merged.archived_at) }
+    ];
+}
+function buildMyResponseEmployerRows(item, source) {
+    var merged = Object.assign({}, source || {}, item || {});
+    function formatBool(value) {
+        var text = String(value === null || value === undefined ? '' : value).trim().toLowerCase();
+        if (!text) return '—';
+        if (text === 'true' || text === '1' || text === 'да' || text === 'yes') return 'Да';
+        if (text === 'false' || text === '0' || text === 'нет' || text === 'no') return 'Нет';
+        return String(value);
+    }
+    var employerUrl = String(merged.employer_url || '').trim();
+    return [
+        { label: 'Название', value: merged.employer },
+        { label: 'ИТ-аккредитация', value: formatBool(merged.employer_accredited) },
+        { label: 'Надёжный работодатель', value: formatBool(merged.employer_trusted) },
+        { label: 'Рейтинг', value: merged.employer_rating },
+        {
+            label: 'Ссылка',
+            html: employerUrl
+                ? '<a class="my-responses-title-link" href="' + escapeHtml(employerUrl) + '" target="_blank" rel="noopener">' + escapeHtml(employerUrl) + '</a>'
+                : ''
+        }
+    ].filter(function(row) {
+        var value = row.html !== undefined ? row.html : row.value;
+        return value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim() !== '—';
+    });
+}
+function buildMyResponseReadonlyHtml(vacancyId, item, source, details) {
+    var merged = Object.assign({}, source || {}, item || {}, details || {});
+    var summaryRows = buildMyResponseSummaryRows(vacancyId, merged, source).filter(function(row) {
+        return row.value !== null && row.value !== undefined && String(row.value).trim() !== '';
+    });
+    var employerRows = buildMyResponseEmployerRows(merged, source);
+    var detailsRows = [
+        { label: 'Навыки', value: merged.skills },
+        { label: 'Требования', value: merged.requirement },
+        { label: 'Обязанности', value: merged.responsibility },
+        { label: 'Описание', value: merged.description }
+    ].filter(function(row) {
+        return row.value !== null && row.value !== undefined && String(row.value).trim() !== '';
+    });
+
+    if (!summaryRows.length && !detailsRows.length) {
+        return '<div class="skills-search-summary">Подробности по вакансии не заполнены</div>';
+    }
+
+    var sections = [];
+    if (summaryRows.length) {
+        sections.push(
+            '<section class="my-response-details-readonly-section">' +
+                '<div class="my-response-details-section-title">Сводка отклика</div>' +
+                '<div class="my-response-details-summary-grid">' +
+                    summaryRows.map(function(row) {
+                        return '<div class="my-response-details-summary-card">' +
+                            '<div class="my-response-details-readonly-title">' + escapeHtml(row.label) + '</div>' +
+                            '<div class="my-response-details-value">' + (row.html !== undefined ? row.html : formatCell(row.value)) + '</div>' +
+                        '</div>';
+                    }).join('') +
+                '</div>' +
+            '</section>'
+        );
+    }
+    if (employerRows.length) {
+        sections.push(
+            '<section class="my-response-details-readonly-section">' +
+                '<div class="my-response-details-section-title">Работодатель</div>' +
+                '<div class="my-response-details-summary-grid">' +
+                    employerRows.map(function(row) {
+                        return '<div class="my-response-details-summary-card">' +
+                            '<div class="my-response-details-readonly-title">' + escapeHtml(row.label) + '</div>' +
+                            '<div class="my-response-details-value">' + (row.html !== undefined ? row.html : formatCell(row.value)) + '</div>' +
+                        '</div>';
+                    }).join('') +
+                '</div>' +
+            '</section>'
+        );
+    }
+    if (detailsRows.length) {
+        sections.push(
+            '<section class="my-response-details-readonly-section">' +
+                '<div class="my-response-details-section-title">Детали отклика</div>' +
+                '<div class="my-response-details-readonly-grid">' +
+                    detailsRows.map(function(row) {
+                        return '<section class="my-response-details-readonly-block">' +
+                            '<div class="my-response-details-readonly-title">' + escapeHtml(row.label) + '</div>' +
+                            '<div class="my-response-details-value">' + formatCell(row.value) + '</div>' +
+                        '</section>';
+                    }).join('') +
+                '</div>' +
+            '</section>'
+        );
+    }
+    return sections.join('');
+}
+function buildMyResponseTitleCell(vacancy) {
+    var responseIds = getMyResponseIdCandidates(vacancy);
+    var id = responseIds.length ? responseIds[0] : '';
+    var title = String(vacancy && vacancy.name || '').trim() || '—';
+    var linkUrl = id ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(id) : '';
+    var inner = '<span class="my-responses-title-main">' + escapeHtml(title) + '</span>';
+    return linkUrl
+        ? '<a class="my-responses-title-link" href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + inner + '</a>'
+        : '<span class="my-responses-title-link">' + inner + '</span>';
+}
+function formatCompactThousandsValue(value) {
+    var text = String(value === null || value === undefined ? '' : value).trim();
+    if (!text) return '—';
+    var normalized = text.replace(/\s+/g, '').replace(',', '.');
+    if (!/^-?\d+(\.\d+)?$/.test(normalized)) return escapeHtml(text);
+    var numberValue = Number(normalized);
+    if (!isFinite(numberValue)) return escapeHtml(text);
+    if (Math.abs(numberValue) >= 1000) return escapeHtml(String(Math.round(numberValue / 1000)) + 'К');
+    return escapeHtml(String(Math.round(numberValue)));
+}
+function formatMyResponseOfferValue(item) {
+    if (!item || typeof item !== 'object') return '—';
+    var raw = item.offer_salary;
+    if ((raw === null || raw === undefined || String(raw).trim() === '') && Object.prototype.hasOwnProperty.call(item, 'offer')) {
+        raw = item.offer;
+    }
+    var text = String(raw || '').trim();
+    if (text) return formatCompactThousandsValue(text);
+    var resultText = String(item.result || '').trim().toLowerCase();
+    if (resultText.indexOf('оффер') >= 0 || resultText.indexOf('offer') >= 0) return 'Да';
+    return '—';
 }
 function hasInterviewContent(item) {
     if (!item || typeof item !== 'object') return false;
@@ -928,7 +1227,8 @@ function findVacancySourceById(vacancyId) {
         for (var j = 0; j < vacancies.length; j++) {
             var v = vacancies[j];
             if (!v) continue;
-            if (String(v.id || '').trim() === id) return v;
+            var sourceIds = getMyResponseIdCandidates(v);
+            if (sourceIds.indexOf(id) >= 0) return v;
         }
     }
     return null;
@@ -950,22 +1250,21 @@ function buildMyResponsesTableHtml(vacancies) {
     if (!vacancies || !vacancies.length) {
         return '<div class="vacancy-empty">Нет откликов</div>';
     }
-    var showRole = vacancies.some(function(v) { return v && (v.role_name || v.role_id); });
     var asArchiveIcon = function(v) {
-        var archivedRaw = v && v.archived;
-        var isArchived = archivedRaw === true || archivedRaw === 1 || archivedRaw === '1' || archivedRaw === 'true' ||
-            (!!(v && v.archived_at));
+        var isArchived = isArchivedResponseVacancy(v);
         var cls = isArchived ? 'status-icon-archived' : 'status-icon-open';
         var title = isArchived ? 'Архивная' : 'Открытая';
         return '<span class="status-icon ' + cls + '" title="' + title + '" aria-label="' + title + '"></span>';
     };
     var rows = vacancies.map(function(v) {
-        var source = findVacancySourceById(v && v.id);
-        var linkUrl = v.id ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(v.id) : '';
-        var idCell = linkUrl
-            ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
-            : formatCell(v.id);
-        var roleCell = showRole ? escapeHtml(resolveRoleDisplayName(v.role_id, v.role_name)) : '';
+        var responseIds = getMyResponseIdCandidates(v);
+        var vacancyId = responseIds.length ? responseIds[0] : '';
+        var source = null;
+        for (var i = 0; i < responseIds.length; i++) {
+            source = findVacancySourceById(responseIds[i]);
+            if (source) break;
+        }
+        var linkUrl = vacancyId ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(vacancyId) : '';
         var employerCell = formatCell(v.employer);
         if (v.employer) {
             employerCell = '<button class="employer-link" type="button" ' +
@@ -977,26 +1276,24 @@ function buildMyResponsesTableHtml(vacancies) {
                 escapeHtml(v.employer) +
             '</button>';
         }
-        var interviewUrl = linkUrl || (v.apply_alternate_url || '');
         var isInterviewFilled = !!(v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v)));
         var interviewIcon = '🖉';
         var interviewTitle = isInterviewFilled ? 'Заполнено' : 'Заполнить';
-        var interviewCell = interviewUrl
-            ? '<button type="button" class="my-responses-details-link ' + (isInterviewFilled ? 'is-details' : 'is-fill') + '" data-vacancy-id="' + escapeHtml(v.id || '') + '" title="' + interviewTitle + '" aria-label="' + interviewTitle + '">' + interviewIcon + '</button>'
+        var interviewCell = vacancyId
+            ? '<button type="button" class="my-responses-details-link ' + (isInterviewFilled ? 'is-details' : 'is-fill') + '" data-vacancy-id="' + escapeHtml(vacancyId) + '" title="' + interviewTitle + '" aria-label="' + interviewTitle + '" onclick="openMyResponseDetailsModal(this.dataset.vacancyId); return false;">' + interviewIcon + '</button>'
             : '—';
+        var offerCell = formatMyResponseOfferValue(v);
         var salaryFromNum = Number(v.salary_from);
         var salaryToNum = Number(v.salary_to);
         var salaryFromSort = isFinite(salaryFromNum) ? String(salaryFromNum) : '';
         var salaryToSort = isFinite(salaryToNum) ? String(salaryToNum) : '';
         return '<tr>' +
-            '<td>' + idCell + '</td>' +
-            (showRole ? '<td>' + roleCell + '</td>' : '') +
-            '<td>' + formatCell(v.name) + '</td>' +
+            '<td>' + buildMyResponseTitleCell(v) + '</td>' +
             '<td>' + employerCell + '</td>' +
             '<td>' + formatCell(v.city) + '</td>' +
-            '<td data-sort-num="' + salaryFromSort + '">' + formatCell(v.salary_from) + '</td>' +
-            '<td data-sort-num="' + salaryToSort + '">' + formatCell(v.salary_to) + '</td>' +
-            '<td class="my-responses-checkbox-cell"><input type="checkbox" class="my-responses-checkbox" ' + ((normalizeSendResumeValue(v.send_resume) || v.__is_response_item === true) ? 'checked ' : '') + 'disabled></td>' +
+            '<td data-sort-num="' + salaryFromSort + '">' + formatCompactThousandsValue(v.salary_from) + '</td>' +
+            '<td data-sort-num="' + salaryToSort + '">' + formatCompactThousandsValue(v.salary_to) + '</td>' +
+            '<td>' + offerCell + '</td>' +
             '<td>' + formatResumeAtValue(v.resume_at) + '</td>' +
             '<td>' + formatResumeAtValue(v.published_at || (source && (source.published_at || source.created_at))) + '</td>' +
             '<td class="status-icon-cell">' + asArchiveIcon(v && (v.archived !== undefined || v.archived_at) ? v : (source || {})) + '</td>' +
@@ -1009,14 +1306,12 @@ function buildMyResponsesTableHtml(vacancies) {
         '<table class="vacancy-table">' +
             '<thead>' +
                 '<tr>' +
-                    '<th>ID</th>' +
-                    (showRole ? '<th>Роль</th>' : '') +
                     '<th>Название</th>' +
                     '<th>Работодатель</th>' +
                     '<th>Город</th>' +
                     '<th class="salary-sortable">ЗП от</th>' +
                     '<th class="salary-sortable">ЗП до</th>' +
-                    '<th>Отклик</th>' +
+                    '<th>Оффер</th>' +
                     '<th>Дата отклика</th>' +
                     '<th>Дата публикации</th>' +
                     '<th>Статус</th>' +
@@ -1240,6 +1535,406 @@ function toDatetimeLocalValue(value) {
     return yyyy + '-' + mm + '-' + dd + 'T' + hh + ':' + min;
 }
 
+function formatCalendarEventTime(item) {
+    return formatInterviewTimeLabel(item && item.interview_date);
+}
+
+function getResponseCalendarGridRange(monthKey) {
+    var monthDate = parseCalendarMonthKey(monthKey) || new Date();
+    var monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    var mondayOffset = (monthStart.getDay() + 6) % 7;
+    var gridStart = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate() - mondayOffset);
+    var gridEnd = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + 41);
+    return {
+        monthDate: monthDate,
+        monthStart: monthStart,
+        gridStart: gridStart,
+        gridEnd: gridEnd
+    };
+}
+
+function resolveResponseCalendarInitialMonthKey(items) {
+    var futureDates = [];
+    var pastDates = [];
+    var nowTs = Date.now();
+    (items || []).forEach(function(item) {
+        var date = parseInterviewDateValue(item && item.interview_date);
+        if (!date) return;
+        if (date.getTime() >= nowTs) futureDates.push(date);
+        else pastDates.push(date);
+    });
+    futureDates.sort(function(left, right) { return left.getTime() - right.getTime(); });
+    pastDates.sort(function(left, right) { return right.getTime() - left.getTime(); });
+    return formatCalendarMonthKey(futureDates[0] || pastDates[0] || new Date());
+}
+
+function resolveResponseCalendarItemTimestamp(item) {
+    return Date.parse(item && item.interview_date ? item.interview_date : '') || 0;
+}
+
+function resolveResponseCalendarItemTitle(item) {
+    var text = String(item && item.name || '').trim();
+    return text || 'Событие';
+}
+
+function resolveResponseCalendarItemVacancyId(item) {
+    if (!item || typeof item !== 'object') return '';
+    var ids = getMyResponseIdCandidates(item);
+    return ids.length ? ids[0] : '';
+}
+
+function resolveResponseCalendarItemMeta(item) {
+    var employer = String(item && item.employer || '').trim();
+    return employer || 'Работодатель не указан';
+}
+
+function buildResponseCalendarDayItems(items) {
+    var ordered = (items || []).map(function(item) {
+        return Object.assign({}, item || {});
+    });
+    ordered.sort(function(left, right) {
+        return resolveResponseCalendarItemTimestamp(left) - resolveResponseCalendarItemTimestamp(right);
+    });
+    return ordered;
+}
+
+function buildResponseCalendarEventMap(responses) {
+    var eventsByDay = {};
+    (responses || []).forEach(function(item) {
+        var interviewDate = parseInterviewDateValue(item && item.interview_date);
+        if (!interviewDate) return;
+        var dayKey = formatCalendarDayKey(interviewDate);
+        if (!eventsByDay[dayKey]) eventsByDay[dayKey] = [];
+        eventsByDay[dayKey].push(Object.assign({}, item || {}, {
+            dayKey: dayKey
+        }));
+    });
+
+    Object.keys(eventsByDay).forEach(function(dayKey) {
+        eventsByDay[dayKey] = buildResponseCalendarDayItems(eventsByDay[dayKey]);
+    });
+    return eventsByDay;
+}
+
+function resolveResponseCalendarSelectedDay(parentRole, monthKey, selectedDayKey, eventsByDay) {
+    var selected = String(selectedDayKey || '').trim();
+    var monthRange = getResponseCalendarGridRange(monthKey);
+    var todayKey = formatCalendarDayKey(new Date());
+    if (selected) {
+        var selectedDate = parseInterviewDateValue(selected);
+        if (selectedDate && selectedDate.getTime() >= monthRange.gridStart.getTime() && selectedDate.getTime() <= monthRange.gridEnd.getTime()) {
+            return selected;
+        }
+    }
+    if (todayKey.indexOf(monthKey + '-') === 0) return todayKey;
+    var monthEventKey = Object.keys(eventsByDay).sort().find(function(key) {
+        return key.indexOf(monthKey + '-') === 0;
+    });
+    if (monthEventKey) return monthEventKey;
+    return formatCalendarDayKey(monthRange.monthStart);
+}
+
+function summarizeResponseCalendarMonth(monthKey, responses, eventsByDay) {
+    var todayDate = new Date();
+    var todayKey = formatCalendarDayKey(todayDate);
+    var todayStart = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+    var upcomingEnd = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate() + 7);
+    var total = 0;
+    var daysWithEvents = 0;
+    var todayCount = 0;
+    var upcomingWeek = 0;
+    var overdue = 0;
+    var unscheduled = 0;
+    var scheduledItems = [];
+
+    Object.keys(eventsByDay).forEach(function(dayKey) {
+        var dayEvents = eventsByDay[dayKey] || [];
+        if (dayKey.indexOf(monthKey + '-') === 0) {
+            total += dayEvents.length;
+            if (dayEvents.length) daysWithEvents += 1;
+        }
+        if (dayKey === todayKey) todayCount += dayEvents.length;
+    });
+
+    (responses || []).forEach(function(item) {
+        var interviewDate = parseInterviewDateValue(item && item.interview_date);
+        if (!interviewDate) {
+            unscheduled += 1;
+            return;
+        }
+        if (formatCalendarDayKey(interviewDate) < todayKey) overdue += 1;
+        if (interviewDate.getTime() >= todayStart.getTime() && interviewDate.getTime() < upcomingEnd.getTime()) upcomingWeek += 1;
+        scheduledItems.push(Object.assign({}, item || {}, {
+            dayKey: formatCalendarDayKey(interviewDate)
+        }));
+    });
+
+    scheduledItems.sort(function(left, right) {
+        return resolveResponseCalendarItemTimestamp(left) - resolveResponseCalendarItemTimestamp(right);
+    });
+
+    var nearestItem = null;
+    for (var i = 0; i < scheduledItems.length; i++) {
+        if ((scheduledItems[i].dayKey || '') >= todayKey) {
+            nearestItem = scheduledItems[i];
+            break;
+        }
+    }
+    if (!nearestItem && scheduledItems.length) nearestItem = scheduledItems[scheduledItems.length - 1];
+
+    return {
+        total: total,
+        daysWithEvents: daysWithEvents,
+        todayCount: todayCount,
+        upcomingWeek: upcomingWeek,
+        overdue: overdue,
+        unscheduled: unscheduled,
+        nearestItem: nearestItem
+    };
+}
+
+function formatResponseCalendarRelativeDayLabel(dayKey) {
+    var date = parseInterviewDateValue(dayKey);
+    if (!date) return '';
+    var today = new Date();
+    var todayKey = formatCalendarDayKey(today);
+    if (dayKey === todayKey) return 'Сегодня';
+    var tomorrowKey = formatCalendarDayKey(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
+    if (dayKey === tomorrowKey) return 'Завтра';
+    var weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+    var months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+    return weekdays[date.getDay()] + ', ' + date.getDate() + ' ' + months[date.getMonth()];
+}
+
+function buildResponseCalendarFilterSummary(options, values) {
+    var selectedValues = Array.isArray(values) ? values.slice() : [];
+    if (!selectedValues.length) return '';
+    var labels = selectedValues.map(function(value) {
+        var match = (options || []).find(function(option) {
+            return String(option && option.value || '') === String(value || '');
+        });
+        return String((match && match.label) || value || '').trim();
+    }).filter(Boolean);
+    if (!labels.length) return '';
+    if (labels.length <= 2) return labels.join(', ');
+    return labels.slice(0, 2).join(', ') + ' +' + (labels.length - 2);
+}
+
+function buildResponseCalendarActiveFiltersHtml(parentRole) {
+    return '';
+}
+
+function buildResponseCalendarLegendHtml() {
+    return '' +
+        '<div class="response-calendar-legend" aria-label="Подсказка по состояниям календаря">' +
+            '<span class="response-calendar-legend-chip is-local">Есть событие</span>' +
+            '<span class="response-calendar-legend-chip is-today">Сегодня</span>' +
+            '<span class="response-calendar-legend-chip is-selected">Выбранный день</span>' +
+            '<span class="response-calendar-legend-chip is-overdue">Просрочено</span>' +
+            '<span class="response-calendar-legend-chip is-missing">Без даты</span>' +
+        '</div>';
+}
+
+function buildResponseCalendarDayPreviewHtml(item) {
+    var itemId = resolveResponseCalendarItemVacancyId(item);
+    return '' +
+        '<span class="response-calendar-event-pill is-local" data-vacancy-id="' + escapeHtml(itemId) + '">' +
+            '<span class="response-calendar-event-dot" aria-hidden="true"></span>' +
+            '<span class="response-calendar-event-copy">' +
+                '<span class="response-calendar-event-time">' + escapeHtml(formatCalendarEventTime(item)) + '</span>' +
+                '<span class="response-calendar-event-title">' + escapeHtml(resolveResponseCalendarItemTitle(item)) + '</span>' +
+            '</span>' +
+        '</span>';
+}
+
+function isResponseCalendarTodayKey(dayKey) {
+    return String(dayKey || '').trim() === formatCalendarDayKey(new Date());
+}
+
+function isResponseCalendarItemToday(item) {
+    var dayKey = String(item && item.dayKey || '').trim();
+    if (!dayKey) {
+        dayKey = formatCalendarDayKey(parseInterviewDateValue(item && item.interview_date));
+    }
+    return isResponseCalendarTodayKey(dayKey);
+}
+
+function buildResponseCalendarMetaHtml(text, isToday) {
+    var parts = [];
+    if (isToday) {
+        parts.push('<span class="response-calendar-meta-today">Сегодня</span>');
+    }
+    var metaText = String(text || '').trim();
+    if (metaText) {
+        parts.push('<span class="response-calendar-meta-text">' + escapeHtml(metaText) + '</span>');
+    }
+    return parts.join('<span class="response-calendar-meta-sep">•</span>');
+}
+
+function buildResponseCalendarActionButtonHtml(text, action, attrs) {
+    if (!action) return '';
+    var parts = ['type="button"', 'class="response-calendar-action-btn"'];
+    parts.push('data-action="' + escapeHtml(action) + '"');
+    Object.keys(attrs || {}).forEach(function(key) {
+        var value = attrs[key];
+        if (value === null || value === undefined || value === '') return;
+        parts.push('data-' + escapeHtml(key) + '="' + escapeHtml(value) + '"');
+    });
+    return '<button ' + parts.join(' ') + '>' + escapeHtml(text) + '</button>';
+}
+
+function buildResponseCalendarEmptyHtml(text, actionText, action, attrs, options) {
+    options = options || {};
+    var className = 'response-calendar-empty' + (options.compact ? ' is-compact' : '');
+    return '' +
+        '<div class="' + className + '">' +
+            '<div class="response-calendar-empty-text">' + escapeHtml(text) + '</div>' +
+            (actionText && action ? '<div class="response-calendar-empty-actions">' + buildResponseCalendarActionButtonHtml(actionText, action, attrs) + '</div>' : '') +
+        '</div>';
+}
+
+function buildResponseCalendarAgendaItemHtml(item, metaText, options) {
+    options = options || {};
+    var itemId = resolveResponseCalendarItemVacancyId(item);
+    var isToday = options.isToday === true || isResponseCalendarItemToday(item);
+    var timeLabel = String(options.timeLabel || formatCalendarEventTime(item) || 'Без времени').trim();
+    var classes = ['response-calendar-agenda-item', 'is-local'];
+    if (isToday) classes.push('is-today');
+    if (options.variant) classes.push('is-' + options.variant);
+    return '' +
+        '<button type="button" class="' + classes.join(' ') + '" data-vacancy-id="' + escapeHtml(itemId) + '">' +
+            '<div class="response-calendar-agenda-time">' + escapeHtml(timeLabel) + '</div>' +
+            '<div class="response-calendar-agenda-content">' +
+                (options.badgeText ? '<div class="response-calendar-agenda-badge">' + escapeHtml(options.badgeText) + '</div>' : '') +
+                '<div class="response-calendar-agenda-title">' + escapeHtml(resolveResponseCalendarItemTitle(item)) + '</div>' +
+                '<div class="response-calendar-agenda-meta">' + buildResponseCalendarMetaHtml(metaText, isToday) + '</div>' +
+            '</div>' +
+        '</button>';
+}
+
+function buildResponseCalendarAgendaHtml(items, hasAnyEvents, hasInterviews, nearestItem, unscheduledItems) {
+    if (items.length) {
+        return items.map(function(item) {
+            return buildResponseCalendarAgendaItemHtml(item, resolveResponseCalendarItemMeta(item), {
+                isToday: isResponseCalendarItemToday(item)
+            });
+        }).join('');
+    }
+    if (hasAnyEvents && nearestItem) {
+        return buildResponseCalendarEmptyHtml('На выбранный день событий нет.', '', '', null, { compact: true });
+    }
+    if (hasInterviews && nearestItem) {
+        return buildResponseCalendarEmptyHtml('Событий нет.', '', '', null, { compact: true });
+    }
+    if (unscheduledItems.length) {
+        return buildResponseCalendarEmptyHtml('Пока нет назначенных событий.', '', '', null, { compact: true });
+    }
+    return buildResponseCalendarEmptyHtml('Пока нет назначенных событий.', '', '', null, { compact: true });
+}
+
+function getResponseCalendarUnscheduledItems(responses) {
+    return (responses || []).filter(function(item) {
+        return !parseInterviewDateValue(item && item.interview_date);
+    });
+}
+
+function buildResponseCalendarTodayItems(eventsByDay) {
+    return buildResponseCalendarDayItems(eventsByDay[formatCalendarDayKey(new Date())] || []);
+}
+
+function buildResponseCalendarUpcomingItems(eventsByDay, dayCount) {
+    var today = new Date();
+    var items = [];
+    for (var i = 0; i < dayCount; i++) {
+        var currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+        var dayKey = formatCalendarDayKey(currentDate);
+        (eventsByDay[dayKey] || []).forEach(function(item) {
+            items.push(Object.assign({}, item || {}, {
+                week_day_label: formatResponseCalendarRelativeDayLabel(dayKey)
+            }));
+        });
+    }
+    return buildResponseCalendarDayItems(items);
+}
+
+function buildResponseCalendarOverdueItems(eventsByDay) {
+    var todayKey = formatCalendarDayKey(new Date());
+    var items = [];
+    Object.keys(eventsByDay).sort().forEach(function(dayKey) {
+        if (dayKey >= todayKey) return;
+        (eventsByDay[dayKey] || []).forEach(function(item) {
+            items.push(Object.assign({}, item || {}, {
+                week_day_label: formatResponseCalendarRelativeDayLabel(dayKey)
+            }));
+        });
+    });
+    items.sort(function(left, right) {
+        return resolveResponseCalendarItemTimestamp(right) - resolveResponseCalendarItemTimestamp(left);
+    });
+    return items;
+}
+
+function buildResponseCalendarMissingDateHtml(items) {
+    if (!items.length) {
+        return buildResponseCalendarEmptyHtml('Все отклики уже привязаны к датам.');
+    }
+    return items.slice(0, 4).map(function(item) {
+        var itemId = resolveResponseCalendarItemVacancyId(item);
+        return '' +
+            '<button type="button" class="response-calendar-agenda-item is-local is-missing-date" data-vacancy-id="' + escapeHtml(itemId) + '">' +
+                '<div class="response-calendar-agenda-time">Без даты</div>' +
+                '<div class="response-calendar-agenda-content">' +
+                    '<div class="response-calendar-agenda-title">' + escapeHtml(resolveResponseCalendarItemTitle(item)) + '</div>' +
+                    '<div class="response-calendar-agenda-meta">' + buildResponseCalendarMetaHtml(resolveResponseCalendarItemMeta(item), false) + '</div>' +
+                '</div>' +
+            '</button>';
+    }).join('');
+}
+
+function buildResponseCalendarWeekItems(selectedDayKey, eventsByDay) {
+    var startDate = parseInterviewDateValue(selectedDayKey);
+    if (!startDate) return [];
+    var items = [];
+    for (var i = 0; i < 7; i++) {
+        var currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+        var dayKey = formatCalendarDayKey(currentDate);
+        (eventsByDay[dayKey] || []).forEach(function(item) {
+            items.push(Object.assign({}, item || {}, {
+                week_day_label: formatCalendarDayLabel(dayKey)
+            }));
+        });
+    }
+    return items;
+}
+
+function buildResponseCalendarWeekHtml(items) {
+    if (!items.length) {
+        return buildResponseCalendarEmptyHtml('Событий нет.', '', '', null, { compact: true });
+    }
+    return items.slice(0, 7).map(function(item) {
+        var meta = String(item && item.week_day_label || '').trim();
+        var employer = resolveResponseCalendarItemMeta(item);
+        if (employer) meta = meta ? (meta + ' • ' + employer) : employer;
+        return buildResponseCalendarAgendaItemHtml(item, meta, {
+            isToday: isResponseCalendarItemToday(item)
+        });
+    }).join('');
+}
+
+function buildResponseCalendarOverdueHtml(items) {
+    if (!items.length) {
+        return buildResponseCalendarEmptyHtml('Просроченных интервью нет.');
+    }
+    return items.slice(0, 4).map(function(item) {
+        var meta = String(item && item.week_day_label || '').trim();
+        var employer = resolveResponseCalendarItemMeta(item);
+        if (employer) meta = meta ? (meta + ' • ' + employer) : employer;
+        return buildResponseCalendarAgendaItemHtml(item, meta, {
+            variant: 'overdue'
+        });
+    }).join('');
+}
+
 function getMyResponseDetailsFieldsFromModal(backdrop) {
     var fieldKeys = ['hr_name', 'interview_date', 'interview_stages', 'company_type', 'result', 'feedback', 'offer_salary', 'pros', 'cons'];
     var values = {};
@@ -1254,34 +1949,47 @@ function getMyResponseDetailsFieldsFromModal(backdrop) {
 
 function ensureMyResponseDetailsModal() {
     var backdrop = document.getElementById('my-response-details-modal-backdrop');
-    if (backdrop) return backdrop;
-    backdrop = document.createElement('div');
-    backdrop.id = 'my-response-details-modal-backdrop';
-    backdrop.className = 'skills-favorite-modal-backdrop my-response-details-backdrop';
-    backdrop.style.display = 'none';
-    backdrop.innerHTML =
-        '<div class="skills-favorite-modal my-response-details-modal" role="dialog" aria-modal="true" aria-label="Детали отклика">' +
-            '<div class="skills-favorite-modal-title">Детали отклика</div>' +
-            '<div class="my-response-details-body">' +
-                '<div class="my-response-details-readonly"></div>' +
-                '<div class="my-response-details-form">' +
-                    '<label>ФИО HR<input type="text" data-field="hr_name"></label>' +
-                    '<label>Дата и время собеседования<input type="datetime-local" data-field="interview_date"></label>' +
-                    '<label>Этапы собеседования<textarea data-field="interview_stages" rows="2"></textarea></label>' +
-                    '<label>Тип компании<input type="text" data-field="company_type"></label>' +
-                    '<label>Результат собеседования<textarea data-field="result" rows="2"></textarea></label>' +
-                    '<label>Обратная связь<textarea data-field="feedback" rows="2"></textarea></label>' +
-                    '<label>Сумма оффера<input type="text" data-field="offer_salary"></label>' +
-                    '<label>Плюсы<textarea data-field="pros" rows="2"></textarea></label>' +
-                    '<label>Минусы<textarea data-field="cons" rows="2"></textarea></label>' +
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.id = 'my-response-details-modal-backdrop';
+        backdrop.className = 'my-response-details-backdrop';
+        backdrop.style.display = 'none';
+        backdrop.innerHTML =
+            '<div class="skills-favorite-modal my-response-details-modal" role="dialog" aria-modal="true" aria-label="Детали отклика">' +
+                '<div class="skills-favorite-modal-title">Детали отклика</div>' +
+                '<div class="my-response-details-body">' +
+                    '<div class="my-response-details-readonly"></div>' +
+                    '<div class="my-response-details-form">' +
+                        '<label>ФИО HR<input type="text" data-field="hr_name"></label>' +
+                        '<label>Дата и время собеседования<input type="datetime-local" data-field="interview_date"></label>' +
+                        '<label>Этапы собеседования<textarea data-field="interview_stages" rows="2"></textarea></label>' +
+                        '<label>Тип компании<input type="text" data-field="company_type"></label>' +
+                        '<label>Результат собеседования<textarea data-field="result" rows="2"></textarea></label>' +
+                        '<label>Обратная связь<textarea data-field="feedback" rows="2"></textarea></label>' +
+                        '<label>Сумма оффера<input type="text" data-field="offer_salary"></label>' +
+                        '<label>Плюсы<textarea data-field="pros" rows="2"></textarea></label>' +
+                        '<label>Минусы<textarea data-field="cons" rows="2"></textarea></label>' +
+                    '</div>' +
                 '</div>' +
-            '</div>' +
-            '<div class="skills-favorite-modal-actions">' +
-                '<button type="button" class="skills-favorite-modal-btn cancel my-response-details-close">Закрыть</button>' +
-                '<button type="button" class="skills-favorite-modal-btn submit my-response-details-save">Сохранить</button>' +
-            '</div>' +
-        '</div>';
-    document.body.appendChild(backdrop);
+                '<div class="skills-favorite-modal-actions">' +
+                    '<button type="button" class="skills-favorite-modal-btn cancel my-response-details-close">Закрыть</button>' +
+                    '<button type="button" class="skills-favorite-modal-btn submit my-response-details-save">Сохранить</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(backdrop);
+    }
+    if (backdrop.dataset.bound !== '1') {
+        backdrop.addEventListener('click', function(e) {
+            if (e.target === backdrop || e.target.closest('.my-response-details-close')) {
+                closeMyResponseDetailsModal();
+                return;
+            }
+            if (e.target.closest('.my-response-details-save')) {
+                submitMyResponseDetailsModal();
+            }
+        });
+        backdrop.dataset.bound = '1';
+    }
     return backdrop;
 }
 
@@ -1290,8 +1998,10 @@ function openMyResponseDetailsModal(vacancyId) {
     if (!id) return;
     var backdrop = ensureMyResponseDetailsModal();
     backdrop.dataset.vacancyId = id;
+    var cachedItem = findMyResponseItemById(id) || {};
+    var sourceInitial = findVacancySourceById(id) || {};
     var readonlyWrap = backdrop.querySelector('.my-response-details-readonly');
-    if (readonlyWrap) readonlyWrap.innerHTML = '<div class="skills-search-summary">Загрузка...</div>';
+    if (readonlyWrap) readonlyWrap.innerHTML = buildMyResponseReadonlyHtml(id, cachedItem, sourceInitial, null);
     backdrop.style.display = 'flex';
 
     fetchMyResponseDetails(id).then(function(item) {
@@ -1300,17 +2010,7 @@ function openMyResponseDetailsModal(vacancyId) {
         if ((item.skills === null || item.skills === undefined || item.skills === '') && source.skills) {
             item.skills = source.skills;
         }
-        var asValue = function(value) {
-            return '<div class="my-response-details-value">' + formatCell(value) + '</div>';
-        };
-        var readonlyHtml =
-            '<table class="vacancy-table my-response-details-table"><tbody>' +
-                '<tr><th>Навыки</th><td>' + asValue(item.skills) + '</td></tr>' +
-                '<tr><th>Требования</th><td>' + asValue(item.requirement) + '</td></tr>' +
-                '<tr><th>Обязанности</th><td>' + asValue(item.responsibility) + '</td></tr>' +
-                '<tr><th>Описание</th><td>' + asValue(item.description) + '</td></tr>' +
-            '</tbody></table>';
-        if (readonlyWrap) readonlyWrap.innerHTML = readonlyHtml;
+        if (readonlyWrap) readonlyWrap.innerHTML = buildMyResponseReadonlyHtml(id, cachedItem, source, item);
 
         var setVal = function(field, value) {
             var el = backdrop.querySelector('[data-field="' + field + '"]');
@@ -1328,7 +2028,7 @@ function openMyResponseDetailsModal(vacancyId) {
         setVal('pros', item.pros);
         setVal('cons', item.cons);
     }).catch(function() {
-        if (readonlyWrap) readonlyWrap.innerHTML = '<div class="skills-search-summary">Не удалось загрузить данные</div>';
+        if (readonlyWrap) readonlyWrap.innerHTML = buildMyResponseReadonlyHtml(id, cachedItem, sourceInitial, null);
     });
 }
 
@@ -1366,10 +2066,311 @@ function submitMyResponseDetailsModal() {
                 }
             }
             closeMyResponseDetailsModal();
-            if (activeRole) renderMyResponsesContent(activeRole);
+            if (activeRole && typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+                applyGlobalFiltersToActiveAnalysis(activeRole, activeRole.dataset.activeAnalysis || '');
+            } else if (activeRole) {
+                renderMyResponsesContent(activeRole);
+            }
         }
     }).catch(function() {
         window.alert('Не удалось сохранить данные собеседования');
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.openMyResponseDetailsModal = openMyResponseDetailsModal;
+    window.closeMyResponseDetailsModal = closeMyResponseDetailsModal;
+    window.submitMyResponseDetailsModal = submitMyResponseDetailsModal;
+}
+
+function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayKey) {
+    var monthRange = getResponseCalendarGridRange(monthKey);
+    var eventsByDay = buildResponseCalendarEventMap(responses);
+    var effectiveSelectedDay = resolveResponseCalendarSelectedDay(parentRole, monthKey, selectedDayKey, eventsByDay);
+    var monthSummary = summarizeResponseCalendarMonth(monthKey, responses, eventsByDay);
+    var todayDate = new Date();
+    var todayKey = formatCalendarDayKey(todayDate);
+    var todayWeekdayIndex = (todayDate.getDay() + 6) % 7;
+    var selectedIsToday = effectiveSelectedDay === todayKey;
+    var hasInterviews = (responses || []).some(function(item) {
+        return !!parseInterviewDateValue(item && item.interview_date);
+    });
+    var nearestItem = monthSummary.nearestItem;
+    var unscheduledItems = getResponseCalendarUnscheduledItems(responses);
+    var todayEvents = buildResponseCalendarTodayItems(eventsByDay);
+    var overdueItems = buildResponseCalendarOverdueItems(eventsByDay);
+    uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = effectiveSelectedDay;
+
+    var weekdayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    var cells = [];
+    for (var i = 0; i < 42; i++) {
+        var cellDate = new Date(monthRange.gridStart.getFullYear(), monthRange.gridStart.getMonth(), monthRange.gridStart.getDate() + i);
+        var dayKey = formatCalendarDayKey(cellDate);
+        var isCurrentMonth = cellDate.getMonth() === monthRange.monthStart.getMonth();
+        var isSelected = dayKey === effectiveSelectedDay;
+        var isToday = dayKey === todayKey;
+        var dayEvents = eventsByDay[dayKey] || [];
+        var dayLabel = formatCalendarDayLabel(dayKey);
+        var ariaLabel = dayLabel + (dayEvents.length ? (', событий: ' + dayEvents.length) : ', без событий') + (isToday ? ', сегодня' : '') + (isSelected ? ', выбрано' : '');
+        cells.push(
+            '<button type="button" class="response-calendar-day' +
+                (isCurrentMonth ? '' : ' is-outside') +
+                (isSelected ? ' is-selected' : '') +
+                (isToday ? ' is-today' : '') +
+                (dayEvents.length ? ' has-events has-local' : '') +
+                '" data-day-key="' + escapeHtml(dayKey) + '"' +
+                ' tabindex="' + (isSelected ? '0' : '-1') + '"' +
+                ' aria-label="' + escapeHtml(ariaLabel) + '"' +
+                ' aria-selected="' + (isSelected ? 'true' : 'false') + '">' +
+                '<span class="response-calendar-day-head">' +
+                    '<span class="response-calendar-day-number">' + cellDate.getDate() + '</span>' +
+                    (dayEvents.length ? '<span class="response-calendar-day-count">' + dayEvents.length + '</span>' : '') +
+                '</span>' +
+            '</button>'
+        );
+    }
+
+    var selectedEvents = effectiveSelectedDay ? (eventsByDay[effectiveSelectedDay] || []) : [];
+    var weekEvents = buildResponseCalendarUpcomingItems(eventsByDay, 7);
+    var agendaHtml = buildResponseCalendarAgendaHtml(selectedEvents, monthSummary.total > 0, hasInterviews, nearestItem, unscheduledItems);
+    var weekHtml = buildResponseCalendarWeekHtml(weekEvents);
+    var overdueHtml = buildResponseCalendarOverdueHtml(overdueItems);
+    var missingDateHtml = buildResponseCalendarMissingDateHtml(unscheduledItems);
+    var todaySectionHtml = selectedIsToday ? '' : (
+        '<div class="response-calendar-agenda-section">' +
+            '<div class="response-calendar-agenda-head">' +
+                '<div class="response-calendar-agenda-title">Сегодня</div>' +
+            '</div>' +
+            '<div class="response-calendar-agenda-list">' + (todayEvents.length
+                ? buildResponseCalendarAgendaHtml(todayEvents, true, hasInterviews, nearestItem, unscheduledItems)
+                : buildResponseCalendarEmptyHtml('Сегодня событий нет.', '', '', null, { compact: true })) + '</div>' +
+        '</div>'
+    );
+
+    return '' +
+        '<div class="response-calendar-shell">' +
+            '<section class="response-calendar-panel response-calendar-panel--board">' +
+                '<div class="response-calendar-topbar">' +
+                    '<div class="response-calendar-topbar-actions">' +
+                        buildResponseCalendarMonthPickerHtml(parentRole, monthKey) +
+                    '</div>' +
+                '</div>' +
+                buildResponseCalendarActiveFiltersHtml(parentRole) +
+                '<div class="response-calendar-weekdays">' +
+                    weekdayLabels.map(function(label, index) {
+                        return '<div class="response-calendar-weekday' + (index === todayWeekdayIndex ? ' is-today' : '') + '">' + label + '</div>';
+                    }).join('') +
+                '</div>' +
+                '<div class="response-calendar-grid" role="grid" aria-label="Календарь собеседований">' + cells.join('') + '</div>' +
+            '</section>' +
+            '<aside class="response-calendar-panel response-calendar-panel--agenda">' +
+                '<div class="response-calendar-agenda-section">' +
+                    '<div class="response-calendar-agenda-head">' +
+                        '<div class="response-calendar-agenda-headline">' +
+                            '<div class="response-calendar-agenda-title">Фокус на дне</div>' +
+                            (selectedIsToday ? '<span class="response-calendar-agenda-date-pill is-inline">Сегодня</span>' : '') +
+                        '</div>' +
+                        '<div class="response-calendar-agenda-date' + (selectedIsToday ? ' is-today' : '') + '">' +
+                            '<span class="response-calendar-agenda-date-text">' + escapeHtml(formatCalendarDayLabel(effectiveSelectedDay)) + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="response-calendar-agenda-list">' + agendaHtml + '</div>' +
+                '</div>' +
+                todaySectionHtml +
+                '<div class="response-calendar-agenda-section">' +
+                    '<div class="response-calendar-agenda-head">' +
+                        '<div class="response-calendar-agenda-title">Ближайшие 7 дней</div>' +
+                    '</div>' +
+                    '<div class="response-calendar-agenda-list">' + weekHtml + '</div>' +
+                '</div>' +
+                '<div class="response-calendar-agenda-section">' +
+                    '<div class="response-calendar-agenda-head">' +
+                        '<div class="response-calendar-agenda-title">Просрочено</div>' +
+                    '</div>' +
+                    '<div class="response-calendar-agenda-list">' + overdueHtml + '</div>' +
+                '</div>' +
+                '<div class="response-calendar-agenda-section">' +
+                    '<div class="response-calendar-agenda-head">' +
+                        '<div class="response-calendar-agenda-title">Без даты</div>' +
+                    '</div>' +
+                    '<div class="response-calendar-agenda-list">' + missingDateHtml + '</div>' +
+                '</div>' +
+            '</aside>' +
+        '</div>';
+}
+function renderMyResponsesCalendarContent(parentRole, options) {
+    options = options || {};
+    if (!parentRole) return;
+    if (typeof ensureResponseCalendarTab === 'function') ensureResponseCalendarTab(parentRole);
+    var block = parentRole.querySelector('.response-calendar-content');
+    if (!block) return;
+    if (!options.suppressLoading) {
+        block.innerHTML = '<div class="skills-search-summary">Загрузка календаря...</div>';
+    }
+
+    var renderWithList = function(list) {
+        block._calendarResponsesList = Array.isArray(list) ? list.slice() : [];
+        var filtered = applyMyResponsesGlobalFilters(parentRole, Array.isArray(list) ? list : []);
+        var currentMonthKey = uiState[getResponseCalendarMonthStateKey(parentRole)];
+        if (!parseCalendarMonthKey(currentMonthKey)) {
+            currentMonthKey = resolveResponseCalendarInitialMonthKey(filtered);
+            uiState[getResponseCalendarMonthStateKey(parentRole)] = currentMonthKey;
+        }
+        var selectedDayKey = uiState[getResponseCalendarSelectedDayStateKey(parentRole)] || '';
+        block.dataset.calendarMonth = currentMonthKey;
+        block.innerHTML = buildResponseCalendarHtml(parentRole, filtered, currentMonthKey, selectedDayKey);
+
+        var rerenderCalendar = function(extraOptions) {
+            var nextOptions = Object.assign({
+                useBlockCache: true,
+                suppressLoading: true
+            }, extraOptions || {});
+            renderMyResponsesCalendarContent(parentRole, nextOptions);
+        };
+        var focusCalendarDay = function(dayKey) {
+            var nextDayKey = String(dayKey || '').trim();
+            if (!nextDayKey) return;
+            uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = nextDayKey;
+            var nextDate = parseInterviewDateValue(nextDayKey);
+            if (nextDate) {
+                uiState[getResponseCalendarMonthStateKey(parentRole)] = formatCalendarMonthKey(nextDate);
+            }
+            rerenderCalendar({ focusDayKey: nextDayKey });
+        };
+        var firstMissingDateItem = getResponseCalendarUnscheduledItems(filtered)[0] || null;
+        var nearestSummary = summarizeResponseCalendarMonth(currentMonthKey, filtered, buildResponseCalendarEventMap(filtered));
+        var nearestScheduledItem = nearestSummary.nearestItem;
+        var handleCalendarAction = function(action, dataset) {
+            if (action === 'today') {
+                focusCalendarDay(formatCalendarDayKey(new Date()));
+                return;
+            }
+            if (action === 'nearest' && nearestScheduledItem) {
+                focusCalendarDay(nearestScheduledItem.dayKey);
+                return;
+            }
+            if (action === 'jump-day') {
+                focusCalendarDay(dataset && dataset.dayKey);
+                return;
+            }
+            if (action === 'open-missing') {
+                var vacancyId = String(dataset && dataset.vacancyId || '').trim() || resolveResponseCalendarItemVacancyId(firstMissingDateItem);
+                if (vacancyId) openMyResponseDetailsModal(vacancyId);
+            }
+        };
+
+        block.querySelectorAll('.response-calendar-nav-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var shift = Number(btn.dataset.shift || 0);
+                uiState[getResponseCalendarMonthStateKey(parentRole)] = shiftCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey, shift);
+                rerenderCalendar();
+            });
+        });
+        var monthPickerShell = block.querySelector('.response-calendar-month-picker-shell');
+        if (monthPickerShell) {
+            monthPickerShell.addEventListener('click', function() {
+                var openKey = getResponseCalendarMonthPickerOpenStateKey(parentRole);
+                var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
+                uiState[openKey] = !uiState[openKey];
+                if (uiState[openKey]) {
+                    var activeMonth = parseCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey) || new Date();
+                    uiState[yearKey] = activeMonth.getFullYear();
+                }
+                rerenderCalendar();
+            });
+        }
+        block.querySelectorAll('.response-calendar-month-year-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
+                var currentYear = Number(uiState[yearKey]);
+                if (!isFinite(currentYear)) {
+                    var selectedMonthDate = parseCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey) || new Date();
+                    currentYear = selectedMonthDate.getFullYear();
+                }
+                uiState[yearKey] = currentYear + Number(btn.dataset.shift || 0);
+                uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = true;
+                rerenderCalendar();
+            });
+        });
+        block.querySelectorAll('.response-calendar-month-option').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var nextMonthKey = String(btn.dataset.monthKey || '').trim();
+                if (!parseCalendarMonthKey(nextMonthKey)) return;
+                uiState[getResponseCalendarMonthStateKey(parentRole)] = nextMonthKey;
+                uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = false;
+                uiState[getResponseCalendarMonthPickerYearStateKey(parentRole)] = parseCalendarMonthKey(nextMonthKey).getFullYear();
+                rerenderCalendar();
+            });
+        });
+        if (block._responseCalendarOutsideHandler) {
+            document.removeEventListener('click', block._responseCalendarOutsideHandler, true);
+        }
+        block._responseCalendarOutsideHandler = function(event) {
+            if (!uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)]) return;
+            if (block.contains(event.target)) return;
+            uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = false;
+            renderMyResponsesCalendarContent(parentRole, { useBlockCache: true, suppressLoading: true });
+        };
+        document.addEventListener('click', block._responseCalendarOutsideHandler, true);
+        block.querySelectorAll('.response-calendar-action-btn').forEach(function(actionBtn) {
+            actionBtn.addEventListener('click', function() {
+                if (actionBtn.disabled) return;
+                handleCalendarAction(String(actionBtn.dataset.action || '').trim(), actionBtn.dataset);
+            });
+        });
+        block.querySelectorAll('.response-calendar-day').forEach(function(dayBtn) {
+            dayBtn.addEventListener('click', function(e) {
+                var eventNode = e.target.closest('.response-calendar-event-pill');
+                if (eventNode) {
+                    var previewVacancyId = String(eventNode.dataset.vacancyId || '').trim();
+                    if (previewVacancyId) openMyResponseDetailsModal(previewVacancyId);
+                    return;
+                }
+                var nextDayKey = String(dayBtn.dataset.dayKey || '').trim();
+                focusCalendarDay(nextDayKey);
+            });
+            dayBtn.addEventListener('keydown', function(e) {
+                var shifts = {
+                    ArrowLeft: -1,
+                    ArrowRight: 1,
+                    ArrowUp: -7,
+                    ArrowDown: 7
+                };
+                if (!Object.prototype.hasOwnProperty.call(shifts, e.key)) return;
+                e.preventDefault();
+                var currentDate = parseInterviewDateValue(dayBtn.dataset.dayKey);
+                if (!currentDate) return;
+                var nextDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + shifts[e.key]);
+                var nextDayKey = formatCalendarDayKey(nextDate);
+                if (!nextDayKey) return;
+                uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = nextDayKey;
+                if (nextDayKey.indexOf(currentMonthKey + '-') !== 0) {
+                    uiState[getResponseCalendarMonthStateKey(parentRole)] = formatCalendarMonthKey(nextDate);
+                }
+                rerenderCalendar({ focusDayKey: nextDayKey });
+            });
+        });
+        block.querySelectorAll('.response-calendar-agenda-item').forEach(function(itemBtn) {
+            itemBtn.addEventListener('click', function() {
+                var vacancyId = String(itemBtn.dataset.vacancyId || '').trim();
+                if (vacancyId) openMyResponseDetailsModal(vacancyId);
+            });
+        });
+        var focusDayKey = String(options.focusDayKey || '').trim();
+        if (focusDayKey) {
+            var focusTarget = block.querySelector('.response-calendar-day[data-day-key="' + focusDayKey + '"]');
+            if (focusTarget) focusTarget.focus();
+        }
+    };
+
+    if (options.useBlockCache && Array.isArray(block._calendarResponsesList)) {
+        renderWithList(block._calendarResponsesList);
+        return;
+    }
+    fetchMyResponsesVacancies().then(renderWithList).catch(function() {
+        renderWithList(collectMyResponsesVacancies());
     });
 }
 
@@ -1436,6 +2437,16 @@ function ensureMyResponsesTab(parentRole) {
         block.insertAdjacentHTML('beforeend',
             '<div class="my-responses-efficiency" style="display:none;"><div class="skills-search-hint">Нет данных</div></div>');
     }
+    if (!block.dataset.detailsBound) {
+        block.addEventListener('click', function(e) {
+            var detailsBtn = e.target.closest('.my-responses-details-link');
+            if (!detailsBtn) return;
+            e.preventDefault();
+            var vacancyId = String(detailsBtn.dataset.vacancyId || '').trim();
+            if (vacancyId) openMyResponseDetailsModal(vacancyId);
+        });
+        block.dataset.detailsBound = '1';
+    }
     if (!block.dataset.modeBound) {
         block.addEventListener('click', function(e) {
             var btn = e.target.closest('.my-responses-mode-btn');
@@ -1453,6 +2464,42 @@ function ensureMyResponsesTabs(scope) {
     var root = scope || document;
     root.querySelectorAll('.role-content').forEach(function(roleContent) {
         ensureMyResponsesTab(roleContent);
+    });
+}
+function ensureResponseCalendarTab(parentRole) {
+    if (!parentRole || parentRole.id === 'role-all') return;
+    var tabs = parentRole.querySelector('.tabs.analysis-tabs');
+    if (!tabs) return;
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
+    if (!roleSuffix) return;
+    var analysisId = 'responses-calendar-' + roleSuffix;
+
+    var tab = tabs.querySelector('.analysis-button[data-analysis-id="' + analysisId + '"]');
+    if (!tab) {
+        tab = document.createElement('button');
+        tab.className = 'tab-button analysis-button';
+        tab.setAttribute('data-analysis-id', analysisId);
+        tab.setAttribute('onclick', "switchAnalysis(event, '" + analysisId + "')");
+        tab.textContent = 'Календарь';
+        var myResponsesTab = tabs.querySelector('.analysis-button[data-analysis-id^="my-responses-"]');
+        if (myResponsesTab && myResponsesTab.nextSibling) tabs.insertBefore(tab, myResponsesTab.nextSibling);
+        else tabs.appendChild(tab);
+    }
+
+    var block = parentRole.querySelector('.response-calendar-content[data-analysis="' + analysisId + '"]');
+    if (!block) {
+        block = document.createElement('div');
+        block.className = 'response-calendar-content';
+        block.setAttribute('data-analysis', analysisId);
+        block.style.display = 'none';
+        block.innerHTML = '<div class="skills-search-hint">Загрузка календаря...</div>';
+        parentRole.appendChild(block);
+    }
+}
+function ensureResponseCalendarTabs(scope) {
+    var root = scope || document;
+    root.querySelectorAll('.role-content').forEach(function(roleContent) {
+        ensureResponseCalendarTab(roleContent);
     });
 }
 
@@ -1615,6 +2662,7 @@ function reorderPrimaryAnalysisTabs(parentRole) {
     push(tabs.querySelector('.summary-report-btn'));
     push(tabs.querySelector('.analysis-button[data-analysis-id^="skills-search-"]'));
     push(tabs.querySelector('.analysis-button[data-analysis-id^="my-responses-"]'));
+    push(tabs.querySelector('.analysis-button[data-analysis-id^="responses-calendar-"]'));
 
     var allButtons = Array.from(tabs.querySelectorAll('.analysis-button'));
     var rest = allButtons.filter(function(btn) { return ordered.indexOf(btn) < 0; });
@@ -1631,6 +2679,7 @@ function reorderPrimaryAnalysisTabsAll(scope) {
 function applyAnalysisTabNaming(root) {
     var scope = root || document;
     if (typeof ensureMyResponsesTabs === 'function') ensureMyResponsesTabs(scope);
+    if (typeof ensureResponseCalendarTabs === 'function') ensureResponseCalendarTabs(scope);
     if (typeof ensureTotalsTabs === 'function') ensureTotalsTabs(scope);
     if (typeof ensureDetailAnalysisGroups === 'function') ensureDetailAnalysisGroups(scope);
     if (typeof reorderPrimaryAnalysisTabsAll === 'function') reorderPrimaryAnalysisTabsAll(scope);
@@ -1806,7 +2855,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         }
     }
     if (filterKey === 'periods') {
-        if (current === 'my-responses') {
+        if (isResponsesCalendarAnalysis(current)) {
             var responsesList = Array.isArray(uiState.my_responses_cache) ? uiState.my_responses_cache.slice() : [];
             if (!responsesList.length) {
                 var allRoleVacancies = [];
@@ -1854,6 +2903,26 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             if (searchOptions.length) return searchOptions;
         }
         return buildPeriodFilterOptionsFromVacancies(getRoleVacancies(activeRole) || []);
+    }
+    if (filterKey === 'status' && isResponsesCalendarAnalysis(current)) {
+        return [
+            { value: 'open', label: 'Открытая' },
+            { value: 'archived', label: 'Архивная' }
+        ];
+    }
+    if (filterKey === 'currency' && isResponsesCalendarAnalysis(current)) {
+        return [
+            { value: 'none', label: 'Не указана' },
+            { value: 'RUR', label: 'RUR' },
+            { value: 'USD', label: 'USD' },
+            { value: 'EUR', label: 'EUR' }
+        ];
+    }
+    if (filterKey === 'offer' && isResponsesCalendarAnalysis(current)) {
+        return [
+            { value: 'no', label: 'Не указан' },
+            { value: 'yes', label: 'Есть' }
+        ];
     }
     if (filterKey === 'experiences') {
         if (current === 'skills-monthly') {
@@ -2606,6 +3675,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var isRolesFilter = filterKey === 'roles';
+    var allowMulti = ['status', 'currency', 'offer'].indexOf(filterKey) < 0;
+    if (!allowMulti && isGlobalFilterMultiEnabled(filterKey)) {
+        setGlobalFilterMultiEnabled(filterKey, false);
+    }
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown skills-search-dropdown';
     wrap.dataset.filterKey = filterKey;
@@ -2684,26 +3757,28 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     bindGlobalFilterTooltip(allBtn, 'Выбрать все');
     applyGlobalFilterIconButtonStyle(allBtn, false);
     allBtn.addEventListener('click', function() {
-        var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
+        var keepOpen = filterKey !== 'roles' && allowMulti && isGlobalFilterMultiEnabled(filterKey);
         updateGlobalFilterSelection(filterKey, '', 'all', keepOpen);
         triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
         syncOptionRowsVisualState();
     });
     controls.appendChild(allBtn);
 
-    var multiBtn = document.createElement('button');
-    multiBtn.type = 'button';
-    multiBtn.className = 'tab-button skills-search-dropdown-item';
-    multiBtn.textContent = '\u2611';
-    bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
-    applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled(filterKey));
-    multiBtn.addEventListener('click', function() {
-        var next = !isGlobalFilterMultiEnabled(filterKey);
-        setGlobalFilterMultiEnabled(filterKey, next);
-        applyGlobalFilterIconButtonStyle(multiBtn, next);
-        refreshExistingGlobalFilterUi();
-    });
-    controls.appendChild(multiBtn);
+    if (allowMulti) {
+        var multiBtn = document.createElement('button');
+        multiBtn.type = 'button';
+        multiBtn.className = 'tab-button skills-search-dropdown-item';
+        multiBtn.textContent = '\u2611';
+        bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
+        applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled(filterKey));
+        multiBtn.addEventListener('click', function() {
+            var next = !isGlobalFilterMultiEnabled(filterKey);
+            setGlobalFilterMultiEnabled(filterKey, next);
+            applyGlobalFilterIconButtonStyle(multiBtn, next);
+            refreshExistingGlobalFilterUi();
+        });
+        controls.appendChild(multiBtn);
+    }
 
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
@@ -2712,7 +3787,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
     applyGlobalFilterIconButtonStyle(clearBtn, false);
     clearBtn.addEventListener('click', function() {
-        var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
+        var keepOpen = filterKey !== 'roles' && allowMulti && isGlobalFilterMultiEnabled(filterKey);
         updateGlobalFilterSelection(filterKey, '', 'clear', keepOpen);
         triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
         syncOptionRowsVisualState();
@@ -2764,7 +3839,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             row.title = '';
             row.addEventListener('click', function() {
                 var isIncluded = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
-                var keepOpen = filterKey !== 'roles' && isGlobalFilterMultiEnabled(filterKey);
+                var keepOpen = filterKey !== 'roles' && allowMulti && isGlobalFilterMultiEnabled(filterKey);
                 updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include', keepOpen);
                 triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
                 syncOptionRowsVisualState();
@@ -4266,6 +5341,7 @@ function renderMarketTrends(parentRole, mountNode) {
         };
     }
     var limit = 10;
+    var chartLimit = 10;
     var segments = buildSegments(metrics);
 
     if (!segments.salaryUp.length && !segments.salaryDown.length) {
@@ -4477,7 +5553,7 @@ function renderMarketTrends(parentRole, mountNode) {
     var demandTop = metrics.slice().sort(function(a, b) {
         return (Math.abs(b.demandDelta) - Math.abs(a.demandDelta))
             || (b.demandDelta - a.demandDelta);
-    }).slice(0, limit);
+    }).slice(0, chartLimit);
     if (typeof Plotly === 'undefined' || !Plotly || typeof Plotly.newPlot !== 'function') {
         var demandEl = document.getElementById(demandGraphId);
         var salaryEl = document.getElementById(salaryGraphId);
@@ -4500,7 +5576,7 @@ function renderMarketTrends(parentRole, mountNode) {
         var salaryTop = metrics.slice().filter(function(r) { return getSalaryDelta(r) !== null; }).sort(function(a, b) {
             return (Math.abs(getSalaryDelta(b)) - Math.abs(getSalaryDelta(a)))
                 || (getSalaryDelta(b) - getSalaryDelta(a));
-        }).slice(0, limit);
+        }).slice(0, chartLimit);
         Plotly.newPlot(salaryGraphId, [{
             x: salaryTop.map(function(r) { return buildRoleAxisTick(r.roleAxisId || r.id); }),
             y: salaryTop.map(function(r) { return getSalaryDelta(r); }),
@@ -4878,6 +5954,7 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     else if (current === 'weekday') renderGlobalWeekdayFiltered(parentRole);
     else if (current === 'skills-search') applyGlobalFiltersToSkillsSearch(parentRole);
     else if (current === 'my-responses') renderMyResponsesContent(parentRole);
+    else if (current === 'responses-calendar') renderMyResponsesCalendarContent(parentRole);
     else if (current === 'employer-analysis') renderGlobalEmployerFiltered(parentRole);
     else if (current === 'totals') renderGlobalTotalsFiltered(parentRole);
 }
@@ -4907,6 +5984,11 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     }
     body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
+    if (isResponsesCalendarAnalysis(currentForFilters)) {
+        body.appendChild(createGlobalFilterDropdown('status', 'Статус', getGlobalFilterOptions(activeRole, 'status', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false));
+    }
     if (typeof createTotalsTopFilterControl === 'function') {
         var totalsTopControl = createTotalsTopFilterControl(activeRole, currentForFilters);
         if (totalsTopControl) body.appendChild(totalsTopControl);
@@ -9141,5 +10223,7 @@ function applySalaryViewMode(expDiv, entries) {
     }
 
 }
+
+
 
 

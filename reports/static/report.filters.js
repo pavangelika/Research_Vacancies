@@ -382,6 +382,187 @@ function createSummaryAnalysisControl(activeRole) {
     return wrap;
 }
 
+function createMyResponsesFilterControl(activeRole, analysisType) {
+    if (!activeRole || String(analysisType || '') !== 'my-responses') return null;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'totals-top-filter-control my-responses-filter-control';
+
+    var caption = document.createElement('div');
+    caption.className = 'totals-top-filter-title';
+    caption.textContent = 'Фильтры откликов';
+    wrap.appendChild(caption);
+
+    var currencyWrap = document.createElement('div');
+    currencyWrap.className = 'totals-top-filter-currency';
+
+    var currencyLabel = document.createElement('div');
+    currencyLabel.className = 'totals-top-filter-subtitle';
+    currencyLabel.textContent = 'Валюта';
+    currencyWrap.appendChild(currencyLabel);
+
+    var currencyTabs = document.createElement('div');
+    currencyTabs.className = 'totals-top-filter-chip-row';
+    currencyWrap.appendChild(currencyTabs);
+
+    var currentCurrency = typeof normalizeMyResponsesCurrencyFilter === 'function'
+        ? normalizeMyResponsesCurrencyFilter(uiState.my_responses_currency || 'all')
+        : (String(uiState.my_responses_currency || 'all').trim().toUpperCase() || 'all');
+    uiState.my_responses_currency = currentCurrency;
+
+    var currencyButtons = [];
+    [
+        { value: 'all', label: 'Все' },
+        { value: 'RUR', label: 'RUR' },
+        { value: 'USD', label: 'USD' },
+        { value: 'EUR', label: 'EUR' }
+    ].forEach(function(item) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'totals-top-filter-chip';
+        button.textContent = item.label;
+        button.setAttribute('aria-pressed', item.value === currentCurrency ? 'true' : 'false');
+        if (item.value === currentCurrency) button.classList.add('active');
+        button.addEventListener('click', function() {
+            if (uiState.my_responses_currency === item.value) return;
+            uiState.my_responses_currency = item.value;
+            currencyButtons.forEach(function(other) {
+                var active = other === button;
+                other.classList.toggle('active', active);
+                other.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+            if (typeof renderMyResponsesContent === 'function') renderMyResponsesContent(activeRole);
+        });
+        currencyButtons.push(button);
+        currencyTabs.appendChild(button);
+    });
+    wrap.appendChild(currencyWrap);
+
+    var statusWrap = document.createElement('div');
+    statusWrap.className = 'totals-top-filter-currency my-responses-status-filter';
+
+    var statusLabel = document.createElement('div');
+    statusLabel.className = 'totals-top-filter-subtitle';
+    statusLabel.textContent = 'Статус';
+    statusWrap.appendChild(statusLabel);
+
+    var statusTabs = document.createElement('div');
+    statusTabs.className = 'totals-top-filter-chip-row';
+    statusWrap.appendChild(statusTabs);
+
+    var statusBucket = typeof ensureGlobalFilterBucket === 'function'
+        ? ensureGlobalFilterBucket('status')
+        : { include: [], exclude: [] };
+    statusBucket.exclude = [];
+    var currentStatus = statusBucket.include.length ? String(statusBucket.include[0] || '').trim() : 'all';
+    if (currentStatus !== 'open' && currentStatus !== 'archived') currentStatus = 'all';
+    var statusButtons = [];
+    [
+        { value: 'all', label: 'Все' },
+        { value: 'open', label: 'Открытая' },
+        { value: 'archived', label: 'Архивная' }
+    ].forEach(function(item) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'totals-top-filter-chip';
+        button.textContent = item.label;
+        button.setAttribute('aria-pressed', item.value === currentStatus ? 'true' : 'false');
+        if (item.value === currentStatus) button.classList.add('active');
+        button.addEventListener('click', function() {
+            if (typeof ensureGlobalFilterBucket === 'function') {
+                var bucket = ensureGlobalFilterBucket('status');
+                bucket.exclude = [];
+                bucket.include = item.value === 'all' ? [] : [item.value];
+            }
+            statusButtons.forEach(function(other) {
+                var active = other === button;
+                other.classList.toggle('active', active);
+                other.setAttribute('aria-pressed', active ? 'true' : 'false');
+            });
+            rerenderMyResponses();
+        });
+        statusButtons.push(button);
+        statusTabs.appendChild(button);
+    });
+    wrap.appendChild(statusWrap);
+
+    var offerWrap = document.createElement('div');
+    offerWrap.className = 'totals-top-filter-currency my-responses-offer-filter';
+
+    var offerLabel = document.createElement('div');
+    offerLabel.className = 'totals-top-filter-subtitle';
+    offerLabel.textContent = 'Оффер';
+    offerWrap.appendChild(offerLabel);
+
+    var offerRow = document.createElement('div');
+    offerRow.className = 'my-responses-offer-switch-row';
+    offerWrap.appendChild(offerRow);
+
+    var currentOffer = typeof normalizeMyResponsesOfferFilter === 'function'
+        ? normalizeMyResponsesOfferFilter(uiState.my_responses_offer_filter || 'all')
+        : String(uiState.my_responses_offer_filter || 'all').trim().toLowerCase();
+    uiState.my_responses_offer_filter = currentOffer;
+
+    var offerAllButton = document.createElement('button');
+    offerAllButton.type = 'button';
+    offerAllButton.className = 'totals-top-filter-chip my-responses-offer-all';
+    offerAllButton.textContent = 'Все';
+    offerRow.appendChild(offerAllButton);
+
+    var switchLabelNo = document.createElement('span');
+    switchLabelNo.className = 'my-responses-offer-switch-label';
+    switchLabelNo.textContent = 'Не указан';
+    offerRow.appendChild(switchLabelNo);
+
+    var switchWrap = document.createElement('label');
+    switchWrap.className = 'totals-ios-checkbox-wrap my-responses-offer-switch-wrap';
+    var switchInput = document.createElement('input');
+    switchInput.type = 'checkbox';
+    switchInput.className = 'totals-ios-checkbox my-responses-offer-switch';
+    var switchUi = document.createElement('span');
+    switchUi.className = 'totals-ios-checkbox-ui';
+    switchWrap.appendChild(switchInput);
+    switchWrap.appendChild(switchUi);
+    offerRow.appendChild(switchWrap);
+
+    var switchLabelYes = document.createElement('span');
+    switchLabelYes.className = 'my-responses-offer-switch-label';
+    switchLabelYes.textContent = 'Есть';
+    offerRow.appendChild(switchLabelYes);
+
+    function rerenderMyResponses() {
+        if (typeof renderMyResponsesContent === 'function') renderMyResponsesContent(activeRole);
+    }
+
+    function updateOfferUi() {
+        var state = typeof normalizeMyResponsesOfferFilter === 'function'
+            ? normalizeMyResponsesOfferFilter(uiState.my_responses_offer_filter || 'all')
+            : String(uiState.my_responses_offer_filter || 'all').trim().toLowerCase();
+        var isAll = state === 'all';
+        offerAllButton.classList.toggle('active', isAll);
+        offerAllButton.setAttribute('aria-pressed', isAll ? 'true' : 'false');
+        switchInput.checked = state === 'yes';
+        switchLabelNo.classList.toggle('active', state === 'no');
+        switchLabelYes.classList.toggle('active', state === 'yes');
+        switchWrap.classList.toggle('is-neutral', isAll);
+    }
+
+    offerAllButton.addEventListener('click', function() {
+        uiState.my_responses_offer_filter = 'all';
+        updateOfferUi();
+        rerenderMyResponses();
+    });
+    switchInput.addEventListener('change', function() {
+        uiState.my_responses_offer_filter = switchInput.checked ? 'yes' : 'no';
+        updateOfferUi();
+        rerenderMyResponses();
+    });
+    updateOfferUi();
+
+    wrap.appendChild(offerWrap);
+    return wrap;
+}
+
 function createTotalsTopFilterControl(activeRole, analysisType) {
     if (!activeRole || String(analysisType || '') !== 'totals') return null;
     var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();

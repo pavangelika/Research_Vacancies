@@ -18,8 +18,6 @@ from scripts.db import (
     mark_resume_sent,
     save_vacancy_details,
 )
-
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 

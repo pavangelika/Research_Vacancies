@@ -5,6 +5,7 @@ function resolveAnalysisType(analysisId) {
     if (analysisId.includes('weekday')) return 'weekday';
     if (analysisId.includes('skills-monthly')) return 'skills-monthly';
     if (analysisId.includes('skills-search')) return 'skills-search';
+    if (analysisId.includes('responses-calendar')) return 'responses-calendar';
     if (analysisId.includes('my-responses')) return 'my-responses';
     if (analysisId.includes('totals')) return 'totals';
     if (analysisId.includes('salary')) return 'salary';
@@ -40,6 +41,7 @@ function getAnalysisSwitchBlocks(parentRole) {
         skillsMonthlyBlock: parentRole.querySelector('.skills-monthly-content'),
         skillsSearchBlock: parentRole.querySelector('.skills-search-content'),
         myResponsesBlock: parentRole.querySelector('.my-responses-content'),
+        responsesCalendarBlock: parentRole.querySelector('.response-calendar-content'),
         totalsBlock: parentRole.querySelector('.totals-content'),
         salaryBlock: parentRole.querySelector('.salary-content'),
         employerAnalysisBlock: parentRole.querySelector('.employer-analysis-content')
@@ -51,6 +53,7 @@ function hideAllAnalysisBlocks(blocks) {
     if (blocks.skillsMonthlyBlock) blocks.skillsMonthlyBlock.style.display = 'none';
     if (blocks.skillsSearchBlock) blocks.skillsSearchBlock.style.display = 'none';
     if (blocks.myResponsesBlock) blocks.myResponsesBlock.style.display = 'none';
+    if (blocks.responsesCalendarBlock) blocks.responsesCalendarBlock.style.display = 'none';
     if (blocks.totalsBlock) blocks.totalsBlock.style.display = 'none';
     if (blocks.salaryBlock) blocks.salaryBlock.style.display = 'none';
     if (blocks.employerAnalysisBlock) blocks.employerAnalysisBlock.style.display = 'none';
@@ -168,6 +171,12 @@ function handleMyResponsesAnalysisSwitch(ctx) {
     setMyResponsesActiveView(ctx.parentRole, 'responses');
     renderMyResponsesContent(ctx.parentRole);
 }
+function handleResponsesCalendarAnalysisSwitch(ctx) {
+    var calendarBlock = ctx.blocks.responsesCalendarBlock;
+    if (!calendarBlock) return;
+    calendarBlock.style.display = 'block';
+    renderMyResponsesCalendarContent(ctx.parentRole);
+}
 function handleTotalsAnalysisSwitch(ctx) {
     var totalsBlock = ctx.blocks.totalsBlock;
     if (!totalsBlock) return;
@@ -206,6 +215,7 @@ var ANALYSIS_SWITCH_HANDLERS = {
     'skills-monthly': handleSkillsMonthlyAnalysisSwitch,
     'skills-search': handleSkillsSearchAnalysisSwitch,
     'my-responses': handleMyResponsesAnalysisSwitch,
+    'responses-calendar': handleResponsesCalendarAnalysisSwitch,
     'totals': handleTotalsAnalysisSwitch,
     'salary': handleSalaryAnalysisSwitch,
     'employer-analysis': handleEmployerAnalysisSwitch
@@ -214,6 +224,7 @@ function switchAnalysis(evt, analysisId) {
     applyAnalysisTabNaming(document);
     var parentRole = evt.currentTarget.closest('.role-content');
     ensureMyResponsesTab(parentRole);
+    if (typeof ensureResponseCalendarTab === 'function') ensureResponseCalendarTab(parentRole);
     ensureTotalsTab(parentRole);
     var roleId = parentRole.id;
     var analysisButtons = parentRole.getElementsByClassName("analysis-button");

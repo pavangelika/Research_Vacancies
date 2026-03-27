@@ -1620,6 +1620,9 @@ def copy_js():
         'report.charts.js',
         'report.render.js',
         'report.ui.js',
+        'report.filters.js',
+        'report.role-navigation.js',
+        'report.analysis-switch.js',
         'report.events.js'
     ]
     for filename in js_files:
