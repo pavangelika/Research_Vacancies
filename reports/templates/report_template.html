@@ -50,7 +50,7 @@
                     onclick="switchAnalysis(event, 'skills-monthly-{{ role_index }}')">Топ-навыки</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="skills-search-{{ role_index }}"
-                    onclick="switchAnalysis(event, 'skills-search-{{ role_index }}')">&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086; &#1085;&#1072;&#1074;&#1099;&#1082;&#1072;&#1084;</button>
+                    onclick="switchAnalysis(event, 'skills-search-{{ role_index }}')">Поиск вакансий</button>
             <button class="tab-button analysis-button"
                     data-analysis-id="salary-{{ role_index }}"
                     onclick="switchAnalysis(event, 'salary-{{ role_index }}')">Анализ зарплат</button>
@@ -167,19 +167,15 @@
                     <button class="skills-search-select-all" type="button">&#1042;&#1099;&#1073;&#1088;&#1072;&#1090;&#1100; &#1074;&#1089;&#1077;</button>
                     <button class="skills-search-reset-skills" type="button">&#1057;&#1073;&#1088;&#1086;&#1089;&#1080;&#1090;&#1100; &#1085;&#1072;&#1074;&#1099;&#1082;&#1080;</button>
                     <div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">
-                        <button class="skills-search-dropdown-btn" type="button" data-value="or">??????</button>
-                        <div class="skills-search-dropdown-menu"></div>
-                    </div>
-                    <div class="skills-search-dropdown skills-search-sort-inline" data-filter="sort">
-                        <button class="skills-search-dropdown-btn" type="button" data-value="count">??????????</button>
+                        <button class="skills-search-dropdown-btn" type="button" data-value="or">OR</button>
                         <div class="skills-search-dropdown-menu"></div>
                     </div>
                     <div class="skills-search-dropdown" data-filter="status">
-                        <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                        <button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>
                         <div class="skills-search-dropdown-menu"></div>
                     </div>
                     <div class="skills-search-dropdown" data-filter="currency" data-multi="1">
-                        <button class="skills-search-dropdown-btn" type="button" data-value="all">??????</button>
+                        <button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>
                         <div class="skills-search-dropdown-menu"></div>
                     </div>
                     <div class="skills-search-dropdown" data-filter="country">

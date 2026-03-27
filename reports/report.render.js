@@ -3,16 +3,25 @@
         return '<div class="vacancy-empty">Нет вакансий</div>';
     }
 
-    var showRole = vacancies.some(v => v && (v.role_name || v.role_id));
     var rows = vacancies.map(v => {
         var linkUrl = v.id ? 'https://surgut.hh.ru/vacancy/' + encodeURIComponent(v.id) : '';
-        var idCell = linkUrl
-            ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
-            : formatCell(v.id);
-        var replyCell = v.apply_alternate_url
-            ? '<a class="vacancy-apply-link" href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url) + '">отклик</a>'
+        var titleText = String(v && v.name || '').trim();
+        var vacancyId = String(v && v.id || '').trim();
+        var isResumeSent = !!(v && (v.send_resume === true || v.send_resume === 1 || v.send_resume === '1' || v.send_resume === 'true' || v.resume_at));
+        var currencyText = String(v && (v.currency || v.salary_currency) || '').trim();
+        var titleLabel = linkUrl
+            ? '<a class="vacancy-title-link" href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener"><span class="vacancy-title-text">' + formatCell(titleText || '—') + '</span></a>'
+            : '<span class="vacancy-title-link is-static"><span class="vacancy-title-text">' + formatCell(titleText || '—') + '</span></span>';
+        var titleId = vacancyId
+            ? '<button type="button" class="vacancy-title-id vacancy-copy-id" data-vacancy-id="' + escapeHtml(vacancyId) + '" aria-label="Скопировать номер вакансии ' + escapeHtml(vacancyId) + '">' + escapeHtml(vacancyId) + '</button>'
+            : '';
+        var titleCell = '<div class="vacancy-title-stack">' + titleLabel + titleId + '</div>';
+        var replyCell = (v.apply_alternate_url || isResumeSent)
+            ? '<label class="vacancy-apply-switch totals-ios-checkbox-wrap" aria-label="Отклик по вакансии ' + escapeHtml(titleText || vacancyId || '') + '">' +
+                '<input class="vacancy-apply-switch-input totals-ios-checkbox" type="checkbox" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url || '') + '"' + (isResumeSent ? ' checked disabled' : '') + '>' +
+                '<span class="vacancy-apply-switch-ui totals-ios-checkbox-ui"></span>' +
+            '</label>'
             : '—';
-        var roleCell = showRole ? escapeHtml(v.role_name || 'Роль') : '';
         var employerCell = formatCell(v.employer);
         if (v.employer) {
             employerCell = '<button class="employer-link" type="button" ' +
@@ -29,17 +38,16 @@
         var salaryFromSort = isFinite(salaryFromNum) ? String(salaryFromNum) : '';
         var salaryToSort = isFinite(salaryToNum) ? String(salaryToNum) : '';
         return '<tr>' +
-            '<td>' + idCell + '</td>' +
-            (showRole ? '<td>' + roleCell + '</td>' : '') +
-            '<td>' + formatCell(v.name) + '</td>' +
-            '<td>' + employerCell + '</td>' +
-            '<td>' + formatCell(v.city) + '</td>' +
-            '<td data-sort-num="' + salaryFromSort + '">' + formatCell(v.salary_from) + '</td>' +
-            '<td data-sort-num="' + salaryToSort + '">' + formatCell(v.salary_to) + '</td>' +
-            '<td>' + formatCell(v.skills) + '</td>' +
-            '<td>' + formatCell(v.requirement) + '</td>' +
-            '<td>' + formatCell(v.responsibility) + '</td>' +
-            '<td>' + replyCell + '</td>' +
+            '<td class="vacancy-col-title" data-sort-text="' + escapeHtml(titleText.toLowerCase()) + '">' + titleCell + '</td>' +
+            '<td class="vacancy-col-employer">' + employerCell + '</td>' +
+            '<td class="vacancy-col-city">' + formatCell(v.city) + '</td>' +
+            '<td class="vacancy-col-salary" data-sort-num="' + salaryFromSort + '">' + formatVacancySalaryValue(v.salary_from, currencyText) + '</td>' +
+            '<td class="vacancy-col-salary" data-sort-num="' + salaryToSort + '">' + formatVacancySalaryValue(v.salary_to, currencyText) + '</td>' +
+            '<td class="vacancy-col-currency">' + formatCell(currencyText) + '</td>' +
+            '<td class="vacancy-col-skills">' + formatCell(v.skills) + '</td>' +
+            '<td class="vacancy-col-requirement">' + formatCell(v.requirement) + '</td>' +
+            '<td class="vacancy-col-responsibility">' + formatCell(v.responsibility) + '</td>' +
+            '<td class="vacancy-col-apply">' + replyCell + '</td>' +
         '</tr>';
     }).join('');
 
@@ -47,22 +55,35 @@
         '<table class="vacancy-table">' +
             '<thead>' +
                 '<tr>' +
-                    '<th>ID</th>' +
-                    (showRole ? '<th>Роль</th>' : '') +
-                    '<th>Название</th>' +
-                    '<th>Работодатель</th>' +
-                    '<th>Город</th>' +
-                    '<th class="salary-sortable">ЗП от</th>' +
-                    '<th class="salary-sortable">ЗП до</th>' +
-                    '<th>Навыки</th>' +
-                    '<th>Требования</th>' +
-                    '<th>Обязанности</th>' +
-                    '<th>Отклик</th>' +
+                    '<th class="vacancy-col-title">Название</th>' +
+                    '<th class="vacancy-col-employer">Работодатель</th>' +
+                    '<th class="vacancy-col-city">Город</th>' +
+                    '<th class="vacancy-col-salary salary-sortable">ЗП от</th>' +
+                    '<th class="vacancy-col-salary salary-sortable">ЗП до</th>' +
+                    '<th class="vacancy-col-currency">Валюта</th>' +
+                    '<th class="vacancy-col-skills">Навыки</th>' +
+                    '<th class="vacancy-col-requirement">Требования</th>' +
+                    '<th class="vacancy-col-responsibility">Обязанности</th>' +
+                    '<th class="vacancy-col-apply">Отклик</th>' +
                 '</tr>' +
             '</thead>' +
             '<tbody>' + rows + '</tbody>' +
         '</table>' +
     '</div>';
+}
+function formatVacancySalaryValue(value, currency) {
+    if (value === null || value === undefined || value === '') return formatCell(value);
+    var curr = String(currency || '').trim().toUpperCase();
+    if (curr !== 'RUR' && curr !== 'RUB') return formatCell(value);
+    var numericValue = Number(value);
+    if (!isFinite(numericValue)) return formatCell(value);
+    var thousands = numericValue / 1000;
+    var rounded = Math.abs(thousands) < 10
+        ? Math.round(thousands * 10) / 10
+        : Math.round(thousands);
+    var text = String(rounded).replace('.', ',');
+    if (text.endsWith(',0')) text = text.slice(0, -2);
+    return escapeHtml(text + 'K');
 }
 function buildSalaryTablesHtml(entries) {
     var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
@@ -766,10 +787,6 @@ function renderAllRolesContainer(container, roleContents) {
                     '<button class="skills-search-dropdown-btn" type="button" data-value="or">Логика</button>' +
                     '<div class="skills-search-dropdown-menu"></div>' +
                 '</div>' +
-                '<div class="skills-search-dropdown skills-search-sort-inline" data-filter="sort">' +
-                    '<button class="skills-search-dropdown-btn" type="button" data-value="count">Сортировка</button>' +
-                    '<div class="skills-search-dropdown-menu"></div>' +
-                '</div>' +
                 '<button class="skills-search-clear" type="button">\u2715</button>' +
             '</div>' +
             '<div class="skills-search-filters">' +
@@ -1161,10 +1178,6 @@ function renderCombinedContainer(container, roleContents) {
                     '<button class="skills-search-reset-skills" type="button">Сбросить навыки</button>' +
                     '<div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">' +
                         '<button class="skills-search-dropdown-btn" type="button" data-value="or">Логика</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown skills-search-sort-inline" data-filter="sort">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="count">Сортировка</button>' +
                         '<div class="skills-search-dropdown-menu"></div>' +
                     '</div>' +
                     '<button class="skills-search-clear" type="button">&#10005;</button>' +

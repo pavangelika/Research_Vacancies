@@ -28,6 +28,25 @@
     if (firstButton) firstButton.click();
 }
 
+function updateReportLayoutScrollZones() {
+    var layout = document.querySelector('.report-layout');
+    if (!layout) return;
+
+    var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    if (viewportWidth <= 960) {
+        layout.classList.remove('report-layout-scroll-ready');
+        layout.style.removeProperty('--report-layout-scroll-height');
+        return;
+    }
+
+    var rect = layout.getBoundingClientRect();
+    var viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    var availableHeight = Math.max(360, Math.floor(viewportHeight - rect.top - 12));
+
+    layout.style.setProperty('--report-layout-scroll-height', availableHeight + 'px');
+    layout.classList.add('report-layout-scroll-ready');
+}
+
 var VIEW_ICON_TABLE = '\u25A4';
 var VIEW_ICON_GRAPH = '\u25D4';
 var VIEW_ICON_TOGETHER = '\u25EB';
@@ -5959,6 +5978,15 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
 
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
     var currentForFilters = current;
+    if (activeRole) {
+        activeRole.querySelectorAll('.skills-search-content').forEach(function(node) {
+            node.classList.toggle('skills-search-managed-by-panel', currentForFilters === 'skills-search');
+        });
+    }
+    if (currentForFilters === 'skills-search' && typeof createSkillsSearchFavoritesControl === 'function') {
+        var skillsFavoritesControl = createSkillsSearchFavoritesControl(activeRole, currentForFilters);
+        if (skillsFavoritesControl) body.appendChild(skillsFavoritesControl);
+    }
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
     body.appendChild(createUnifiedRolesControl(activeRole, currentForFilters));
@@ -5984,6 +6012,18 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         body.appendChild(createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false));
+    }
+    if (currentForFilters === 'skills-search') {
+        if (typeof createSkillsSearchLogicControl === 'function') {
+            var skillsLogicControl = createSkillsSearchLogicControl(activeRole, currentForFilters);
+            if (skillsLogicControl) body.appendChild(skillsLogicControl);
+        }
+        if (typeof createSkillsSearchSelectionControl === 'function') {
+            var skillsIncludeControl = createSkillsSearchSelectionControl(activeRole, currentForFilters, 'include');
+            if (skillsIncludeControl) body.appendChild(skillsIncludeControl);
+            var skillsExcludeControl = createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude');
+            if (skillsExcludeControl) body.appendChild(skillsExcludeControl);
+        }
     }
     if (typeof createTotalsTopFilterControl === 'function') {
         var totalsTopControl = createTotalsTopFilterControl(activeRole, currentForFilters);
@@ -6406,17 +6446,6 @@ function initSkillsSearch(parentRole) {
         setSkillsSearchDropdownValue(countryDropdown, 'all');
     }
 
-    var sortDropdown = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
-    if (sortDropdown && !sortDropdown.dataset.ready) {
-        var sortItems = [
-            { value: 'count', label: 'По частоте' },
-            { value: 'alpha', label: 'По алфавиту' }
-        ];
-        renderSkillsSearchDropdown(sortDropdown, sortItems, 'Сортировка', 'По частоте', false, false);
-        sortDropdown.dataset.ready = '1';
-        block.dataset.sort = 'count';
-    }
-
     var logicDropdown = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
     if (logicDropdown && !logicDropdown.dataset.ready) {
         var logicItems = [
@@ -6634,24 +6663,33 @@ function confirmSkillsSearchFavoriteDelete() {
 function renderSkillsSearchButtons(block, skillsList) {
     var buttonsWrap = block.querySelector('.skills-search-buttons');
     if (!buttonsWrap) return;
-    var sortMode = getSkillsSearchFilterValue(block, 'sort');
     var list = (skillsList || []).slice().map(function(s) {
         var displaySkill = registerSkillDisplayName(s.skill);
         return Object.assign({}, s, { skill: displaySkill });
     });
-    if (sortMode === 'alpha') {
-        list.sort((a, b) => a.skill.localeCompare(b.skill));
-    }
     if (!list.length) {
         buttonsWrap.innerHTML = '<div class="skills-search-empty">Нет навыков для роли</div>';
         return;
     }
-    buttonsWrap.innerHTML = list.map(s => (
-        '<button class="skills-search-skill" type="button" data-skill="' + escapeHtml(s.skill) + '">' +
-            escapeHtml(s.skill) +
-            '<span class="skills-search-count">' + s.count + '</span>' +
-        '</button>'
-    )).join('');
+
+    function buildButtons(mode) {
+        return list.map(function(s) {
+            return '<button class="skills-search-skill" type="button" data-mode="' + mode + '" data-skill="' + escapeHtml(s.skill) + '">' +
+                '<span class="skills-search-skill-label">' + escapeHtml(s.skill) + '</span>' +
+                '<span class="skills-search-count">"' + escapeHtml(s.count) + '"</span>' +
+            '</button>';
+        }).join('');
+    }
+
+    buttonsWrap.innerHTML =
+        '<div class="skills-search-list" data-mode="include">' +
+            '<div class="skills-search-list-title">Включить</div>' +
+            '<div class="skills-search-list-buttons">' + buildButtons('include') + '</div>' +
+        '</div>' +
+        '<div class="skills-search-list" data-mode="exclude">' +
+            '<div class="skills-search-list-title">Исключить</div>' +
+            '<div class="skills-search-list-buttons">' + buildButtons('exclude') + '</div>' +
+        '</div>';
 }
 function renderSkillsSearchDropdown(dropdown, items, label, allLabel, allAtEnd, includeAll) {
     if (!dropdown) return;
@@ -6754,6 +6792,126 @@ function getSkillsSearchVacancyBooleanValue(vacancy, factorKey) {
     if (typeof rawValue === 'number') return rawValue > 0;
     var text = String(rawValue || '').trim().toLowerCase();
     return text === 'true' || text === '1' || text === 'да' || text === 'yes';
+}
+
+function normalizeSkillsSearchSkillList(list) {
+    var seen = new Set();
+    return (list || []).map(function(item) {
+        return registerSkillDisplayName(item);
+    }).map(function(item) {
+        return String(item || '').trim();
+    }).filter(Boolean).filter(function(item) {
+        var key = normalizeSkillName(item);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+function ensureSkillsSearchGlobalState(block) {
+    var current = (uiState.skills_search_global && typeof uiState.skills_search_global === 'object') ? uiState.skills_search_global : {};
+    current.includeSkills = normalizeSkillsSearchSkillList(current.includeSkills || []);
+    current.excludeSkills = normalizeSkillsSearchSkillList(current.excludeSkills || []);
+    current.logic = (current.logic === 'and') ? 'and' : 'or';
+    current.sort = 'count';
+    if (current.status === undefined) current.status = block ? (getSkillsSearchFilterValue(block, 'status') || 'all') : 'all';
+    if (current.country === undefined) current.country = block ? (getSkillsSearchFilterValue(block, 'country') || 'all') : 'all';
+    if (current.currency === undefined) current.currency = 'all';
+    if (!current.employerFlags || typeof current.employerFlags !== 'object') current.employerFlags = {};
+    uiState.skills_search_global = current;
+    return uiState.skills_search_global;
+}
+
+function getSkillsSearchSelections(block) {
+    var state = ensureSkillsSearchGlobalState(block);
+    return {
+        includeSkills: normalizeSkillsSearchSkillList(state.includeSkills || []),
+        excludeSkills: normalizeSkillsSearchSkillList(state.excludeSkills || []),
+        logic: state.logic === 'and' ? 'and' : 'or'
+    };
+}
+
+function syncSkillsSearchButtonsFromState(block) {
+    if (!block) return;
+    var selections = getSkillsSearchSelections(block);
+    var include = selections.includeSkills.map(normalizeSkillName);
+    var exclude = selections.excludeSkills.map(normalizeSkillName);
+    block.querySelectorAll('.skills-search-skill').forEach(function(btn) {
+        var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
+        var mode = btn.dataset.mode || 'include';
+        btn.classList.toggle('active', mode === 'include' && include.indexOf(key) >= 0);
+        btn.classList.toggle('excluded', mode === 'exclude' && exclude.indexOf(key) >= 0);
+    });
+    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
+    if (logicDd) setSkillsSearchDropdownValue(logicDd, selections.logic);
+}
+
+function refreshSkillsSearchPanel(parentRole) {
+    if (!parentRole || String(parentRole.dataset.activeAnalysis || '') !== 'skills-search') return;
+    if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(parentRole, 'skills-search', true);
+}
+
+function scrollSharedFilterPanelToEnd() {
+    var host = document.getElementById('role-selector');
+    if (!host) return;
+    requestAnimationFrame(function() {
+        var targetTop = Math.max(0, host.scrollHeight - host.clientHeight);
+        if (typeof host.scrollTo === 'function') {
+            host.scrollTo({ top: targetTop, behavior: 'smooth' });
+        } else {
+            host.scrollTop = targetTop;
+        }
+    });
+}
+
+function applySkillsSearchSkillState(block, includeSkills, excludeSkills, logicValue) {
+    var state = ensureSkillsSearchGlobalState(block);
+    state.includeSkills = normalizeSkillsSearchSkillList(includeSkills);
+    state.excludeSkills = normalizeSkillsSearchSkillList(excludeSkills);
+    if (logicValue) state.logic = (logicValue === 'and') ? 'and' : 'or';
+    syncSkillsSearchButtonsFromState(block);
+}
+
+function toggleSkillsSearchSkillState(block, rawSkill, mode) {
+    if (!block) return;
+    var selections = getSkillsSearchSelections(block);
+    var skill = registerSkillDisplayName(rawSkill);
+    var skillKey = normalizeSkillName(skill);
+    var isIncluded = selections.includeSkills.some(function(item) {
+        return normalizeSkillName(item) === skillKey;
+    });
+    var isExcluded = selections.excludeSkills.some(function(item) {
+        return normalizeSkillName(item) === skillKey;
+    });
+    var include = selections.includeSkills.filter(function(item) {
+        return normalizeSkillName(item) !== skillKey;
+    });
+    var exclude = selections.excludeSkills.filter(function(item) {
+        return normalizeSkillName(item) !== skillKey;
+    });
+    if (mode === 'exclude') {
+        if (!isExcluded) exclude.push(skill);
+    } else if (mode === 'include') {
+        if (!isIncluded) include.push(skill);
+    }
+    applySkillsSearchSkillState(block, include, exclude, selections.logic);
+}
+
+function clearSkillsSearchSkillState(block, rawSkill, mode) {
+    if (!block) return;
+    var selections = getSkillsSearchSelections(block);
+    var skillKey = normalizeSkillName(rawSkill);
+    var include = selections.includeSkills;
+    var exclude = selections.excludeSkills;
+    if (mode === 'exclude') {
+        exclude = exclude.filter(function(item) { return normalizeSkillName(item) !== skillKey; });
+    } else if (mode === 'include') {
+        include = include.filter(function(item) { return normalizeSkillName(item) !== skillKey; });
+    } else {
+        include = include.filter(function(item) { return normalizeSkillName(item) !== skillKey; });
+        exclude = exclude.filter(function(item) { return normalizeSkillName(item) !== skillKey; });
+    }
+    applySkillsSearchSkillState(block, include, exclude, selections.logic);
 }
 
 function updateSkillsSearchData(block) {
@@ -6888,27 +7046,8 @@ function updateSkillsSearchData(block) {
     block._data.currentVacancies = filteredBase;
     var skills = computeSalarySkillsFromVacancies(filteredBase, 50);
     block._data.skills = skills;
-
-    var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
-        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
-    var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
-        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
     renderSkillsSearchButtons(block, skills);
-    if (selected.length) {
-        var btns = block.querySelectorAll('.skills-search-skill');
-        btns.forEach(btn => {
-            var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
-            if (selected.indexOf(key) >= 0) btn.classList.add('active');
-        });
-    }
-    if (excluded.length) {
-        var btns2 = block.querySelectorAll('.skills-search-skill');
-        btns2.forEach(btn => {
-            var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
-            if (excluded.indexOf(key) >= 0) btn.classList.add('excluded');
-        });
-    }
-
+    syncSkillsSearchButtonsFromState(block);
     updateSkillsSearchResults(block);
 }
 
@@ -6918,11 +7057,9 @@ function updateSkillsSearchResults(block) {
     if (!results) return;
 
     var allVacancies = (block._data && block._data.vacancies) ? block._data.vacancies : [];
-
-    var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
-        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
-    var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
-        .map(btn => normalizeSkillName(btn.dataset.skill || btn.textContent));
+    var selections = getSkillsSearchSelections(block);
+    var selected = selections.includeSkills.map(normalizeSkillName);
+    var excluded = selections.excludeSkills.map(normalizeSkillName);
 
     if (!selected.length && !excluded.length) {
         var baseList = (block._data && block._data.currentVacancies) ? block._data.currentVacancies : allVacancies;
@@ -6934,7 +7071,7 @@ function updateSkillsSearchResults(block) {
     }
 
     var vacancies = (block._data && block._data.currentVacancies) ? block._data.currentVacancies : allVacancies;
-    var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
+    var logicVal = selections.logic;
     var filtered = filterVacanciesBySkills(vacancies, selected, excluded, logicVal);
     var summary = '<div class="skills-search-summary">Найдено вакансий: ' + filtered.length + '</div>';
     results.innerHTML = summary + buildVacancyTableHtml(filtered);
@@ -6945,10 +7082,9 @@ function updateSkillsSearchResults(block) {
 function updateSkillsSearchSummaryLine(block) {
     var summary = block.querySelector('.skills-search-summary-line');
     if (!summary) return;
-    var selected = Array.from(block.querySelectorAll('.skills-search-skill.active'))
-        .map(b => (b.dataset.skill || b.textContent || '').trim());
-    var excluded = Array.from(block.querySelectorAll('.skills-search-skill.excluded'))
-        .map(b => (b.dataset.skill || b.textContent || '').trim());
+    var selections = getSkillsSearchSelections(block);
+    var selected = selections.includeSkills.slice();
+    var excluded = selections.excludeSkills.slice();
     if (!selected.length && !excluded.length) {
         summary.textContent = 'Навыки не выбраны';
         return;
@@ -7034,11 +7170,11 @@ function getSkillsSearchStateSnapshot(block) {
         status: getSkillsSearchFilterValue(block, 'status') || 'all',
         country: getSkillsSearchFilterValue(block, 'country') || 'all',
         currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
-        sort: getSkillsSearchFilterValue(block, 'sort') || 'count',
-        logic: getSkillsSearchFilterValue(block, 'logic') || 'or',
+        sort: 'count',
+        logic: getSkillsSearchSelections(block).logic,
         employerFlags: getSkillsSearchBooleanFilterValues(block),
-        includeSkills: Array.from(block.querySelectorAll('.skills-search-skill.active')).map(function(b) { return b.dataset.skill || b.textContent.trim(); }),
-        excludeSkills: Array.from(block.querySelectorAll('.skills-search-skill.excluded')).map(function(b) { return b.dataset.skill || b.textContent.trim(); }),
+        includeSkills: getSkillsSearchSelections(block).includeSkills.slice(),
+        excludeSkills: getSkillsSearchSelections(block).excludeSkills.slice(),
         collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
     };
 }
@@ -7132,7 +7268,6 @@ function applySkillsSearchState(block, state) {
     var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
     var countryDd = block.querySelector('.skills-search-dropdown[data-filter="country"]');
     var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
-    var sortDd = block.querySelector('.skills-search-dropdown[data-filter="sort"]');
     var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
 
     if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f');
@@ -7141,9 +7276,9 @@ function applySkillsSearchState(block, state) {
         if (Array.isArray(state.currency)) setSkillsSearchDropdownMulti(currencyDd, state.currency);
         else setSkillsSearchDropdownValue(currencyDd, state.currency || 'all');
     }
-    if (sortDd) setSkillsSearchDropdownValue(sortDd, state.sort || 'count');
     if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
     setSkillsSearchBooleanFilterValues(block, state.employerFlags || []);
+    ensureSkillsSearchGlobalState(block).sort = 'count';
 
     if (state.collapsed) {
         var panel = block.querySelector('.skills-search-panel');
@@ -7154,15 +7289,7 @@ function applySkillsSearchState(block, state) {
             toggle.innerHTML = '&#9660;';
         }
     }
-
-        var include = (state.includeSkills || []).map(normalizeSkillName);
-        var exclude = (state.excludeSkills || []).map(normalizeSkillName);
-        var btns = block.querySelectorAll('.skills-search-skill');
-        btns.forEach(btn => {
-            var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
-            if (include.indexOf(key) >= 0) btn.classList.add('active');
-            if (exclude.indexOf(key) >= 0) btn.classList.add('excluded');
-        });
+    applySkillsSearchSkillState(block, state.includeSkills || [], state.excludeSkills || [], state.logic || 'or');
 }
 function setSkillsSearchDropdownValue(dropdown, value) {
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');

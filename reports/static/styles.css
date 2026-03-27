@@ -668,6 +668,179 @@
     color: var(--primary-dark);
     box-shadow: none;
 }
+.skills-search-top-filter-control {
+    width: 100%;
+}
+.skills-search-top-search-wrap,
+.skills-search-top-toolbar,
+.skills-search-top-meta,
+.skills-search-top-list {
+    margin-top: 10px;
+}
+.skills-search-top-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #304254;
+    font-size: 0.84rem;
+    outline: none;
+}
+.skills-search-top-search:focus {
+    border-color: rgba(34, 197, 94, 0.45);
+    box-shadow: 0 0 0 4px var(--accent-green-soft);
+}
+.skills-search-top-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+}
+.skills-search-top-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.skills-search-favorites-panel-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.skills-search-favorites-panel-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 34px;
+    padding: 0 12px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.92);
+    color: #334155;
+    font-size: 0.82rem;
+    outline: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.skills-search-favorites-panel-input::placeholder {
+    color: #94a3b8;
+}
+.skills-search-favorites-panel-input:focus {
+    border-color: rgba(111, 143, 178, 0.28);
+    background: rgba(255, 255, 255, 0.98);
+}
+.skills-search-favorites-panel-action {
+    flex: 0 0 auto;
+}
+.skills-search-top-logic-control {
+    width: 196px;
+}
+.skills-search-logic-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 34px;
+}
+.skills-search-logic-switch-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+    transition: color 0.18s ease;
+}
+.skills-search-logic-switch-label.active {
+    color: #334155;
+}
+.skills-search-logic-switch {
+    flex: 0 0 auto;
+}
+.skills-search-logic-switch .totals-ios-checkbox-ui {
+    width: 36px;
+    height: 20px;
+}
+.skills-search-top-meta {
+    font-size: 12px;
+    color: #5f7084;
+}
+.skills-search-top-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.skills-search-top-list-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.skills-search-top-skill {
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: #334155;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: none;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.skills-search-top-list-rows .skills-search-top-skill {
+    width: 100%;
+    justify-content: space-between;
+    border-radius: 12px;
+    padding: 8px 10px;
+    text-align: left;
+}
+.skills-search-top-skill:hover {
+    border-color: rgba(148, 163, 184, 0.2);
+    background: rgba(248, 250, 252, 0.98);
+    transform: translateY(-1px);
+}
+.skills-search-top-skill.active {
+    background: rgba(240, 253, 244, 0.96);
+    border-color: rgba(34, 197, 94, 0.16);
+    color: #15803d;
+}
+.skills-search-top-skill.excluded {
+    background: rgba(254, 242, 242, 0.96);
+    border-color: rgba(239, 68, 68, 0.16);
+    color: #b91c1c;
+}
+.skills-search-top-skill-count {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+.skills-search-top-empty {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.skills-search-favorite-panel-item {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 8px;
+}
+.skills-search-favorite-panel-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.skills-search-favorite-panel-remove {
+    font-size: 14px;
+    opacity: 0.7;
+}
+.skills-search-filter-option-label {
+    min-width: 0;
+}
+.skills-search-filter-option-count {
+    color: #64748b;
+    justify-self: end;
+}
 .totals-dashboard-chip {
     min-width: 90px;
 }
@@ -3925,6 +4098,39 @@ tr:hover { background-color: #f0f4f9; }
     font-weight: 500;
 }
 .skills-search-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+.skills-search-managed-by-panel .skills-search-panel,
+.skills-search-managed-by-panel .skills-search-buttons,
+.skills-search-managed-by-panel .skills-search-filters,
+.skills-search-managed-by-panel .skills-search-select-all,
+.skills-search-managed-by-panel .skills-search-reset-skills,
+.skills-search-managed-by-panel .skills-search-save-favorite,
+.skills-search-managed-by-panel .skills-search-favorite-inline,
+.skills-search-managed-by-panel .skills-search-logic-inline,
+.skills-search-managed-by-panel .skills-search-sort-inline {
+    display: none !important;
+}
+.skills-search-managed-by-panel .skills-search-results {
+    margin-top: 0;
+}
+.skills-search-list {
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 16px;
+    padding: 12px;
+    background: rgba(248, 250, 252, 0.65);
+}
+.skills-search-list-title {
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.skills-search-list-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -3939,8 +4145,12 @@ tr:hover { background-color: #f0f4f9; }
     cursor: pointer;
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     box-shadow: none;
     transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.skills-search-skill-label {
+    white-space: nowrap;
 }
 .skills-search-skill:hover {
     border-color: rgba(148, 163, 184, 0.2);
@@ -3961,7 +4171,6 @@ tr:hover { background-color: #f0f4f9; }
     box-shadow: none;
 }
 .skills-search-count {
-    margin-left: 6px;
     font-size: 0.75rem;
     opacity: 0.7;
 }
@@ -4024,6 +4233,51 @@ tr:hover { background-color: #f0f4f9; }
 .skills-search-results .vacancy-table tbody tr {
     transition: background-color 0.18s ease;
 }
+.skills-search-results .vacancy-title-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+}
+.skills-search-results .vacancy-title-link {
+    display: inline-flex;
+    color: #0f5f9c;
+    text-decoration: none;
+}
+.skills-search-results .vacancy-title-link:hover {
+    color: #0b4a78;
+    text-decoration: underline;
+}
+.skills-search-results .vacancy-title-link.is-static {
+    color: var(--text-primary);
+    cursor: default;
+}
+.skills-search-results .vacancy-title-text {
+    font-weight: 600;
+    line-height: 1.35;
+}
+.skills-search-results .vacancy-title-id {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 0.72rem;
+    color: #64748b;
+    line-height: 1.2;
+    cursor: pointer;
+    user-select: text;
+}
+.skills-search-results .vacancy-title-id:hover {
+    color: #334155;
+    text-decoration: underline;
+}
+.skills-search-results .vacancy-apply-switch {
+    cursor: pointer;
+}
+.skills-search-results .vacancy-apply-switch-input:disabled + .vacancy-apply-switch-ui {
+    opacity: 0.55;
+}
 .role-content table thead th:not(.no-sort) {
     cursor: pointer;
     user-select: none;
@@ -4036,31 +4290,47 @@ tr:hover { background-color: #f0f4f9; }
     content: " \2193";
     color: #64748b;
 }
-.skills-search-results .vacancy-table th:nth-child(1),
-.skills-search-results .vacancy-table td:nth-child(1),
-.skills-search-results .vacancy-table th:last-child,
-.skills-search-results .vacancy-table td:last-child {
-    width: 72px;
+.skills-search-results .vacancy-table .vacancy-col-city,
+.skills-search-results .vacancy-table .vacancy-col-salary,
+.skills-search-results .vacancy-table .vacancy-col-currency,
+.skills-search-results .vacancy-table .vacancy-col-apply {
+    white-space: nowrap;
 }
-.skills-search-results .vacancy-table th:nth-child(5),
-.skills-search-results .vacancy-table td:nth-child(5),
-.skills-search-results .vacancy-table th:nth-child(6),
-.skills-search-results .vacancy-table td:nth-child(6),
-.skills-search-results .vacancy-table th:nth-child(7),
-.skills-search-results .vacancy-table td:nth-child(7) {
-    width: 84px;
+.skills-search-results .vacancy-table .vacancy-col-city,
+.skills-search-results .vacancy-table .vacancy-col-apply {
+    text-align: left;
 }
-.skills-search-results .vacancy-table th:nth-child(1),
-.skills-search-results .vacancy-table td:nth-child(1),
-.skills-search-results .vacancy-table th:nth-child(5),
-.skills-search-results .vacancy-table td:nth-child(5),
-.skills-search-results .vacancy-table th:nth-child(6),
-.skills-search-results .vacancy-table td:nth-child(6),
-.skills-search-results .vacancy-table th:nth-child(7),
-.skills-search-results .vacancy-table td:nth-child(7),
-.skills-search-results .vacancy-table th:last-child,
-.skills-search-results .vacancy-table td:last-child {
-    text-align: center;
+.skills-search-results .vacancy-table .vacancy-col-salary,
+.skills-search-results .vacancy-table .vacancy-col-currency,
+.skills-search-results .vacancy-table .vacancy-col-salary.salary-sortable,
+.skills-search-results .vacancy-table td.vacancy-col-salary,
+.skills-search-results .vacancy-table .vacancy-col-currency {
+    text-align: right;
+}
+.skills-search-results .vacancy-table .vacancy-col-title {
+    width: 10%;
+}
+.skills-search-results .vacancy-table .vacancy-col-employer {
+    width: 10%;
+}
+.skills-search-results .vacancy-table .vacancy-col-city {
+    width: 8%;
+}
+.skills-search-results .vacancy-table .vacancy-col-salary {
+    width: 6%;
+}
+.skills-search-results .vacancy-table .vacancy-col-currency {
+    width: 6%;
+}
+.skills-search-results .vacancy-table .vacancy-col-skills {
+    width: 12%;
+}
+.skills-search-results .vacancy-table .vacancy-col-requirement,
+.skills-search-results .vacancy-table .vacancy-col-responsibility {
+    width: 18%;
+}
+.skills-search-results .vacancy-table .vacancy-col-apply {
+    width: 6%;
 }
 .salary-table-container .vacancy-table-wrap {
     width: 100%;
@@ -4792,10 +5062,32 @@ tbody tr:hover {
     width: 220px !important;
     max-width: 220px !important;
 }
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"],
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"],
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"],
+.shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] {
+    min-width: 248px !important;
+    width: 248px !important;
+    max-width: 248px !important;
+}
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-trigger {
     min-height: 34px !important;
     padding: 5px 10px !important;
+}
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .global-filter-menu,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-menu,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-menu,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] .global-filter-menu {
+    width: 280px !important;
+}
+
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .skills-search-favorites-panel-action {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
 }
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-menu {
@@ -4823,7 +5115,10 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .global-filter-option-row,
-.shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .summary-filter-item {
+.shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .summary-filter-item,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-option-row,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-option-row,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] .global-filter-option-row {
     display: block !important;
     width: 100% !important;
     box-sizing: border-box !important;
@@ -4837,7 +5132,10 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .global-filter-option-row:hover,
-.shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .summary-filter-item:hover {
+.shared-filter-panel .global-filter-dropdown[data-filter-key="roles"] .summary-filter-item:hover,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-option-row:hover,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-option-row:hover,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] .global-filter-option-row:hover {
     background: rgba(248, 250, 252, 0.98) !important;
     color: var(--text-primary) !important;
     transform: translateX(4px) translateY(-1px) scale(1.01);
@@ -5383,4 +5681,37 @@ body.mobile-filters-open .report-layout .role-selector > * {
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+}
+
+@media (min-width: 961px) {
+    .report-layout.report-layout-scroll-ready {
+        height: var(--report-layout-scroll-height);
+        max-height: var(--report-layout-scroll-height);
+        min-height: var(--report-layout-scroll-height);
+        align-items: stretch;
+    }
+
+    .report-layout.report-layout-scroll-ready .role-selector,
+    .report-layout.report-layout-scroll-ready .role-content {
+        min-height: 0;
+        max-height: 100%;
+    }
+
+    .report-layout.report-layout-scroll-ready .role-selector {
+        position: relative;
+        top: auto;
+        align-self: stretch;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+
+    .report-layout.report-layout-scroll-ready .role-content {
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
 }
