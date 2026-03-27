@@ -71,12 +71,13 @@ class ReportHandler(SimpleHTTPRequestHandler):
                 return
 
             try:
-                updated = mark_resume_sent(vacancy_id)
+                mark_result = mark_resume_sent(vacancy_id)
             except Exception as exc:
                 logger.exception("Failed to mark send_resume for vacancy_id=%s", vacancy_id)
                 self._send_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"ok": False, "error": str(exc)})
                 return
 
+            updated = bool(mark_result.get("updated")) if isinstance(mark_result, dict) else bool(mark_result)
             if not updated:
                 self._send_json(
                     HTTPStatus.NOT_FOUND,
@@ -84,7 +85,13 @@ class ReportHandler(SimpleHTTPRequestHandler):
                 )
                 return
 
-            self._send_json(HTTPStatus.OK, {"ok": True, "updated": True, "vacancy_id": vacancy_id})
+            response_payload = {"ok": True, "updated": True, "vacancy_id": vacancy_id}
+            if isinstance(mark_result, dict):
+                if mark_result.get("resume_at") is not None:
+                    response_payload["resume_at"] = mark_result.get("resume_at")
+                if mark_result.get("updated_at") is not None:
+                    response_payload["updated_at"] = mark_result.get("updated_at")
+            self._send_json(HTTPStatus.OK, response_payload)
             return
 
         if parsed.path == "/api/vacancies/details":

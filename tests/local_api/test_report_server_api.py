@@ -306,6 +306,12 @@ def test_send_resume_returns_success(report_server_app, http_session):
     """РџСЂРѕРІРµСЂРєР° СѓСЃРїРµС€РЅРѕРіРѕ РѕС‚РІРµС‚Р° 200 РґР»СЏ POST /api/vacancies/send-resume."""
     url = f"{report_server_app['base_url']}/api/vacancies/send-resume"
     payload = {"vacancy_id": "100"}
+    report_server_app["state"]["mark_result"] = {
+        "updated": True,
+        "vacancy_id": "100",
+        "resume_at": "2026-03-27T10:00:00",
+        "updated_at": "2026-03-27T10:00:00",
+    }
 
     with allure.step("#1 РћС‚РїСЂР°РІРёС‚СЊ POST Р·Р°РїСЂРѕСЃ СЃ РІР°Р»РёРґРЅС‹Рј vacancy_id"):
         attach_request_info("POST", url, payload=payload)
@@ -316,7 +322,13 @@ def test_send_resume_returns_success(report_server_app, http_session):
         assert response.status_code == 200
 
     with allure.step("#3 РџСЂРѕРІРµСЂРёС‚СЊ СѓСЃРїРµС€РЅС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚ РѕР±РЅРѕРІР»РµРЅРёСЏ"):
-        assert response.json() == {"ok": True, "updated": True, "vacancy_id": "100"}
+        assert response.json() == {
+            "ok": True,
+            "updated": True,
+            "vacancy_id": "100",
+            "resume_at": "2026-03-27T10:00:00",
+            "updated_at": "2026-03-27T10:00:00",
+        }
 
 
 @allure.parent_suite(LOCAL_API_PARENT_SUITE)

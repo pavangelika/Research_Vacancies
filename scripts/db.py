@@ -25,26 +25,26 @@ def get_resolved_db_host() -> str:
         socket.gethostbyname(host)
         return host
     except OSError:
-        logger.warning("DB_HOST=%s недоступен, используем localhost", host)
+        logger.warning("DB_HOST=%s РЅРµРґРѕСЃС‚СѓРїРµРЅ, РёСЃРїРѕР»СЊР·СѓРµРј localhost", host)
         return "127.0.0.1"
 
 
 def create_database():
-    # Подключаемся к серверу PostgreSQL (к базе данных по умолчанию)
+    # РџРѕРґРєР»СЋС‡Р°РµРјСЃСЏ Рє СЃРµСЂРІРµСЂСѓ PostgreSQL (Рє Р±Р°Р·Рµ РґР°РЅРЅС‹С… РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ)
     conn = psycopg2.connect(
         host=get_resolved_db_host(),
         port=DB_PORT,
         user=DB_USER,
         password=DB_PASS,
-        database="postgres"  # Подключаемся к системной БД
+        database="postgres"  # РџРѕРґРєР»СЋС‡Р°РµРјСЃСЏ Рє СЃРёСЃС‚РµРјРЅРѕР№ Р‘Р”
     )
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
     cursor = conn.cursor()
 
-    logger.info("Подключение к БД по умолчанию успешно")
+    logger.info("РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє Р‘Р” РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ СѓСЃРїРµС€РЅРѕ")
 
-    # Проверяем, существует ли база данных
+    # РџСЂРѕРІРµСЂСЏРµРј, СЃСѓС‰РµСЃС‚РІСѓРµС‚ Р»Рё Р±Р°Р·Р° РґР°РЅРЅС‹С…
     cursor.execute(
         "SELECT 1 FROM pg_database WHERE datname = %s",
         (DB_NAME,)
@@ -53,22 +53,22 @@ def create_database():
     exists = cursor.fetchone()
 
     if not exists:
-        logger.info(f"БД {DB_NAME} не существует")
+        logger.info(f"Р‘Р” {DB_NAME} РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚")
         try:
-            # Создаем новую базу данных
+            # РЎРѕР·РґР°РµРј РЅРѕРІСѓСЋ Р±Р°Р·Сѓ РґР°РЅРЅС‹С…
             cursor.execute(f"CREATE DATABASE {DB_NAME}")
-            logger.info(f"База данных {DB_NAME} успешно создана")
+            logger.info(f"Р‘Р°Р·Р° РґР°РЅРЅС‹С… {DB_NAME} СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅР°")
         except Exception as e:
-            logger.info(f"Ошибка при создании базы данных: {e}")
+            logger.info(f"РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё Р±Р°Р·С‹ РґР°РЅРЅС‹С…: {e}")
     else:
-        logger.info(f"База данных {DB_NAME} уже существует")
+        logger.info(f"Р‘Р°Р·Р° РґР°РЅРЅС‹С… {DB_NAME} СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚")
 
     cursor.close()
     conn.close()
 
 
 def init_table():
-    logger.info("Проверка таблицы get_vacancies...")
+    logger.info("РџСЂРѕРІРµСЂРєР° С‚Р°Р±Р»РёС†С‹ get_vacancies...")
     with psycopg2.connect(
         dbname=DB_NAME,
         user=DB_USER,
@@ -111,21 +111,32 @@ def init_table():
                 response_letter_required BOOLEAN DEFAULT FALSE,
                 apply_alternate_url TEXT,
                 send_resume BOOLEAN DEFAULT FALSE,
-                resume_at TIMESTAMP
+                resume_at TIMESTAMP,
+                updated_at TIMESTAMP
             )
             """
         )
+        ensure_get_vacancies_tracking_columns(cur)
         conn.commit()
-        logger.info("✅ Таблица get_vacancies готова")
+        logger.info("вњ… РўР°Р±Р»РёС†Р° get_vacancies РіРѕС‚РѕРІР°")
 
 
-def mark_resume_sent(vacancy_id: str) -> bool:
+def ensure_get_vacancies_tracking_columns(cur) -> None:
+    cur.execute(
+        """
+        ALTER TABLE get_vacancies
+        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+        """
+    )
+
+
+def mark_resume_sent(vacancy_id: str) -> dict:
     """
-    Отмечает, что по вакансии отправлено резюме.
-    Возвращает True, если запись обновлена.
+    РћС‚РјРµС‡Р°РµС‚, С‡С‚Рѕ РїРѕ РІР°РєР°РЅСЃРёРё РѕС‚РїСЂР°РІР»РµРЅРѕ СЂРµР·СЋРјРµ.
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ True, РµСЃР»Рё Р·Р°РїРёСЃСЊ РѕР±РЅРѕРІР»РµРЅР°.
     """
     if not vacancy_id:
-        return False
+        return {"updated": False, "vacancy_id": str(vacancy_id or "").strip(), "resume_at": None, "updated_at": None}
 
     with psycopg2.connect(
         dbname=DB_NAME,
@@ -138,22 +149,31 @@ def mark_resume_sent(vacancy_id: str) -> bool:
             """
             UPDATE get_vacancies
             SET send_resume = TRUE,
-                resume_at = NOW()
+                resume_at = NOW(),
+                updated_at = NOW()
             WHERE id = %s
+            RETURNING resume_at, updated_at
             """,
             (str(vacancy_id),)
         )
+        updated_row = cur.fetchone()
         updated = cur.rowcount > 0
         conn.commit()
         if not updated:
-            logger.warning("Не удалось отметить отклик: vacancy_id=%s не найдена в БД", vacancy_id)
-        return updated
+            logger.warning("Failed to mark send_resume: vacancy_id=%s not found in DB", vacancy_id)
+            return {"updated": False, "vacancy_id": str(vacancy_id), "resume_at": None, "updated_at": None}
+        return {
+            "updated": True,
+            "vacancy_id": str(vacancy_id),
+            "resume_at": updated_row[0].isoformat() if updated_row and updated_row[0] else None,
+            "updated_at": updated_row[1].isoformat() if updated_row and updated_row[1] else None,
+        }
 
 
 def get_sent_resume_vacancies() -> list[dict]:
     """
-    Возвращает вакансии, по которым отправлено резюме (send_resume = TRUE),
-    отсортированные по дате отклика.
+    Р’РѕР·РІСЂР°С‰Р°РµС‚ РІР°РєР°РЅСЃРёРё, РїРѕ РєРѕС‚РѕСЂС‹Рј РѕС‚РїСЂР°РІР»РµРЅРѕ СЂРµР·СЋРјРµ (send_resume = TRUE),
+    РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РїРѕ РґР°С‚Рµ РѕС‚РєР»РёРєР°.
     """
     with psycopg2.connect(
         dbname=DB_NAME,
@@ -162,6 +182,7 @@ def get_sent_resume_vacancies() -> list[dict]:
         host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
+        ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
             SELECT
@@ -188,7 +209,8 @@ def get_sent_resume_vacancies() -> list[dict]:
                 feedback,
                 offer_salary,
                 pros,
-                cons
+                cons,
+                updated_at
             FROM get_vacancies
             WHERE send_resume = TRUE
             ORDER BY resume_at DESC NULLS LAST, created_at DESC NULLS LAST
@@ -227,6 +249,7 @@ def get_sent_resume_vacancies() -> list[dict]:
             "offer_salary": row[21],
             "pros": row[22],
             "cons": row[23],
+            "updated_at": row[24].isoformat() if row[24] else None,
         })
     return result
 
@@ -241,6 +264,7 @@ def get_vacancy_details(vacancy_id: str) -> dict | None:
         host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
+        ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
             SELECT
@@ -260,7 +284,8 @@ def get_vacancy_details(vacancy_id: str) -> dict | None:
                 feedback,
                 offer_salary,
                 pros,
-                cons
+                cons,
+                updated_at
             FROM get_vacancies
             WHERE id = %s
             LIMIT 1
@@ -288,6 +313,7 @@ def get_vacancy_details(vacancy_id: str) -> dict | None:
         "offer_salary": row[14],
         "pros": row[15],
         "cons": row[16],
+        "updated_at": row[17].isoformat() if row[17] else None,
     }
 
 
@@ -313,9 +339,10 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
         host=get_resolved_db_host(),
         port=DB_PORT,
     ) as conn, conn.cursor() as cur:
+        ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
-            SELECT hr_name, interview_date, interview_stages, company_type, result, feedback, offer_salary, pros, cons
+            SELECT hr_name, interview_date, interview_stages, company_type, result, feedback, offer_salary, pros, cons, updated_at
             FROM get_vacancies
             WHERE id = %s
             LIMIT 1
@@ -326,7 +353,8 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
         if not existing:
             return {"ok": False, "updated": False, "error": "not_found"}
 
-        current = dict(zip(editable_cols, existing))
+        current = dict(zip(editable_cols, existing[:len(editable_cols)]))
+        current_updated_at = existing[len(editable_cols)]
         normalized = {}
         for key in editable_cols:
             value = incoming.get(key, None)
@@ -348,6 +376,14 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
 
         if has_changes and existing_non_empty and not force_overwrite:
             return {"ok": True, "updated": False, "requires_overwrite": True}
+        if not has_changes:
+            return {
+                "ok": True,
+                "updated": False,
+                "unchanged": True,
+                "requires_overwrite": False,
+                "updated_at": current_updated_at.isoformat() if current_updated_at else None,
+            }
 
         cur.execute(
             """
@@ -361,8 +397,10 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
                 feedback = %s,
                 offer_salary = %s,
                 pros = %s,
-                cons = %s
+                cons = %s,
+                updated_at = NOW()
             WHERE id = %s
+            RETURNING updated_at
             """,
             (
                 normalized["hr_name"],
@@ -377,12 +415,18 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
                 str(vacancy_id),
             )
         )
+        updated_row = cur.fetchone()
         conn.commit()
-        return {"ok": True, "updated": cur.rowcount > 0, "requires_overwrite": False}
+        return {
+            "ok": True,
+            "updated": cur.rowcount > 0,
+            "requires_overwrite": False,
+            "updated_at": updated_row[0].isoformat() if updated_row and updated_row[0] else None,
+        }
 
 
 def save_vacancies(vacancies: list[dict]):
-    logger.info("Сохранение вакансий в БД...")
+    logger.info("РЎРѕС…СЂР°РЅРµРЅРёРµ РІР°РєР°РЅСЃРёР№ РІ Р‘Р”...")
 
     with psycopg2.connect(
         dbname=DB_NAME,
@@ -415,11 +459,11 @@ def save_vacancies(vacancies: list[dict]):
                     v
                 )
             except Exception as e:
-                logger.warning(f"Ошибка сохранения вакансии {v.get('id')}: {e}")
+                logger.warning(f"РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ РІР°РєР°РЅСЃРёРё {v.get('id')}: {e}")
 
         conn.commit()
 
-    logger.info("✅ Сохранение вакансий завершено")
+    logger.info("вњ… РЎРѕС…СЂР°РЅРµРЅРёРµ РІР°РєР°РЅСЃРёР№ Р·Р°РІРµСЂС€РµРЅРѕ")
 
 
 def update_archived_status(
@@ -430,20 +474,20 @@ def update_archived_status(
         backoff_factor: float = 2.0
 ):
     """
-    Проверяет все вакансии в базе:
-    - если id нет в current_vacancy_ids, проверяет через API HH
-    - 404 → удаляем запись из базы
+    РџСЂРѕРІРµСЂСЏРµС‚ РІСЃРµ РІР°РєР°РЅСЃРёРё РІ Р±Р°Р·Рµ:
+    - РµСЃР»Рё id РЅРµС‚ РІ current_vacancy_ids, РїСЂРѕРІРµСЂСЏРµС‚ С‡РµСЂРµР· API HH
+    - 404 в†’ СѓРґР°Р»СЏРµРј Р·Р°РїРёСЃСЊ РёР· Р±Р°Р·С‹
 
-    Параметры:
-        request_delay: задержка между запросами в секундах (по умолчанию 0.2)
-        max_retries: максимальное количество повторных попыток при ошибках
-        backoff_factor: множитель для экспоненциальной задержки при повторах
+    РџР°СЂР°РјРµС‚СЂС‹:
+        request_delay: Р·Р°РґРµСЂР¶РєР° РјРµР¶РґСѓ Р·Р°РїСЂРѕСЃР°РјРё РІ СЃРµРєСѓРЅРґР°С… (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 0.2)
+        max_retries: РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕРІС‚РѕСЂРЅС‹С… РїРѕРїС‹С‚РѕРє РїСЂРё РѕС€РёР±РєР°С…
+        backoff_factor: РјРЅРѕР¶РёС‚РµР»СЊ РґР»СЏ СЌРєСЃРїРѕРЅРµРЅС†РёР°Р»СЊРЅРѕР№ Р·Р°РґРµСЂР¶РєРё РїСЂРё РїРѕРІС‚РѕСЂР°С…
     """
 
     load_dotenv()
     HH_API_URL = os.getenv("HH_API_URL")
 
-    logger.info("Проверка статуса вакансий на архивирование/удаление...")
+    logger.info("РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° РІР°РєР°РЅСЃРёР№ РЅР° Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ/СѓРґР°Р»РµРЅРёРµ...")
 
     with psycopg2.connect(
             dbname=DB_NAME,
@@ -453,7 +497,7 @@ def update_archived_status(
             port=DB_PORT,
     ) as conn, conn.cursor() as cur:
 
-        # Получаем все вакансии, которых нет в текущем списке
+        # РџРѕР»СѓС‡Р°РµРј РІСЃРµ РІР°РєР°РЅСЃРёРё, РєРѕС‚РѕСЂС‹С… РЅРµС‚ РІ С‚РµРєСѓС‰РµРј СЃРїРёСЃРєРµ
         cur.execute(
             """
             SELECT id
@@ -465,39 +509,39 @@ def update_archived_status(
         missing_vacancies = cur.fetchall()
 
         total_missing = len(missing_vacancies)
-        logger.info(f"Найдено {total_missing} вакансий для проверки")
+        logger.info(f"РќР°Р№РґРµРЅРѕ {total_missing} РІР°РєР°РЅСЃРёР№ РґР»СЏ РїСЂРѕРІРµСЂРєРё")
 
         for index, (vac_id,) in enumerate(missing_vacancies, 1):
             api_url = f"{HH_API_URL}/{vac_id}"
 
-            # Добавляем прогресс-лог
+            # Р”РѕР±Р°РІР»СЏРµРј РїСЂРѕРіСЂРµСЃСЃ-Р»РѕРі
             if index % 10 == 0:
-                logger.info(f"Прогресс: проверено {index}/{total_missing} вакансий")
+                logger.info(f"РџСЂРѕРіСЂРµСЃСЃ: РїСЂРѕРІРµСЂРµРЅРѕ {index}/{total_missing} РІР°РєР°РЅСЃРёР№")
 
             for attempt in range(1, max_retries + 1):
                 try:
                     resp = requests.get(api_url, timeout=timeout)
 
                     if resp.status_code == 404:
-                        # Вакансия удалена с HH → удаляем из базы
+                        # Р’Р°РєР°РЅСЃРёСЏ СѓРґР°Р»РµРЅР° СЃ HH в†’ СѓРґР°Р»СЏРµРј РёР· Р±Р°Р·С‹
                         cur.execute("DELETE FROM get_vacancies WHERE id = %s;", (vac_id,))
                         conn.commit()
-                        logger.info(f"Вакансия {vac_id} удалена из базы (404)")
-                        break  # Успешно обработали, выходим из цикла попыток
+                        logger.info(f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} СѓРґР°Р»РµРЅР° РёР· Р±Р°Р·С‹ (404)")
+                        break  # РЈСЃРїРµС€РЅРѕ РѕР±СЂР°Р±РѕС‚Р°Р»Рё, РІС‹С…РѕРґРёРј РёР· С†РёРєР»Р° РїРѕРїС‹С‚РѕРє
 
                     elif resp.status_code in (403, 429):
                         if attempt < max_retries:
-                            # Экспоненциальная задержка при ошибках 403/429
+                            # Р­РєСЃРїРѕРЅРµРЅС†РёР°Р»СЊРЅР°СЏ Р·Р°РґРµСЂР¶РєР° РїСЂРё РѕС€РёР±РєР°С… 403/429
                             wait_time = backoff_factor ** attempt
                             logger.warning(
-                                f"Вакансия {vac_id}: статус {resp.status_code} "
-                                f"(попытка {attempt}/{max_retries}). "
-                                f"Жду {wait_time:.1f} секунд"
+                                f"Р’Р°РєР°РЅСЃРёСЏ {vac_id}: СЃС‚Р°С‚СѓСЃ {resp.status_code} "
+                                f"(РїРѕРїС‹С‚РєР° {attempt}/{max_retries}). "
+                                f"Р–РґСѓ {wait_time:.1f} СЃРµРєСѓРЅРґ"
                             )
                             time.sleep(wait_time)
                         else:
                             logger.warning(
-                                f"Вакансия {vac_id} недоступна (403/429) после {max_retries} попыток, "
+                                f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} РЅРµРґРѕСЃС‚СѓРїРЅР° (403/429) РїРѕСЃР»Рµ {max_retries} РїРѕРїС‹С‚РѕРє, "
                             )
                             break
 
@@ -515,39 +559,39 @@ def update_archived_status(
                                 (datetime.utcnow(), vac_id)
                             )
                             conn.commit()
-                            logger.info(f"Вакансия {vac_id} архивирована по API")
+                            logger.info(f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} Р°СЂС…РёРІРёСЂРѕРІР°РЅР° РїРѕ API")
                         else:
-                            # Если вакансия не архивирована, но мы её не получили в текущем сборе,
-                            # возможно, она просто не попадает под текущие фильтры
-                            # Оставляем её в базе без изменений
-                            logger.debug(f"Вакансия {vac_id} не архивирована")
-                        break  # Успешно обработали, выходим из цикла попыток
+                            # Р•СЃР»Рё РІР°РєР°РЅСЃРёСЏ РЅРµ Р°СЂС…РёРІРёСЂРѕРІР°РЅР°, РЅРѕ РјС‹ РµС‘ РЅРµ РїРѕР»СѓС‡РёР»Рё РІ С‚РµРєСѓС‰РµРј СЃР±РѕСЂРµ,
+                            # РІРѕР·РјРѕР¶РЅРѕ, РѕРЅР° РїСЂРѕСЃС‚Рѕ РЅРµ РїРѕРїР°РґР°РµС‚ РїРѕРґ С‚РµРєСѓС‰РёРµ С„РёР»СЊС‚СЂС‹
+                            # РћСЃС‚Р°РІР»СЏРµРј РµС‘ РІ Р±Р°Р·Рµ Р±РµР· РёР·РјРµРЅРµРЅРёР№
+                            logger.debug(f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} РЅРµ Р°СЂС…РёРІРёСЂРѕРІР°РЅР°")
+                        break  # РЈСЃРїРµС€РЅРѕ РѕР±СЂР°Р±РѕС‚Р°Р»Рё, РІС‹С…РѕРґРёРј РёР· С†РёРєР»Р° РїРѕРїС‹С‚РѕРє
 
                 except requests.exceptions.Timeout:
-                    logger.warning(f"Таймаут при проверке вакансии {vac_id} (попытка {attempt}/{max_retries})")
+                    logger.warning(f"РўР°Р№РјР°СѓС‚ РїСЂРё РїСЂРѕРІРµСЂРєРµ РІР°РєР°РЅСЃРёРё {vac_id} (РїРѕРїС‹С‚РєР° {attempt}/{max_retries})")
                     if attempt < max_retries:
                         time.sleep(backoff_factor ** attempt)
                     continue
 
                 except requests.exceptions.RequestException as e:
-                    logger.warning(f"Ошибка сети при проверке вакансии {vac_id}: {e} (попытка {attempt}/{max_retries})")
+                    logger.warning(f"РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё РїСЂРѕРІРµСЂРєРµ РІР°РєР°РЅСЃРёРё {vac_id}: {e} (РїРѕРїС‹С‚РєР° {attempt}/{max_retries})")
                     if attempt < max_retries:
                         time.sleep(backoff_factor ** attempt)
                     continue
 
                 except Exception as e:
-                    logger.error(f"Неожиданная ошибка при проверке вакансии {vac_id}: {e}")
-                    break  # Выходим из цикла попыток при непредвиденных ошибках
+                    logger.error(f"РќРµРѕР¶РёРґР°РЅРЅР°СЏ РѕС€РёР±РєР° РїСЂРё РїСЂРѕРІРµСЂРєРµ РІР°РєР°РЅСЃРёРё {vac_id}: {e}")
+                    break  # Р’С‹С…РѕРґРёРј РёР· С†РёРєР»Р° РїРѕРїС‹С‚РѕРє РїСЂРё РЅРµРїСЂРµРґРІРёРґРµРЅРЅС‹С… РѕС€РёР±РєР°С…
 
-            # Добавляем задержку между запросами разных вакансий
+            # Р”РѕР±Р°РІР»СЏРµРј Р·Р°РґРµСЂР¶РєСѓ РјРµР¶РґСѓ Р·Р°РїСЂРѕСЃР°РјРё СЂР°Р·РЅС‹С… РІР°РєР°РЅСЃРёР№
             if request_delay > 0 and index < total_missing:
                 time.sleep(request_delay)
 
-        logger.info(f"Проверка статуса вакансий завершена. Обработано {total_missing} вакансий")
+        logger.info(f"РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° РІР°РєР°РЅСЃРёР№ Р·Р°РІРµСЂС€РµРЅР°. РћР±СЂР°Р±РѕС‚Р°РЅРѕ {total_missing} РІР°РєР°РЅСЃРёР№")
 
 
 def init_employers():
-    logger.info("Инициализация таблицы employers...")
+    logger.info("РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚Р°Р±Р»РёС†С‹ employers...")
 
     with psycopg2.connect(
         dbname=DB_NAME,
@@ -572,7 +616,7 @@ def init_employers():
             );
         """)
 
-        # Если не хотим уникальность по name, используем другой подход
+        # Р•СЃР»Рё РЅРµ С…РѕС‚РёРј СѓРЅРёРєР°Р»СЊРЅРѕСЃС‚СЊ РїРѕ name, РёСЃРїРѕР»СЊР·СѓРµРј РґСЂСѓРіРѕР№ РїРѕРґС…РѕРґ
         cur.execute("""
             INSERT INTO employers (name)
             SELECT DISTINCT employer
@@ -583,17 +627,17 @@ def init_employers():
 
         conn.commit()
 
-    logger.info("✅ Таблица employers создана и заполнена")
+    logger.info("вњ… РўР°Р±Р»РёС†Р° employers СЃРѕР·РґР°РЅР° Рё Р·Р°РїРѕР»РЅРµРЅР°")
 
 
 def update_employers(vacancies: list[dict]):
     """
-    Обновляет таблицу employers данными из полученных вакансий с использованием UPSERT.
+    РћР±РЅРѕРІР»СЏРµС‚ С‚Р°Р±Р»РёС†Сѓ employers РґР°РЅРЅС‹РјРё РёР· РїРѕР»СѓС‡РµРЅРЅС‹С… РІР°РєР°РЅСЃРёР№ СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј UPSERT.
     """
-    logger.info("Обновление таблицы employers (UPSERT)...")
+    logger.info("РћР±РЅРѕРІР»РµРЅРёРµ С‚Р°Р±Р»РёС†С‹ employers (UPSERT)...")
 
     if not vacancies:
-        logger.info("Нет вакансий для обновления работодателей")
+        logger.info("РќРµС‚ РІР°РєР°РЅСЃРёР№ РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ СЂР°Р±РѕС‚РѕРґР°С‚РµР»РµР№")
         return
 
     with psycopg2.connect(
@@ -608,14 +652,14 @@ def update_employers(vacancies: list[dict]):
 
         for vacancy in vacancies:
             try:
-                # Проверяем наличие обязательных полей
+                # РџСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РёРµ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹С… РїРѕР»РµР№
                 employer_name = vacancy.get('employer')
                 employer_id = vacancy.get('employer_id')
 
                 if not employer_name:
                     continue
 
-                # Используем UPSERT (ON CONFLICT)
+                # РСЃРїРѕР»СЊР·СѓРµРј UPSERT (ON CONFLICT)
                 cur.execute(
                     """
                     INSERT INTO employers
@@ -647,8 +691,8 @@ def update_employers(vacancies: list[dict]):
                 updated_count += 1
 
             except Exception as e:
-                logger.warning(f"Ошибка при обновлении работодателя {vacancy.get('employer')}: {e}")
+                logger.warning(f"РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё СЂР°Р±РѕС‚РѕРґР°С‚РµР»СЏ {vacancy.get('employer')}: {e}")
 
         conn.commit()
 
-        logger.info(f"✅ Таблица employers обновлена: обработано {updated_count} записей")
+        logger.info(f"вњ… РўР°Р±Р»РёС†Р° employers РѕР±РЅРѕРІР»РµРЅР°: РѕР±СЂР°Р±РѕС‚Р°РЅРѕ {updated_count} Р·Р°РїРёСЃРµР№")

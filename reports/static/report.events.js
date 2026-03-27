@@ -381,13 +381,15 @@ function handleVacancyApplyAction(actionPayload, applyControl) {
                     return;
                 }
                 var nowValue = (apiResult && apiResult.resume_at) ? apiResult.resume_at : new Date().toISOString();
+                var updatedAtValue = (apiResult && apiResult.updated_at) ? apiResult.updated_at : nowValue;
                 document.querySelectorAll('.role-content').forEach(function(roleContent) {
                     var vacancies = (typeof getRoleVacancies === 'function') ? getRoleVacancies(roleContent) : [];
                     (vacancies || []).forEach(function(vacancy) {
                         if (!vacancy) return;
                         if (String(vacancy.id || '') !== String(result.vacancyId || '')) return;
                         vacancy.send_resume = true;
-                        if (!vacancy.resume_at) vacancy.resume_at = nowValue;
+                        vacancy.resume_at = nowValue;
+                        vacancy.updated_at = updatedAtValue;
                     });
                     var responsesBlock = roleContent.querySelector('.my-responses-content');
                     if (responsesBlock && responsesBlock.style.display === 'block' && typeof renderMyResponsesContent === 'function') {
@@ -435,8 +437,10 @@ document.addEventListener('click', function(e) {
         var blockForRemove = removeFavoriteMark.closest('.skills-search-content');
         if (!ddWrap || !blockForRemove) return;
         var favoriteId = removeFavoriteMark.dataset.removeFavorite || '';
+        var favoriteNameNode = removeFavoriteMark.parentElement ? removeFavoriteMark.parentElement.querySelector('.skills-search-favorite-name') : null;
+        var favoriteName = favoriteNameNode ? String(favoriteNameNode.textContent || '').trim() : '';
         if (!favoriteId) return;
-        confirmSkillsSearchFavoriteDelete().then(function(shouldDelete) {
+        confirmSkillsSearchFavoriteDelete(favoriteName).then(function(shouldDelete) {
             if (!shouldDelete) return;
             removeCurrentSkillsSearchFavorite(blockForRemove, favoriteId);
             ddWrap.classList.add('open');
@@ -810,6 +814,19 @@ document.addEventListener("DOMContentLoaded", function() {
     syncRoleFilterState();
     updateRoleSelectionUI(selected);
     updateRoleView(selected);
+    if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading && typeof fetchMyResponsesVacancies === 'function') {
+        uiState.my_responses_cache_loading = true;
+        fetchMyResponsesVacancies().then(function() {
+            var activeRole = (typeof getActiveRoleContent === 'function') ? getActiveRoleContent() : null;
+            var activeAnalysis = String(activeRole && activeRole.dataset ? activeRole.dataset.activeAnalysis || '' : '').trim();
+            if (activeRole && /^(skills-search|totals|my-responses|responses-calendar)$/.test(activeAnalysis) && typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+                applyGlobalFiltersToActiveAnalysis(activeRole, activeAnalysis);
+            }
+        }).catch(function() {
+        }).finally(function() {
+            uiState.my_responses_cache_loading = false;
+        });
+    }
     if (typeof applySalaryStatusIcons === 'function') applySalaryStatusIcons(document);
     if (typeof refreshResponsiveViewModes === 'function') refreshResponsiveViewModes(document);
 

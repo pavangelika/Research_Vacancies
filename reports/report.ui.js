@@ -719,6 +719,45 @@ function isRespondedVacancy(vacancy) {
     return !!(vacancy && (normalizeSendResumeValue(vacancy.send_resume) || vacancy.__is_response_item === true));
 }
 
+function syncLocalVacanciesWithResponses(responseItems) {
+    var responseMap = new Map();
+    (responseItems || []).forEach(function(item) {
+        getMyResponseIdCandidates(item).forEach(function(id) {
+            if (!responseMap.has(id)) responseMap.set(id, item || {});
+        });
+    });
+    var roleContents = [];
+    if (typeof getSelectableRoleContents === 'function') {
+        roleContents = getSelectableRoleContents();
+    } else {
+        roleContents = Array.from(document.querySelectorAll('.role-content')).filter(function(node) {
+            return /^role-\d+$/.test(String(node.id || ''));
+        });
+    }
+    roleContents.forEach(function(roleContent) {
+        var vacancies = (typeof getRoleVacancies === 'function') ? getRoleVacancies(roleContent) : [];
+        (vacancies || []).forEach(function(vacancy) {
+            if (!vacancy) return;
+            var matchedResponse = null;
+            getMyResponseIdCandidates(vacancy).some(function(id) {
+                if (!responseMap.has(id)) return false;
+                matchedResponse = responseMap.get(id);
+                return true;
+            });
+            if (matchedResponse) {
+                vacancy.send_resume = true;
+                vacancy.resume_at = matchedResponse.resume_at || null;
+                vacancy.updated_at = matchedResponse.updated_at || vacancy.updated_at || null;
+                vacancy.__is_response_item = true;
+                return;
+            }
+            vacancy.send_resume = false;
+            vacancy.resume_at = null;
+            vacancy.__is_response_item = false;
+        });
+    });
+}
+
 function collectMyResponsesVacancies() {
     var roleContents = [];
     if (typeof getSelectableRoleContents === 'function') {
@@ -766,6 +805,7 @@ function fetchMyResponsesVacancies() {
                 row.__is_response_item = true;
                 return row;
             });
+            syncLocalVacanciesWithResponses(normalizedItems);
             uiState.my_responses_cache = normalizedItems.slice();
             uiState.my_responses_cache_loaded = true;
             return normalizedItems;
@@ -925,6 +965,13 @@ function applyMyResponsesGlobalFilters(parentRole, vacancies) {
             return selectedCurrencies.indexOf(normalizedValue) >= 0;
         });
     }
+    var countryOptions = getGlobalFilterOptions(parentRole, 'country', 'my-responses');
+    var selectedCountries = getResolvedGlobalFilterValues('country', countryOptions);
+    if (selectedCountries.length) {
+        list = list.filter(function(vacancy) {
+            return selectedCountries.indexOf(getMyResponsesCountryFilterValue(vacancy)) >= 0;
+        });
+    }
     var interviewOptions = getGlobalFilterOptions(parentRole, 'interview', 'my-responses');
     var selectedInterviews = getResolvedGlobalFilterValues('interview', interviewOptions);
     if (selectedInterviews.length) {
@@ -975,6 +1022,11 @@ function isArchivedResponseVacancy(item) {
 }
 function getMyResponseStatusLabel(item) {
     return isArchivedResponseVacancy(item) ? 'Архивная' : 'Открытая';
+}
+function getMyResponsesCountryFilterValue(item) {
+    var country = String(item && item.country || '').trim();
+    if (!country) return 'none';
+    return country === 'Россия' ? 'ru' : 'not_ru';
 }
 function normalizeMyResponsesCurrencyFilter(value) {
     var normalized = normalizeTotalsCurrency(value || '');
@@ -1030,6 +1082,16 @@ function parseInterviewDateValue(value) {
     var date = new Date(text);
     if (isNaN(date.getTime())) return null;
     return date;
+}
+function isResponseCalendarPendingResultItem(item) {
+    var interviewDate = parseInterviewDateValue(item && item.interview_date);
+    if (!interviewDate) return false;
+    var interviewDayKey = formatCalendarDayKey(interviewDate);
+    var todayKey = formatCalendarDayKey(new Date());
+    if (!interviewDayKey || interviewDayKey >= todayKey) return false;
+    var updatedAt = parseInterviewDateValue(item && item.updated_at);
+    if (!updatedAt) return true;
+    return formatCalendarDayKey(updatedAt) < interviewDayKey;
 }
 function formatInterviewTimeLabel(value) {
     var date = parseInterviewDateValue(value);
@@ -1100,11 +1162,13 @@ function buildMyResponseSummaryRows(vacancyId, item, source) {
         { label: 'Название', value: merged.name },
         { label: 'Работодатель', value: merged.employer },
         { label: 'Город', value: merged.city },
+        { label: 'Страна', value: merged.country || '—' },
         { label: 'ЗП от', value: formatCompactThousandsValue(merged.salary_from) },
         { label: 'ЗП до', value: formatCompactThousandsValue(merged.salary_to) },
         { label: 'Валюта', value: merged.currency || merged.salary_currency || '—' },
         { label: 'Оффер', value: formatMyResponseOfferValue(merged) },
         { label: 'Дата отклика', value: formatResumeAtValue(merged.resume_at) },
+        { label: 'Дата изменения', value: formatResumeAtValue(merged.updated_at) },
         { label: 'Дата публикации', value: formatResumeAtValue(merged.published_at || merged.created_at) },
         { label: 'Статус', value: getMyResponseStatusLabel(merged) },
         { label: 'Дата архивации', value: formatResumeAtValue(merged.archived_at) }
@@ -1662,8 +1726,7 @@ function buildResponseCalendarLegendHtml() {
             '<span class="response-calendar-legend-chip is-local">Есть событие</span>' +
             '<span class="response-calendar-legend-chip is-today">Сегодня</span>' +
             '<span class="response-calendar-legend-chip is-selected">Выбранный день</span>' +
-            '<span class="response-calendar-legend-chip is-overdue">Просрочено</span>' +
-            '<span class="response-calendar-legend-chip is-missing">Без даты</span>' +
+            '<span class="response-calendar-legend-chip is-overdue">Не внесен результат собеса</span>' +
         '</div>';
 }
 
@@ -1789,38 +1852,21 @@ function buildResponseCalendarUpcomingItems(eventsByDay, dayCount) {
     return buildResponseCalendarDayItems(items);
 }
 
-function buildResponseCalendarOverdueItems(eventsByDay) {
-    var todayKey = formatCalendarDayKey(new Date());
+function buildResponseCalendarPendingResultItems(responses) {
     var items = [];
-    Object.keys(eventsByDay).sort().forEach(function(dayKey) {
-        if (dayKey >= todayKey) return;
-        (eventsByDay[dayKey] || []).forEach(function(item) {
-            items.push(Object.assign({}, item || {}, {
-                week_day_label: formatResponseCalendarRelativeDayLabel(dayKey)
-            }));
-        });
+    (responses || []).forEach(function(item) {
+        if (!isResponseCalendarPendingResultItem(item)) return;
+        var interviewDate = parseInterviewDateValue(item && item.interview_date);
+        var dayKey = formatCalendarDayKey(interviewDate);
+        items.push(Object.assign({}, item || {}, {
+            dayKey: dayKey,
+            week_day_label: formatResponseCalendarRelativeDayLabel(dayKey)
+        }));
     });
     items.sort(function(left, right) {
         return resolveResponseCalendarItemTimestamp(right) - resolveResponseCalendarItemTimestamp(left);
     });
     return items;
-}
-
-function buildResponseCalendarMissingDateHtml(items) {
-    if (!items.length) {
-        return buildResponseCalendarEmptyHtml('Все отклики уже привязаны к датам.');
-    }
-    return items.slice(0, 4).map(function(item) {
-        var itemId = resolveResponseCalendarItemVacancyId(item);
-        return '' +
-            '<button type="button" class="response-calendar-agenda-item is-local is-missing-date" data-vacancy-id="' + escapeHtml(itemId) + '">' +
-                '<div class="response-calendar-agenda-time">Без даты</div>' +
-                '<div class="response-calendar-agenda-content">' +
-                    '<div class="response-calendar-agenda-title">' + escapeHtml(resolveResponseCalendarItemTitle(item)) + '</div>' +
-                    '<div class="response-calendar-agenda-meta">' + buildResponseCalendarMetaHtml(resolveResponseCalendarItemMeta(item), false) + '</div>' +
-                '</div>' +
-            '</button>';
-    }).join('');
 }
 
 function buildResponseCalendarWeekItems(selectedDayKey, eventsByDay) {
@@ -1853,9 +1899,9 @@ function buildResponseCalendarWeekHtml(items) {
     }).join('');
 }
 
-function buildResponseCalendarOverdueHtml(items) {
+function buildResponseCalendarPendingResultHtml(items) {
     if (!items.length) {
-        return buildResponseCalendarEmptyHtml('Просроченных интервью нет.');
+        return buildResponseCalendarEmptyHtml('Все прошедшие собеседования уже обновлены.');
     }
     return items.slice(0, 4).map(function(item) {
         var meta = String(item && item.week_day_label || '').trim();
@@ -1985,7 +2031,16 @@ function submitMyResponseDetailsModal() {
         return resp;
     }).then(function(resp) {
         if (!resp) return;
-        if (resp.ok === true && resp.updated === true) {
+        if (resp.ok === true && resp.requires_overwrite !== true) {
+            if (Array.isArray(uiState.my_responses_cache)) {
+                uiState.my_responses_cache = uiState.my_responses_cache.map(function(item) {
+                    var ids = getMyResponseIdCandidates(item);
+                    if (ids.indexOf(vacancyId) < 0) return item;
+                    return Object.assign({}, item, fields, {
+                        updated_at: resp.updated_at || item.updated_at || null
+                    });
+                });
+            }
             var activeRole = (typeof getActiveRoleContent === 'function') ? getActiveRoleContent() : null;
             if (activeRole) {
                 var button = activeRole.querySelector('.my-responses-details-link[data-vacancy-id="' + vacancyId + '"]');
@@ -2030,7 +2085,7 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
     var nearestItem = monthSummary.nearestItem;
     var unscheduledItems = getResponseCalendarUnscheduledItems(responses);
     var todayEvents = buildResponseCalendarTodayItems(eventsByDay);
-    var overdueItems = buildResponseCalendarOverdueItems(eventsByDay);
+    var pendingResultItems = buildResponseCalendarPendingResultItems(responses);
     uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = effectiveSelectedDay;
 
     var weekdayLabels = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -2066,8 +2121,7 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
     var weekEvents = buildResponseCalendarUpcomingItems(eventsByDay, 7);
     var agendaHtml = buildResponseCalendarAgendaHtml(selectedEvents, monthSummary.total > 0, hasInterviews, nearestItem, unscheduledItems);
     var weekHtml = buildResponseCalendarWeekHtml(weekEvents);
-    var overdueHtml = buildResponseCalendarOverdueHtml(overdueItems);
-    var missingDateHtml = buildResponseCalendarMissingDateHtml(unscheduledItems);
+    var pendingResultHtml = buildResponseCalendarPendingResultHtml(pendingResultItems);
     var todaySectionHtml = selectedIsToday ? '' : (
         '<div class="response-calendar-agenda-section">' +
             '<div class="response-calendar-agenda-head">' +
@@ -2117,15 +2171,9 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
                 '</div>' +
                 '<div class="response-calendar-agenda-section">' +
                     '<div class="response-calendar-agenda-head">' +
-                        '<div class="response-calendar-agenda-title">Просрочено</div>' +
+                        '<div class="response-calendar-agenda-title">Не внесен результат собеса</div>' +
                     '</div>' +
-                    '<div class="response-calendar-agenda-list">' + overdueHtml + '</div>' +
-                '</div>' +
-                '<div class="response-calendar-agenda-section">' +
-                    '<div class="response-calendar-agenda-head">' +
-                        '<div class="response-calendar-agenda-title">Без даты</div>' +
-                    '</div>' +
-                    '<div class="response-calendar-agenda-list">' + missingDateHtml + '</div>' +
+                    '<div class="response-calendar-agenda-list">' + pendingResultHtml + '</div>' +
                 '</div>' +
             '</aside>' +
         '</div>';
@@ -2842,6 +2890,13 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             { value: 'EUR', label: 'EUR' }
         ];
     }
+    if (filterKey === 'country' && isResponsesCalendarAnalysis(current)) {
+        return [
+            { value: 'none', label: 'Не определена' },
+            { value: 'ru', label: 'Россия' },
+            { value: 'not_ru', label: 'Не Россия' }
+        ];
+    }
     if (filterKey === 'currency' && current === 'skills-search') {
         return [
             { value: 'rur', label: 'RUR' },
@@ -3328,10 +3383,10 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     chip.title = '';
     chip.style.display = 'inline-flex';
     chip.style.alignItems = 'center';
-    chip.style.gap = '6px';
+    chip.style.gap = '0.1875rem';
     chip.style.border = '0';
     chip.style.borderRadius = '999px';
-    chip.style.padding = '4px 10px';
+    chip.style.padding = '0.1875rem 0.5rem';
     chip.style.cursor = 'pointer';
     chip.style.userSelect = 'none';
     chip.style.background = isExcluded ? '#fee2e2' : '#eef2f6';
@@ -3356,6 +3411,7 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     removeBtn.style.color = 'inherit';
     removeBtn.style.fontSize = '14px';
     removeBtn.style.lineHeight = '1';
+    removeBtn.style.margin = '0';
     removeBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -3633,7 +3689,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var isRolesFilter = filterKey === 'roles';
-    var allowMulti = ['status', 'currency', 'interview', 'result', 'offer'].indexOf(filterKey) < 0;
+    var allowMulti = ['status', 'country', 'accreditation', 'cover_letter_required', 'has_test', 'interview', 'result', 'offer'].indexOf(filterKey) < 0;
     if (!allowMulti && isGlobalFilterMultiEnabled(filterKey)) {
         setGlobalFilterMultiEnabled(filterKey, false);
     }
@@ -6009,6 +6065,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     }
     if (isResponsesCalendarAnalysis(currentForFilters)) {
         body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false));
@@ -6504,7 +6561,8 @@ function ensureSkillsSearchFavoritesControls(block) {
         header.appendChild(saveBtn);
     }
     saveBtn.classList.add('skills-search-icon-btn');
-    saveBtn.textContent = '⤓';
+    saveBtn.classList.add('skills-search-favorite-action');
+    saveBtn.textContent = '+';
     saveBtn.title = 'Сохранить набор';
     saveBtn.setAttribute('aria-label', 'Сохранить набор');
 
@@ -6519,16 +6577,16 @@ function ensureSkillsSearchFavoritesControls(block) {
         favoriteWrap.className = 'skills-search-dropdown skills-search-favorite-inline';
         favoriteWrap.setAttribute('data-filter', 'favorite');
         favoriteWrap.innerHTML =
-            '<button class="skills-search-dropdown-btn skills-search-icon-btn" type="button" data-value="" title="Избранное" aria-label="Избранное">❤</button>' +
+            '<button class="skills-search-dropdown-btn skills-search-favorite-trigger" type="button" data-value="" title="Наборы" aria-label="Наборы"></button>' +
             '<div class="skills-search-dropdown-menu"></div>';
         header.appendChild(favoriteWrap);
     }
     var favoriteBtn = favoriteWrap.querySelector('.skills-search-dropdown-btn');
     if (favoriteBtn) {
-        favoriteBtn.classList.add('skills-search-icon-btn');
-        favoriteBtn.textContent = '❤';
-        favoriteBtn.title = favoriteBtn.title || 'Избранное';
-        favoriteBtn.setAttribute('aria-label', 'Избранное');
+        favoriteBtn.classList.remove('skills-search-icon-btn');
+        favoriteBtn.classList.add('skills-search-favorite-trigger');
+        favoriteBtn.title = favoriteBtn.title || 'Наборы';
+        favoriteBtn.setAttribute('aria-label', 'Наборы');
     }
 
     var toggleBtn = header.querySelector('.skills-search-toggle');
@@ -6544,10 +6602,23 @@ function setSkillsSearchFavoriteTrigger(dropdown, favoriteName, favoriteId) {
     if (!dropdown) return;
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');
     if (!btn) return;
-    btn.classList.add('skills-search-icon-btn');
+    var state = ensureSkillsSearchFavoritesState();
+    var totalCount = Array.isArray(state.items) ? state.items.length : 0;
+    var hasActive = !!favoriteName && favoriteId && favoriteId !== 'all';
+    var secondaryText = hasActive
+        ? favoriteName
+        : (totalCount ? ('Сохранено: ' + totalCount) : 'Не выбрано');
+    btn.classList.remove('skills-search-icon-btn');
+    btn.classList.add('skills-search-favorite-trigger');
     btn.dataset.value = favoriteId || 'all';
-    btn.textContent = '❤';
-    var title = favoriteName ? ('Избранное: ' + favoriteName) : 'Избранное';
+    btn.dataset.hasSelection = hasActive ? '1' : '0';
+    btn.innerHTML =
+        '<span class="skills-search-favorite-trigger-body">' +
+            '<span class="skills-search-favorite-trigger-title">Наборы</span>' +
+            '<span class="skills-search-favorite-trigger-value">' + escapeHtml(secondaryText) + '</span>' +
+        '</span>' +
+        '<span class="skills-search-favorite-trigger-arrow" aria-hidden="true">▾</span>';
+    var title = hasActive ? ('Набор: ' + favoriteName) : 'Наборы';
     btn.title = title;
     btn.setAttribute('aria-label', title);
 }
@@ -6611,16 +6682,18 @@ function promptSkillsSearchFavoriteName(defaultName) {
         document.addEventListener('keydown', onKeydown, true);
     });
 }
-function confirmSkillsSearchFavoriteDelete() {
+function confirmSkillsSearchFavoriteDelete(favoriteName) {
     return new Promise(function(resolve) {
         var existing = document.querySelector('.skills-favorite-modal-backdrop');
         if (existing && existing.parentElement) existing.parentElement.removeChild(existing);
+        var label = String(favoriteName || '').trim();
+        var titleText = label ? ('Удалить "' + label + '"?') : 'Удалить набор фильтров?';
 
         var backdrop = document.createElement('div');
         backdrop.className = 'skills-favorite-modal-backdrop';
         backdrop.innerHTML =
             '<div class="skills-favorite-modal" role="dialog" aria-modal="true" aria-label="Удаление набора">' +
-                '<div class="skills-favorite-modal-title">Удалить набор фильтров?</div>' +
+                '<div class="skills-favorite-modal-title">' + escapeHtml(titleText) + '</div>' +
                 '<div class="skills-favorite-modal-actions">' +
                     '<button type="button" class="skills-favorite-modal-btn cancel">Отмена</button>' +
                     '<button type="button" class="skills-favorite-modal-btn danger submit">Удалить</button>' +
@@ -7135,8 +7208,12 @@ function ensureSkillsSearchFavoritesState() {
         }).map(function(item) {
             return { id: String(item.id), name: String(item.name), state: item.state };
         }) : [];
+        var activeId = String(parsed.activeId || '');
+        if (items.length && !items.some(function(item) { return item.id === activeId; })) {
+            activeId = items[0].id;
+        }
         uiState.skills_search_favorites = {
-            activeId: String(parsed.activeId || ''),
+            activeId: activeId,
             items: items
         };
     } catch (_e) {
@@ -7254,7 +7331,7 @@ function removeCurrentSkillsSearchFavorite(block, favoriteId) {
     var state = ensureSkillsSearchFavoritesState();
     var before = (state.items || []).length;
     state.items = (state.items || []).filter(function(item) { return item.id !== selectedId; });
-    if (state.activeId === selectedId) state.activeId = '';
+    if (state.activeId === selectedId) state.activeId = state.items.length ? state.items[0].id : '';
     if (state.items.length === before) return false;
     persistSkillsSearchFavoritesState();
     renderSkillsSearchFavoritesDropdown(block);
