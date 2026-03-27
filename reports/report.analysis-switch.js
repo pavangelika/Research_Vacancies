@@ -168,7 +168,6 @@ function handleMyResponsesAnalysisSwitch(ctx) {
     var myResponsesBlock = ctx.blocks.myResponsesBlock;
     if (!myResponsesBlock) return;
     myResponsesBlock.style.display = 'block';
-    setMyResponsesActiveView(ctx.parentRole, 'responses');
     renderMyResponsesContent(ctx.parentRole);
 }
 function handleResponsesCalendarAnalysisSwitch(ctx) {
