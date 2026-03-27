@@ -906,6 +906,22 @@ function applyMyResponsesGlobalFilters(parentRole, vacancies) {
             return selectedCurrencies.indexOf(normalizedValue) >= 0;
         });
     }
+    var interviewOptions = getGlobalFilterOptions(parentRole, 'interview', 'my-responses');
+    var selectedInterviews = getResolvedGlobalFilterValues('interview', interviewOptions);
+    if (selectedInterviews.length) {
+        list = list.filter(function(vacancy) {
+            var interviewValue = hasScheduledInterview(vacancy) ? 'yes' : 'no';
+            return selectedInterviews.indexOf(interviewValue) >= 0;
+        });
+    }
+    var resultOptions = getGlobalFilterOptions(parentRole, 'result', 'my-responses');
+    var selectedResults = getResolvedGlobalFilterValues('result', resultOptions);
+    if (selectedResults.length) {
+        list = list.filter(function(vacancy) {
+            var resultValue = hasResultContent(vacancy) ? 'yes' : 'no';
+            return selectedResults.indexOf(resultValue) >= 0;
+        });
+    }
     var offerOptions = getGlobalFilterOptions(parentRole, 'offer', 'my-responses');
     var selectedOffers = getResolvedGlobalFilterValues('offer', offerOptions);
     if (selectedOffers.length) {
@@ -1208,6 +1224,12 @@ function hasInterviewContent(item) {
         return value !== null && value !== undefined && String(value).trim() !== '';
     });
 }
+function hasScheduledInterview(item) {
+    return !!parseInterviewDateValue(item && item.interview_date);
+}
+function hasResultContent(item) {
+    return !!String((item && item.result) || '').trim();
+}
 function hasOfferContent(item) {
     if (!item || typeof item !== 'object') return false;
     var value = item.offer_salary;
@@ -1343,10 +1365,10 @@ function buildMyResponsesEfficiencyHtml(vacancies) {
     var list = Array.isArray(vacancies) ? vacancies : [];
     var total = list.length;
     var withInterview = list.filter(function(v) {
-        return !!(v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v)));
+        return hasScheduledInterview(v);
     }).length;
     var withResult = list.filter(function(v) {
-        return v && String(v.result || '').trim() !== '';
+        return hasResultContent(v);
     }).length;
     var withSalary = list.filter(function(v) {
         return v && ((v.salary_from !== null && v.salary_from !== undefined && String(v.salary_from).trim() !== '') ||
@@ -1365,8 +1387,8 @@ function buildMyResponsesEfficiencyHtml(vacancies) {
         var role = resolveRoleDisplayName(v && v.role_id, v && v.role_name);
         if (!roleMap[role]) roleMap[role] = { role: role, total: 0, interview: 0, result: 0 };
         roleMap[role].total += 1;
-        if (v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v))) roleMap[role].interview += 1;
-        if (v && String(v.result || '').trim() !== '') roleMap[role].result += 1;
+        if (hasScheduledInterview(v)) roleMap[role].interview += 1;
+        if (hasResultContent(v)) roleMap[role].result += 1;
     });
     var roleRows = Object.keys(roleMap).map(function(k) { return roleMap[k]; })
         .sort(function(a, b) { return (b.total - a.total) || String(a.role).localeCompare(String(b.role), 'ru'); });
@@ -1381,7 +1403,7 @@ function buildMyResponsesEfficiencyHtml(vacancies) {
         .sort(function(a, b) { return (b.total - a.total) || String(a.result).localeCompare(String(b.result), 'ru'); });
 
     var roleTable = roleRows.length
-        ? ('<table class="vacancy-table"><thead><tr><th>Роль</th><th>Откликов</th><th>Собес заполнен</th><th>Результат указан</th></tr></thead><tbody>' +
+        ? ('<table class="vacancy-table"><thead><tr><th>Роль</th><th>Откликов</th><th>Собес назначен</th><th>Результат указан</th></tr></thead><tbody>' +
             roleRows.map(function(r) {
                 return '<tr><td>' + escapeHtml(r.role) + '</td><td>' + r.total + '</td><td>' + r.interview + ' (' + formatPercent(r.interview, r.total) + ')</td><td>' + r.result + ' (' + formatPercent(r.result, r.total) + ')</td></tr>';
             }).join('') +
@@ -1399,7 +1421,7 @@ function buildMyResponsesEfficiencyHtml(vacancies) {
     return '' +
         '<div class="my-responses-kpis">' +
             '<div class="my-responses-kpi"><div class="label">Откликов</div><div class="value">' + total + '</div></div>' +
-            '<div class="my-responses-kpi"><div class="label">Собес заполнен</div><div class="value">' + withInterview + ' <span>' + formatPercent(withInterview, total) + '</span></div></div>' +
+            '<div class="my-responses-kpi"><div class="label">Собес назначен</div><div class="value">' + withInterview + ' <span>' + formatPercent(withInterview, total) + '</span></div></div>' +
             '<div class="my-responses-kpi"><div class="label">Результат указан</div><div class="value">' + withResult + ' <span>' + formatPercent(withResult, total) + '</span></div></div>' +
             '<div class="my-responses-kpi"><div class="label">С оффером</div><div class="value">' + offerCount + ' <span>' + formatPercent(offerCount, total) + '</span></div></div>' +
             '<div class="my-responses-kpi"><div class="label">С указанием ЗП</div><div class="value">' + withSalary + ' <span>' + formatPercent(withSalary, total) + '</span></div></div>' +
@@ -2904,7 +2926,23 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         }
         return buildPeriodFilterOptionsFromVacancies(getRoleVacancies(activeRole) || []);
     }
-    if (filterKey === 'status' && isResponsesCalendarAnalysis(current)) {
+    if (filterKey === 'status') {
+        if (current === 'skills-search') return [];
+        if (!isResponsesCalendarAnalysis(current)) {
+            var statusVacancies = [];
+            if (activeRole.id === 'role-all') {
+                var statusRoleContents = Array.isArray(activeRole.__selectedRoleContents) && activeRole.__selectedRoleContents.length
+                    ? activeRole.__selectedRoleContents.slice()
+                    : getAllRoleContents();
+                statusRoleContents.forEach(function(roleContent) {
+                    statusVacancies = statusVacancies.concat(getRoleVacancies(roleContent) || []);
+                });
+            } else {
+                statusVacancies = (getRoleVacancies(activeRole) || []).slice();
+            }
+            statusVacancies = dedupeVacanciesById(statusVacancies);
+            if (!statusVacancies.length) return [];
+        }
         return [
             { value: 'open', label: 'Открытая' },
             { value: 'archived', label: 'Архивная' }
@@ -2916,6 +2954,18 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             { value: 'RUR', label: 'RUR' },
             { value: 'USD', label: 'USD' },
             { value: 'EUR', label: 'EUR' }
+        ];
+    }
+    if (filterKey === 'interview' && isResponsesCalendarAnalysis(current)) {
+        return [
+            { value: 'no', label: 'Не назначен' },
+            { value: 'yes', label: 'Назначен' }
+        ];
+    }
+    if (filterKey === 'result' && isResponsesCalendarAnalysis(current)) {
+        return [
+            { value: 'no', label: 'Не указан' },
+            { value: 'yes', label: 'Указан' }
         ];
     }
     if (filterKey === 'offer' && isResponsesCalendarAnalysis(current)) {
@@ -3675,7 +3725,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var isRolesFilter = filterKey === 'roles';
-    var allowMulti = ['status', 'currency', 'offer'].indexOf(filterKey) < 0;
+    var allowMulti = ['status', 'currency', 'interview', 'result', 'offer'].indexOf(filterKey) < 0;
     if (!allowMulti && isGlobalFilterMultiEnabled(filterKey)) {
         setGlobalFilterMultiEnabled(filterKey, false);
     }
@@ -4089,6 +4139,22 @@ function filterVacanciesBySelectedExperiences(vacancies, selectedExps) {
     });
 }
 
+function filterVacanciesBySelectedStatuses(vacancies, selectedStatuses) {
+    var list = dedupeVacanciesById((vacancies || []).slice());
+    var values = Array.isArray(selectedStatuses)
+        ? selectedStatuses.map(function(status) { return String(status || '').trim().toLowerCase(); }).filter(Boolean)
+        : [];
+    if (!values.length) return list;
+    var allowed = new Set(values.filter(function(status) {
+        return status === 'open' || status === 'archived';
+    }));
+    if (!allowed.size) return list;
+    return list.filter(function(vacancy) {
+        var statusValue = isArchivedResponseVacancy(vacancy) ? 'archived' : 'open';
+        return allowed.has(statusValue);
+    });
+}
+
 function buildWeekdayTableHtml(days) {
     var rows = (days || []).map(function(day) {
         return '<tr>' +
@@ -4143,9 +4209,12 @@ function renderGlobalSkillsFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'skills-monthly');
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var vacancies = getSkillsSourceVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
 
     Array.from(block.querySelectorAll('.monthly-skills-month-content')).forEach(function(monthDiv) {
         monthDiv.style.display = 'none';
@@ -4217,9 +4286,12 @@ function renderGlobalSalaryFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'salary');
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var vacancies = getRoleVacancies(parentRole);
     vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
     var monthData = buildSalaryMonthFromVacancies(vacancies, periodLabel);
     var summaryExp = (monthData.experiences || []).find(function(exp) { return exp && exp.experience === 'Все'; });
     var entries = summaryExp ? (summaryExp.entries || []) : [];
@@ -4269,11 +4341,14 @@ function renderGlobalActivityFiltered(parentRole) {
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'activity');
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'activity');
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
     var entries = computeActivityEntriesFromVacancies(vacancies);
 
     Array.from(parentRole.querySelectorAll('.month-content.activity-only')).forEach(function(monthDiv) {
@@ -4312,9 +4387,12 @@ function renderGlobalWeekdayFiltered(parentRole) {
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'weekday');
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'weekday');
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
     var weekdays = computeWeekdayStatsFromVacancies(vacancies);
 
     block.dataset.weekdays = JSON.stringify(weekdays || []);
@@ -4355,10 +4433,13 @@ function renderGlobalEmployerFiltered(parentRole) {
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'employer-analysis');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var selectedExps = getResolvedAnalysisExperienceValues(parentRole, 'employer-analysis');
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'employer-analysis');
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, getResolvedAnalysisExperienceLabel(parentRole, 'employer-analysis'));
     var baseVacancies = filterVacanciesBySelectedExperiences(dedupeVacanciesById(getRoleVacancies(parentRole) || []), selectedExps);
+    baseVacancies = filterVacanciesBySelectedStatuses(baseVacancies, selectedStatuses);
     var rows;
     var effectivePeriods = selectedPeriods.filter(function(label) {
         var text = String(label || '').trim();
@@ -4740,7 +4821,7 @@ function totalsBuild14dTrend(vacancies, windowDays) {
         var responded = isRespondedVacancy(v);
         if (responded) {
             b.responses += 1;
-            var hasInterview = !!(v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v));
+            var hasInterview = hasScheduledInterview(v);
             if (hasInterview) b.interviews += 1;
             if (hasOfferContent(v)) b.offers += 1;
         }
@@ -5163,9 +5244,11 @@ function renderMarketTrends(parentRole, mountNode) {
 
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'totals');
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'totals');
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'totals');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var selectedPeriodsForTrends = selectedPeriods.slice();
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var periodLabel = resolveChartPeriodLabel(selectedPeriodsForTrends);
     var hasExplicitExperienceFilter = hasExplicitMarketTrendsExperienceFilter(expOptions);
     var showRoleExperience = !hasExplicitExperienceFilter;
@@ -5236,6 +5319,7 @@ function renderMarketTrends(parentRole, mountNode) {
     if (hasExplicitExperienceFilter) {
         allVacancies = filterVacanciesBySelectedExperiences(allVacancies, selectedExps);
     }
+    allVacancies = filterVacanciesBySelectedStatuses(allVacancies, selectedStatuses);
     var periodFilteredVacancies = filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends);
     if (!periodFilteredVacancies.length) {
         block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
@@ -5269,7 +5353,10 @@ function renderMarketTrends(parentRole, mountNode) {
         roleContents.forEach(function(rc) {
             var list = dedupeVacanciesById(getRoleVacancies(rc) || []);
             if (hasExplicitExperienceFilter || !splitMetricsByExperience) {
-                var filteredList = filterVacanciesBySelectedExperiences(list, selectedExps);
+                var filteredList = filterVacanciesBySelectedStatuses(
+                    filterVacanciesBySelectedExperiences(list, selectedExps),
+                    selectedStatuses
+                );
                 var filteredRow = marketTrendsBuildRoleMetricsWindowed(rc, filteredList, currency, recentStart, recentEnd, prevStart, prevEnd);
                 filteredRow.experience = selectedExps.length === 1 ? String(selectedExps[0] || '').trim() : '';
                 filteredRow.roleAxisId = String(filteredRow.id || '').trim();
@@ -5281,7 +5368,10 @@ function renderMarketTrends(parentRole, mountNode) {
                 if (!expValue) return;
                 var expRow = marketTrendsBuildRoleMetricsWindowed(
                     rc,
-                    filterVacanciesBySelectedExperiences(list, [expValue]),
+                    filterVacanciesBySelectedStatuses(
+                        filterVacanciesBySelectedExperiences(list, [expValue]),
+                        selectedStatuses
+                    ),
                     currency,
                     recentStart,
                     recentEnd,
@@ -5403,6 +5493,7 @@ function renderMarketTrends(parentRole, mountNode) {
         if (hasExplicitExperienceFilter) {
             focusVacancies = filterVacanciesBySelectedExperiences(focusVacancies, selectedExps);
         }
+        focusVacancies = filterVacanciesBySelectedStatuses(focusVacancies, selectedStatuses);
         focusMetrics = marketTrendsBuildRoleMetricsWindowed(focusRoleContent, focusVacancies, currency, recentStartTs, anchorTs, prevStartTs, prevEndTs);
     }
 
@@ -5601,14 +5692,18 @@ function renderGlobalTotalsFiltered(parentRole) {
 
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'totals');
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'totals');
+    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'totals');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
+    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var periodLabel = resolveChartPeriodLabel(selectedPeriods);
     var expLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var contextText = buildChartContextLabel(periodLabel, expLabel);
 
     var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
     vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    var vacancyKpiVacancies = dedupeVacanciesById((vacancies || []).slice());
+    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
     vacancies = dedupeVacanciesById(vacancies || []);
 
     var salaryRows = totalsComputeSalaryByCurrency(vacancies);
@@ -5637,16 +5732,16 @@ function renderGlobalTotalsFiltered(parentRole) {
     var closingWindow = normalizeTotalsClosingWindow(uiState.totals_closing_window);
     uiState.totals_closing_window = closingWindow;
 
-    var totalCount = vacancies.length;
-    var archivedCount = vacancies.filter(function(v) {
+    var totalCount = vacancyKpiVacancies.length;
+    var archivedCount = vacancyKpiVacancies.filter(function(v) {
         return !!(v && (v.archived === true || v.archived === 1 || v.archived === '1' || v.archived === 'true' || v.archived_at));
     }).length;
     var activeCount = Math.max(0, totalCount - archivedCount);
-    var withSalaryCount = vacancies.filter(function(v) {
+    var withSalaryCount = vacancyKpiVacancies.filter(function(v) {
         var val = computeSalaryValue(v || {}, normalizeTotalsCurrency(v && v.currency));
         return val !== null && val !== undefined && isFinite(val);
     }).length;
-    var avgAge = computeAvgLifetimeDays(vacancies || []);
+    var avgAge = computeAvgLifetimeDays(vacancyKpiVacancies || []);
 
     var skillsRows = totalsSortSkillsRows(totalsComputeSkillsCost(vacancies || [], topCurrency), skillsOrder);
     var companyRows = totalsComputeCompanySalaryLeaders(vacancies || [], topCurrency, companyOrder);
@@ -5674,9 +5769,9 @@ function renderGlobalTotalsFiltered(parentRole) {
         return isRespondedVacancy(v);
     });
     var responseInterview = responseRows.filter(function(v) {
-        return !!(v && (v.interview_filled === true || v.interview_filled === 1 || v.interview_filled === 'true' || hasInterviewContent(v)));
+        return hasScheduledInterview(v);
     }).length;
-    var responseResult = responseRows.filter(function(v) { return !!String((v && v.result) || '').trim(); }).length;
+    var responseResult = responseRows.filter(function(v) { return hasResultContent(v); }).length;
     var responseOffer = responseRows.filter(function(v) {
         return hasOfferContent(v);
     }).length;
@@ -5796,7 +5891,7 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '<div class="totals-overview-column totals-overview-column-kpi">' +
                     '<div class="totals-kpis totals-kpis-column">' +
                         '<div class="totals-kpi"><div class="label">Откликов</div><div class="value">' + responseRows.length + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Собес заполнен</div><div class="value">' + responseInterview + '</div></div>' +
+                        '<div class="totals-kpi"><div class="label">Собес назначен</div><div class="value">' + responseInterview + '</div></div>' +
                         '<div class="totals-kpi"><div class="label">Результат указан</div><div class="value">' + responseResult + '</div></div>' +
                         '<div class="totals-kpi"><div class="label">Оффер</div><div class="value">' + responseOffer + '</div></div>' +
                         '<div class="totals-kpi"><div class="label">Отклик→Собес</div><div class="value">' + totalsFormatNumber(responseToInterviewPct) + '%</div></div>' +
@@ -5984,9 +6079,14 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     }
     body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
     body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
+    var statusOptions = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
+    if (statusOptions.length) {
+        body.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
+    }
     if (isResponsesCalendarAnalysis(currentForFilters)) {
-        body.appendChild(createGlobalFilterDropdown('status', 'Статус', getGlobalFilterOptions(activeRole, 'status', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false));
     }
     if (typeof createTotalsTopFilterControl === 'function') {

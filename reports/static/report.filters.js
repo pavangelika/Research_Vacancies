@@ -130,6 +130,10 @@ function syncAllRolesSharedFilterButtons(activeRole, analysisType) {
     host.innerHTML = '';
     host.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', current), false));
     host.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', current), false));
+    var statusOptions = getGlobalFilterOptions(activeRole, 'status', current);
+    if (statusOptions.length) {
+        host.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
+    }
 }
 
 function syncAllRolesSharedPeriodTabs(activeRole, periodValue) {

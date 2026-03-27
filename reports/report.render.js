@@ -234,13 +234,20 @@ function renderAllRolesContainer(container, roleContents) {
     var currentAnalysis = String(container.dataset.activeAnalysis || 'activity').replace(/-all$/, '');
     var selectedPeriods = [];
     var selectedExperiences = [];
+    var selectedStatuses = [];
     if (typeof getGlobalFilterOptions === 'function' && typeof getResolvedGlobalFilterValues === 'function') {
         selectedPeriods = getResolvedGlobalFilterValues('periods', getGlobalFilterOptions(container, 'periods', currentAnalysis));
         selectedExperiences = getResolvedGlobalFilterValues('experiences', getGlobalFilterOptions(container, 'experiences', currentAnalysis));
+        selectedStatuses = getResolvedGlobalFilterValues('status', getGlobalFilterOptions(container, 'status', currentAnalysis));
     }
     var normalizedSelectedExperiences = selectedExperiences.map(function(value) {
         return normalizeExperience(value);
     }).filter(Boolean);
+    var normalizedSelectedStatuses = selectedStatuses.map(function(value) {
+        return String(value || '').trim().toLowerCase();
+    }).filter(function(value) {
+        return value === 'open' || value === 'archived';
+    });
     var baseRoleVacanciesCache = new Map();
     var rolePeriodVacanciesCache = new Map();
 
@@ -280,6 +287,9 @@ function renderAllRolesContainer(container, roleContents) {
                     var exp = normalizeExperience(vacancy && (vacancy._experience || vacancy.experience) || '');
                     return normalizedSelectedExperiences.indexOf(exp) >= 0;
                 });
+            }
+            if (normalizedSelectedStatuses.length && typeof filterVacanciesBySelectedStatuses === 'function') {
+                baseVacancies = filterVacanciesBySelectedStatuses(baseVacancies, normalizedSelectedStatuses);
             }
             baseRoleVacanciesCache.set(roleKey, baseVacancies);
         }
