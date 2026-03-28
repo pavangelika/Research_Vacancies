@@ -1430,9 +1430,11 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     return wrap;
 }
 
-function createTotalsTopFilterControl(activeRole, analysisType) {
-    if (!activeRole || String(analysisType || '') !== 'totals') return null;
-    var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
+function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, controlOptions) {
+    var currentAnalysis = String(analysisType || '').trim();
+    if (!activeRole || (currentAnalysis !== 'totals' && currentAnalysis !== 'skills-search')) return null;
+    var opts = controlOptions || {};
+    var dashboardMode = String(forcedMode || uiState.totals_dashboard_mode || 'overview').trim();
     var isTopMode = dashboardMode === 'top';
     var isMarketTrendsMode = dashboardMode === 'market-trends';
     if (!isTopMode && !isMarketTrendsMode) return null;
@@ -1440,10 +1442,12 @@ function createTotalsTopFilterControl(activeRole, analysisType) {
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control';
 
-    var caption = document.createElement('div');
-    caption.className = 'totals-top-filter-title';
-    caption.textContent = isMarketTrendsMode ? 'Фильтры трендов' : 'Фильтры топа';
-    wrap.appendChild(caption);
+    if (!opts.hideCaption) {
+        var caption = document.createElement('div');
+        caption.className = 'totals-top-filter-title';
+        caption.textContent = isMarketTrendsMode ? 'Фильтры трендов' : 'Фильтры топа';
+        wrap.appendChild(caption);
+    }
 
     if (isTopMode) {
         var limitValue = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
@@ -1544,42 +1548,44 @@ function createTotalsTopFilterControl(activeRole, analysisType) {
         updateRangeProgress(limitValue);
     }
 
-    var currencyWrap = document.createElement('div');
-    currencyWrap.className = 'totals-top-filter-currency';
+    if (!opts.hideCurrency) {
+        var currencyWrap = document.createElement('div');
+        currencyWrap.className = 'totals-top-filter-currency';
 
-    var currencyLabel = document.createElement('div');
-    currencyLabel.className = 'totals-top-filter-subtitle';
-    currencyLabel.textContent = 'Валюта';
-    currencyWrap.appendChild(currencyLabel);
+        var currencyLabel = document.createElement('div');
+        currencyLabel.className = 'totals-top-filter-subtitle';
+        currencyLabel.textContent = 'Валюта';
+        currencyWrap.appendChild(currencyLabel);
 
-    var currencyTabs = document.createElement('div');
-    currencyTabs.className = 'totals-top-filter-chip-row';
-    currencyWrap.appendChild(currencyTabs);
+        var currencyTabs = document.createElement('div');
+        currencyTabs.className = 'totals-top-filter-chip-row';
+        currencyWrap.appendChild(currencyTabs);
 
-    var currencyStateKey = isMarketTrendsMode ? 'market_trends_currency' : 'totals_top_currency';
-    var currentCurrency = normalizeTotalsCurrency(uiState[currencyStateKey] || 'RUR');
-    uiState[currencyStateKey] = currentCurrency;
-    var currencyButtons = [];
-    ['RUR', 'USD', 'EUR'].forEach(function(currency) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'totals-top-filter-chip';
-        button.textContent = currency;
-        button.setAttribute('aria-pressed', currency === currentCurrency ? 'true' : 'false');
-        if (currency === currentCurrency) button.classList.add('active');
-        button.addEventListener('click', function() {
-            if (uiState[currencyStateKey] === currency) return;
-            uiState[currencyStateKey] = currency;
-            currencyButtons.forEach(function(other) {
-                other.classList.toggle('active', other === button);
-                other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+        var currencyStateKey = isMarketTrendsMode ? 'market_trends_currency' : 'totals_top_currency';
+        var currentCurrency = normalizeTotalsCurrency(uiState[currencyStateKey] || 'RUR');
+        uiState[currencyStateKey] = currentCurrency;
+        var currencyButtons = [];
+        ['RUR', 'USD', 'EUR'].forEach(function(currency) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'totals-top-filter-chip';
+            button.textContent = currency;
+            button.setAttribute('aria-pressed', currency === currentCurrency ? 'true' : 'false');
+            if (currency === currentCurrency) button.classList.add('active');
+            button.addEventListener('click', function() {
+                if (uiState[currencyStateKey] === currency) return;
+                uiState[currencyStateKey] = currency;
+                currencyButtons.forEach(function(other) {
+                    other.classList.toggle('active', other === button);
+                    other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+                });
+                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            currencyButtons.push(button);
+            currencyTabs.appendChild(button);
         });
-        currencyButtons.push(button);
-        currencyTabs.appendChild(button);
-    });
-    wrap.appendChild(currencyWrap);
+        wrap.appendChild(currencyWrap);
+    }
 
     if (isMarketTrendsMode) {
         var metricWrap = document.createElement('div');
@@ -1630,9 +1636,63 @@ function createTotalsTopFilterControl(activeRole, analysisType) {
     return wrap;
 }
 
-function createMarketTrendsExcludedRolesControl(activeRole, analysisType) {
-    if (!activeRole || String(analysisType || '') !== 'totals') return null;
-    if (String(uiState.totals_dashboard_mode || 'overview').trim() !== 'market-trends') return null;
+function createSalaryMetricFilterControl(activeRole, analysisType) {
+    var currentAnalysis = String(analysisType || '').trim();
+    if (!activeRole || currentAnalysis !== 'skills-search') return null;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'totals-top-filter-control';
+
+    var metricWrap = document.createElement('div');
+    metricWrap.className = 'totals-top-filter-currency';
+
+    var metricLabel = document.createElement('div');
+    metricLabel.className = 'totals-top-filter-subtitle';
+    metricLabel.textContent = 'Зарплата';
+    metricWrap.appendChild(metricLabel);
+
+    var metricTabs = document.createElement('div');
+    metricTabs.className = 'totals-top-filter-chip-row';
+    metricWrap.appendChild(metricTabs);
+
+    var currentMetric = String(uiState.market_trends_salary_metric || 'median').toLowerCase();
+    if (['min', 'max', 'avg', 'median', 'mode'].indexOf(currentMetric) < 0) currentMetric = 'median';
+    uiState.market_trends_salary_metric = currentMetric;
+    var metricButtons = [];
+    [
+        { value: 'min', label: 'Мин' },
+        { value: 'avg', label: 'Средн' },
+        { value: 'median', label: 'Медиана' },
+        { value: 'mode', label: 'Мода' },
+        { value: 'max', label: 'Макс' }
+    ].forEach(function(metric) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'totals-top-filter-chip';
+        button.textContent = metric.label;
+        button.setAttribute('aria-pressed', metric.value === currentMetric ? 'true' : 'false');
+        if (metric.value === currentMetric) button.classList.add('active');
+        button.addEventListener('click', function() {
+            if (uiState.market_trends_salary_metric === metric.value) return;
+            uiState.market_trends_salary_metric = metric.value;
+            metricButtons.forEach(function(other) {
+                other.classList.toggle('active', other === button);
+                other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+            });
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+        });
+        metricButtons.push(button);
+        metricTabs.appendChild(button);
+    });
+    wrap.appendChild(metricWrap);
+
+    return wrap;
+}
+
+function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceVisible) {
+    var currentAnalysis = String(analysisType || '').trim();
+    if (!activeRole || (currentAnalysis !== 'totals' && currentAnalysis !== 'skills-search')) return null;
+    if (!forceVisible && String(uiState.totals_dashboard_mode || 'overview').trim() !== 'market-trends') return null;
 
     var roleOptions = (typeof getRoleMetaList === 'function')
         ? getRoleMetaList().map(function(item) {

@@ -2903,7 +2903,6 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
     }
     if (filterKey === 'country' && current === 'skills-search') {
         return [
-            { value: 'none', label: 'Не определена' },
             { value: 'ru', label: 'Россия' },
             { value: 'not_ru', label: 'Не Россия' }
         ];
@@ -2914,22 +2913,22 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             { value: 'false', label: 'Нет' }
         ];
     }
-    if (filterKey === 'interview' && isResponsesCalendarAnalysis(current)) {
+    if (filterKey === 'interview' && (isResponsesCalendarAnalysis(current) || current === 'skills-search')) {
         return [
             { value: 'no', label: 'Не назначен' },
             { value: 'yes', label: 'Назначен' }
         ];
     }
-    if (filterKey === 'result' && isResponsesCalendarAnalysis(current)) {
+    if (filterKey === 'result' && (isResponsesCalendarAnalysis(current) || current === 'skills-search')) {
         return [
             { value: 'no', label: 'Не указан' },
             { value: 'yes', label: 'Указан' }
         ];
     }
-    if (filterKey === 'offer' && isResponsesCalendarAnalysis(current)) {
+    if (filterKey === 'offer' && (isResponsesCalendarAnalysis(current) || current === 'skills-search')) {
         return [
-            { value: 'no', label: 'Не указан' },
-            { value: 'yes', label: 'Есть' }
+            { value: 'no', label: 'Нет' },
+            { value: 'yes', label: 'Да' }
         ];
     }
     if (filterKey === 'experiences') {
@@ -6013,6 +6012,54 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
     else if (current === 'totals') renderGlobalTotalsFiltered(parentRole);
 }
 
+function createSharedFilterGroup(title, nodes) {
+    var items = (nodes || []).filter(function(node) { return !!node; });
+    if (!items.length) return null;
+
+    var wrap = document.createElement('section');
+    wrap.className = 'shared-filter-group';
+    wrap.style.display = 'flex';
+    wrap.style.flexDirection = 'column';
+    wrap.style.gap = '6px';
+    wrap.style.flex = '1 1 100%';
+    wrap.style.width = '100%';
+    wrap.style.maxWidth = '100%';
+    wrap.style.padding = '6px 8px';
+    wrap.style.border = '1px solid rgba(148, 163, 184, 0.14)';
+    wrap.style.borderRadius = '12px';
+    wrap.style.background = 'rgba(248, 250, 252, 0.82)';
+    wrap.style.boxSizing = 'border-box';
+
+    var titleText = String(title || '').trim();
+    if (titleText) {
+        var heading = document.createElement('div');
+        heading.className = 'shared-filter-group-title';
+        heading.textContent = titleText;
+        heading.style.fontSize = '10px';
+        heading.style.fontWeight = '700';
+        heading.style.color = '#64748b';
+        heading.style.textTransform = 'none';
+        wrap.appendChild(heading);
+    }
+
+    var body = document.createElement('div');
+    body.className = 'shared-filter-group-body';
+    body.style.display = 'flex';
+    body.style.flexWrap = 'wrap';
+    body.style.alignItems = 'flex-start';
+    body.style.gap = '5px';
+    body.style.width = '100%';
+    body.style.maxWidth = '100%';
+    body.style.boxSizing = 'border-box';
+
+    items.forEach(function(node) {
+        body.appendChild(node);
+    });
+
+    wrap.appendChild(body);
+    return wrap;
+}
+
 function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     var activeRole = getActiveRoleContent(parentRole);
     hideSharedFilterSources(activeRole);
@@ -6034,29 +6081,104 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
             node.classList.toggle('skills-search-managed-by-panel', currentForFilters === 'skills-search');
         });
     }
-    if (currentForFilters === 'skills-search' && typeof createSkillsSearchFavoritesControl === 'function') {
-        var skillsFavoritesControl = createSkillsSearchFavoritesControl(activeRole, currentForFilters);
-        if (skillsFavoritesControl) body.appendChild(skillsFavoritesControl);
-    }
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
-    body.appendChild(createUnifiedRolesControl(activeRole, currentForFilters));
-    if (typeof createMarketTrendsExcludedRolesControl === 'function') {
+    if (currentForFilters === 'skills-search') {
+        var rolesControl = createUnifiedRolesControl(activeRole, currentForFilters);
+        var trendsExcludedRolesControlForSkills = (typeof createMarketTrendsExcludedRolesControl === 'function')
+            ? createMarketTrendsExcludedRolesControl(activeRole, currentForFilters, true)
+            : null;
+        var periodsControl = createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false);
+        var experiencesControl = createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false);
+        var statusOptionsForSkills = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
+        var statusControlForSkills = statusOptionsForSkills.length
+            ? createGlobalFilterDropdown('status', 'Статус', statusOptionsForSkills, false)
+            : null;
+        var currencyControlForSkills = createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false);
+        var countryControlForSkills = createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false);
+        var interviewControlForSkills = createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false);
+        var resultControlForSkills = createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false);
+        var offerControlForSkills = createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false);
+        var topControlForSkills = (typeof createTotalsTopFilterControl === 'function')
+            ? createTotalsTopFilterControl(activeRole, currentForFilters, 'top', { hideCaption: true, hideCurrency: true })
+            : null;
+        var salaryMetricControlForSkills = (typeof createSalaryMetricFilterControl === 'function')
+            ? createSalaryMetricFilterControl(activeRole, currentForFilters)
+            : null;
+        var accreditationControl = createGlobalFilterDropdown('accreditation', 'ИТ-аккредитация', getGlobalFilterOptions(activeRole, 'accreditation', currentForFilters), false);
+        var coverLetterControl = createGlobalFilterDropdown('cover_letter_required', 'Сопроводительное письмо', getGlobalFilterOptions(activeRole, 'cover_letter_required', currentForFilters), false);
+        var hasTestControl = createGlobalFilterDropdown('has_test', 'Тестовое задание', getGlobalFilterOptions(activeRole, 'has_test', currentForFilters), false);
+        var favoritesControl = (typeof createSkillsSearchFavoritesControl === 'function')
+            ? createSkillsSearchFavoritesControl(activeRole, currentForFilters)
+            : null;
+        var skillsLogicControl = (typeof createSkillsSearchLogicControl === 'function')
+            ? createSkillsSearchLogicControl(activeRole, currentForFilters)
+            : null;
+        var skillsIncludeControl = (typeof createSkillsSearchSelectionControl === 'function')
+            ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'include')
+            : null;
+        var skillsExcludeControl = (typeof createSkillsSearchSelectionControl === 'function')
+            ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude')
+            : null;
+
+        var favoritesGroup = createSharedFilterGroup('Мои фильтры', [
+            favoritesControl
+        ]);
+        if (favoritesGroup) body.appendChild(favoritesGroup);
+
+        var roleGroup = createSharedFilterGroup('Фильтры роли', [
+            rolesControl,
+            trendsExcludedRolesControlForSkills,
+            periodsControl,
+            experiencesControl,
+            statusControlForSkills
+        ]);
+        if (roleGroup) body.appendChild(roleGroup);
+
+        var salaryGroup = createSharedFilterGroup('Фильтры зарплаты', [
+            currencyControlForSkills,
+            countryControlForSkills,
+            salaryMetricControlForSkills
+        ]);
+        if (salaryGroup) body.appendChild(salaryGroup);
+
+        var responsesGroup = createSharedFilterGroup('Фильтры откликов', [
+            interviewControlForSkills,
+            resultControlForSkills,
+            offerControlForSkills
+        ]);
+        if (responsesGroup) body.appendChild(responsesGroup);
+
+        var topGroup = createSharedFilterGroup('', [topControlForSkills]);
+        if (topGroup) body.appendChild(topGroup);
+
+        var vacancyGroup = createSharedFilterGroup('Фильтры вакансии', [
+            accreditationControl,
+            coverLetterControl,
+            hasTestControl
+        ]);
+        if (vacancyGroup) body.appendChild(vacancyGroup);
+
+        var skillsGroup = createSharedFilterGroup('Фильтр навыки', [
+            skillsLogicControl,
+            skillsIncludeControl,
+            skillsExcludeControl
+        ]);
+        if (skillsGroup) body.appendChild(skillsGroup);
+    } else {
+        body.appendChild(createUnifiedRolesControl(activeRole, currentForFilters));
+    }
+    if (currentForFilters !== 'skills-search' && typeof createMarketTrendsExcludedRolesControl === 'function') {
         var trendsExcludedRolesControl = createMarketTrendsExcludedRolesControl(activeRole, currentForFilters);
         if (trendsExcludedRolesControl) body.appendChild(trendsExcludedRolesControl);
     }
-    body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
-    body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
-    var statusOptions = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
-    if (statusOptions.length) {
-        body.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
-    }
-    if (currentForFilters === 'skills-search') {
-        body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('accreditation', 'ИТ-аккредитация', getGlobalFilterOptions(activeRole, 'accreditation', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('cover_letter_required', 'Сопроводительное письмо', getGlobalFilterOptions(activeRole, 'cover_letter_required', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('has_test', 'Тестовое задание', getGlobalFilterOptions(activeRole, 'has_test', currentForFilters), false));
+    if (currentForFilters !== 'skills-search') {
+        body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
+        body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
+        var statusOptions = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
+        if (statusOptions.length) {
+            body.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
+        }
     }
     if (isResponsesCalendarAnalysis(currentForFilters)) {
         body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
@@ -6065,19 +6187,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         body.appendChild(createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false));
         body.appendChild(createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false));
     }
-    if (currentForFilters === 'skills-search') {
-        if (typeof createSkillsSearchLogicControl === 'function') {
-            var skillsLogicControl = createSkillsSearchLogicControl(activeRole, currentForFilters);
-            if (skillsLogicControl) body.appendChild(skillsLogicControl);
-        }
-        if (typeof createSkillsSearchSelectionControl === 'function') {
-            var skillsIncludeControl = createSkillsSearchSelectionControl(activeRole, currentForFilters, 'include');
-            if (skillsIncludeControl) body.appendChild(skillsIncludeControl);
-            var skillsExcludeControl = createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude');
-            if (skillsExcludeControl) body.appendChild(skillsExcludeControl);
-        }
-    }
-    if (typeof createTotalsTopFilterControl === 'function') {
+    if (currentForFilters !== 'skills-search' && typeof createTotalsTopFilterControl === 'function') {
         var totalsTopControl = createTotalsTopFilterControl(activeRole, currentForFilters);
         if (totalsTopControl) body.appendChild(totalsTopControl);
     }
@@ -6488,7 +6598,6 @@ function initSkillsSearch(parentRole) {
     var countryDropdown = block.querySelector('.skills-search-dropdown[data-filter="country"]');
     if (countryDropdown && !countryDropdown.dataset.ready) {
         var countryItems = [
-            { value: 'none', label: '\u041d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u0430' },
             { value: 'ru', label: '\u0420\u043e\u0441\u0441\u0438\u044f' },
             { value: 'not_ru', label: '\u041d\u0435 \u0420\u043e\u0441\u0441\u0438\u044f' }
         ];
@@ -6990,6 +7099,9 @@ function updateSkillsSearchData(block) {
     var globalStatusOptions = getGlobalFilterOptions(parentRole, 'status', 'skills-search');
     var globalCurrencyOptions = getGlobalFilterOptions(parentRole, 'currency', 'skills-search');
     var globalCountryOptions = getGlobalFilterOptions(parentRole, 'country', 'skills-search');
+    var globalInterviewOptions = getGlobalFilterOptions(parentRole, 'interview', 'skills-search');
+    var globalResultOptions = getGlobalFilterOptions(parentRole, 'result', 'skills-search');
+    var globalOfferOptions = getGlobalFilterOptions(parentRole, 'offer', 'skills-search');
     var globalAccreditationOptions = getGlobalFilterOptions(parentRole, 'accreditation', 'skills-search');
     var globalCoverOptions = getGlobalFilterOptions(parentRole, 'cover_letter_required', 'skills-search');
     var globalHasTestOptions = getGlobalFilterOptions(parentRole, 'has_test', 'skills-search');
@@ -6998,6 +7110,9 @@ function updateSkillsSearchData(block) {
     var selectedGlobalStatuses = getResolvedGlobalFilterValues('status', globalStatusOptions);
     var selectedGlobalCurrencies = getResolvedGlobalFilterValues('currency', globalCurrencyOptions);
     var selectedGlobalCountries = getResolvedGlobalFilterValues('country', globalCountryOptions);
+    var selectedGlobalInterview = getResolvedGlobalFilterValues('interview', globalInterviewOptions);
+    var selectedGlobalResult = getResolvedGlobalFilterValues('result', globalResultOptions);
+    var selectedGlobalOffer = getResolvedGlobalFilterValues('offer', globalOfferOptions);
     var selectedGlobalAccreditation = getResolvedGlobalFilterValues('accreditation', globalAccreditationOptions);
     var selectedGlobalCover = getResolvedGlobalFilterValues('cover_letter_required', globalCoverOptions);
     var selectedGlobalHasTest = getResolvedGlobalFilterValues('has_test', globalHasTestOptions);
@@ -7057,6 +7172,18 @@ function updateSkillsSearchData(block) {
             var globalStatus = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
             var globalStatusKey = globalStatus === 'Архивная' ? 'archived' : 'open';
             if (selectedGlobalStatuses.indexOf(globalStatusKey) < 0) return false;
+        }
+        if (selectedGlobalInterview.length) {
+            var interviewKey = hasScheduledInterview(v) ? 'yes' : 'no';
+            if (selectedGlobalInterview.indexOf(interviewKey) < 0) return false;
+        }
+        if (selectedGlobalResult.length) {
+            var resultKey = hasResultContent(v) ? 'yes' : 'no';
+            if (selectedGlobalResult.indexOf(resultKey) < 0) return false;
+        }
+        if (selectedGlobalOffer.length) {
+            var offerKey = hasOfferContent(v) ? 'yes' : 'no';
+            if (selectedGlobalOffer.indexOf(offerKey) < 0) return false;
         }
         if (statusVal !== 'all') {
             var status = v._status || (v.archived_at ? '????????' : '????????');
