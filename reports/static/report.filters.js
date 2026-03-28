@@ -651,97 +651,36 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
     toolbar.appendChild(modeWrap);
 
     var logicWrap = document.createElement('div');
-    logicWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-top-logic-dropdown';
+    logicWrap.className = 'skills-search-logic-control skills-search-top-logic-control';
     logicWrap.style.flex = '0 0 auto';
     logicWrap.style.minWidth = '132px';
     logicWrap.style.width = '132px';
 
-    var logicTrigger = document.createElement('button');
-    logicTrigger.type = 'button';
-    logicTrigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    logicTrigger.style.width = '100%';
-    logicTrigger.style.borderRadius = '999px';
-    logicTrigger.style.padding = '5px 10px';
-    logicTrigger.style.minHeight = '34px';
-    logicTrigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    logicTrigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    logicTrigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    logicTrigger.style.display = 'flex';
-    logicTrigger.style.alignItems = 'center';
-    logicTrigger.style.justifyContent = 'space-between';
-
-    var logicLabel = document.createElement('span');
-    logicLabel.className = 'global-filter-trigger-label';
-    logicLabel.textContent = 'Логика: ' + String(state.logic || 'or').trim().toUpperCase();
-    logicLabel.style.overflow = 'hidden';
-    logicLabel.style.textOverflow = 'ellipsis';
-    logicLabel.style.whiteSpace = 'nowrap';
-    logicLabel.style.maxWidth = 'calc(100% - 18px)';
-    logicTrigger.appendChild(logicLabel);
-
-    var logicArrow = document.createElement('span');
-    logicArrow.className = 'global-filter-trigger-arrow';
-    logicArrow.textContent = '\u25BE';
-    logicArrow.style.fontSize = '12px';
-    logicArrow.style.opacity = '0.8';
-    logicTrigger.appendChild(logicArrow);
-    logicWrap.appendChild(logicTrigger);
-
-    var logicMenu = document.createElement('div');
-    logicMenu.className = 'global-filter-menu skills-search-dropdown-menu';
-    logicMenu.style.display = 'none';
-    logicMenu.style.marginTop = '0';
-    logicMenu.style.padding = '6px';
-    logicMenu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    logicMenu.style.borderRadius = '12px';
-    logicMenu.style.background = 'var(--card-background, #fff)';
-    logicMenu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    logicMenu.style.width = '132px';
-    logicMenu.style.maxWidth = 'calc(100vw - 48px)';
+    var logicSegmented = document.createElement('div');
+    logicSegmented.className = 'skills-search-logic-segmented';
+    logicWrap.appendChild(logicSegmented);
 
     [
-        { value: 'or', label: 'OR' },
-        { value: 'and', label: 'AND' }
-    ].forEach(function(item, idx) {
+        { value: 'or', label: 'ИЛИ' },
+        { value: 'and', label: 'И' }
+    ].forEach(function(item) {
         var option = document.createElement('button');
         option.type = 'button';
-        option.className = 'tab-button summary-filter-item global-filter-option-row';
+        option.className = 'skills-search-logic-option';
         option.textContent = item.label;
-        option.style.display = 'block';
-        option.style.width = '100%';
-        option.style.boxSizing = 'border-box';
-        option.style.margin = idx < 1 ? '0 0 2px' : '0';
-        option.style.textAlign = 'left';
-        option.style.borderRadius = '8px';
-        option.style.padding = '5px 8px';
-        if (item.value === state.logic) {
-            option.classList.add('active');
-            option.style.fontWeight = '600';
-        }
+        option.setAttribute('aria-pressed', item.value === state.logic ? 'true' : 'false');
+        if (item.value === state.logic) option.classList.add('active');
         option.addEventListener('click', function() {
+            if (item.value === ((typeof getSkillsSearchSelections === 'function') ? getSkillsSearchSelections(block).logic : state.logic)) return;
             if (typeof applySkillsSearchSkillState === 'function') {
                 applySkillsSearchSkillState(block, state.includeSkills || [], state.excludeSkills || [], item.value);
             }
             if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
             if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
-            logicMenu.style.display = 'none';
-            if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(logicMenu);
-            logicArrow.textContent = '\u25BE';
         });
-        logicMenu.appendChild(option);
+        logicSegmented.appendChild(option);
     });
 
-    logicTrigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var nextState = logicMenu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(logicMenu, nextState === 'block' ? logicArrow : null);
-        logicMenu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(logicTrigger, logicMenu);
-        else if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(logicMenu);
-        logicArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
-    });
-
-    logicWrap.appendChild(logicMenu);
     toolbar.appendChild(logicWrap);
 
     var actionWrap = document.createElement('div');
@@ -848,34 +787,28 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel';
     wrap.dataset.filterKey = 'skills-search-favorites';
-    wrap.style.marginTop = '4px';
+    wrap.style.marginTop = '0';
     wrap.style.flex = '1 1 320px';
     wrap.style.minWidth = '0';
     wrap.style.width = '100%';
     wrap.style.maxWidth = '100%';
-
-    var caption = document.createElement('div');
-    caption.className = 'skills-search-favorites-panel-caption';
-    caption.textContent = 'Мои фильтры';
-    wrap.appendChild(caption);
 
     var row = document.createElement('div');
     row.className = 'skills-search-favorites-panel-row';
 
     var dropdownWrap = document.createElement('div');
     dropdownWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel-picker-wrap';
-    dropdownWrap.style.flex = '0 0 auto';
-    dropdownWrap.style.minWidth = 'auto';
+    dropdownWrap.style.flex = '1 1 168px';
+    dropdownWrap.style.minWidth = '168px';
+    dropdownWrap.style.width = '100%';
 
     var trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn skills-search-icon-btn skills-search-favorites-panel-action skills-search-favorites-panel-picker';
-    trigger.textContent = '\u2661';
-    trigger.title = 'Сохраненные наборы';
-    trigger.setAttribute('aria-label', 'Сохраненные наборы');
+    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn skills-search-favorite-trigger skills-search-favorites-panel-action skills-search-favorites-panel-picker';
+    trigger.title = 'Наборы';
+    trigger.setAttribute('aria-label', 'Наборы');
     trigger.setAttribute('aria-haspopup', 'menu');
     trigger.setAttribute('aria-expanded', 'false');
-    applyGlobalFilterIconButtonStyle(trigger, false);
     dropdownWrap.appendChild(trigger);
     row.appendChild(dropdownWrap);
 
@@ -927,6 +860,23 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
         saveBtn.setAttribute('aria-disabled', hasValue ? 'false' : 'true');
     }
 
+    function syncFavoritesTrigger(activeItem, totalCount) {
+        var secondaryText = activeItem
+            ? String(activeItem.name || '').trim()
+            : (totalCount ? ('Сохранено: ' + totalCount) : 'Не выбрано');
+        var hasSelection = !!(activeItem && activeItem.id);
+        trigger.classList.toggle('is-active', hasSelection);
+        trigger.dataset.hasSelection = hasSelection ? '1' : '0';
+        trigger.innerHTML =
+            '<span class="skills-search-favorite-trigger-body">' +
+                '<span class="skills-search-favorite-trigger-title">Наборы</span>' +
+                '<span class="skills-search-favorite-trigger-value">' + escapeHtml(secondaryText) + '</span>' +
+            '</span>' +
+            '<span class="skills-search-favorite-trigger-arrow" aria-hidden="true">\u25BE</span>';
+        trigger.title = hasSelection ? ('Набор: ' + secondaryText) : 'Наборы';
+        trigger.setAttribute('aria-label', hasSelection ? ('Наборы, выбран: ' + secondaryText) : 'Наборы');
+    }
+
     function commitFavoriteSave() {
         var nextName = String(input.value || '').trim();
         if (!nextName) {
@@ -950,11 +900,8 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
         var activeItem = activeId
             ? (items.find(function(item) { return item.id === activeId; }) || null)
             : null;
-        trigger.classList.toggle('is-active', !!activeItem);
-        trigger.textContent = activeItem ? '\u2665' : '\u2661';
+        syncFavoritesTrigger(activeItem, items.length);
         input.placeholder = activeItem ? activeItem.name : 'Сохранить фильтр';
-        trigger.title = activeItem ? ('Мои фильтры: ' + activeItem.name) : 'Мои фильтры';
-        trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = activeItem ? ('Сохранить текущий фильтр: ' + activeItem.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
         syncSaveButtonState();
@@ -963,8 +910,9 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
 
         var clearBtn = document.createElement('button');
         clearBtn.type = 'button';
-        clearBtn.className = 'skills-search-dropdown-item global-filter-option-row';
+        clearBtn.className = 'skills-search-dropdown-item global-filter-option-row global-filter-option-clear skills-search-favorite-panel-clear';
         clearBtn.textContent = 'Не выбрано';
+        if (!activeItem) clearBtn.classList.add('active');
         clearBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             favoritesState.activeId = '';
@@ -1051,84 +999,30 @@ function createSkillsSearchLogicControl(activeRole, analysisType) {
     if (!ctx) return null;
 
     var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-top-logic-control';
+    wrap.className = 'skills-search-logic-control skills-search-top-logic-control';
     wrap.dataset.filterKey = 'logic';
-    wrap.style.marginTop = '4px';
+    wrap.style.marginTop = '0';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
+    wrap.style.minWidth = 'auto';
+    wrap.style.width = 'auto';
 
-    var caption = document.createElement('div');
-    caption.textContent = 'Логика';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
-    wrap.appendChild(caption);
-
-    var trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    trigger.style.width = '100%';
-    trigger.style.borderRadius = '999px';
-    trigger.style.padding = '5px 10px';
-    trigger.style.minHeight = '34px';
-    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    trigger.style.display = 'flex';
-    trigger.style.alignItems = 'center';
-    trigger.style.justifyContent = 'space-between';
-
-    var triggerLabel = document.createElement('span');
-    triggerLabel.className = 'global-filter-trigger-label';
-    triggerLabel.textContent = String(ctx.selections.logic || 'or').trim().toUpperCase();
-    triggerLabel.style.overflow = 'hidden';
-    triggerLabel.style.textOverflow = 'ellipsis';
-    triggerLabel.style.whiteSpace = 'nowrap';
-    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
-    trigger.appendChild(triggerLabel);
-
-    var triggerArrow = document.createElement('span');
-    triggerArrow.className = 'global-filter-trigger-arrow';
-    triggerArrow.textContent = '\u25BE';
-    triggerArrow.style.fontSize = '12px';
-    triggerArrow.style.opacity = '0.8';
-    trigger.appendChild(triggerArrow);
-    wrap.appendChild(trigger);
-
-    var menu = document.createElement('div');
-    menu.className = 'global-filter-menu skills-search-dropdown-menu';
-    menu.style.display = 'none';
-    menu.style.marginTop = '0';
-    menu.style.padding = '6px';
-    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '12px';
-    menu.style.background = 'var(--card-background, #fff)';
-    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '220px';
-    menu.style.maxWidth = 'calc(100vw - 48px)';
+    var segmented = document.createElement('div');
+    segmented.className = 'skills-search-logic-segmented';
+    segmented.setAttribute('aria-label', 'Логика поиска навыков');
+    wrap.appendChild(segmented);
 
     [
-        { value: 'or', label: 'OR' },
-        { value: 'and', label: 'AND' }
-    ].forEach(function(item, idx) {
+        { value: 'or', label: 'ИЛИ' },
+        { value: 'and', label: 'И' }
+    ].forEach(function(item) {
         var option = document.createElement('button');
         option.type = 'button';
-        option.className = 'tab-button summary-filter-item global-filter-option-row';
+        option.className = 'skills-search-logic-option';
         option.textContent = item.label;
-        option.style.display = 'block';
-        option.style.width = '100%';
-        option.style.boxSizing = 'border-box';
-        option.style.margin = idx < 1 ? '0 0 2px' : '0';
-        option.style.textAlign = 'left';
-        option.style.borderRadius = '8px';
-        option.style.padding = '5px 8px';
-        if (item.value === ctx.selections.logic) {
-            option.classList.add('active');
-            option.style.fontWeight = '600';
-        }
+        option.setAttribute('aria-pressed', item.value === ctx.selections.logic ? 'true' : 'false');
+        if (item.value === ctx.selections.logic) option.classList.add('active');
         option.addEventListener('click', function() {
+            if (item.value === getSkillsSearchSelections(ctx.block).logic) return;
             var selections = getSkillsSearchSelections(ctx.block);
             applySkillsSearchSkillState(
                 ctx.block,
@@ -1138,25 +1032,9 @@ function createSkillsSearchLogicControl(activeRole, analysisType) {
             );
             updateSkillsSearchResults(ctx.block);
             refreshSkillsSearchPanel(activeRole);
-            menu.style.display = 'none';
-            if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-            triggerArrow.textContent = '\u25BE';
         });
-        menu.appendChild(option);
+        segmented.appendChild(option);
     });
-    menu.__host = wrap;
-
-    trigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var nextState = menu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
-        menu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        else if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-        triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
-    });
-
-    wrap.appendChild(menu);
     return wrap;
 }
 
@@ -1707,6 +1585,7 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
             ? getGlobalFilterOptions(null, 'roles', null)
             : []);
     if (!Array.isArray(uiState.market_trends_excluded_roles)) uiState.market_trends_excluded_roles = [];
+    if (typeof uiState.market_trends_excluded_roles_multi !== 'boolean') uiState.market_trends_excluded_roles_multi = true;
 
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown skills-search-dropdown';
@@ -1734,6 +1613,9 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         uiState.market_trends_excluded_roles = Array.from(new Set((nextValues || []).map(function(value) {
             return String(value || '').trim();
         }).filter(Boolean)));
+    };
+    var isMultiEnabled = function() {
+        return uiState.market_trends_excluded_roles_multi !== false;
     };
     var summarizeExcludedRoles = function() {
         var selected = getExcludedRoles();
@@ -1806,11 +1688,31 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     applyGlobalFilterIconButtonStyle(excludeAllBtn, false);
     excludeAllBtn.addEventListener('click', function(e) {
         e.stopPropagation();
+        if (!isMultiEnabled()) return;
         setExcludedRoles(roleOptions.map(function(item) { return item.value; }));
         syncExcludedRolesVisualState();
         if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
     });
     controls.appendChild(excludeAllBtn);
+
+    var multiBtn = document.createElement('button');
+    multiBtn.type = 'button';
+    multiBtn.className = 'tab-button skills-search-dropdown-item';
+    multiBtn.textContent = '\u2611';
+    bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
+    applyGlobalFilterIconButtonStyle(multiBtn, isMultiEnabled());
+    multiBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var next = !isMultiEnabled();
+        uiState.market_trends_excluded_roles_multi = next;
+        if (!next) {
+            var selected = getExcludedRoles();
+            setExcludedRoles(selected.length ? [selected[0]] : []);
+        }
+        syncExcludedRolesVisualState();
+        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+    });
+    controls.appendChild(multiBtn);
 
     var clearBtn = document.createElement('button');
     clearBtn.type = 'button';
@@ -1844,7 +1746,12 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
 
     function syncExcludedRolesVisualState() {
         var selected = getExcludedRoles();
+        var multiEnabled = isMultiEnabled();
         triggerLabel.textContent = summarizeExcludedRoles();
+        applyGlobalFilterIconButtonStyle(multiBtn, multiEnabled);
+        excludeAllBtn.disabled = !multiEnabled;
+        excludeAllBtn.style.opacity = multiEnabled ? '1' : '0.45';
+        excludeAllBtn.style.cursor = multiEnabled ? 'pointer' : 'default';
         Array.from(menu.querySelectorAll('.global-filter-option-row')).forEach(function(node) {
             var value = String((node.dataset && node.dataset.optionValue) || '');
             var labelNode = node.querySelector('div');
@@ -1881,9 +1788,11 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
             var value = String(option.value || '');
             if (selected.indexOf(value) >= 0) {
                 setExcludedRoles(selected.filter(function(item) { return item !== value; }));
-            } else {
+            } else if (isMultiEnabled()) {
                 selected.push(value);
                 setExcludedRoles(selected);
+            } else {
+                setExcludedRoles([value]);
             }
             syncExcludedRolesVisualState();
             if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
@@ -2105,6 +2014,8 @@ function setGlobalFilterMultiEnabled(filterKey, enabled) {
 
 function applyGlobalFilterIconButtonStyle(button, isActive) {
     if (!button) return;
+    button.classList.add('ios-menu-icon-btn');
+    button.classList.toggle('is-active', !!isActive);
     button.style.borderRadius = '999px';
     button.style.padding = '0';
     button.style.width = '34px';
@@ -2116,10 +2027,10 @@ function applyGlobalFilterIconButtonStyle(button, isActive) {
     button.style.justifyContent = 'center';
     button.style.gap = '0';
     button.style.margin = '0';
-    button.style.border = '1px solid ' + (isActive ? 'rgba(59, 130, 246, 0.26)' : 'rgba(148, 163, 184, 0.22)');
-    button.style.background = isActive ? 'rgba(239, 246, 255, 0.92)' : 'rgba(248, 250, 252, 0.92)';
-    button.style.color = isActive ? '#2563eb' : '#475569';
-    button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+    button.style.border = '0';
+    button.style.background = 'transparent';
+    button.style.color = isActive ? '#0f172a' : '#475569';
+    button.style.boxShadow = 'none';
 }
 
 
