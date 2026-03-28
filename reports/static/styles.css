@@ -671,6 +671,16 @@
 .skills-search-top-filter-control {
     width: 100%;
 }
+.skills-search-top-limit-control .totals-top-filter-limit-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(64px, 10%);
+}
+.skills-search-top-limit-control .totals-top-filter-number {
+    width: 100%;
+    min-width: 0;
+}
+.shared-filter-panel .skills-search-top-limit-control .totals-top-filter-limit-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(64px, 10%) !important;
+}
 .skills-search-top-search-wrap,
 .skills-search-top-toolbar,
 .skills-search-top-meta,

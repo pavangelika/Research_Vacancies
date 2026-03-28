@@ -1441,6 +1441,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control';
+    if (currentAnalysis === 'skills-search') wrap.classList.add('skills-search-top-limit-control');
 
     if (!opts.hideCaption) {
         var caption = document.createElement('div');
