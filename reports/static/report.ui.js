@@ -4675,6 +4675,69 @@ function totalsFormatSalaryPointValue(value, currency) {
     }
     return String(Math.round(num * 100) / 100);
 }
+var TOTALS_OVERVIEW_METRICS = [
+    { key: 'min', label: 'Минимум', color: '#d65a5a' },
+    { key: 'avg', label: 'Среднее', color: '#d18b45' },
+    { key: 'median', label: 'Медиана', color: '#4b78c7' },
+    { key: 'mode', label: 'Мода', color: '#4f9d74' },
+    { key: 'max', label: 'Максимум', color: '#6c6fb3' }
+];
+function totalsNormalizeMetricKey(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+}
+function totalsGetOverviewMetricSpec(label, index) {
+    var normalized = totalsNormalizeMetricKey(label);
+    var match = TOTALS_OVERVIEW_METRICS.find(function(item) {
+        return totalsNormalizeMetricKey(item.key) === normalized || totalsNormalizeMetricKey(item.label) === normalized;
+    });
+    if (match) return match;
+    var fallback = TOTALS_OVERVIEW_METRICS[index] || TOTALS_OVERVIEW_METRICS[0];
+    return {
+        key: 'metric-' + index,
+        label: String(label || fallback.label || 'Значение').trim() || fallback.label || 'Значение',
+        color: fallback.color
+    };
+}
+function totalsBuildOverviewLegendHtml(periodLabel, experienceLabel) {
+    var items = [];
+    var periodText = String(periodLabel || '').trim();
+    var experienceText = String(experienceLabel || '').trim();
+    if (periodText) {
+        items.push('<div class="totals-overview-legend-item"><span class="totals-overview-legend-label">Период</span><strong>' + escapeHtml(periodText) + '</strong></div>');
+    }
+    if (experienceText) {
+        items.push('<div class="totals-overview-legend-item"><span class="totals-overview-legend-label">Опыт</span><strong>' + escapeHtml(experienceText) + '</strong></div>');
+    }
+    return items.length ? '<div class="totals-overview-legend">' + items.join('') + '</div>' : '';
+}
+function totalsBuildOverviewPointPositions(groups, minValue, maxValue) {
+    var count = Array.isArray(groups) ? groups.length : 0;
+    if (!count) return [];
+    if (count === 1) return [1];
+    var range = maxValue - minValue;
+    var raw = groups.map(function(group, index) {
+        var base = index / (count - 1);
+        var valueRatio = range > 0 ? ((group.value - minValue) / range) : 0.5;
+        var edgeStrength = Math.abs(valueRatio - 0.5) * 2;
+        var pull = 0.12 + (0.22 * edgeStrength);
+        return base + ((valueRatio - base) * pull);
+    });
+    raw[0] = 0;
+    raw[count - 1] = 1;
+    var minGap = Math.max(0.12, 0.65 / (count - 1));
+    for (var i = 1; i < count; i += 1) {
+        if (raw[i] < raw[i - 1] + minGap) raw[i] = raw[i - 1] + minGap;
+    }
+    var lastPos = raw[count - 1];
+    if (lastPos > 1) {
+        raw = raw.map(function(pos) {
+            return pos / lastPos;
+        });
+    }
+    raw[0] = 0;
+    raw[count - 1] = 1;
+    return raw;
+}
 function totalsMetricLabel(metric) {
     if (metric === 'min') return 'Минимальная';
     if (metric === 'max') return 'Максимальная';
@@ -5077,9 +5140,13 @@ function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextTe
     var items = pointLabels.map(function(label, index) {
         var raw = pointValues[index];
         if (raw === null || raw === undefined || raw === '' || !isFinite(raw)) return null;
+        var spec = totalsGetOverviewMetricSpec(label, index);
         return {
-            label: String(label || '').trim() || 'Значение',
-            value: Number(raw)
+            key: spec.key,
+            label: spec.label,
+            value: Number(raw),
+            color: spec.color,
+            order: index
         };
     }).filter(Boolean);
     if (!items.length) {
@@ -5088,55 +5155,68 @@ function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextTe
     }
 
     items.sort(function(a, b) {
-        return a.value - b.value;
+        return a.value - b.value || a.order - b.order;
     });
     var minValue = items[0].value;
     var maxValue = items[items.length - 1].value;
     var range = maxValue - minValue;
-    function getPointColor(value) {
-        var normalized = range > 0 ? ((value - minValue) / range) : 0.5;
-        var hue = 2 + (normalized * 118);
-        return 'hsl(' + hue + ', 76%, 48%)';
-    }
     var groups = [];
     items.forEach(function(item) {
         var last = groups.length ? groups[groups.length - 1] : null;
         if (last && Math.abs(last.value - item.value) < 1e-9) {
-            last.labels.push(item.label);
+            last.metrics.push(item);
             return;
         }
         groups.push({
             value: item.value,
-            labels: [item.label]
+            metrics: [item]
         });
     });
+    groups.forEach(function(group) {
+        group.metrics.sort(function(a, b) {
+            return a.order - b.order;
+        });
+    });
+    var positions = totalsBuildOverviewPointPositions(groups, minValue, maxValue);
     el.innerHTML =
         '<div class="totals-salary-range">' +
-            (contextText ? '<div class="totals-salary-range-context">' + escapeHtml(contextText) + '</div>' : '') +
             '<div class="totals-salary-range-track-wrap">' +
                 '<div class="totals-salary-range-track"></div>' +
                 groups.map(function(group, index) {
-                    var position = range > 0 ? ((group.value - minValue) * 100 / range) : 50;
-                    var pointLeft = 'calc(var(--totals-salary-range-side-padding) + (100% - (var(--totals-salary-range-side-padding) * 2)) * ' + (position / 100) + ')';
-                    var pointClass = index % 2 === 0 ? 'top' : 'bottom';
-                    var currencyClass = index % 2 === 0 ? 'bottom' : 'top';
-                    if (position <= 8) pointClass += ' edge-left';
-                    else if (position >= 92) pointClass += ' edge-right';
-                    var pointColor = getPointColor(group.value);
+                    var position = Math.max(0, Math.min(1, positions[index] || 0));
+                    var pointLeft = 'calc(var(--totals-salary-range-side-padding) + (100% - (var(--totals-salary-range-side-padding) * 2)) * ' + position + ')';
                     var isMaxPoint = Math.abs(group.value - maxValue) < 1e-9;
-                    var labelText = group.labels.join(', ');
-                    var labelWidthCh = Math.max(12, Math.min(34, labelText.length + 2));
+                    var pointClass = isMaxPoint ? 'bottom' : (index % 2 === 0 ? 'top' : 'bottom');
+                    var currencyClass = isMaxPoint ? 'top' : (index % 2 === 0 ? 'bottom' : 'top');
+                    var labels = group.metrics.map(function(metric) { return metric.label; });
+                    var leadMetric = group.metrics[0] || null;
+                    if (group.metrics.length > 1) pointClass += ' is-grouped';
+                    if (position <= 0.08) pointClass += ' edge-left';
+                    else if (position >= 0.92) pointClass += ' edge-right';
+                    var labelWidthCh = Math.max(14, Math.min(32, labels.join(', ').length + 4));
                     var labelStyle = ' style="width:' + labelWidthCh + 'ch;"';
                     var currencyHtml = isMaxPoint && curr
                         ? '<div class="totals-salary-range-currency-note ' + currencyClass + '"' + labelStyle + '>' + escapeHtml(curr) + '</div>'
                         : '';
+                    var labelHtml = group.metrics.map(function(metric, metricIndex) {
+                        return '<span class="totals-salary-range-label-token" style="color:' + escapeHtml(metric.color) + ';">' + escapeHtml(metric.label) + '</span>';
+                    }).join('<span class="totals-salary-range-label-separator">, </span>');
+                    var valueColor = leadMetric && leadMetric.color ? leadMetric.color : '#334155';
+                    var metricColor = String(valueColor || '#64748b');
+                    var shadowColor = metricColor.indexOf('hsl(') === 0
+                        ? metricColor.replace('hsl(', 'hsla(').replace(')', ', 0.28)')
+                        : 'rgba(100, 116, 139, 0.28)';
                     return '<div class="totals-salary-range-point ' + pointClass + '" style="left:' + pointLeft + ';">' +
-                        '<div class="totals-salary-range-label"' + labelStyle + '>' +
-                            '<div class="totals-salary-range-label-name">' + escapeHtml(labelText) + '</div>' +
-                            '<div class="totals-salary-range-label-value">' + escapeHtml(totalsFormatSalaryPointValue(group.value, curr)) + '</div>' +
+                        '<div class="totals-salary-range-markers">' +
+                            '<span class="totals-salary-range-dot" style="background:' + escapeHtml(metricColor) + '; box-shadow: 0 0.25rem 0.875rem ' + escapeHtml(shadowColor) + ';"></span>' +
+                        '</div>' +
+                        '<div class="totals-salary-range-label" ' + labelStyle + '>' +
+                            '<div class="totals-salary-range-label-segment" style="color:' + escapeHtml(valueColor) + ';">' +
+                                '<div class="totals-salary-range-label-name">' + labelHtml + '</div>' +
+                                '<div class="totals-salary-range-label-value">' + escapeHtml(totalsFormatSalaryPointValue(group.value, curr)) + '</div>' +
+                            '</div>' +
                         '</div>' +
                         currencyHtml +
-                        '<div class="totals-salary-range-dot" style="background:' + escapeHtml(pointColor) + '; box-shadow: 0 0.25rem 0.875rem ' + escapeHtml(pointColor.replace('hsl(', 'hsla(').replace(')', ', 0.28)')) + ';"></div>' +
                     '</div>';
                 }).join('') +
             '</div>' +
@@ -5979,6 +6059,7 @@ function renderGlobalTotalsFiltered(parentRole) {
         USD: 'totals-salary-graph-usd-' + roleSuffix,
         EUR: 'totals-salary-graph-eur-' + roleSuffix
     };
+    var overviewLegendHtml = totalsBuildOverviewLegendHtml(periodLabel, expLabel);
 
     function buildSwitchRow(stateKey, values, currentValue, extraClass) {
         var switchClass = 'tabs month-tabs totals-switch' + (extraClass ? ' ' + extraClass : '');
@@ -6110,8 +6191,7 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '</div>' +
                 '</div>' +
                 '<div class="totals-overview-column totals-overview-column-chart">' +
-                    '<div class="totals-overview-chart">' +
-                        (contextText ? '<div class="totals-overview-chart-context">' + escapeHtml(contextText) + '</div>' : '') +
+                    '<section class="totals-card totals-overview-chart-card">' +
                         '<div class="totals-overview-chart-panels">' +
                             ['RUR', 'USD', 'EUR'].map(function(curr) {
                                 return '<div class="totals-salary-range-panel">' +
@@ -6119,7 +6199,8 @@ function renderGlobalTotalsFiltered(parentRole) {
                                 '</div>';
                             }).join('') +
                         '</div>' +
-                    '</div>' +
+                        overviewLegendHtml +
+                    '</section>' +
                 '</div>' +
             '</div>' +
         '</div>';

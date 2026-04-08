@@ -99,55 +99,85 @@
 .totals-kpis-column {
     grid-template-columns: minmax(0, 1fr);
 }
-.totals-overview-chart {
+.totals-overview-column-chart {
     min-width: 0;
 }
-.totals-overview-chart-context {
-    margin-bottom: 6px;
-    font-size: 0.76rem;
-    color: #64748b;
-    line-height: 1.35;
-    text-align: center;
+.totals-overview-chart-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;
+    padding: 10px 14px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 248, 252, 0.92) 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        0 10px 28px rgba(15, 23, 42, 0.04);
+}
+.totals-overview-chart {
+    min-width: 0;
 }
 .totals-overview-chart-panels {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 10px;
 }
 .totals-salary-range-panel {
-    padding: 2px 10px;
+    padding: 0;
     border: none;
     border-radius: 0;
     background: transparent;
 }
-.totals-salary-range-panel-title {
-    margin-bottom: -6px;
-    font-size: 0.7rem;
+.totals-overview-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 2px;
+}
+.totals-overview-legend-item {
+    flex: 1 1 0;
+    min-width: 140px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(245, 249, 255, 0.96);
+    border: 1px solid rgba(0, 122, 255, 0.08);
+    box-sizing: border-box;
+}
+.totals-overview-legend-label {
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    color: #334155;
-    line-height: 1;
+    text-transform: uppercase;
+    color: #6e6e73;
+}
+.totals-overview-legend-item strong {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #1d1d1f;
     text-align: right;
-    padding-right: 2px;
-    position: relative;
-    z-index: 1;
 }
 .totals-overview-chart .plotly-graph,
 .totals-salary-range-host {
-    min-height: 5.75rem;
+    min-height: 8rem;
 }
 .totals-salary-range {
-    --totals-salary-range-side-padding: 1.5rem;
-    --totals-salary-range-vertical-padding: 1.375rem;
-    --totals-salary-range-label-gap: 1rem;
-    --totals-salary-range-track-height: 0.3125rem;
-    --totals-salary-range-dot-size: 0.625rem;
+    --totals-salary-range-side-padding: 1.35rem;
+    --totals-salary-range-vertical-padding: 1.6rem;
+    --totals-salary-range-label-gap: 0.95rem;
+    --totals-salary-range-track-height: 0.35rem;
+    --totals-salary-range-dot-size: 0.72rem;
     width: 100%;
-    min-height: 5.75rem;
+    min-height: 8rem;
 }
 .totals-salary-range-track-wrap {
     position: relative;
-    min-height: 4.625rem;
+    min-height: 5.25rem;
     padding: var(--totals-salary-range-vertical-padding) var(--totals-salary-range-side-padding);
     overflow: visible;
 }
@@ -159,43 +189,62 @@
     height: var(--totals-salary-range-track-height);
     transform: translateY(-50%);
     border-radius: 999px;
-    background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, var(--accent-green) 100%);
+    background: rgba(0, 122, 255, 0.12);
 }
 .totals-salary-range-point {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    pointer-events: none;
+}
+.totals-salary-range-markers {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: var(--totals-salary-range-dot-size);
 }
 .totals-salary-range-dot {
     width: var(--totals-salary-range-dot-size);
     height: var(--totals-salary-range-dot-size);
     border-radius: 50%;
-    border: 0.125rem solid #ffffff;
+    border: 0.125rem solid rgba(255, 255, 255, 0.96);
 }
 .totals-salary-range-label {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
-    width: 12ch;
-    max-width: none;
-    white-space: nowrap;
+    width: max-content;
+    max-width: 38ch;
+    white-space: normal;
     display: flex;
     flex-wrap: wrap;
-    line-height: 1.25;
+    line-height: 1.2;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
+    gap: 6px 8px;
+}
+.totals-salary-range-point.is-grouped .totals-salary-range-label {
+    max-width: 32ch;
 }
 .totals-salary-range-point.edge-left .totals-salary-range-label {
     left: 0;
+    right: auto;
     transform: none;
     text-align: left;
+    justify-content: flex-start;
 }
 .totals-salary-range-point.edge-right .totals-salary-range-label {
     left: auto;
     right: 0;
     transform: none;
     text-align: right;
+    justify-content: flex-end;
 }
 .totals-salary-range-point.top .totals-salary-range-label {
     bottom: var(--totals-salary-range-label-gap);
@@ -203,33 +252,58 @@
 .totals-salary-range-point.bottom .totals-salary-range-label {
     top: var(--totals-salary-range-label-gap);
 }
+.totals-salary-range-point.is-grouped .totals-salary-range-label {
+    max-width: 34ch;
+}
 .totals-salary-range-label-name {
-    font-size: 0.66rem;
-    font-weight: 600;
-    color: #475569;
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #1f2937;
     white-space: nowrap;
+    text-align: center;
+}
+.totals-salary-range-point.is-grouped .totals-salary-range-label-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 .totals-salary-range-label-segment {
     display: inline-flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.35rem;
-    min-width: 13ch;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 8.5ch;
+    padding: 0 1px;
     font-size: 0.74rem;
-    line-height: 1.2;
+    line-height: 1.1;
     font-weight: 700;
     white-space: nowrap;
+    text-align: center;
+}
+.totals-salary-range-point.is-grouped .totals-salary-range-label-segment {
+    gap: 1px;
+    min-width: 7ch;
 }
 .totals-salary-range-label-segment-name {
     font-weight: 700;
 }
+.totals-salary-range-label-token {
+    display: inline-block;
+    font-weight: 800;
+    white-space: nowrap;
+}
 .totals-salary-range-label-segment-value {
     font-weight: 800;
     min-width: 5.5ch;
-    text-align: right;
+    text-align: center;
+    color: #1f2937;
 }
 .totals-salary-range-label-separator {
-    color: #94a3b8;
+    color: #a1a1a6;
     font-weight: 600;
 }
 .totals-salary-range-currency-note {
@@ -242,7 +316,7 @@
     font-weight: 700;
     letter-spacing: 0.04em;
     line-height: 1;
-    color: #334155;
+    color: #6b7280;
     text-align: center;
     white-space: nowrap;
 }
@@ -265,10 +339,10 @@
 }
 .totals-salary-range-label-value {
     white-space: nowrap;
-    margin-top: 1px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #0f172a;
+    margin-top: 0;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: #1f2937;
 }
 .totals-kpi {
     border: 1px solid rgba(226, 232, 240, 0.9);
@@ -1362,15 +1436,22 @@
     }
 
     .totals-salary-range-track-wrap {
-        min-height: 110px;
-        padding: 34px 10px 32px;
+        min-height: 116px;
+        padding: 34px 10px 34px;
     }
     .totals-salary-range-track {
         left: 10px;
         right: 10px;
     }
     .totals-salary-range-label {
-        width: 84px;
+        max-width: 22ch;
+        gap: 4px 6px;
+    }
+    .totals-salary-range-label-segment {
+        min-width: 7.25ch;
+    }
+    .totals-overview-legend-item {
+        min-width: 0;
     }
 }
 .my-responses-content .my-responses-checkbox {
