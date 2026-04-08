@@ -751,7 +751,7 @@
 }
 .skills-search-favorites-panel-input::placeholder {
     color: #94a3b8;
-    font-size: 0.80rem;/
+    font-size: 0.80rem;
 }
 .skills-search-favorites-panel-input:focus {
     border-color: rgba(111, 143, 178, 0.34);
@@ -1894,7 +1894,7 @@
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 .response-calendar-day {
-    min-height: 4.2rem;
+    min-height: 4.8rem;
     border: 1px solid rgba(203, 213, 225, 0.55);
     border-radius: 0.95rem;
     background: rgba(248, 250, 252, 0.92);
@@ -4625,9 +4625,6 @@ tr:hover { background-color: #f0f4f9; }
     white-space: nowrap;
     font-weight: 500;
 }
-/*.skills-search-favorite-inline .skills-search-dropdown-menu {*/
-/*    min-width: 160px;*/
-/*}*/
 .skills-search-dropdown-menu {
     position: absolute;
     top: calc(100% + 6px);

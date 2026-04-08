@@ -58,17 +58,7 @@ function formatMonthTitle(numMonths) {
     return 'За ' + numMonths + ' месяцев';
 }
 function formatMonthLabel(monthKey) {
-    var text = String(monthKey || '').trim();
-    var match = text.match(/^(\d{4})-(\d{2})$/);
-    if (!match) return text;
-    var year = Number(match[1]);
-    var monthIndex = Number(match[2]) - 1;
-    if (!isFinite(year) || !isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) return text;
-    var monthNames = [
-        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-    ];
-    return monthNames[monthIndex] + ' ' + year;
+    return String(monthKey || '').trim();
 }
 function isSummaryMonth(monthStr) {
     return String(monthStr || '').trim().startsWith('За ');
@@ -84,6 +74,17 @@ function parseJsonDataset(el, key, fallback) {
             return fallback;
         }
     }
+}
+function getReportApiBaseUrl() {
+    if (typeof window === 'undefined' || !window.location) return 'http://localhost:9000';
+    if (window.__REPORT_API_BASE_URL__) {
+        return String(window.__REPORT_API_BASE_URL__).replace(/\/+$/, '');
+    }
+    if (window.location.protocol === 'file:') return 'http://localhost:9000';
+    var origin = String(window.location.origin || '').trim().replace(/\/+$/, '');
+    if (!origin) return 'http://localhost:9000';
+    if (/^https?:\/\/(?:localhost|127\.0\.0\.1):63342$/i.test(origin)) return 'http://localhost:9000';
+    return origin;
 }
 function computeMedian(values) {
     if (!values.length) return 0;

@@ -314,7 +314,8 @@ function openResumeActionModal(payload) {
 
 function postSendResume(vacancyId) {
     if (!vacancyId) return Promise.resolve({ ok: false, updated: false });
-    var endpoint = '/api/vacancies/send-resume';
+    var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
+    var endpoint = apiBaseUrl + '/api/vacancies/send-resume';
     var fallbackEndpoint = 'http://localhost:9000/api/vacancies/send-resume';
     var payload = JSON.stringify({ vacancy_id: String(vacancyId).trim() });
     function doPost(url) {

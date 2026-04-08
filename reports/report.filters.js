@@ -632,7 +632,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
             if (excludeKeys.has(key)) button.classList.add('excluded');
             button.innerHTML =
                 '<span class="skills-search-top-skill-label">' + escapeHtml(displaySkill) + '</span>' +
-                '<span class="skills-search-top-skill-count">"' + escapeHtml(item.count) + '"</span>';
+                '<span class="skills-search-top-skill-count">' + escapeHtml(item.count) + '</span>';
             button.addEventListener('click', function() {
                 if (typeof toggleSkillsSearchSkillState === 'function') {
                     toggleSkillsSearchSkillState(block, displaySkill, uiState.skills_search_skill_pick_mode === 'exclude' ? 'exclude' : 'include');
@@ -1434,7 +1434,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
 
         var count = document.createElement('div');
         count.className = 'skills-search-filter-option-count';
-        count.textContent = '"' + (Number(skillItem.count) || 0) + '"';
+        count.textContent = String(Number(skillItem.count) || 0);
         count.style.fontSize = '11px';
         count.style.whiteSpace = 'nowrap';
         row.appendChild(count);
@@ -1768,18 +1768,37 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
             return allowed.indexOf(String(value || '')) >= 0;
         });
     };
+    var getIncludedRoles = function() {
+        var rolesBucket = (typeof ensureGlobalFilterBucket === 'function')
+            ? ensureGlobalFilterBucket('roles')
+            : { include: [] };
+        return Array.isArray(rolesBucket.include) ? rolesBucket.include.map(function(value) {
+            return String(value || '').trim();
+        }).filter(Boolean) : [];
+    };
+    var isRoleIncludedInMainFilter = function(value) {
+        return getIncludedRoles().indexOf(String(value || '').trim()) >= 0;
+    };
     var setExcludedRoles = function(nextValues) {
+        var included = new Set(getIncludedRoles());
         uiState.market_trends_excluded_roles = Array.from(new Set((nextValues || []).map(function(value) {
             return String(value || '').trim();
-        }).filter(Boolean)));
+        }).filter(function(value) {
+            return value && !included.has(value);
+        })));
+    };
+    var getSearchQuery = function() {
+        return String(uiState.market_trends_excluded_roles_query || '');
+    };
+    var setSearchQuery = function(nextValue) {
+        uiState.market_trends_excluded_roles_query = String(nextValue || '');
+        if (typeof setGlobalFilterSearchValue === 'function') {
+            setGlobalFilterSearchValue('market-trends-excluded-roles', uiState.market_trends_excluded_roles_query, 'market_trends_excluded_roles_query');
+        }
     };
     var summarizeExcludedRoles = function() {
         var selected = getExcludedRoles();
         if (!selected.length) return 'Не исключать';
-        if (selected.length === 1) {
-            var item = roleOptions.find(function(option) { return String(option.value || '') === selected[0]; });
-            return item ? item.label : '1 роль';
-        }
         return 'Исключено: ' + selected.length;
     };
 
@@ -1828,6 +1847,7 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     menu.style.maxHeight = '280px';
     menu.style.overflowY = 'auto';
     bindGlobalFilterMenuScrollLock(menu);
+    menu.__host = wrap;
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';
@@ -1845,8 +1865,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     excludeAllBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         setExcludedRoles(roleOptions.map(function(item) { return item.value; }));
+        uiState.market_trends_excluded_roles_pending_apply = true;
         syncExcludedRolesVisualState();
-        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
     });
     controls.appendChild(excludeAllBtn);
 
@@ -1859,8 +1879,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     clearBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         setExcludedRoles([]);
+        uiState.market_trends_excluded_roles_pending_apply = true;
         syncExcludedRolesVisualState();
-        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
     });
     controls.appendChild(clearBtn);
     menu.appendChild(controls);
@@ -1878,23 +1898,74 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     search.style.fontSize = '12px';
     search.style.border = '1px solid var(--border-color, #d9e2ec)';
     search.style.borderRadius = '8px';
+    search.value = typeof getGlobalFilterSearchValue === 'function'
+        ? getGlobalFilterSearchValue('market-trends-excluded-roles', 'market_trends_excluded_roles_query')
+        : String(uiState.market_trends_excluded_roles_query || '');
     menu.appendChild(search);
 
+    function getSelectedRanks(selected) {
+        var ranks = {};
+        (selected || []).forEach(function(value, idx) {
+            ranks[String(value)] = idx;
+        });
+        return ranks;
+    }
+
+    function applySearchFilter() {
+        if (typeof applyGlobalFilterTextSearch === 'function') {
+            applyGlobalFilterTextSearch(menu, getSearchQuery(), '.global-filter-option-row[data-option-value]');
+            return;
+        }
+        var q = String(getSearchQuery() || '').trim().toLowerCase();
+        Array.from(menu.querySelectorAll('.global-filter-option-row[data-option-value]')).forEach(function(node) {
+            var text = String(node.textContent || '').trim().toLowerCase();
+            node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+        });
+    }
+
+    function reorderRoleRows() {
+        var selectedRoles = getExcludedRoles();
+        var selectedRank = getSelectedRanks(selectedRoles);
+        var rows = Array.from(menu.querySelectorAll('.global-filter-option-row[data-option-value]'));
+        rows.sort(function(a, b) {
+            var aValue = String(a.dataset.optionValue || '');
+            var bValue = String(b.dataset.optionValue || '');
+            var aSelected = Object.prototype.hasOwnProperty.call(selectedRank, aValue);
+            var bSelected = Object.prototype.hasOwnProperty.call(selectedRank, bValue);
+            if (aSelected && bSelected) return selectedRank[aValue] - selectedRank[bValue];
+            if (aSelected !== bSelected) return aSelected ? -1 : 1;
+            var aLabel = String(a.textContent || '').trim();
+            var bLabel = String(b.textContent || '').trim();
+            return aLabel.localeCompare(bLabel, 'ru');
+        });
+        rows.forEach(function(row) {
+            menu.appendChild(row);
+        });
+    }
+
     function syncExcludedRolesVisualState() {
+        pruneMarketTrendsExcludedRolesConflicts();
         var selected = getExcludedRoles();
+        var included = new Set(getIncludedRoles());
         triggerLabel.textContent = summarizeExcludedRoles();
-        Array.from(menu.querySelectorAll('.global-filter-option-row')).forEach(function(node) {
+        Array.from(menu.querySelectorAll('.global-filter-option-row[data-option-value]')).forEach(function(node) {
             var value = String((node.dataset && node.dataset.optionValue) || '');
             var labelNode = node.querySelector('div');
             var isExcluded = selected.indexOf(value) >= 0;
-            node.style.background = isExcluded ? '#fee2e2' : 'transparent';
-            node.style.color = isExcluded ? '#991b1b' : '#0f172a';
-            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
+            var isBlocked = included.has(value);
+            node.style.background = isExcluded ? '#fee2e2' : (isBlocked ? 'rgba(148, 163, 184, 0.12)' : 'transparent');
+            node.style.color = isExcluded ? '#991b1b' : (isBlocked ? '#64748b' : '#0f172a');
+            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : (isBlocked ? '1px solid rgba(148, 163, 184, 0.18)' : '1px solid transparent');
+            node.style.cursor = isBlocked ? 'not-allowed' : 'pointer';
+            node.style.opacity = isBlocked ? '0.72' : '1';
+            node.title = isBlocked ? 'Роль уже выбрана в списке "Роли"' : '';
             if (labelNode) {
                 labelNode.style.fontWeight = isExcluded ? '600' : '400';
-                labelNode.style.color = isExcluded ? '#991b1b' : '#0f172a';
+                labelNode.style.color = isExcluded ? '#991b1b' : (isBlocked ? '#64748b' : '#0f172a');
             }
         });
+        reorderRoleRows();
+        applySearchFilter();
     }
 
     roleOptions.forEach(function(option) {
@@ -1913,8 +1984,10 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         row.style.cursor = 'pointer';
         row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
         row.title = '';
+        row.dataset.searchText = String(option.label || option.value || '');
         row.addEventListener('click', function(e) {
             e.stopPropagation();
+            if (isRoleIncludedInMainFilter(option.value)) return;
             var selected = getExcludedRoles();
             var value = String(option.value || '');
             if (selected.indexOf(value) >= 0) {
@@ -1923,8 +1996,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
                 selected.push(value);
                 setExcludedRoles(selected);
             }
+            uiState.market_trends_excluded_roles_pending_apply = true;
             syncExcludedRolesVisualState();
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         });
         var label = document.createElement('div');
         label.textContent = option.label;
@@ -1935,31 +2008,93 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     syncExcludedRolesVisualState();
 
     search.addEventListener('input', function() {
-        var q = String(search.value || '').trim().toLowerCase();
-        Array.from(menu.children).forEach(function(node) {
-            if (node === controls || node === search) return;
-            var text = (node.textContent || '').trim().toLowerCase();
-            node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
-        });
+        setSearchQuery(search.value || '');
+        applySearchFilter();
     });
+
+    function openMenu() {
+        uiState.market_trends_excluded_roles_keep_open = true;
+        closeGlobalFilterMenus(menu, triggerArrow);
+        menu.style.display = 'block';
+        search.value = getSearchQuery();
+        syncExcludedRolesVisualState();
+        positionGlobalFilterMenu(trigger, menu);
+        triggerArrow.textContent = '\u25B4';
+        if (typeof search.focus === 'function') search.focus();
+    }
+
+    function bindOutsideClose() {
+        if (wrap.__outsideCloseHandler) return;
+        wrap.__outsideCloseHandler = function(evt) {
+            if (!uiState.market_trends_excluded_roles_keep_open) return;
+            if (wrap.contains(evt.target)) return;
+            closeMenu();
+        };
+        document.addEventListener('click', wrap.__outsideCloseHandler, true);
+    }
+
+    function unbindOutsideClose() {
+        if (!wrap.__outsideCloseHandler) return;
+        document.removeEventListener('click', wrap.__outsideCloseHandler, true);
+        wrap.__outsideCloseHandler = null;
+    }
+
+    function closeMenu() {
+        uiState.market_trends_excluded_roles_keep_open = false;
+        menu.style.display = 'none';
+        if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
+        triggerArrow.textContent = '\u25BE';
+        unbindOutsideClose();
+        if (uiState.market_trends_excluded_roles_pending_apply) {
+            uiState.market_trends_excluded_roles_pending_apply = false;
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+        }
+    }
 
     trigger.addEventListener('click', function(e) {
         e.stopPropagation();
         var nextState = menu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
-        menu.style.display = nextState;
         if (nextState === 'block') {
-            positionGlobalFilterMenu(trigger, menu);
-            triggerArrow.textContent = '\u25B4';
+            bindOutsideClose();
+            openMenu();
         } else {
-            restoreGlobalFilterMenuHost(menu);
-            triggerArrow.textContent = '\u25BE';
+            closeMenu();
         }
     });
 
     wrap.appendChild(menu);
-    menu.__host = wrap;
+    menu.addEventListener('mouseleave', function() {
+        if (!uiState.market_trends_excluded_roles_keep_open) return;
+        closeMenu();
+    });
+    if (uiState.market_trends_excluded_roles_keep_open) {
+        menu.style.display = 'block';
+        search.value = getSearchQuery();
+        syncExcludedRolesVisualState();
+        positionGlobalFilterMenu(trigger, menu);
+        triggerArrow.textContent = '\u25B4';
+    }
     return wrap;
+}
+
+function pruneMarketTrendsExcludedRolesConflicts() {
+    if (!uiState || !uiState.global_filters || !uiState.global_filters.roles) return false;
+    if (!Array.isArray(uiState.market_trends_excluded_roles)) return false;
+
+    var included = Array.isArray(uiState.global_filters.roles.include)
+        ? uiState.global_filters.roles.include.map(function(value) {
+            return String(value || '').trim();
+        }).filter(Boolean)
+        : [];
+    if (!included.length) return false;
+
+    var includedSet = new Set(included);
+    var before = uiState.market_trends_excluded_roles.length;
+    uiState.market_trends_excluded_roles = uiState.market_trends_excluded_roles.filter(function(value) {
+        var key = String(value || '').trim();
+        return key && !includedSet.has(key);
+    });
+    return uiState.market_trends_excluded_roles.length !== before;
 }
 
 function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {
@@ -2115,6 +2250,24 @@ function ensureGlobalFilterBucket(filterKey) {
     if (!uiState.global_filters[filterKey]) uiState.global_filters[filterKey] = { include: [], exclude: [] };
     if (!Array.isArray(uiState.global_filters[filterKey].include)) uiState.global_filters[filterKey].include = [];
     if (!Array.isArray(uiState.global_filters[filterKey].exclude)) uiState.global_filters[filterKey].exclude = [];
+    if (filterKey === 'roles') {
+        var includeSeen = new Set();
+        uiState.global_filters[filterKey].include = uiState.global_filters[filterKey].include.filter(function(value) {
+            var normalized = String(value || '').trim();
+            if (!normalized || includeSeen.has(normalized)) return false;
+            includeSeen.add(normalized);
+            return true;
+        });
+        var excludeSeen = new Set(uiState.global_filters[filterKey].include.map(function(value) {
+            return String(value || '').trim();
+        }));
+        uiState.global_filters[filterKey].exclude = uiState.global_filters[filterKey].exclude.filter(function(value) {
+            var normalized = String(value || '').trim();
+            if (!normalized || excludeSeen.has(normalized)) return false;
+            excludeSeen.add(normalized);
+            return true;
+        });
+    }
     return uiState.global_filters[filterKey];
 }
 

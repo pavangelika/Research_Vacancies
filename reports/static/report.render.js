@@ -253,6 +253,9 @@ function renderAllRolesContainer(container, roleContents) {
     container.__selectedRoleContents = filteredRoleContents.slice();
 
     var currentAnalysis = String(container.dataset.activeAnalysis || 'activity').replace(/-all$/, '');
+    if (typeof ensureDefaultPeriodFilterSelection === 'function') {
+        ensureDefaultPeriodFilterSelection(container, currentAnalysis);
+    }
     var selectedPeriods = [];
     if (typeof getGlobalFilterOptions === 'function' && typeof getResolvedGlobalFilterValues === 'function') {
         selectedPeriods = getResolvedGlobalFilterValues('periods', getGlobalFilterOptions(container, 'periods', currentAnalysis));
@@ -271,19 +274,20 @@ function renderAllRolesContainer(container, roleContents) {
         return published.getFullYear() + '-' + String(published.getMonth() + 1).padStart(2, '0');
     }).filter(Boolean))).sort().reverse();
     var allLabel = periods.length && typeof formatMonthTitle === 'function' ? formatMonthTitle(periods.length) : 'Весь период';
-    var periodItems = (typeof getStandardPeriodFilterItems === 'function'
+    var quickPeriodItems = (typeof getStandardPeriodFilterItems === 'function'
         ? getStandardPeriodFilterItems()
         : [
             { key: 'today', label: 'Сегодня', period: 'today' },
             { key: 'd3', label: 'За 3 дня', period: 'last_3' },
             { key: 'd7', label: 'За 7 дней', period: 'last_7' },
             { key: 'd14', label: 'За 14 дней', period: 'last_14' }
-        ]).concat(periods.map(function(month, index) {
+        ]);
+    var periodItems = quickPeriodItems.concat(periods.map(function(month, index) {
         return { key: 'm' + (index + 1), label: typeof formatMonthLabel === 'function' ? formatMonthLabel(month) : month, period: month };
     })).concat([
         { key: 'all', label: allLabel, period: null }
     ]);
-    var defaultAllRolesPeriodIndex = Math.max(0, periodItems.length - 1);
+    var defaultAllRolesPeriodIndex = periods.length ? (periodItems.length - 1) : Math.max(0, periodItems.length - 1);
 
     function getRoleFilteredVacancies(roleContent, periodValue) {
         var roleKey = roleContent && (roleContent.dataset.roleId || roleContent.id || roleContent.dataset.roleName) || 'role';
@@ -1381,6 +1385,9 @@ function getUnifiedRoleStrategies() {
             if (!context.allRoles) return;
             context.allRoles.style.display = 'block';
             var selectedContents = context.selectedRoleContents.length ? context.selectedRoleContents : getAllRoleContents();
+            if (typeof ensureDefaultPeriodFilterSelection === 'function') {
+                ensureDefaultPeriodFilterSelection(context.allRoles, normalizeAnalysisTypeForButtonLookup(context.allRoles.dataset.activeAnalysis || uiState.global_analysis_type || 'activity'));
+            }
             var renderSignature = buildAllRolesRenderSignature(context.selectedIndices);
             if (context.allRoles.dataset.renderSignature !== renderSignature) {
                 renderAllRolesContainer(context.allRoles, selectedContents);

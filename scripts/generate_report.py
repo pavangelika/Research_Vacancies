@@ -1609,8 +1609,17 @@ def save_report(html_content):
 def copy_styles():
     src = os.path.join(REPORT_STATIC_DIR, 'styles.css')
     dst = os.path.join(REPORT_OUTPUT_DIR, 'styles.css')
-    shutil.copy2(src, dst)
-    logging.info(f"Styles copied to {dst}")
+    static_dst_dir = os.path.join(REPORT_OUTPUT_DIR, 'static')
+    static_dst = os.path.join(static_dst_dir, 'styles.css')
+
+    os.makedirs(static_dst_dir, exist_ok=True)
+    if os.path.abspath(src) != os.path.abspath(static_dst):
+        shutil.copy2(src, static_dst)
+
+    with open(dst, 'w', encoding='utf-8') as f:
+        f.write('/* Shim stylesheet: keep the legacy root path, load the real bundle from static/. */\n')
+        f.write('@import url("static/styles.css");\n')
+    logging.info(f"Styles prepared at {dst} and {static_dst}")
 
 def copy_js():
     js_files = [
