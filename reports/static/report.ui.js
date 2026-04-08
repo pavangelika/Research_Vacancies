@@ -607,7 +607,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
         var mainGraph = document.getElementById(graphIdMain);
         var ageGraph = document.getElementById(graphIdAge);
         var activityStack = mainGraph ? mainGraph.closest('.all-roles-graph-stack') : null;
-        ensureStackedChartSwitch(activityStack, [
+        ensureStackedChartLayout(activityStack, [
             { key: 'main', label: 'Вакансии', el: mainGraph ? mainGraph.parentElement : null },
             { key: 'age', label: 'Ср. возраст', el: ageGraph ? ageGraph.parentElement : null }
         ]);
@@ -6079,16 +6079,22 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<td>' + totalsFormatNumber(row.max) + '</td>' +
         '</tr>';
     }
+    function buildResponseKpiButton(label, value, filterKey, filterValue) {
+        var attrs = ' type="button" class="totals-kpi totals-kpi-button" data-response-kpi="1"';
+        if (filterKey) attrs += ' data-response-filter="' + escapeHtml(filterKey) + '"';
+        if (filterValue) attrs += ' data-response-value="' + escapeHtml(filterValue) + '"';
+        return '<button' + attrs + '><div class="label">' + escapeHtml(label) + '</div><div class="value">' + value + '</div></button>';
+    }
 
     var overviewHtml =
         '<div class="totals-layout totals-overview-layout">' +
             '<div class="totals-overview-columns">' +
                 '<div class="totals-overview-column totals-overview-column-kpi">' +
                     '<div class="totals-kpis totals-kpis-column">' +
-                        '<div class="totals-kpi"><div class="label">Откликов</div><div class="value">' + responseRows.length + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Собес назначен</div><div class="value">' + responseInterview + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Результат указан</div><div class="value">' + responseResult + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Оффер</div><div class="value">' + responseOffer + '</div></div>' +
+                        buildResponseKpiButton('Откликов', String(responseRows.length)) +
+                        buildResponseKpiButton('Собес назначен', String(responseInterview), 'interview', 'yes') +
+                        buildResponseKpiButton('Результат указан', String(responseResult), 'result', 'yes') +
+                        buildResponseKpiButton('Оффер', String(responseOffer), 'offer', 'yes') +
                         '<div class="totals-kpi"><div class="label">Отклик→Собес</div><div class="value">' + totalsFormatNumber(responseToInterviewPct) + '%</div></div>' +
                         '<div class="totals-kpi"><div class="label">Собес→Оффер</div><div class="value">' + totalsFormatNumber(interviewToOfferPct) + '%</div></div>' +
                         '<div class="totals-kpi"><div class="label">Отклик→Оффер</div><div class="value">' + totalsFormatNumber(responseToOfferPct) + '%</div></div>' +
@@ -6184,6 +6190,34 @@ function renderGlobalTotalsFiltered(parentRole) {
             : (dashboardMode === 'top' ? topHtml : overviewHtml)
     );
 
+    block.querySelectorAll('.totals-kpi-button[data-response-kpi="1"]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var filterKey = String(btn.dataset.responseFilter || '').trim();
+            var filterValue = String(btn.dataset.responseValue || '').trim();
+            if (filterKey && filterValue) {
+                updateGlobalFilterSelection(filterKey, filterValue, 'include', true);
+            }
+            var targetRole = parentRole;
+            if (!targetRole || targetRole.id === 'role-all') {
+                var ctx = uiState.roleSelectionContext;
+                if (ctx && typeof ctx.getOrder === 'function') {
+                    var order = ctx.getOrder();
+                    var firstIdx = order.length ? order[0] : null;
+                    if (firstIdx !== null && firstIdx !== undefined) {
+                        targetRole = document.getElementById('role-' + firstIdx);
+                    }
+                }
+                if (!targetRole) {
+                    targetRole = document.querySelector('.role-content:not(#role-all):not(#role-combined)');
+                }
+            }
+            if (!targetRole || targetRole.id === 'role-all') return;
+            ensureMyResponsesTab(targetRole);
+            var myResponsesBtn = targetRole.querySelector('.analysis-button[data-analysis-id^="my-responses-"]');
+            if (myResponsesBtn) myResponsesBtn.click();
+        });
+    });
+
     block.querySelectorAll('.totals-switch-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var key = String(btn.dataset.switch || '').trim();
@@ -6215,15 +6249,15 @@ function renderGlobalTotalsFiltered(parentRole) {
         var row = salaryRows.find(function(item) { return item.currency === curr; }) || null;
         buildTotalsSimpleBarChart(
             salaryGraphIds[curr],
-            ['Минимум', 'Максимум', 'Средняя', 'Медиана', 'Мода'],
+            ['Минимум', 'Среднее', 'Медиана', 'Мода', 'Максимум'],
             [
                 row ? row.min : null,
-                row ? row.max : null,
                 row ? row.avg : null,
                 row ? row.median : null,
-                row ? row.mode : null
+                row ? row.mode : null,
+                row ? row.max : null
             ],
-            'Вилка зарплат (' + curr + ')',
+            '',
             '',
             curr
         );
@@ -7463,11 +7497,11 @@ function ensureDefaultPeriodFilterSelection(activeRole, analysisType) {
     var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
     if (!Array.isArray(options) || !options.length) return false;
     var defaultOption = options.find(function(option) {
-        return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
+        return normalizeGlobalPeriodValue(option && option.value) === 'summary';
     });
     if (!defaultOption) {
         defaultOption = options.find(function(option) {
-            return normalizeGlobalPeriodValue(option && option.value) === 'summary';
+            return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
         });
     }
     if (!defaultOption) return false;
@@ -7735,6 +7769,49 @@ function buildActivityBlock(parentRole, blockId, label, entries) {
     return block;
 }
 
+function ensureActivityMonthTabs(parentRole) {
+    if (!parentRole || parentRole.id === 'role-all') return null;
+    var monthBlocks = Array.from(parentRole.querySelectorAll('.month-content.activity-only'));
+    if (!monthBlocks.length) return null;
+
+    var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
+    if (!monthTabs) {
+        monthTabs = document.createElement('div');
+        monthTabs.className = 'tabs month-tabs activity-only';
+        var insertBeforeNode = monthBlocks[0];
+        if (insertBeforeNode && insertBeforeNode.parentElement === parentRole) {
+            parentRole.insertBefore(monthTabs, insertBeforeNode);
+        } else {
+            parentRole.appendChild(monthTabs);
+        }
+    }
+
+    var existingButtons = Array.from(monthTabs.querySelectorAll('.month-button'));
+    var knownTargets = {};
+    existingButtons.forEach(function(btn) {
+        var targetId = String(btn && btn.dataset ? btn.dataset.targetId : '').trim();
+        if (targetId) knownTargets[targetId] = true;
+    });
+
+    monthBlocks.forEach(function(block) {
+        if (!block || !block.id || knownTargets[block.id]) return;
+        var label = String(block.dataset.month || '').trim();
+        if (!label) label = 'Период';
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'tab-button month-button';
+        button.dataset.targetId = block.id;
+        button.textContent = label;
+        button.addEventListener('click', function(e) {
+            openMonthTab(e, block.id);
+        });
+        monthTabs.appendChild(button);
+        knownTargets[block.id] = true;
+    });
+
+    return monthTabs;
+}
+
 function aggregateActivityEntries(entries) {
     var expOrder = getExperienceOrder();
     var labels = getExperienceLabels();
@@ -7966,7 +8043,7 @@ function ensureActivityQuickFilters(parentRole, controlRow) {
 
 function normalizeActivityControls(parentRole) {
     if (!parentRole) return;
-    var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
+    var monthTabs = ensureActivityMonthTabs(parentRole) || parentRole.querySelector('.tabs.month-tabs.activity-only');
     if (!monthTabs) return;
     if (!monthTabs.classList.contains('activity-month-tabs') && !monthTabs.classList.contains('activity-filter-tabs')) {
         monthTabs.classList.add('activity-month-tabs');
@@ -8767,7 +8844,7 @@ function renderEmployerAnalysisChart(block) {
         margin: { t: 56, r: 16, b: 40, l: 160 },
         height: 420
     });
-    ensureStackedChartSwitch(graph, [
+    ensureStackedChartLayout(graph, [
         { key: 'rur', label: 'RUR', el: graph.__avgRurChartEl || null },
         { key: 'usd', label: 'USD', el: graph.__avgUsdChartEl || null },
         { key: 'eur', label: 'EUR', el: graph.__avgEurChartEl || null },
@@ -9344,20 +9421,6 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     }).slice(0, 100);
     var activeCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase();
     var hasAvgSalaryChart = !!topByAvgSalary.length;
-    var preferredChartKey = String(
-        graphEl.dataset.activeSkillsChart ||
-        uiState.all_roles_skills_chart ||
-        'mentions'
-    ).trim().toLowerCase();
-    var activeChartKey = (preferredChartKey === 'avg' && hasAvgSalaryChart) ? 'avg' : 'mentions';
-    var buildChartSwitchHtml = function(activeKey) {
-        if (!hasAvgSalaryChart) return '';
-        return '' +
-            '<div class="skills-all-chart-switch chart-switch">' +
-                '<button type="button" class="tab-button skills-all-chart-switch-btn' + (activeKey === 'mentions' ? ' active' : '') + '" data-chart="mentions">По упоминаниям</button>' +
-                '<button type="button" class="tab-button skills-all-chart-switch-btn' + (activeKey === 'avg' ? ' active' : '') + '" data-chart="avg">По средней з/п</button>' +
-            '</div>';
-    };
     var subtitleText = '';
     var activeRole = target.closest('.role-content');
     if (activeRole) {
@@ -9399,8 +9462,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         graphEl.style.minHeight = '480px';
         graphEl.innerHTML =
             '<div class="skills-all-html-card">' +
-                buildChartSwitchHtml(activeChartKey) +
-                '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
+                '<div class="skills-all-chart-section">' +
                     '<div class="skills-all-html-title">Топ-100 навыков по упоминаниям</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     top.map(function(item) {
@@ -9415,7 +9477,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                             '</div>';
                     }).join('') +
                 '</div>' +
-                '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
+                '<div class="skills-all-chart-section">' +
                     '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате (' + escapeHtml(activeCurrency) + ')</div>' +
                     '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                     (topByAvgSalary.length ? topByAvgSalary.map(function(item) {
@@ -9431,7 +9493,6 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                     }).join('') : '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по средней зарплате</div>') +
                 '</div>' +
             '</div>';
-        bindSkillsAllChartSwitch(graphEl);
     };
 
     var graphWidth = Math.max(
@@ -9465,13 +9526,12 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     graphEl.dataset.plotReady = '';
     graphEl.innerHTML =
         '<div class="skills-all-html-card">' +
-            buildChartSwitchHtml(activeChartKey) +
-            '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'mentions' ? ' active' : '') + '" data-chart-section="mentions">' +
+            '<div class="skills-all-chart-section">' +
                 '<div class="skills-all-html-title">Топ-100 навыков по упоминаниям</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-plotly-host"></div>' +
             '</div>' +
-            '<div class="skills-all-chart-section chart-switch-target' + (activeChartKey === 'avg' ? ' active' : '') + '" data-chart-section="avg"' + (hasAvgSalaryChart ? '' : ' style="display:none;"') + '>' +
+            '<div class="skills-all-chart-section">' +
                 '<div class="skills-all-html-title">Топ-100 навыков по средней зарплате (' + escapeHtml(activeCurrency) + ')</div>' +
                 '<div class="skills-all-html-subtitle">' + escapeHtml(subtitleText) + '</div>' +
                 '<div class="skills-all-plotly-host" id="' + graphId + '-avg-plotly-host"></div>' +
@@ -9567,103 +9627,34 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         renderHtmlFallback();
         return;
     }
-    graphEl.dataset.plotSignature = signature;
-    graphEl.dataset.plotReady = '1';
-    plotHost.dataset.plotReady = '1';
-    if (hasAvgSalaryChart) avgPlotHost.dataset.plotReady = '1';
-    graphEl.dataset.activeSkillsChart = activeChartKey;
-    bindSkillsAllChartSwitch(graphEl);
-    if (plotHost.offsetParent !== null) resizePlotlyScope(plotHost);
-    if (hasAvgSalaryChart && avgPlotHost.offsetParent !== null) resizePlotlyScope(avgPlotHost);
-}
+        graphEl.dataset.plotSignature = signature;
+        graphEl.dataset.plotReady = '1';
+        plotHost.dataset.plotReady = '1';
+        if (hasAvgSalaryChart) avgPlotHost.dataset.plotReady = '1';
+        if (plotHost.offsetParent !== null) resizePlotlyScope(plotHost);
+        if (hasAvgSalaryChart && avgPlotHost.offsetParent !== null) resizePlotlyScope(avgPlotHost);
+    }
 
-function bindSkillsAllChartSwitch(graphEl) {
-    if (!graphEl) return;
-    var buttons = Array.from(graphEl.querySelectorAll('.skills-all-chart-switch-btn'));
-    var sections = Array.from(graphEl.querySelectorAll('.skills-all-chart-section[data-chart-section]'));
-    if (!buttons.length || !sections.length) return;
-    var activateChart = function(chartKey) {
-        var normalized = chartKey === 'avg' ? 'avg' : 'mentions';
-        graphEl.dataset.activeSkillsChart = normalized;
-        uiState.all_roles_skills_chart = normalized;
-        buttons.forEach(function(btn) {
-            btn.classList.toggle('active', (btn.dataset.chart || 'mentions') === normalized);
-        });
-        sections.forEach(function(section) {
-            var match = (section.dataset.chartSection || 'mentions') === normalized;
-            section.classList.toggle('active', match);
-            section.style.display = match ? 'block' : 'none';
-        });
-        var activeHosts = graphEl.querySelectorAll('.skills-all-chart-section.active .skills-all-plotly-host');
-        activeHosts.forEach(function(host) {
-            resizePlotlyScope(host);
-        });
-    };
-    buttons.forEach(function(btn) {
-        if (btn.dataset.bound === '1') return;
-        btn.addEventListener('click', function() {
-            activateChart(btn.dataset.chart || 'mentions');
-        });
-        btn.dataset.bound = '1';
-    });
-    activateChart(graphEl.dataset.activeSkillsChart || uiState.all_roles_skills_chart || 'mentions');
-}
-
-function ensureStackedChartSwitch(container, items, preferredKey) {
+function ensureStackedChartLayout(container, items) {
     if (!container) return;
     var visibleItems = (Array.isArray(items) ? items : []).filter(function(item) {
         return item && item.el;
     });
     visibleItems.forEach(function(item) {
-        item.el.classList.add('stacked-chart-switchable');
-        item.el.classList.add('chart-switch-target');
-        item.el.dataset.chartSection = item.key || '';
-    });
-    var switchWrap = getDirectChildByClass(container, 'stacked-chart-switch');
-    if (visibleItems.length <= 1) {
-        if (switchWrap && switchWrap.parentElement) switchWrap.parentElement.removeChild(switchWrap);
-        visibleItems.forEach(function(item) {
-            item.el.classList.add('active');
-            item.el.style.display = '';
-        });
-        return;
-    }
-    if (!switchWrap) {
-        switchWrap = document.createElement('div');
-        switchWrap.className = 'stacked-chart-switch chart-switch';
-        container.insertBefore(switchWrap, container.firstChild);
-    }
-    switchWrap.innerHTML = visibleItems.map(function(item) {
-        var isActive = String(item.key || '') === String(preferredKey || container.dataset.activeChartKey || visibleItems[0].key || '');
-        return '<button type="button" class="tab-button stacked-chart-switch-btn' + (isActive ? ' active' : '') + '" data-chart="' + escapeHtml(item.key || '') + '">' + escapeHtml(item.label || '') + '</button>';
-    }).join('');
-    var activate = function(chartKey) {
-        var nextKey = visibleItems.some(function(item) { return item.key === chartKey; }) ? chartKey : (visibleItems[0].key || '');
-        container.dataset.activeChartKey = nextKey;
-        Array.from(switchWrap.querySelectorAll('.stacked-chart-switch-btn')).forEach(function(btn) {
-            btn.classList.toggle('active', (btn.dataset.chart || '') === nextKey);
-        });
-        visibleItems.forEach(function(item) {
-            var isMatch = item.key === nextKey;
-            item.el.classList.toggle('active', isMatch);
-            item.el.style.display = isMatch ? '' : 'none';
-            if (!isMatch) return;
-            var resizeTargets = item.el.querySelectorAll('.plotly-graph, .employer-analysis-subgraph-host, .unified-chart-host, .js-plotly-plot');
-            if (!resizeTargets.length) {
-                resizePlotlyScope(item.el);
-                return;
-            }
-            resizeTargets.forEach(function(node) {
-                resizePlotlyScope(node);
-            });
-        });
-    };
-    Array.from(switchWrap.querySelectorAll('.stacked-chart-switch-btn')).forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            activate(btn.dataset.chart || '');
+        if (!item.el) return;
+        item.el.style.display = '';
+        if (item.el.classList) {
+            item.el.classList.remove('active');
+        }
+        var resizeTargets = item.el.querySelectorAll('.plotly-graph, .employer-analysis-subgraph-host, .unified-chart-host, .js-plotly-plot');
+        if (!resizeTargets.length) {
+            resizePlotlyScope(item.el);
+            return;
+        }
+        resizeTargets.forEach(function(node) {
+            resizePlotlyScope(node);
         });
     });
-    activate(preferredKey || container.dataset.activeChartKey || visibleItems[0].key || '');
 }
 
 function openAllRolesPeriodTab(evt, contentId, analysisType) {
@@ -10605,7 +10596,7 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
     });
     var salaryStack = container.querySelector('.salary-graphs-3');
     if (salaryStack) {
-        ensureStackedChartSwitch(salaryStack, currencies.map(function(currency) {
+        ensureStackedChartLayout(salaryStack, currencies.map(function(currency) {
             var graphNode = document.getElementById(containerId + '-' + currency.replace('%', 'p'));
             return {
                 key: currency,

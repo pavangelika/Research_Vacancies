@@ -4,7 +4,6 @@ import json
 import psycopg2
 import shutil
 import logging
-import urllib.request
 import socket
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
@@ -17,8 +16,6 @@ REPORTS_DIR = os.path.join(PROJECT_ROOT, 'reports')
 REPORT_TEMPLATES_DIR = os.path.join(REPORTS_DIR, 'templates')
 REPORT_STATIC_DIR = os.path.join(REPORTS_DIR, 'static')
 REPORT_OUTPUT_DIR = os.environ.get('REPORTS_OUTPUT_DIR', REPORTS_DIR)
-PLOTLY_BUNDLE = 'plotly-2.27.0.min.js'
-PLOTLY_CDN_URL = f'https://cdn.plot.ly/{PLOTLY_BUNDLE}'
 
 
 def compact_text(value, max_len=240):
@@ -1606,59 +1603,22 @@ def save_report(html_content):
         f.write(html_content)
     logging.info(f"Report saved to {output_file}")
 
-def copy_styles():
-    src = os.path.join(REPORT_STATIC_DIR, 'styles.css')
-    dst = os.path.join(REPORT_OUTPUT_DIR, 'styles.css')
-    static_dst_dir = os.path.join(REPORT_OUTPUT_DIR, 'static')
-    static_dst = os.path.join(static_dst_dir, 'styles.css')
+def sync_static_assets():
+    """
+    Copies the report static bundle into the output directory.
+    When the output directory is the project `reports/` folder itself, the
+    source and destination already match and no copy is needed.
+    """
+    src_dir = os.path.abspath(REPORT_STATIC_DIR)
+    dst_dir = os.path.abspath(os.path.join(REPORT_OUTPUT_DIR, 'static'))
 
-    os.makedirs(static_dst_dir, exist_ok=True)
-    if os.path.abspath(src) != os.path.abspath(static_dst):
-        shutil.copy2(src, static_dst)
-
-    with open(dst, 'w', encoding='utf-8') as f:
-        f.write('/* Shim stylesheet: keep the legacy root path, load the real bundle from static/. */\n')
-        f.write('@import url("static/styles.css");\n')
-    logging.info(f"Styles prepared at {dst} and {static_dst}")
-
-def copy_js():
-    js_files = [
-        'report.state.js',
-        'report.utils.js',
-        'report.data.js',
-        'report.charts.js',
-        'report.render.js',
-        'report.ui.js',
-        'report.filters.js',
-        'report.role-navigation.js',
-        'report.analysis-switch.js',
-        'report.events.js'
-    ]
-    for filename in js_files:
-        src = os.path.join(REPORT_STATIC_DIR, filename)
-        dst = os.path.join(REPORT_OUTPUT_DIR, filename)
-        shutil.copy2(src, dst)
-        logging.info(f"JS copied to {dst}")
-
-def ensure_plotly_bundle():
     os.makedirs(REPORT_OUTPUT_DIR, exist_ok=True)
-    bundled_src = os.path.join(REPORT_STATIC_DIR, PLOTLY_BUNDLE)
-    output_dst = os.path.join(REPORT_OUTPUT_DIR, PLOTLY_BUNDLE)
 
-    if os.path.exists(bundled_src):
-        shutil.copy2(bundled_src, output_dst)
-        logging.info(f"Plotly bundle copied to {output_dst}")
-        return
-
-    if os.path.exists(output_dst):
-        logging.info(f"Using existing Plotly bundle at {output_dst}")
-        return
-
-    try:
-        urllib.request.urlretrieve(PLOTLY_CDN_URL, output_dst)
-        logging.info(f"Plotly bundle downloaded to {output_dst}")
-    except Exception as exc:
-        logging.warning(f"Failed to download Plotly bundle from {PLOTLY_CDN_URL}: {exc}")
+    if src_dir == dst_dir:
+        logging.info("Static assets already available at %s", dst_dir)
+    else:
+        shutil.copytree(src_dir, dst_dir, dirs_exist_ok=True)
+        logging.info("Static assets synced to %s", dst_dir)
 
 def main():
     json_path = os.environ.get('ROLES_JSON_PATH', '/app/data/professional_roles.json')
@@ -1685,9 +1645,7 @@ def main():
 
     html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data, vacancies_by_role)
     save_report(html)
-    copy_styles()
-    copy_js()
-    ensure_plotly_bundle()
+    sync_static_assets()
 
 if __name__ == '__main__':
     main()
