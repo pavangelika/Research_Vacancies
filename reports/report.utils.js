@@ -49,6 +49,19 @@ function formatMonthTitle(numMonths) {
     if (numMonths >= 2 && numMonths <= 4) return 'За ' + numMonths + ' месяца';
     return 'За ' + numMonths + ' месяцев';
 }
+function formatMonthLabel(monthKey) {
+    var text = String(monthKey || '').trim();
+    var match = text.match(/^(\d{4})-(\d{2})$/);
+    if (!match) return text;
+    var year = Number(match[1]);
+    var monthIndex = Number(match[2]) - 1;
+    if (!isFinite(year) || !isFinite(monthIndex) || monthIndex < 0 || monthIndex > 11) return text;
+    var monthNames = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+    return monthNames[monthIndex] + ' ' + year;
+}
 function isSummaryMonth(monthStr) {
     return String(monthStr || '').trim().startsWith('За ');
 }

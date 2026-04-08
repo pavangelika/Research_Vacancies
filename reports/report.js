@@ -1,11 +1,11 @@
-// Цветовая палитра графиков (исходная)
+// Р В¦Р Р†Р ВµРЎвЂљР С•Р Р†Р В°РЎРЏ Р С—Р В°Р В»Р С‘РЎвЂљРЎР‚Р В° Р С–РЎР‚Р В°РЎвЂћР С‘Р С”Р С•Р Р† (Р С‘РЎРѓРЎвЂ¦Р С•Р Т‘Р Р…Р В°РЎРЏ)
 const CHART_COLORS = {
-    light: '#B0BEC5',   // светло-серый для активных, публикаций, открытых
-    medium: '#90A4AE',  // средне-серый для навыков
-    dark: '#607D8B'     // тёмно-серый для архивных, архиваций
+    light: '#B0BEC5',   // РЎРѓР Р†Р ВµРЎвЂљР В»Р С•-РЎРѓР ВµРЎР‚РЎвЂ№Р в„– Р Т‘Р В»РЎРЏ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№РЎвЂ¦, Р С—РЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂ Р С‘Р в„–, Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№РЎвЂ¦
+    medium: '#90A4AE',  // РЎРѓРЎР‚Р ВµР Т‘Р Р…Р Вµ-РЎРѓР ВµРЎР‚РЎвЂ№Р в„– Р Т‘Р В»РЎРЏ Р Р…Р В°Р Р†РЎвЂ№Р С”Р С•Р Р†
+    dark: '#607D8B'     // РЎвЂљРЎвЂР СР Р…Р С•-РЎРѓР ВµРЎР‚РЎвЂ№Р в„– Р Т‘Р В»РЎРЏ Р В°РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…РЎвЂ№РЎвЂ¦, Р В°РЎР‚РЎвЂ¦Р С‘Р Р†Р В°РЎвЂ Р С‘Р в„–
 };
 
-// Состояние интерфейса
+// Р РЋР С•РЎРѓРЎвЂљР С•РЎРЏР Р…Р С‘Р Вµ Р С‘Р Р…РЎвЂљР ВµРЎР‚РЎвЂћР ВµР в„–РЎРѓР В°
 let uiState = {
     global_analysis_type: null,
     global_activity_month: null,
@@ -16,11 +16,11 @@ let uiState = {
     global_salary_month: null,
     global_salary_experience: null,
     all_roles_active: false,
-    // Режимы отображения для разных типов анализа
-    activity_view_mode: 'together',    // по умолчанию вместе
+    // Р В Р ВµР В¶Р С‘Р СРЎвЂ№ Р С•РЎвЂљР С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘РЎРЏ Р Т‘Р В»РЎРЏ РЎР‚Р В°Р В·Р Р…РЎвЂ№РЎвЂ¦ РЎвЂљР С‘Р С—Р С•Р Р† Р В°Р Р…Р В°Р В»Р С‘Р В·Р В°
+    activity_view_mode: 'together',    // Р С—Р С• РЎС“Р СР С•Р В»РЎвЂЎР В°Р Р…Р С‘РЎР‹ Р Р†Р СР ВµРЎРѓРЎвЂљР Вµ
     weekday_view_mode: 'together',
     skills_monthly_view_mode: 'together',
-    salary_view_mode: 'table'           // по умолчанию таблица
+    salary_view_mode: 'table'           // Р С—Р С• РЎС“Р СР С•Р В»РЎвЂЎР В°Р Р…Р С‘РЎР‹ РЎвЂљР В°Р В±Р В»Р С‘РЎвЂ Р В°
 };
 
 function getAnalysisStateKey(roleId) {
@@ -48,7 +48,7 @@ function getSkillDisplayName(rawSkill) {
     return raw;
 }
 
-// ---------- Переключение ролей ----------
+// ---------- Р СџР ВµРЎР‚Р ВµР С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘Р Вµ РЎР‚Р С•Р В»Р ВµР в„– ----------
 function openRoleTab(evt, roleId) {
     var i, roleContent;
     roleContent = document.getElementsByClassName("role-content");
@@ -71,7 +71,7 @@ function openRoleTab(evt, roleId) {
     if (firstButton) firstButton.click();
 }
 
-// ---------- Переключение типов анализа ----------
+// ---------- Р СџР ВµРЎР‚Р ВµР С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘Р Вµ РЎвЂљР С‘Р С—Р С•Р Р† Р В°Р Р…Р В°Р В»Р С‘Р В·Р В° ----------
 function switchAnalysis(evt, analysisId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -118,7 +118,7 @@ function switchAnalysis(evt, analysisId) {
     }
 }
 
-// ---------- Анализ активности ----------
+// ---------- Р С’Р Р…Р В°Р В»Р С‘Р В· Р В°Р С”РЎвЂљР С‘Р Р†Р Р…Р С•РЎРѓРЎвЂљР С‘ ----------
 function openMonthTab(evt, monthId) {
     var parentRole = evt.currentTarget.closest('.role-content');
     var roleId = parentRole.id;
@@ -140,7 +140,7 @@ function openMonthTab(evt, monthId) {
     monthDiv.style.display = "block";
     evt.currentTarget.className += " active";
 
-    // Восстанавливаем режим для этого месяца
+    // Р вЂ™Р С•РЎРѓРЎРѓРЎвЂљР В°Р Р…Р В°Р Р†Р В»Р С‘Р Р†Р В°Р ВµР С РЎР‚Р ВµР В¶Р С‘Р С Р Т‘Р В»РЎРЏ РЎРЊРЎвЂљР С•Р С–Р С• Р СР ВµРЎРѓРЎРЏРЎвЂ Р В°
     var viewBtns = monthDiv.querySelectorAll('.view-mode-btn');
     setActiveViewButton(viewBtns, uiState.activity_view_mode);
     var container = monthDiv.querySelector('.view-mode-container');
@@ -177,7 +177,7 @@ function restoreActivityState(parentRole, roleId) {
 }
 
 function buildActivityBarChart(graphId, entries) {
-    var filteredEntries = entries.filter(e => e.experience !== 'Всего');
+    var filteredEntries = entries.filter(e => e.experience !== 'Р вЂ™РЎРѓР ВµР С–Р С•');
     var experiences = filteredEntries.map(e => e.experience);
     var activeData = filteredEntries.map(e => e.active);
     var archivedData = filteredEntries.map(e => e.archived);
@@ -185,21 +185,21 @@ function buildActivityBarChart(graphId, entries) {
     var traceActive = {
         x: experiences,
         y: activeData,
-        name: 'Активные',
+        name: 'Р С’Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№Р Вµ',
         type: 'bar',
         marker: { color: CHART_COLORS.light }
     };
     var traceArchived = {
         x: experiences,
         y: archivedData,
-        name: 'Архивные',
+        name: 'Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…РЎвЂ№Р Вµ',
         type: 'bar',
         marker: { color: CHART_COLORS.dark }
     };
 
     var layout = {
         barmode: 'group',
-        title: 'Количество вакансий по опыту',
+        title: 'Р С™Р С•Р В»Р С‘РЎвЂЎР ВµРЎРѓРЎвЂљР Р†Р С• Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„– Р С—Р С• Р С•Р С—РЎвЂ№РЎвЂљРЎС“',
         margin: { t: 50, b: 80, l: 50, r: 120 },
         height: 340,
         showlegend: false
@@ -207,7 +207,7 @@ function buildActivityBarChart(graphId, entries) {
     Plotly.newPlot(graphId, [traceActive, traceArchived], layout);
 }
 
-// ---------- Анализ по дням недели ----------
+// ---------- Р С’Р Р…Р В°Р В»Р С‘Р В· Р С—Р С• Р Т‘Р Р…РЎРЏР С Р Р…Р ВµР Т‘Р ВµР В»Р С‘ ----------
 function buildWeekdayBarChart(roleId, weekdayBlock) {
     var weekdaysData = parseJsonDataset(weekdayBlock, 'weekdays', []);
     if (!weekdaysData || weekdaysData.length === 0) return;
@@ -219,21 +219,21 @@ function buildWeekdayBarChart(roleId, weekdayBlock) {
     var tracePubs = {
         x: days,
         y: pubs,
-        name: 'Публикации',
+        name: 'Р СџРЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂ Р С‘Р С‘',
         type: 'bar',
         marker: { color: CHART_COLORS.light }
     };
     var traceArchs = {
         x: days,
         y: archs,
-        name: 'Архивации',
+        name: 'Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р В°РЎвЂ Р С‘Р С‘',
         type: 'bar',
         marker: { color: CHART_COLORS.dark }
     };
 
     var layout = {
         barmode: 'group',
-        title: 'Распределение по дням недели',
+        title: 'Р В Р В°РЎРѓР С—РЎР‚Р ВµР Т‘Р ВµР В»Р ВµР Р…Р С‘Р Вµ Р С—Р С• Р Т‘Р Р…РЎРЏР С Р Р…Р ВµР Т‘Р ВµР В»Р С‘',
         margin: { t: 50, b: 80, l: 50, r: 120 },
         height: 400,
         showlegend: false
@@ -241,7 +241,7 @@ function buildWeekdayBarChart(roleId, weekdayBlock) {
     Plotly.newPlot('weekday-graph-' + roleId, [tracePubs, traceArchs], layout);
 }
 
-// ---------- Навыки по месяцам ----------
+// ---------- Р СњР В°Р Р†РЎвЂ№Р С”Р С‘ Р С—Р С• Р СР ВµРЎРѓРЎРЏРЎвЂ Р В°Р С ----------
 function restoreSkillsMonthlyState(parentRole, roleId) {
     var monthButtons = parentRole.querySelectorAll('.monthly-skills-month-button');
     if (monthButtons.length === 0) return;
@@ -417,7 +417,7 @@ function aggregateSkillsExpData(expDivs, label) {
     });
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     skills = skills.slice(0, 15).map(function(s, i) { s.rank = i + 1; return s; });
-    return { experience: label || 'По выбранному периоду', total_vacancies: totalVac, skills: skills };
+    return { experience: label || 'Р СџР С• Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…Р С•Р СРЎС“ Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘РЎС“', total_vacancies: totalVac, skills: skills };
 }
 
 function renderSkillsExpContent(expDiv, expData) {
@@ -432,10 +432,10 @@ function renderSkillsExpContent(expDiv, expData) {
         }).join('');
         tableWrap.innerHTML =
             '<table>' +
-                '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
+                '<thead><tr><th>Р СњР В°Р Р†РЎвЂ№Р С”</th><th>Р Р€Р С—Р С•Р СР С‘Р Р…Р В°Р Р…Р С‘Р в„–</th><th>% Р С—Р С•Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ</th></tr></thead>' +
                 '<tbody>' + rows + '</tbody>' +
             '</table>' +
-            '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + expData.total_vacancies + '</p>';
+            '<p style="margin-top: 10px; color: var(--text-secondary);">Р вЂ™РЎРѓР ВµР С–Р С• Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„– РЎРѓ Р Р…Р В°Р Р†РЎвЂ№Р С”Р В°Р СР С‘: ' + expData.total_vacancies + '</p>';
     }
 }
 
@@ -508,9 +508,9 @@ function openMonthlySkillsExpTab(evt, expId) {
             multiDiv.style.display = 'none';
             multiDiv.innerHTML =
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊞</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р вЂ™Р СР ВµРЎРѓРЎвЂљР Вµ">РІР‰С›</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                     '<div class="table-container"></div>' +
@@ -523,7 +523,7 @@ function openMonthlySkillsExpTab(evt, expId) {
         expDiv = multiDiv;
     }
 
-    // Восстанавливаем режим для навыков
+    // Р вЂ™Р С•РЎРѓРЎРѓРЎвЂљР В°Р Р…Р В°Р Р†Р В»Р С‘Р Р†Р В°Р ВµР С РЎР‚Р ВµР В¶Р С‘Р С Р Т‘Р В»РЎРЏ Р Р…Р В°Р Р†РЎвЂ№Р С”Р С•Р Р†
     var viewBtns = expDiv.querySelectorAll('.view-mode-btn');
     setActiveViewButton(viewBtns, uiState.skills_monthly_view_mode);
     var container = expDiv.querySelector('.view-mode-container');
@@ -547,7 +547,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     var trace = {
         x: counts,
         y: skillNames,
-        name: 'Упоминания',
+        name: 'Р Р€Р С—Р С•Р СР С‘Р Р…Р В°Р Р…Р С‘РЎРЏ',
         type: 'bar',
         orientation: 'h',
         marker: { color: barColor },
@@ -557,8 +557,8 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     };
 
     var layout = {
-        title: 'Топ-15 навыков · ' + experience,
-        xaxis: { title: 'Количество упоминаний' },
+        title: 'Р СћР С•Р С—-15 Р Р…Р В°Р Р†РЎвЂ№Р С”Р С•Р Р† Р’В· ' + experience,
+        xaxis: { title: 'Р С™Р С•Р В»Р С‘РЎвЂЎР ВµРЎРѓРЎвЂљР Р†Р С• РЎС“Р С—Р С•Р СР С‘Р Р…Р В°Р Р…Р С‘Р в„–' },
         margin: { l: 200, r: 50, t: 50, b: 50 },
         height: 400,
         bargap: 0.15,
@@ -567,7 +567,7 @@ function buildHorizontalBarChart(graphId, skills, experience, barColor = CHART_C
     Plotly.newPlot(graphId, [trace], layout);
 }
 
-// ---------- Анализ зарплат ----------
+// ---------- Р С’Р Р…Р В°Р В»Р С‘Р В· Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљ ----------
 function restoreSalaryState(parentRole, roleId) {
     var viewBtns = parentRole.querySelectorAll('.view-mode-btn');
     setActiveViewButton(viewBtns, uiState.salary_view_mode);
@@ -678,7 +678,7 @@ function openSalaryExpTab(evt, expId) {
     applySalaryViewMode(expDiv, expData.entries);
 }
 
-// ---------- Общие функции для переключения режимов ----------
+// ---------- Р С›Р В±РЎвЂ°Р С‘Р Вµ РЎвЂћРЎС“Р Р…Р С”РЎвЂ Р С‘Р С‘ Р Т‘Р В»РЎРЏ Р С—Р ВµРЎР‚Р ВµР С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘РЎРЏ РЎР‚Р ВµР В¶Р С‘Р СР С•Р Р† ----------
 function setActiveViewButton(buttons, mode) {
     for (var btn of buttons) {
         if (btn.dataset.view === mode) btn.classList.add('active');
@@ -711,7 +711,7 @@ function applySalaryViewMode(expDiv, entries) {
     var graphContainer = expDiv.querySelector('.salary-graph-container');
     var graphId = expDiv.querySelector('.plotly-graph').id;
 
-    // Сброс стилей
+    // Р РЋР В±РЎР‚Р С•РЎРѓ РЎРѓРЎвЂљР С‘Р В»Р ВµР в„–
     mainContent.style.display = 'flex';
     mainContent.style.flexDirection = 'row';
     mainContent.style.flexWrap = 'wrap';
@@ -753,7 +753,7 @@ function buildSalaryBarChart(graphId, entries) {
         currencies.map(c => '<div class="salary-graph-item"><div class="plotly-graph" id="' + graphId + '-' + c.replace('%', 'p') + '"></div></div>').join('') +
     '</div>';
 
-    var statuses = ['Открытая', 'Архивная'];
+    var statuses = ['Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ', 'Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…Р В°РЎРЏ'];
     for (var curr of currencies) {
         var graphElId = graphId + '-' + curr.replace('%', 'p');
         var y = [];
@@ -771,9 +771,9 @@ function buildSalaryBarChart(graphId, entries) {
         }];
 
         var layout = {
-            title: 'Средняя зарплата · ' + curr,
-            xaxis: { title: 'Статус' },
-            yaxis: { title: 'Средняя зарплата' },
+            title: 'Р РЋРЎР‚Р ВµР Т‘Р Р…РЎРЏРЎРЏ Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљР В° Р’В· ' + curr,
+            xaxis: { title: 'Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ' },
+            yaxis: { title: 'Р РЋРЎР‚Р ВµР Т‘Р Р…РЎРЏРЎРЏ Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљР В°' },
             margin: { t: 40, b: 50, l: 50, r: 20 },
             height: 300,
             showlegend: false
@@ -793,13 +793,13 @@ function escapeHtml(value) {
 }
 
 function formatCell(value) {
-    if (value === null || value === undefined || value === '') return '—';
+    if (value === null || value === undefined || value === '') return 'РІР‚вЂќ';
     return escapeHtml(value);
 }
 
 function buildVacancyTableHtml(vacancies) {
     if (!vacancies || vacancies.length === 0) {
-        return '<div class="vacancy-empty">Нет вакансий</div>';
+        return '<div class="vacancy-empty">Р СњР ВµРЎвЂљ Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„–</div>';
     }
 
     var showRole = vacancies.some(v => v && (v.role_name || v.role_id));
@@ -809,9 +809,9 @@ function buildVacancyTableHtml(vacancies) {
             ? '<a href="' + escapeHtml(linkUrl) + '" target="_blank" rel="noopener">' + formatCell(v.id) + '</a>'
             : formatCell(v.id);
         var replyCell = v.apply_alternate_url
-            ? '<a class="vacancy-apply-link" href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url) + '">отклик</a>'
-            : '—';
-        var roleCell = showRole ? (escapeHtml((v.role_name || 'Роль') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
+            ? '<a class="vacancy-apply-link" href="' + escapeHtml(v.apply_alternate_url) + '" target="_blank" rel="noopener" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url) + '">Р С•РЎвЂљР С”Р В»Р С‘Р С”</a>'
+            : 'РІР‚вЂќ';
+        var roleCell = showRole ? (escapeHtml((v.role_name || 'Р В Р С•Р В»РЎРЉ') + (v.role_id ? ' [ID: ' + v.role_id + ']' : ''))) : '';
         return '<tr>' +
             '<td>' + idCell + '</td>' +
             (showRole ? '<td>' + roleCell + '</td>' : '') +
@@ -832,16 +832,16 @@ function buildVacancyTableHtml(vacancies) {
             '<thead>' +
                 '<tr>' +
                     '<th>ID</th>' +
-                    (showRole ? '<th>Роль</th>' : '') +
-                    '<th>Название</th>' +
-                    '<th>Работодатель</th>' +
-                    '<th>Город</th>' +
-                    '<th>ЗП от</th>' +
-                    '<th>ЗП до</th>' +
-                    '<th>Навыки</th>' +
-                    '<th>Требования</th>' +
-                    '<th>Обязанности</th>' +
-                    '<th>Отклик</th>' +
+                    (showRole ? '<th>Р В Р С•Р В»РЎРЉ</th>' : '') +
+                    '<th>Р СњР В°Р В·Р Р†Р В°Р Р…Р С‘Р Вµ</th>' +
+                    '<th>Р В Р В°Р В±Р С•РЎвЂљР С•Р Т‘Р В°РЎвЂљР ВµР В»РЎРЉ</th>' +
+                    '<th>Р вЂњР С•РЎР‚Р С•Р Т‘</th>' +
+                    '<th>Р вЂ”Р Сџ Р С•РЎвЂљ</th>' +
+                    '<th>Р вЂ”Р Сџ Р Т‘Р С•</th>' +
+                    '<th>Р СњР В°Р Р†РЎвЂ№Р С”Р С‘</th>' +
+                    '<th>Р СћРЎР‚Р ВµР В±Р С•Р Р†Р В°Р Р…Р С‘РЎРЏ</th>' +
+                    '<th>Р С›Р В±РЎРЏР В·Р В°Р Р…Р Р…Р С•РЎРѓРЎвЂљР С‘</th>' +
+                    '<th>Р С›РЎвЂљР С”Р В»Р С‘Р С”</th>' +
                 '</tr>' +
             '</thead>' +
             '<tbody>' + rows + '</tbody>' +
@@ -859,10 +859,10 @@ function renderVacancyDetails(container, withList, withoutList) {
 
     var filterHtml = '<div class="vacancy-filter">' +
         '<button class="vacancy-filter-btn' + (defaultTab === 'with' ? ' active' : '') + '" data-filter="with">' +
-            'С з/п (' + withCount + ')' +
+            'Р РЋ Р В·/Р С— (' + withCount + ')' +
         '</button>' +
         '<button class="vacancy-filter-btn' + (defaultTab === 'without' ? ' active' : '') + '" data-filter="without">' +
-            'Без з/п (' + withoutCount + ')' +
+            'Р вЂР ВµР В· Р В·/Р С— (' + withoutCount + ')' +
         '</button>' +
     '</div>';
 
@@ -872,16 +872,16 @@ function renderVacancyDetails(container, withList, withoutList) {
 function renderStatusIcon(status) {
     var raw = status === null || status === undefined ? '' : String(status);
     var normalized = raw.trim().toLowerCase();
-    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('архив') !== -1;
-    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('откры') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('актив') !== -1;
+    var isArchived = normalized.indexOf('archiv') !== -1 || normalized.indexOf('Р В°РЎР‚РЎвЂ¦Р С‘Р Р†') !== -1;
+    var isOpen = normalized.indexOf('open') !== -1 || normalized.indexOf('Р С•РЎвЂљР С”РЎР‚РЎвЂ№') !== -1 || normalized.indexOf('active') !== -1 || normalized.indexOf('Р В°Р С”РЎвЂљР С‘Р Р†') !== -1;
 
     if (isArchived) {
-        return '<span class="status-icon status-icon-archived" title="Архивная" aria-label="Архивная">🗄️</span>';
+        return '<span class="status-icon status-icon-archived" title="Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…Р В°РЎРЏ" aria-label="Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…Р В°РЎРЏ">СЂСџвЂ”вЂћРїС‘РЏ</span>';
     }
     if (isOpen) {
-        return '<span class="status-icon status-icon-open" title="Открытая" aria-label="Открытая">✅</span>';
+        return '<span class="status-icon status-icon-open" title="Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ" aria-label="Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ">РІСљвЂ¦</span>';
     }
-    return '<span class="status-icon" title="' + escapeHtml(raw || '—') + '" aria-label="' + escapeHtml(raw || '—') + '">' + escapeHtml(raw || '—') + '</span>';
+    return '<span class="status-icon" title="' + escapeHtml(raw || 'РІР‚вЂќ') + '" aria-label="' + escapeHtml(raw || 'РІР‚вЂќ') + '">' + escapeHtml(raw || 'РІР‚вЂќ') + '</span>';
 }
 
 function getExperienceLabels() {
@@ -926,13 +926,13 @@ function getExperienceOrder() {
 }
 
 function formatMonthTitle(numMonths) {
-    if (numMonths === 1) return 'За 1 месяц';
-    if (numMonths >= 2 && numMonths <= 4) return 'За ' + numMonths + ' месяца';
-    return 'За ' + numMonths + ' месяцев';
+    if (numMonths === 1) return 'Р вЂ”Р В° 1 Р СР ВµРЎРѓРЎРЏРЎвЂ ';
+    if (numMonths >= 2 && numMonths <= 4) return 'Р вЂ”Р В° ' + numMonths + ' Р СР ВµРЎРѓРЎРЏРЎвЂ Р В°';
+    return 'Р вЂ”Р В° ' + numMonths + ' Р СР ВµРЎРѓРЎРЏРЎвЂ Р ВµР Р†';
 }
 
 function isSummaryMonth(monthStr) {
-    return monthStr && monthStr.startsWith('За ');
+    return monthStr && monthStr.startsWith('Р вЂ”Р В° ');
 }
 
 function parseJsonDataset(el, key, fallback) {
@@ -1048,7 +1048,7 @@ function applyLifetimeToActivityMonths(activityMonths, lifetimeMaps) {
     activityMonths.forEach(m => {
         if (isSummaryMonth(m.month)) {
             (m.entries || []).forEach(e => {
-                if (e.experience === 'Всего') {
+                if (e.experience === 'Р вЂ™РЎРѓР ВµР С–Р С•') {
                     e.avg_age = lifetimeMaps.overallTotal;
                 } else {
                     e.avg_age = lifetimeMaps.overallByExp[e.experience];
@@ -1057,7 +1057,7 @@ function applyLifetimeToActivityMonths(activityMonths, lifetimeMaps) {
         } else {
             var monthMap = lifetimeMaps.byMonth[m.month] || {};
             (m.entries || []).forEach(e => {
-                if (e.experience === 'Всего') {
+                if (e.experience === 'Р вЂ™РЎРѓР ВµР С–Р С•') {
                     e.avg_age = lifetimeMaps.byMonthTotal[m.month];
                 } else {
                     e.avg_age = monthMap[e.experience];
@@ -1065,10 +1065,10 @@ function applyLifetimeToActivityMonths(activityMonths, lifetimeMaps) {
             });
         }
 
-        // пересчитать максимум возраста
+        // Р С—Р ВµРЎР‚Р ВµРЎРѓРЎвЂЎР С‘РЎвЂљР В°РЎвЂљРЎРЉ Р СР В°Р С”РЎРѓР С‘Р СРЎС“Р С Р Р†Р С•Р В·РЎР‚Р В°РЎРѓРЎвЂљР В°
         var maxAge = null;
         (m.entries || []).forEach(e => {
-            if (e.experience === 'Всего') return;
+            if (e.experience === 'Р вЂ™РЎРѓР ВµР С–Р С•') return;
             if (e.avg_age === null || e.avg_age === undefined) return;
             if (maxAge === null || e.avg_age > maxAge) maxAge = e.avg_age;
         });
@@ -1166,7 +1166,7 @@ function aggregateActivity(roleContents) {
             if (isSummaryMonth(m.month)) return;
             byMonth[m.month] = byMonth[m.month] || {};
             m.entries.forEach(e => {
-                if (e.experience === 'Всего') return;
+                if (e.experience === 'Р вЂ™РЎРѓР ВµР С–Р С•') return;
                 var bucket = byMonth[m.month][e.experience] || { total: 0, archived: 0, active: 0, ageSum: 0 };
                 bucket.total += e.total || 0;
                 bucket.archived += e.archived || 0;
@@ -1200,7 +1200,7 @@ function aggregateActivity(roleContents) {
             e.is_max_age = e.avg_age === maxAge;
         });
         var totalEntry = {
-            experience: 'Всего',
+            experience: 'Р вЂ™РЎРѓР ВµР С–Р С•',
             total: entries.reduce((s, e) => s + e.total, 0),
             archived: entries.reduce((s, e) => s + e.archived, 0),
             active: entries.reduce((s, e) => s + e.active, 0),
@@ -1217,7 +1217,7 @@ function aggregateActivity(roleContents) {
         var agg = {};
         monthsList.forEach(m => {
             m.entries.forEach(e => {
-                if (e.experience === 'Всего') return;
+                if (e.experience === 'Р вЂ™РЎРѓР ВµР С–Р С•') return;
                 var bucket = agg[e.experience] || { total: 0, archived: 0, active: 0, ageSum: 0 };
                 bucket.total += e.total;
                 bucket.archived += e.archived;
@@ -1238,7 +1238,7 @@ function aggregateActivity(roleContents) {
         });
         summaryEntries.sort((a, b) => (expOrder[a.experience] || 99) - (expOrder[b.experience] || 99));
         summaryEntries.push({
-            experience: 'Всего',
+            experience: 'Р вЂ™РЎРѓР ВµР С–Р С•',
             total: summaryEntries.reduce((s, e) => s + e.total, 0),
             archived: summaryEntries.reduce((s, e) => s + e.archived, 0),
             active: summaryEntries.reduce((s, e) => s + e.active, 0),
@@ -1278,8 +1278,8 @@ function aggregateWeekdays(roleContents) {
     list.forEach(d => {
         var pubAvg = d.pubHourCount ? Math.round(d.pubHourSum / d.pubHourCount) : 0;
         var archAvg = d.archHourCount ? Math.round(d.archHourSum / d.archHourCount) : 0;
-        d.avg_pub_hour = d.pubHourCount ? (pubAvg + ':00') : '—';
-        d.avg_arch_hour = d.archHourCount ? (archAvg + ':00') : '—';
+        d.avg_pub_hour = d.pubHourCount ? (pubAvg + ':00') : 'РІР‚вЂќ';
+        d.avg_arch_hour = d.archHourCount ? (archAvg + ':00') : 'РІР‚вЂќ';
         delete d.pubHourSum;
         delete d.pubHourCount;
         delete d.archHourSum;
@@ -1370,7 +1370,7 @@ function buildTopSkills(vacancies) {
             counts.set(skill, (counts.get(skill) || 0) + 1);
         });
     });
-    if (counts.size === 0) return 'Нет данных о навыках';
+    if (counts.size === 0) return 'Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р С• Р Р…Р В°Р Р†РЎвЂ№Р С”Р В°РЎвЂ¦';
     var sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     return sorted.slice(0, 10).map(([skill, count]) => skill + ' (' + count + ')').join(', ');
 }
@@ -1405,7 +1405,7 @@ function buildSalaryEntriesFromBuckets(bucketsByKey) {
             vacancies_without_salary_list: b.without
         };
     });
-    entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
+    entries.sort((a, b) => (a.status !== 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ') - (b.status !== 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ') || a.status.localeCompare(b.status));
     return entries;
 }
 
@@ -1461,7 +1461,7 @@ function aggregateSalary(roleContents) {
         var entries = buildSalaryEntriesFromBuckets(bucketsByKey);
         if (entries.some(e => e.total_vacancies > 0)) return entries;
 
-        // fallback: если нет списков вакансий, используем суммированные значения
+        // fallback: Р ВµРЎРѓР В»Р С‘ Р Р…Р ВµРЎвЂљ РЎРѓР С—Р С‘РЎРѓР С”Р С•Р Р† Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„–, Р С‘РЎРѓР С—Р С•Р В»РЎРЉР В·РЎС“Р ВµР С РЎРѓРЎС“Р СР СР С‘РЎР‚Р С•Р Р†Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р В·Р Р…Р В°РЎвЂЎР ВµР Р…Р С‘РЎРЏ
         entries = Object.values(bucketsByKey).map(b => {
             var total = b.raw_total || 0;
             var withCount = b.raw_with || 0;
@@ -1476,13 +1476,13 @@ function aggregateSalary(roleContents) {
                 mode_salary: b.raw_mode || 0,
                 min_salary: b.raw_min || 0,
                 max_salary: b.raw_max || 0,
-                top_skills: b.top_skills || '—',
+                top_skills: b.top_skills || 'РІР‚вЂќ',
                 vacancy_ids: [],
                 vacancies_with_salary_list: [],
                 vacancies_without_salary_list: []
             };
         });
-        entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
+        entries.sort((a, b) => (a.status !== 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ') - (b.status !== 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ') || a.status.localeCompare(b.status));
         return entries;
     }
 
@@ -1699,17 +1699,17 @@ function renderAllRolesContainer(container, roleContents) {
     });
 
     container.innerHTML =
-        '<h2>Сводно по всем ролям</h2>' +
+        '<h2>Р РЋР Р†Р С•Р Т‘Р Р…Р С• Р С—Р С• Р Р†РЎРѓР ВµР С РЎР‚Р С•Р В»РЎРЏР С</h2>' +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Анализ активности</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Анализ по дням недели</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Навыки по месяцам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Анализ зарплат</button>' +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Р С’Р Р…Р В°Р В»Р С‘Р В· Р В°Р С”РЎвЂљР С‘Р Р†Р Р…Р С•РЎРѓРЎвЂљР С‘</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Р С’Р Р…Р В°Р В»Р С‘Р В· Р С—Р С• Р Т‘Р Р…РЎРЏР С Р Р…Р ВµР Т‘Р ВµР В»Р С‘</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Р СњР В°Р Р†РЎвЂ№Р С”Р С‘ Р С—Р С• Р СР ВµРЎРѓРЎРЏРЎвЂ Р В°Р С</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Р С’Р Р…Р В°Р В»Р С‘Р В· Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљ</button>' +
         '</div>' +
         '<div class="month-content activity-only" data-analysis="activity-all">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn together-btn active" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                 '<div class="table-container activity-all-table-container">' +
@@ -1717,39 +1717,20 @@ function renderAllRolesContainer(container, roleContents) {
                         '<colgroup>' +
                             '<col><col><col><col><col><col>' +
                         '</colgroup>' +
-                        '<thead><tr><th>Роль</th><th>Открытых</th><th>Архивных</th><th>Всего</th><th>Ср. возраст</th><th>Арх/Откр</th></tr></thead>' +
+                        '<thead><tr><th>Р В Р С•Р В»РЎРЉ</th><th>Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№РЎвЂ¦</th><th>Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…РЎвЂ№РЎвЂ¦</th><th>Р вЂ™РЎРѓР ВµР С–Р С•</th><th>Р РЋРЎР‚. Р Р†Р С•Р В·РЎР‚Р В°РЎРѓРЎвЂљ</th><th>Р С’РЎР‚РЎвЂ¦/Р С›РЎвЂљР С”РЎР‚</th></tr></thead>' +
                         '<tbody>' +
                             activityRows.map(r => {
                                 var ratio = r.active ? (r.archived / r.active) : 0;
                                 var leadActive = r.active === maxActive && maxActive > 0 ? ' class="leader"' : '';
                                 var leadRatio = ratio === maxRatio && maxRatio > 0 ? ' class="leader"' : '';
-                                var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
-                                    '<tr class="activity-all-details" style="display: none;">' +
-                                        '<td colspan="6">' +
-                                            '<div class="table-container activity-all-table-container">' +
-                                                '<table class="details-table align-activity">' +
-                                                    '<colgroup>' +
-                                                        '<col><col><col><col><col><col>' +
-                                                    '</colgroup>' +
-                                                    '<thead><tr><th>Опыт</th><th>Открытых</th><th>Архивных</th><th>Всего</th></tr></thead>' +
-                                                    '<tbody>' +
-                                                        r.exp_breakdown.map(e => (
-                                                            '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '\u2014') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '\u2014') + '</td></tr>'
-                                                        )).join('') +
-                                                    '</tbody>' +
-                                                '</table>' +
-                                            '</div>' +
-                                        '</td>' +
-                                    '</tr>'
-                                ) : '';
                                 return '<tr class="activity-all-row">' +
                                     '<td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' +
                                     '<td' + leadActive + '>' + r.active + '</td>' +
                                     '<td>' + r.archived + '</td>' +
                                     '<td>' + r.total + '</td>' +
-                                    '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '—') + '</td>' +
-                                    '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '—') + '</td>' +
-                                '</tr>' + details;
+                                    '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : 'РІР‚вЂќ') + '</td>' +
+                                    '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : 'РІР‚вЂќ') + '</td>' +
+                                '</tr>';
                             }).join('') +
                         '</tbody>' +
                     '</table>' +
@@ -1761,7 +1742,7 @@ function renderAllRolesContainer(container, roleContents) {
             '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архивов/день</th></tr></thead>' +
+                        '<thead><tr><th>Р В Р С•Р В»РЎРЉ</th><th>Р РЋРЎР‚. Р С—РЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂ Р С‘Р в„–/Р Т‘Р ВµР Р…РЎРЉ</th><th>Р РЋРЎР‚. Р В°РЎР‚РЎвЂ¦Р С‘Р Р†Р С•Р Р†/Р Т‘Р ВµР Р…РЎРЉ</th></tr></thead>' +
                         '<tbody>' +
                             weekdayRows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' + r.avg_pub.toFixed(1) + '</td><td>' + r.avg_arch.toFixed(1) + '</td></tr>'
@@ -1775,11 +1756,11 @@ function renderAllRolesContainer(container, roleContents) {
             '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Топ навыков (частота)</th></tr></thead>' +
+                        '<thead><tr><th>Р В Р С•Р В»РЎРЉ</th><th>Р СћР С•Р С— Р Р…Р В°Р Р†РЎвЂ№Р С”Р С•Р Р† (РЎвЂЎР В°РЎРѓРЎвЂљР С•РЎвЂљР В°)</th></tr></thead>' +
                         '<tbody>' +
                             skillsRows.map(r => (
                                 '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td>' +
-                                    (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : '—') +
+                                    (r.skills.length ? r.skills.map(s => escapeHtml(s[0]) + ' (' + s[1] + ')').join(', ') : 'РІР‚вЂќ') +
                                 '</td></tr>'
                             )).join('') +
                         '</tbody>' +
@@ -1791,18 +1772,18 @@ function renderAllRolesContainer(container, roleContents) {
             '<div class="analysis-flex view-mode-container" data-analysis="salary">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Роль</th><th>Навык</th><th>Частота</th><th>Средняя ЗП</th></tr></thead>' +
+                        '<thead><tr><th>Р В Р С•Р В»РЎРЉ</th><th>Р СњР В°Р Р†РЎвЂ№Р С”</th><th>Р В§Р В°РЎРѓРЎвЂљР С•РЎвЂљР В°</th><th>Р РЋРЎР‚Р ВµР Т‘Р Р…РЎРЏРЎРЏ Р вЂ”Р Сџ</th></tr></thead>' +
                         '<tbody>' +
                             salaryRows.map(r => {
                                 if (!r.skills.length) {
-                                    return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">—</td></tr>';
+                                    return '<tr><td>' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td><td colspan="3">РІР‚вЂќ</td></tr>';
                                 }
                                 return r.skills.map((s, i) => (
                                     '<tr>' +
                                         (i === 0 ? '<td rowspan="' + r.skills.length + '">' + escapeHtml(r.name) + ' [ID: ' + escapeHtml(r.id) + ']</td>' : '') +
                                         '<td>' + escapeHtml(s.skill) + '</td>' +
                                         '<td>' + s.count + '</td>' +
-                                        '<td>' + (s.avg ? Math.round(s.avg) : '—') + '</td>' +
+                                        '<td>' + (s.avg ? Math.round(s.avg) : 'РІР‚вЂќ') + '</td>' +
                                     '</tr>'
                                 )).join('');
                             }).join('') +
@@ -1826,7 +1807,7 @@ function renderAllRolesContainer(container, roleContents) {
 }
 
 function buildAllRolesActivityChart(rows) {
-    var labels = rows.map(r => (r.name || 'Роль') + ' [' + (r.id || '') + ']');
+    var labels = rows.map(r => (r.name || 'Р В Р С•Р В»РЎРЉ') + ' [' + (r.id || '') + ']');
     var activeVals = rows.map(r => r.active || 0);
     var archivedVals = rows.map(r => r.archived || 0);
     var ageVals = rows.map(r => (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : null));
@@ -1835,7 +1816,7 @@ function buildAllRolesActivityChart(rows) {
         y: activeVals,
         type: 'scatter',
         mode: 'lines+markers',
-        name: 'Открытые',
+        name: 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№Р Вµ',
         line: { color: CHART_COLORS.light }
     };
     var traceArchived = {
@@ -1843,27 +1824,27 @@ function buildAllRolesActivityChart(rows) {
         y: archivedVals,
         type: 'scatter',
         mode: 'lines+markers',
-        name: 'Архивные',
+        name: 'Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…РЎвЂ№Р Вµ',
         line: { color: CHART_COLORS.dark }
     };
     var traceAge = {
         x: labels,
         y: ageVals,
         type: 'bar',
-        name: 'Ср. возраст (дни)',
+        name: 'Р РЋРЎР‚. Р Р†Р С•Р В·РЎР‚Р В°РЎРѓРЎвЂљ (Р Т‘Р Р…Р С‘)',
         marker: { color: CHART_COLORS.medium }
     };
     var layoutMain = {
-        title: 'Открытые и архивные вакансии по ролям',
+        title: 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№Р Вµ Р С‘ Р В°РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…РЎвЂ№Р Вµ Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р С‘ Р С—Р С• РЎР‚Р С•Р В»РЎРЏР С',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Количество вакансий' },
+        yaxis: { title: 'Р С™Р С•Р В»Р С‘РЎвЂЎР ВµРЎРѓРЎвЂљР Р†Р С• Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„–' },
         margin: { t: 50, b: 120, l: 50, r: 60 },
         height: 420
     };
     var layoutAge = {
-        title: 'Ср. возраст (дни) по ролям',
+        title: 'Р РЋРЎР‚. Р Р†Р С•Р В·РЎР‚Р В°РЎРѓРЎвЂљ (Р Т‘Р Р…Р С‘) Р С—Р С• РЎР‚Р С•Р В»РЎРЏР С',
         xaxis: { tickangle: -35, title: '' },
-        yaxis: { title: 'Ср. возраст (дни)' },
+        yaxis: { title: 'Р РЋРЎР‚. Р Р†Р С•Р В·РЎР‚Р В°РЎРѓРЎвЂљ (Р Т‘Р Р…Р С‘)' },
         margin: { t: 50, b: 120, l: 50, r: 30 },
         height: 420
     };
@@ -1897,7 +1878,7 @@ function aggregateSalarySum(roleContents) {
                         mode_salary: 0,
                         min_salary: 0,
                         max_salary: 0,
-                        top_skills: entry.top_skills || '—',
+                        top_skills: entry.top_skills || 'РІР‚вЂќ',
                         with: [],
                         without: []
                     };
@@ -1931,13 +1912,13 @@ function aggregateSalarySum(roleContents) {
                 mode_salary: b.mode_salary || 0,
                 min_salary: b.min_salary || 0,
                 max_salary: b.max_salary || 0,
-                top_skills: b.top_skills || '—',
+                top_skills: b.top_skills || 'РІР‚вЂќ',
                 vacancy_ids: [],
                 vacancies_with_salary_list: b.with || [],
                 vacancies_without_salary_list: b.without || []
             };
         });
-        entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
+        entries.sort((a, b) => (a.status !== 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ') - (b.status !== 'Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР В°РЎРЏ') || a.status.localeCompare(b.status));
         return entries;
     }
 
@@ -1967,7 +1948,7 @@ function aggregateSalarySum(roleContents) {
                         mode_salary: 0,
                         min_salary: 0,
                         max_salary: 0,
-                        top_skills: entry.top_skills || '—',
+                        top_skills: entry.top_skills || 'РІР‚вЂќ',
                         with: [],
                         without: []
                     };
@@ -2013,7 +1994,7 @@ function buildSkillsSummaryExp(monthData) {
     skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
     skills = skills.slice(0, 15);
     return {
-        experience: 'Все',
+        experience: 'Р вЂ™РЎРѓР Вµ',
         total_vacancies: agg.total,
         skills: skills
     };
@@ -2031,7 +2012,7 @@ function buildSalarySummaryExp(monthData) {
         });
     });
     return {
-        experience: 'Все',
+        experience: 'Р вЂ™РЎРѓР Вµ',
         entries: buildSalaryEntriesFromBuckets(buckets)
     };
 }
@@ -2054,7 +2035,7 @@ function addSummaryTabs(root) {
         var btn = document.createElement('button');
         btn.className = 'tab-button salary-exp-button';
         btn.dataset.summary = '1';
-        btn.textContent = 'Все';
+        btn.textContent = 'Р вЂ™РЎРѓР Вµ';
         btn.setAttribute('onclick', "openSalaryExpTab(event, '" + expId + "')");
         expTabs.appendChild(btn);
 
@@ -2071,7 +2052,7 @@ function addSummaryTabs(root) {
                     '<div class="salary-table-container">' +
                         '<div style="overflow-x: auto;">' +
                             '<table>' +
-                                '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                '<thead><tr><th>Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ</th><th>Р вЂ™Р В°Р В»РЎР‹РЎвЂљР В°</th><th>Р вЂ™РЎРѓР ВµР С–Р С•</th><th>Р РЋ Р В·/Р С—</th><th>% РЎРѓ Р В·/Р С—</th><th>Р РЋРЎР‚Р ВµР Т‘Р Р…РЎРЏРЎРЏ</th><th>Р СљР ВµР Т‘Р С‘Р В°Р Р…Р Р…Р В°РЎРЏ</th><th>Р СљР С•Р Т‘Р В°Р В»РЎРЉР Р…Р В°РЎРЏ</th><th>Р СљР С‘Р Р…</th><th>Р СљР В°Р С”РЎРѓ</th><th>Р СћР С•Р С—-10 Р Р…Р В°Р Р†РЎвЂ№Р С”Р С•Р Р†</th></tr></thead>' +
                                 '<tbody>' +
                                     summaryExp.entries.map(entry => (
                                         '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -2081,8 +2062,8 @@ function addSummaryTabs(root) {
                                             '<td>' + entry.vacancies_with_salary + '</td>' +
                                             '<td>' + entry.salary_percentage + '%</td>' +
                                             '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                                            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-                                            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                                            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'РІР‚вЂќ') + '</td>' +
+                                            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'РІР‚вЂќ') + '</td>' +
                                             '<td>' + Math.round(entry.min_salary) + '</td>' +
                                             '<td>' + Math.round(entry.max_salary) + '</td>' +
                                             '<td>' + entry.top_skills + '</td>' +
@@ -2097,8 +2078,8 @@ function addSummaryTabs(root) {
                     '</div>' +
                 '</div>' +
                 '<div class="salary-view-toggle">' +
-                    '<button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn active" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                    '<button class="view-mode-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
                 '</div>' +
             '</div>';
         monthDiv.appendChild(expDiv);
@@ -2125,24 +2106,20 @@ function renderCombinedContainer(container, roleContents) {
 
     var ids = roleContents.map(rc => rc.dataset.roleId).filter(Boolean);
     var allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-    var period = computePublicationPeriod(allVacancies) || '—';
-    var roleTitle = '[ID: ' + ids.join(', ') + '] период сбора вакансий ' + period;
-
-    var activityTabs = activityMonths.map((m, i) => (
-        '<button class="tab-button month-button" onclick="openMonthTab(event, \'month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
-    )).join('');
+    var period = computePublicationPeriod(allVacancies) || 'РІР‚вЂќ';
+    var roleTitle = '[ID: ' + ids.join(', ') + '] Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘ РЎРѓР В±Р С•РЎР‚Р В° Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„– ' + period;
 
     var activityBlocks = activityMonths.map((m, i) => (
         '<div id="month-combined-' + (i + 1) + '" class="month-content activity-only" data-entries="" data-month="' + m.month + '">' +
             '<div class="view-toggle-horizontal">' +
-                '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-                '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                '<button class="view-mode-btn together-btn active" data-view="together" title="Р вЂ™Р СР ВµРЎРѓРЎвЂљР Вµ">РІР‰вЂў</button>' +
+                '<button class="view-mode-btn table-btn" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                '<button class="view-mode-btn graph-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
             '</div>' +
             '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
                 '<div class="table-container">' +
                     '<table>' +
-                        '<thead><tr><th>Опыт</th><th>Всего</th><th>Архивных</th><th>Активных</th><th>Ср. возраст (дни)</th></tr></thead>' +
+                        '<thead><tr><th>Р С›Р С—РЎвЂ№РЎвЂљ</th><th>Р вЂ™РЎРѓР ВµР С–Р С•</th><th>Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р Р…РЎвЂ№РЎвЂ¦</th><th>Р С’Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№РЎвЂ¦</th><th>Р РЋРЎР‚. Р Р†Р С•Р В·РЎР‚Р В°РЎРѓРЎвЂљ (Р Т‘Р Р…Р С‘)</th></tr></thead>' +
                         '<tbody>' +
                             m.entries.map(e => (
                                 '<tr' + (e.is_max_archived ? ' class="max-archived"' : '') + '>' +
@@ -2150,7 +2127,7 @@ function renderCombinedContainer(container, roleContents) {
                                     '<td>' + e.total + '</td>' +
                                     '<td>' + e.archived + '</td>' +
                                     '<td>' + e.active + '</td>' +
-                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td>' +
+                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : 'РІР‚вЂќ') + '</td>' +
                                 '</tr>'
                             )).join('') +
                         '</tbody>' +
@@ -2165,14 +2142,14 @@ function renderCombinedContainer(container, roleContents) {
         '<div class="weekday-content" data-analysis="weekday-combined" style="display: none;" data-weekdays="">' +
             (weekdays.length ? (
                 '<div class="view-toggle-horizontal">' +
-                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р вЂ™Р СР ВµРЎРѓРЎвЂљР Вµ">РІР‰вЂў</button>' +
+                    '<button class="view-mode-btn table-btn" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
                 '</div>' +
                 '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
                     '<div class="table-container">' +
                         '<table>' +
-                            '<thead><tr><th>День недели</th><th>Публикаций</th><th>Архиваций</th><th>Ср. время публикации</th><th>Ср. время архивации</th></tr></thead>' +
+                            '<thead><tr><th>Р вЂќР ВµР Р…РЎРЉ Р Р…Р ВµР Т‘Р ВµР В»Р С‘</th><th>Р СџРЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂ Р С‘Р в„–</th><th>Р С’РЎР‚РЎвЂ¦Р С‘Р Р†Р В°РЎвЂ Р С‘Р в„–</th><th>Р РЋРЎР‚. Р Р†РЎР‚Р ВµР СРЎРЏ Р С—РЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂ Р С‘Р С‘</th><th>Р РЋРЎР‚. Р Р†РЎР‚Р ВµР СРЎРЏ Р В°РЎР‚РЎвЂ¦Р С‘Р Р†Р В°РЎвЂ Р С‘Р С‘</th></tr></thead>' +
                             '<tbody>' +
                                 weekdays.map(d => (
                                     '<tr><td>' + d.weekday + '</td><td>' + d.publications + '</td><td>' + d.archives + '</td><td>' + d.avg_pub_hour + '</td><td>' + d.avg_arch_hour + '</td></tr>'
@@ -2182,7 +2159,7 @@ function renderCombinedContainer(container, roleContents) {
                     '</div>' +
                     '<div class="plotly-graph" id="weekday-graph-combined"></div>' +
                 '</div>'
-            ) : '<p>Нет данных по дням недели</p>') +
+            ) : '<p>Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р С—Р С• Р Т‘Р Р…РЎРЏР С Р Р…Р ВµР Т‘Р ВµР В»Р С‘</p>') +
         '</div>'
     );
 
@@ -2204,21 +2181,21 @@ function renderCombinedContainer(container, roleContents) {
                         m.experiences.map((exp, j) => (
                             '<div id="ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="monthly-skills-exp-content" data-exp="" style="display: none;">' +
                                 '<div class="view-toggle-horizontal">' +
-                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Вместе">⊕</button>' +
-                                    '<button class="view-mode-btn table-btn" data-view="table" title="Таблица">☷</button>' +
-                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="График">📊</button>' +
+                                    '<button class="view-mode-btn together-btn active" data-view="together" title="Р вЂ™Р СР ВµРЎРѓРЎвЂљР Вµ">РІР‰вЂў</button>' +
+                                    '<button class="view-mode-btn table-btn" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                                    '<button class="view-mode-btn graph-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
                                 '</div>' +
                                 '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
                                     '<div class="table-container">' +
                                         '<table>' +
-                                            '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
+                                            '<thead><tr><th>Р СњР В°Р Р†РЎвЂ№Р С”</th><th>Р Р€Р С—Р С•Р СР С‘Р Р…Р В°Р Р…Р С‘Р в„–</th><th>% Р С—Р С•Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ</th></tr></thead>' +
                                             '<tbody>' +
                                                 exp.skills.map(s => (
                                                     '<tr><td>' + s.skill + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>'
                                                 )).join('') +
                                             '</tbody>' +
                                         '</table>' +
-                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + exp.total_vacancies + '</p>' +
+                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Р вЂ™РЎРѓР ВµР С–Р С• Р Р†Р В°Р С”Р В°Р Р…РЎРѓР С‘Р в„– РЎРѓ Р Р…Р В°Р Р†РЎвЂ№Р С”Р В°Р СР С‘: ' + exp.total_vacancies + '</p>' +
                                     '</div>' +
                                     '<div class="plotly-graph" id="skills-monthly-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
                                 '</div>' +
@@ -2226,7 +2203,7 @@ function renderCombinedContainer(container, roleContents) {
                         )).join('') +
                     '</div>'
                 )).join('')
-            ) : '<p>Нет данных по навыкам</p>') +
+            ) : '<p>Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р С—Р С• Р Р…Р В°Р Р†РЎвЂ№Р С”Р В°Р С</p>') +
         '</div>'
     );
 
@@ -2252,7 +2229,7 @@ function renderCombinedContainer(container, roleContents) {
                                         '<div class="salary-table-container">' +
                                             '<div style="overflow-x: auto;">' +
                                                 '<table>' +
-                                                    '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                                    '<thead><tr><th>Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ</th><th>Р вЂ™Р В°Р В»РЎР‹РЎвЂљР В°</th><th>Р вЂ™РЎРѓР ВµР С–Р С•</th><th>Р РЋ Р В·/Р С—</th><th>% РЎРѓ Р В·/Р С—</th><th>Р РЋРЎР‚Р ВµР Т‘Р Р…РЎРЏРЎРЏ</th><th>Р СљР ВµР Т‘Р С‘Р В°Р Р…Р Р…Р В°РЎРЏ</th><th>Р СљР С•Р Т‘Р В°Р В»РЎРЉР Р…Р В°РЎРЏ</th><th>Р СљР С‘Р Р…</th><th>Р СљР В°Р С”РЎРѓ</th><th>Р СћР С•Р С—-10 Р Р…Р В°Р Р†РЎвЂ№Р С”Р С•Р Р†</th></tr></thead>' +
                                                     '<tbody>' +
                                                         exp.entries.map(entry => (
                                                             '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
@@ -2262,8 +2239,8 @@ function renderCombinedContainer(container, roleContents) {
                                                                 '<td>' + entry.vacancies_with_salary + '</td>' +
                                                                 '<td>' + entry.salary_percentage + '%</td>' +
                                                                 '<td>' + Math.round(entry.avg_salary) + '</td>' +
-                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : 'РІР‚вЂќ') + '</td>' +
+                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : 'РІР‚вЂќ') + '</td>' +
                                                                 '<td>' + Math.round(entry.min_salary) + '</td>' +
                                                                 '<td>' + Math.round(entry.max_salary) + '</td>' +
                                                                 '<td>' + entry.top_skills + '</td>' +
@@ -2278,28 +2255,25 @@ function renderCombinedContainer(container, roleContents) {
                                         '</div>' +
                                     '</div>' +
                                     '<div class="salary-view-toggle">' +
-                                        '<button class="view-mode-btn active" data-view="table" title="Таблица">☷</button>' +
-                                        '<button class="view-mode-btn" data-view="graph" title="График">📊</button>' +
+                                        '<button class="view-mode-btn active" data-view="table" title="Р СћР В°Р В±Р В»Р С‘РЎвЂ Р В°">РІВВ·</button>' +
+                                        '<button class="view-mode-btn" data-view="graph" title="Р вЂњРЎР‚Р В°РЎвЂћР С‘Р С”">СЂСџвЂњР‰</button>' +
                                     '</div>' +
                                 '</div>' +
                             '</div>'
                         )).join('') +
                     '</div>'
                 )).join('')
-            ) : '<p>Нет данных по зарплатам</p>') +
+            ) : '<p>Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р С—Р С• Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљР В°Р С</p>') +
         '</div>'
     );
 
     container.innerHTML =
         '<h2>' + roleTitle + '</h2>' +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Анализ активности</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Анализ по дням недели</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Навыки по месяцам</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Анализ зарплат</button>' +
-        '</div>' +
-        '<div class="tabs month-tabs activity-only" style="justify-content: center;">' +
-            activityTabs +
+            '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Р С’Р Р…Р В°Р В»Р С‘Р В· Р В°Р С”РЎвЂљР С‘Р Р†Р Р…Р С•РЎРѓРЎвЂљР С‘</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Р С’Р Р…Р В°Р В»Р С‘Р В· Р С—Р С• Р Т‘Р Р…РЎРЏР С Р Р…Р ВµР Т‘Р ВµР В»Р С‘</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-combined" onclick="switchAnalysis(event, \'skills-monthly-combined\')">Р СњР В°Р Р†РЎвЂ№Р С”Р С‘ Р С—Р С• Р СР ВµРЎРѓРЎРЏРЎвЂ Р В°Р С</button>' +
+            '<button class="tab-button analysis-button" data-analysis-id="salary-combined" onclick="switchAnalysis(event, \'salary-combined\')">Р С’Р Р…Р В°Р В»Р С‘Р В· Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљ</button>' +
         '</div>' +
         activityBlocks +
         weekdayBlock +
@@ -2381,7 +2355,7 @@ function showSingleRole(idx) {
             periodNode.className = 'role-period-label';
             h2.insertAdjacentElement('afterend', periodNode);
         }
-        if (periodNode) periodNode.textContent = 'Период публикации: ' + period;
+        if (periodNode) periodNode.textContent = 'Р СџР ВµРЎР‚Р С‘Р С•Р Т‘ Р С—РЎС“Р В±Р В»Р С‘Р С”Р В°РЎвЂ Р С‘Р С‘: ' + period;
     } else if (periodNode && periodNode.parentElement) {
         periodNode.parentElement.removeChild(periodNode);
     }
@@ -2438,7 +2412,7 @@ function buildRowContext(row) {
         .map(th => '<th>' + escapeHtml(th.textContent.trim()) + '</th>')
         .join('');
     var valueCells = Array.from(row.querySelectorAll('td'))
-        .map(td => '<td>' + escapeHtml(td.textContent.trim() || '—') + '</td>')
+        .map(td => '<td>' + escapeHtml(td.textContent.trim() || 'РІР‚вЂќ') + '</td>')
         .join('');
 
     return '<div class="context-table-wrap">' +
@@ -2521,15 +2495,7 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-document.addEventListener('click', function(e) {
-    var row = e.target.closest('.activity-all-row');
-    if (!row) return;
-    var details = row.nextElementSibling;
-    if (!details || !details.classList.contains('activity-all-details')) return;
-    details.style.display = (details.style.display === 'none' || details.style.display === '') ? 'table-row' : 'none';
-});
-
-// ---------- Обработчик кликов по иконкам режимов ----------
+// ---------- Р С›Р В±РЎР‚Р В°Р В±Р С•РЎвЂљРЎвЂЎР С‘Р С” Р С”Р В»Р С‘Р С”Р С•Р Р† Р С—Р С• Р С‘Р С”Р С•Р Р…Р С”Р В°Р С РЎР‚Р ВµР В¶Р С‘Р СР С•Р Р† ----------
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('.view-mode-btn, .view-mode-button');
     if (!btn) return;
@@ -2546,19 +2512,19 @@ document.addEventListener('click', function(e) {
     if (!analysisType) return;
 
     var mode = btn.dataset.view;
-    // Сохраняем режим в uiState
+    // Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎРЏР ВµР С РЎР‚Р ВµР В¶Р С‘Р С Р Р† uiState
     if (analysisType === 'activity') uiState.activity_view_mode = mode;
     else if (analysisType === 'weekday') uiState.weekday_view_mode = mode;
     else if (analysisType === 'skills-monthly') uiState.skills_monthly_view_mode = mode;
     else if (analysisType === 'salary') uiState.salary_view_mode = mode;
 
-    // Обновляем активный класс у всех кнопок в этом контейнере
+    // Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎвЂ№Р в„– Р С”Р В»Р В°РЎРѓРЎРѓ РЎС“ Р Р†РЎРѓР ВµРЎвЂ¦ Р С”Р Р…Р С•Р С—Р С•Р С” Р Р† РЎРЊРЎвЂљР С•Р С Р С”Р С•Р Р…РЎвЂљР ВµР в„–Р Р…Р ВµРЎР‚Р Вµ
     var allBtns = container.querySelectorAll('.view-mode-btn, .view-mode-button');
     setActiveViewButton(allBtns, mode);
 
-    // Применяем режим
+    // Р СџРЎР‚Р С‘Р СР ВµР Р…РЎРЏР ВµР С РЎР‚Р ВµР В¶Р С‘Р С
     if (analysisType === 'salary') {
-        // Для зарплат данные берутся из dataset.exp
+        // Р вЂќР В»РЎРЏ Р В·Р В°РЎР‚Р С—Р В»Р В°РЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р В±Р ВµРЎР‚РЎС“РЎвЂљРЎРѓРЎРЏ Р С‘Р В· dataset.exp
         var expData = (container._data && container._data.exp) ? container._data.exp : parseJsonDataset(container, 'exp', {});
         applySalaryViewMode(container, expData.entries);
     } else if (container.dataset.analysis === 'activity-all') {
@@ -2572,7 +2538,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// ---------- Инициализация ----------
+// ---------- Р ВР Р…Р С‘РЎвЂ Р С‘Р В°Р В»Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏ ----------
 document.addEventListener("DOMContentLoaded", function() {
     var buttons = getRoleMetaList().map(function(item) {
         return {

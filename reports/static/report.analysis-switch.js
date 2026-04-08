@@ -140,7 +140,7 @@ function handleSkillsMonthlyAnalysisSwitch(ctx) {
         var forcedGraphId = visibleSkillsPeriod.dataset.graphId;
         if (!forcedGraphId) return;
         var forcedContext = buildChartContextLabel(
-            ((parentRole.querySelector('.all-roles-period-button.active') || {}).textContent || '').trim(),
+            (visibleSkillsPeriod.dataset && visibleSkillsPeriod.dataset.period) || '',
             null
         );
         var viewContainer = visibleSkillsPeriod.querySelector('.view-mode-container');

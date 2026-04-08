@@ -907,96 +907,14 @@ function filterMyResponsesBySelectedPeriods(vacancies, selectedPeriods) {
 }
 
 function applyMyResponsesGlobalFilters(parentRole, vacancies) {
-    var list = Array.isArray(vacancies) ? vacancies.slice() : [];
-    var roleVacancies = [];
-    if (typeof getAllRoleContents === 'function') {
-        getAllRoleContents().forEach(function(roleContent) {
-            roleVacancies = roleVacancies.concat((getRoleVacancies(roleContent) || []).slice());
-        });
-    } else {
-        roleVacancies = (getRoleVacancies(parentRole) || []).slice();
-    }
-    var roleVacancyMap = new Map();
-    roleVacancies.forEach(function(vacancy) {
-        getMyResponseIdCandidates(vacancy).forEach(function(id) {
-            if (!roleVacancyMap.has(id)) roleVacancyMap.set(id, vacancy);
-        });
+    var source = Array.isArray(vacancies)
+        ? vacancies.slice()
+        : getMergedMyResponseFilterSource(parentRole);
+    var list = getFilteredVacanciesForAnalysis(parentRole, 'my-responses', {
+        sourceVacancies: source,
+        respondedOnly: true,
+        useResponsePeriods: true
     });
-    if (roleVacancyMap.size) {
-        var matchedByRole = [];
-        var enriched = [];
-        list.forEach(function(item) {
-            var source = null;
-            getMyResponseIdCandidates(item).some(function(id) {
-                if (!roleVacancyMap.has(id)) return false;
-                source = roleVacancyMap.get(id);
-                return true;
-            });
-            var merged = source ? Object.assign({}, source, item) : item;
-            enriched.push(merged);
-            if (source) matchedByRole.push(merged);
-        });
-        list = matchedByRole.length ? matchedByRole : enriched;
-    }
-    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'my-responses');
-    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
-    var periodInput = list.slice();
-    var periodFiltered = filterMyResponsesBySelectedPeriods(periodInput, selectedPeriods);
-    if (periodFiltered.length || !selectedPeriods.length) {
-        list = periodFiltered;
-    } else {
-        list = periodInput;
-    }
-    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'my-responses');
-    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
-    list = list.filter(function(vacancy) {
-        if (!isRespondedVacancy(vacancy)) return false;
-        if (!selectedStatuses.length) return true;
-        var statusValue = isArchivedResponseVacancy(vacancy) ? 'archived' : 'open';
-        return selectedStatuses.indexOf(statusValue) >= 0;
-    });
-    var currencyOptions = getGlobalFilterOptions(parentRole, 'currency', 'my-responses');
-    var selectedCurrencies = getResolvedGlobalFilterValues('currency', currencyOptions);
-    if (selectedCurrencies.length) {
-        list = list.filter(function(vacancy) {
-            var rawCurrency = String(vacancy && (vacancy.currency || vacancy.salary_currency) || '').trim();
-            var vacancyCurrency = normalizeTotalsCurrency(rawCurrency);
-            var normalizedValue = rawCurrency ? vacancyCurrency : 'none';
-            return selectedCurrencies.indexOf(normalizedValue) >= 0;
-        });
-    }
-    var countryOptions = getGlobalFilterOptions(parentRole, 'country', 'my-responses');
-    var selectedCountries = getResolvedGlobalFilterValues('country', countryOptions);
-    if (selectedCountries.length) {
-        list = list.filter(function(vacancy) {
-            return selectedCountries.indexOf(getMyResponsesCountryFilterValue(vacancy)) >= 0;
-        });
-    }
-    var interviewOptions = getGlobalFilterOptions(parentRole, 'interview', 'my-responses');
-    var selectedInterviews = getResolvedGlobalFilterValues('interview', interviewOptions);
-    if (selectedInterviews.length) {
-        list = list.filter(function(vacancy) {
-            var interviewValue = hasScheduledInterview(vacancy) ? 'yes' : 'no';
-            return selectedInterviews.indexOf(interviewValue) >= 0;
-        });
-    }
-    var resultOptions = getGlobalFilterOptions(parentRole, 'result', 'my-responses');
-    var selectedResults = getResolvedGlobalFilterValues('result', resultOptions);
-    if (selectedResults.length) {
-        list = list.filter(function(vacancy) {
-            var resultValue = hasResultContent(vacancy) ? 'yes' : 'no';
-            return selectedResults.indexOf(resultValue) >= 0;
-        });
-    }
-    var offerOptions = getGlobalFilterOptions(parentRole, 'offer', 'my-responses');
-    var selectedOffers = getResolvedGlobalFilterValues('offer', offerOptions);
-    if (selectedOffers.length) {
-        list = list.filter(function(vacancy) {
-            var hasOffer = hasOfferContent(vacancy);
-            var offerValue = hasOffer ? 'yes' : 'no';
-            return selectedOffers.indexOf(offerValue) >= 0;
-        });
-    }
     list.sort(function(a, b) {
         var aTs = Date.parse(a && (a.resume_at || a.published_at) ? (a.resume_at || a.published_at) : '') || 0;
         var bTs = Date.parse(b && (b.resume_at || b.published_at) ? (b.resume_at || b.published_at) : '') || 0;
@@ -1846,7 +1764,7 @@ function buildResponseCalendarUpcomingItems(eventsByDay, dayCount) {
     var today = new Date();
     var nowTs = getResponseCalendarNowTimestamp();
     var items = [];
-    for (var i = 1; i <= dayCount; i++) {
+    for (var i = 0; i < dayCount; i++) {
         var currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
         var dayKey = formatCalendarDayKey(currentDate);
         (eventsByDay[dayKey] || []).forEach(function(item) {
@@ -1893,20 +1811,6 @@ function buildResponseCalendarWeekItems(selectedDayKey, eventsByDay) {
     return items;
 }
 
-function buildResponseCalendarTodayHtml(items) {
-    if (!items.length) {
-        return buildResponseCalendarEmptyHtml('На сегодня событий нет.', '', '', null, { compact: true });
-    }
-    return items.slice(0, 7).map(function(item) {
-        var meta = String(item && item.week_day_label || '').trim();
-        var employer = resolveResponseCalendarItemMeta(item);
-        if (employer) meta = meta ? (meta + ' • ' + employer) : employer;
-        return buildResponseCalendarAgendaItemHtml(item, meta, {
-            isToday: true
-        });
-    }).join('');
-}
-
 function buildResponseCalendarWeekHtml(items) {
     if (!items.length) {
         return buildResponseCalendarEmptyHtml('Событий нет.', '', '', null, { compact: true });
@@ -1916,7 +1820,7 @@ function buildResponseCalendarWeekHtml(items) {
         var employer = resolveResponseCalendarItemMeta(item);
         if (employer) meta = meta ? (meta + ' • ' + employer) : employer;
         return buildResponseCalendarAgendaItemHtml(item, meta, {
-            variant: 'upcoming'
+            isToday: isResponseCalendarItemToday(item)
         });
     }).join('');
 }
@@ -2142,7 +2046,6 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
     var selectedEvents = effectiveSelectedDay ? (eventsByDay[effectiveSelectedDay] || []) : [];
     var weekEvents = buildResponseCalendarUpcomingItems(eventsByDay, 7);
     var agendaHtml = buildResponseCalendarAgendaHtml(selectedEvents, monthSummary.total > 0, hasInterviews, nearestItem, unscheduledItems);
-    var todayHtml = buildResponseCalendarTodayHtml(todayEvents);
     var weekHtml = buildResponseCalendarWeekHtml(weekEvents);
     var pendingResultHtml = buildResponseCalendarPendingResultHtml(pendingResultItems);
     return '' +
@@ -2173,13 +2076,6 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
                     '</div>' +
                     '<div class="response-calendar-agenda-list">' + agendaHtml + '</div>' +
                 '</div>' +
-                (!selectedIsToday && todayEvents.length ? '' +
-                '<div class="response-calendar-agenda-section">' +
-                    '<div class="response-calendar-agenda-head">' +
-                        '<div class="response-calendar-agenda-title">Сегодня</div>' +
-                    '</div>' +
-                    '<div class="response-calendar-agenda-list">' + todayHtml + '</div>' +
-                '</div>' : '') +
                 '<div class="response-calendar-agenda-section">' +
                     '<div class="response-calendar-agenda-head">' +
                         '<div class="response-calendar-agenda-title">Ближайшие 7 дней</div>' +
@@ -2734,7 +2630,8 @@ function buildPeriodFilterOptionsFromVacancies(vacancies) {
         { value: 'today', label: 'Сегодня' },
         { value: 'last_3', label: 'За 3 дня' },
         { value: 'last_7', label: 'За 7 дней' },
-        { value: 'last_14', label: 'За 14 дней' }
+        { value: 'last_14', label: 'За 14 дней' },
+        { value: 'previous_month', label: 'За предыдущий месяц' }
     ].concat(months.map(function(month) {
         return { value: month, label: month };
     })).concat([
@@ -2755,7 +2652,8 @@ function buildTotalsPeriodFilterOptions(vacancies, dashboardMode) {
             : 'За период';
         return dedupeFilterOptions([
             { value: 'last_7', label: 'За 7 дней' },
-            { value: 'last_14', label: 'За 14 дней' }
+            { value: 'last_14', label: 'За 14 дней' },
+            { value: 'previous_month', label: 'За предыдущий месяц' }
         ].concat(months.map(function(month) {
             return { value: month, label: month };
         })).concat([
@@ -2779,12 +2677,99 @@ function buildPeriodFilterOptionsFromResponseItems(vacancies) {
         { value: 'today', label: 'Сегодня' },
         { value: 'last_3', label: 'За 3 дня' },
         { value: 'last_7', label: 'За 7 дней' },
-        { value: 'last_14', label: 'За 14 дней' }
+        { value: 'last_14', label: 'За 14 дней' },
+        { value: 'previous_month', label: 'За предыдущий месяц' }
     ].concat(months.map(function(month) {
         return { value: month, label: month };
     })).concat([
         { value: totalLabel, label: totalLabel }
     ]));
+}
+
+function getGlobalFilterScopeRoleContents(activeRole) {
+    if (!activeRole) return [];
+    if (activeRole.id === 'role-all') {
+        if (Array.isArray(activeRole.__selectedRoleContents) && activeRole.__selectedRoleContents.length) {
+            return activeRole.__selectedRoleContents.slice();
+        }
+        return typeof getAllRoleContents === 'function' ? getAllRoleContents() : [];
+    }
+    return [activeRole];
+}
+
+function collectScopedVacancies(activeRole) {
+    var combined = [];
+    getGlobalFilterScopeRoleContents(activeRole).forEach(function(roleContent) {
+        combined = combined.concat((getRoleVacancies(roleContent) || []).slice());
+    });
+    return dedupeVacanciesById(combined);
+}
+
+function normalizeGlobalCurrencyFilterValue(value) {
+    var current = normalizeTotalsCurrency(value || '');
+    if (!current) return 'none';
+    if (current === 'RUR') return 'rur';
+    if (current === 'USD') return 'usd';
+    if (current === 'EUR') return 'eur';
+    return 'other';
+}
+
+function getGlobalCountryFilterValue(vacancy) {
+    var country = String(vacancy && vacancy.country || '').trim();
+    if (!country) return 'none';
+    return country === 'Россия' ? 'ru' : 'not_ru';
+}
+
+function buildCurrencyFilterOptionsFromVacancies(vacancies) {
+    var labels = {
+        rur: 'RUR',
+        usd: 'USD',
+        eur: 'EUR',
+        other: 'Другая',
+        none: 'Не заполнена'
+    };
+    var seen = new Set();
+    (vacancies || []).forEach(function(vacancy) {
+        seen.add(normalizeGlobalCurrencyFilterValue(vacancy && vacancy.currency));
+    });
+    return ['rur', 'usd', 'eur', 'other', 'none'].filter(function(value) {
+        return seen.has(value);
+    }).map(function(value) {
+        return { value: value, label: labels[value] || value };
+    });
+}
+
+function buildCountryFilterOptionsFromVacancies(vacancies) {
+    var labels = {
+        ru: 'Россия',
+        not_ru: 'Не Россия',
+        none: 'Не определена'
+    };
+    var seen = new Set();
+    (vacancies || []).forEach(function(vacancy) {
+        seen.add(getGlobalCountryFilterValue(vacancy));
+    });
+    return ['ru', 'not_ru', 'none'].filter(function(value) {
+        return seen.has(value);
+    }).map(function(value) {
+        return { value: value, label: labels[value] || value };
+    });
+}
+
+function buildBooleanFilterOptionsFromVacancies(vacancies, filterKey) {
+    if (!(vacancies || []).length) return [];
+    return [
+        { value: 'true', label: 'Да' },
+        { value: 'false', label: 'Нет' }
+    ];
+}
+
+function buildResponseStateFilterOptions(vacancies, resolver, yesLabel, noLabel) {
+    if (!(vacancies || []).length) return [];
+    return [
+        { value: 'no', label: noLabel },
+        { value: 'yes', label: yesLabel }
+    ];
 }
 
 function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
@@ -2899,63 +2884,24 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             { value: 'archived', label: 'Архивная' }
         ];
     }
-    if (filterKey === 'currency' && isResponsesCalendarAnalysis(current)) {
-        return [
-            { value: 'none', label: 'Не указана' },
-            { value: 'RUR', label: 'RUR' },
-            { value: 'USD', label: 'USD' },
-            { value: 'EUR', label: 'EUR' }
-        ];
+    var scopedVacancies = collectScopedVacancies(activeRole);
+    if (filterKey === 'currency') {
+        return buildCurrencyFilterOptionsFromVacancies(scopedVacancies);
     }
-    if (filterKey === 'country' && isResponsesCalendarAnalysis(current)) {
-        return [
-            { value: 'none', label: 'Не определена' },
-            { value: 'ru', label: 'Россия' },
-            { value: 'not_ru', label: 'Не Россия' }
-        ];
+    if (filterKey === 'country') {
+        return buildCountryFilterOptionsFromVacancies(scopedVacancies);
     }
-    if (filterKey === 'currency' && current === 'skills-search') {
-        return [
-            { value: 'rur', label: 'RUR' },
-            { value: 'usd', label: 'USD' },
-            { value: 'eur', label: 'EUR' },
-            { value: 'other', label: 'Другая' },
-            { value: 'none', label: 'Не заполнена' }
-        ];
+    if (filterKey === 'accreditation' || filterKey === 'cover_letter_required' || filterKey === 'has_test') {
+        return buildBooleanFilterOptionsFromVacancies(scopedVacancies, filterKey);
     }
-    if (filterKey === 'country' && current === 'skills-search') {
-        return [
-            { value: 'ru', label: 'Россия' },
-            { value: 'not_ru', label: 'Не Россия' }
-        ];
+    if (filterKey === 'interview') {
+        return buildResponseStateFilterOptions(scopedVacancies, hasScheduledInterview, 'Назначен', 'Не назначен');
     }
-    if ((filterKey === 'accreditation' || filterKey === 'cover_letter_required' || filterKey === 'has_test') && current === 'skills-search') {
-        return [
-            { value: 'all', label: 'Все' },
-            { value: 'true', label: 'Да' },
-            { value: 'false', label: 'Нет' }
-        ];
+    if (filterKey === 'result') {
+        return buildResponseStateFilterOptions(scopedVacancies, hasResultContent, 'Указан', 'Не указан');
     }
-    if (filterKey === 'interview' && (isResponsesCalendarAnalysis(current) || current === 'skills-search')) {
-        return [
-            { value: 'all', label: 'Все' },
-            { value: 'yes', label: 'Да' },
-            { value: 'no', label: 'Нет' }
-        ];
-    }
-    if (filterKey === 'result' && (isResponsesCalendarAnalysis(current) || current === 'skills-search')) {
-        return [
-            { value: 'all', label: 'Все' },
-            { value: 'yes', label: 'Да' },
-            { value: 'no', label: 'Нет' }
-        ];
-    }
-    if (filterKey === 'offer' && (isResponsesCalendarAnalysis(current) || current === 'skills-search')) {
-        return [
-            { value: 'all', label: 'Все' },
-            { value: 'yes', label: 'Да' },
-            { value: 'no', label: 'Нет' }
-        ];
+    if (filterKey === 'offer') {
+        return buildResponseStateFilterOptions(scopedVacancies, hasOfferContent, 'Да', 'Нет');
     }
     if (filterKey === 'experiences') {
         if (current === 'skills-monthly') {
@@ -2995,8 +2941,11 @@ function summarizeGlobalFilterSelection(filterKey, options, disabled) {
     var includeCount = bucket.include.length;
     var excludeCount = bucket.exclude.length;
     if (!includeCount && !excludeCount) {
-        if (filterKey === 'roles') return 'Выбрать роль';
-        if (isSingleSelectGlobalFilterKey(filterKey)) return 'Не выбрано';
+        if (filterKey === 'roles') return 'Все роли';
+        if (filterKey === 'currency') return 'Не выбрана';
+        if (filterKey === 'country') return 'Не выбрана';
+        if (filterKey === 'interview' || filterKey === 'result' || filterKey === 'offer' || filterKey === 'accreditation' || filterKey === 'cover_letter_required' || filterKey === 'has_test') return 'Не выбрано';
+        if (filterKey === 'periods') return 'За последний месяц';
         return 'Все';
     }
     if (filterKey === 'roles' && isGlobalFilterMultiEnabled(filterKey)) {
@@ -3061,11 +3010,6 @@ function restoreGlobalFilterMenuHost(menu) {
     if (menu.parentElement !== menu.__host) {
         menu.__host.appendChild(menu);
     }
-    if (menu.__host && menu.__host.style) {
-        menu.__host.style.zIndex = '';
-    }
-    var group = menu.__host && menu.__host.closest ? menu.__host.closest('.shared-filter-group') : null;
-    if (group) group.classList.remove('is-menu-open');
 }
 
 function positionGlobalFilterMenu(trigger, menu) {
@@ -3073,31 +3017,19 @@ function positionGlobalFilterMenu(trigger, menu) {
     restoreGlobalFilterMenuHost(menu);
     var host = menu.__host || menu.parentElement;
     var isSharedPanelMenu = !!(host && host.closest && host.closest('#global-shared-filter-panel'));
-    if (host) {
+    if (host && !isSharedPanelMenu) {
         host.style.position = 'relative';
         host.style.overflow = 'visible';
-        if (isSharedPanelMenu) host.style.zIndex = '130';
     }
-    var parentGroup = host && host.closest ? host.closest('.shared-filter-group') : null;
-    if (parentGroup) parentGroup.classList.add('is-menu-open');
     var rect = trigger.getBoundingClientRect();
-    var hostRect = host && host.getBoundingClientRect ? host.getBoundingClientRect() : null;
-    var computedWidth = Math.round(parseFloat(window.getComputedStyle(menu).width) || 0);
-    var triggerWidth = Math.round(isSharedPanelMenu ? rect.width : (trigger.offsetWidth || rect.width || 0));
-    var width = Math.max(120, computedWidth || triggerWidth);
-    if (isSharedPanelMenu && hostRect && hostRect.width) {
-        width = Math.round(hostRect.width);
-    }
-    width = Math.min(width, Math.max(140, window.innerWidth - 16));
+    var width = Math.max(220, Math.round((isSharedPanelMenu ? rect.width : (trigger.offsetWidth || 0))));
     var viewportBottomSpace = window.innerHeight - Math.round(rect.bottom) - 12;
     var maxHeight = Math.max(240, Math.min(viewportBottomSpace, Math.round(window.innerHeight * 0.72)));
     if (isSharedPanelMenu) {
-        if (menu.parentElement !== document.body) document.body.appendChild(menu);
-        var fixedLeft = Math.max(8, Math.min(Math.round(rect.left), Math.max(8, window.innerWidth - width - 8)));
-        var fixedTop = Math.round(rect.bottom + 2);
+        var left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
         menu.style.setProperty('position', 'fixed', 'important');
-        menu.style.setProperty('top', fixedTop + 'px', 'important');
-        menu.style.setProperty('left', fixedLeft + 'px', 'important');
+        menu.style.setProperty('top', Math.round(rect.bottom + 2) + 'px', 'important');
+        menu.style.setProperty('left', Math.round(left) + 'px', 'important');
     } else {
         menu.style.setProperty('position', 'absolute', 'important');
         menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
@@ -3114,7 +3046,7 @@ function positionGlobalFilterMenu(trigger, menu) {
     menu.style.setProperty('margin', '0', 'important');
     menu.style.setProperty('transform', 'none', 'important');
     menu.style.setProperty('inset', 'auto auto auto auto', 'important');
-    menu.style.setProperty('z-index', '12000', 'important');
+    menu.style.setProperty('z-index', '5000', 'important');
     bindGlobalFilterMenuScrollLock(menu);
 }
 
@@ -3233,7 +3165,6 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
     var current = analysisType || activeRole.dataset.activeAnalysis || '';
     var isAllRolesView = activeRole.id === 'role-all';
     if (isAllRolesView) syncAllRolesPeriodStateFromGlobalFilter(activeRole, current);
-    if (isAllRolesView) syncAllRolesSharedFilterButtons(activeRole, current);
     if (!panel) {
         applyGlobalFiltersToActiveAnalysis(activeRole, current);
         return;
@@ -3241,18 +3172,17 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
 
     panel.querySelectorAll('.global-filter-dropdown[data-filter-key]').forEach(function(wrap) {
         var key = wrap.dataset.filterKey || '';
-        var disabled = false;
-        var options = getGlobalFilterOptions(activeRole, key, current);
-        if (wrap.dataset.filterUi === 'chips') {
-            syncSimpleChoiceGlobalFilterControl(wrap, key, options, disabled);
-            return;
-        }
         var labelNode = wrap.querySelector('.global-filter-trigger-label');
         if (!labelNode) return;
+
         if (key === 'periods' && isAllRolesView) {
-            labelNode.textContent = summarizeGlobalFilterSelection(key, options, false);
+            var periodOptions = getGlobalFilterOptions(activeRole, key, current);
+            labelNode.textContent = summarizeGlobalFilterSelection(key, periodOptions, false);
             return;
         }
+
+        var disabled = false;
+        var options = getGlobalFilterOptions(activeRole, key, current);
         labelNode.textContent = summarizeGlobalFilterSelection(key, options, disabled);
     });
 
@@ -3275,7 +3205,6 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
             if (rolesArrow) rolesArrow.textContent = '\u25B4';
         }
     }
-    renderActiveGlobalFilterChips(panel, activeRole, current);
     applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
 
@@ -3408,14 +3337,6 @@ function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh)
         return;
     }
     refreshExistingGlobalFilterUi();
-}
-
-function renderActiveGlobalFilterChips(panel, activeRole, analysisType) {
-    if (!panel) return;
-    var host = panel.querySelector('.shared-filter-active-chips');
-    if (!host) return;
-    host.innerHTML = '';
-    host.style.display = 'none';
 }
 
 function createActiveRoleFilterChip(filterKey, value, labelText, state) {
@@ -3672,9 +3593,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
             if (isGlobalFilterMultiEnabled('roles')) uiState.keep_roles_filter_open = true;
             if (isSummaryModeActive() && !isGlobalFilterMultiEnabled('roles')) setSummaryModeActive(false);
             var isIncluded = bucket.include.indexOf(option.value) >= 0;
-            var isExcluded = isRoleFilterOptionExcluded(bucket, option.value);
-            var action = isIncluded ? 'exclude' : (isExcluded ? 'reset' : 'include');
-            if (!isGlobalFilterMultiEnabled('roles')) action = isIncluded ? 'reset' : 'include';
+            var action = isIncluded ? 'reset' : 'include';
             updateGlobalFilterSelection('roles', option.value, action);
             syncRolesControlVisualState();
         });
@@ -3728,105 +3647,10 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     return wrap;
 }
 
-function isSimpleChoiceChipFilter(filterKey) {
-    return ['accreditation', 'cover_letter_required', 'has_test', 'interview', 'result', 'offer'].indexOf(filterKey) >= 0;
-}
-
-function isSingleSelectGlobalFilterKey(filterKey) {
-    return ['status', 'country', 'accreditation', 'cover_letter_required', 'has_test', 'interview', 'result', 'offer'].indexOf(filterKey) >= 0;
-}
-
-function getSimpleChoiceChipOptions(filterKey, options) {
-    var optionMap = {};
-    (options || []).forEach(function(option) {
-        if (!option || option.value === undefined || option.value === null) return;
-        optionMap[String(option.value)] = String(option.label || option.value);
-    });
-    if (optionMap.all) {
-        return [
-            { value: 'all', label: optionMap.all || 'Все' },
-            { value: optionMap.true ? 'true' : 'yes', label: optionMap.true || optionMap.yes || 'Да' },
-            { value: optionMap.false ? 'false' : 'no', label: optionMap.false || optionMap.no || 'Нет' }
-        ];
-    }
-    if (isSimpleChoiceChipFilter(filterKey)) {
-        var useBooleanWords = ['accreditation', 'cover_letter_required', 'has_test'].indexOf(filterKey) >= 0;
-        return [
-            { value: 'all', label: 'Все' },
-            { value: useBooleanWords ? 'true' : 'yes', label: 'Да' },
-            { value: useBooleanWords ? 'false' : 'no', label: 'Нет' }
-        ];
-    }
-    return (options || []).slice();
-}
-
-function syncSimpleChoiceGlobalFilterControl(wrap, filterKey, options, disabled) {
-    if (!wrap) return;
-    var bucket = ensureGlobalFilterBucket(filterKey);
-    var hasOptions = Array.isArray(options) && options.length > 0;
-    var allowed = (options || []).map(function(item) { return String(item.value || ''); });
-    Array.from(wrap.querySelectorAll('.global-filter-chip-option')).forEach(function(button) {
-        var value = String((button.dataset && button.dataset.optionValue) || '');
-        var active = value === 'all'
-            ? (!bucket.include.length && !bucket.exclude.length)
-            : isGlobalFilterOptionIncluded(filterKey, bucket, value);
-        var available = !disabled && hasOptions && (value === 'all' || allowed.indexOf(value) >= 0);
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
-        button.classList.toggle('is-disabled', !available);
-        button.disabled = !available;
-    });
-}
-
-function createSimpleChoiceGlobalFilterControl(filterKey, title, options, disabled) {
-    var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown global-filter-chip-control';
-    wrap.dataset.filterKey = filterKey;
-    wrap.dataset.filterUi = 'chips';
-    wrap.style.marginTop = '4px';
-    wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
-
-    var caption = document.createElement('div');
-    caption.textContent = title;
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
-    wrap.appendChild(caption);
-
-    var row = document.createElement('div');
-    row.className = 'totals-top-filter-chip-row global-filter-chip-row';
-    wrap.appendChild(row);
-
-    getSimpleChoiceChipOptions(filterKey, options).forEach(function(option) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'totals-top-filter-chip global-filter-chip-option';
-        button.dataset.optionValue = option.value;
-        button.textContent = option.label;
-        button.addEventListener('click', function() {
-            if (button.disabled) return;
-            var bucket = ensureGlobalFilterBucket(filterKey);
-            var isActive = option.value === 'all'
-                ? (!bucket.include.length && !bucket.exclude.length)
-                : isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
-            if (isActive) return;
-            if (option.value === 'all') updateGlobalFilterSelection(filterKey, '', 'all');
-            else updateGlobalFilterSelection(filterKey, option.value, 'include');
-        });
-        row.appendChild(button);
-    });
-
-    syncSimpleChoiceGlobalFilterControl(wrap, filterKey, options, disabled);
-    return wrap;
-}
-
 function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var isRolesFilter = filterKey === 'roles';
-    var allowMulti = !isSingleSelectGlobalFilterKey(filterKey);
+    var allowMulti = ['status', 'country', 'accreditation', 'cover_letter_required', 'has_test', 'interview', 'result', 'offer'].indexOf(filterKey) < 0;
     if (!allowMulti && isGlobalFilterMultiEnabled(filterKey)) {
         setGlobalFilterMultiEnabled(filterKey, false);
     }
@@ -3895,14 +3719,13 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     menu.style.overscrollBehavior = 'contain';
     bindGlobalFilterMenuScrollLock(menu);
 
-    var controls = null;
-    if (allowMulti) {
-        controls = document.createElement('div');
-        controls.style.display = 'flex';
-        controls.style.gap = '8px';
-        controls.style.flexWrap = 'wrap';
-        controls.style.marginBottom = '2px';
-        controls.style.padding = '4px 2px';
+    var controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '8px';
+    controls.style.flexWrap = 'wrap';
+    controls.style.marginBottom = '2px';
+    controls.style.padding = '4px 2px';
+    if (filterKey !== 'periods') {
         var allBtn = document.createElement('button');
         allBtn.type = 'button';
         allBtn.className = 'tab-button skills-search-dropdown-item';
@@ -3916,38 +3739,38 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             syncOptionRowsVisualState();
         });
         controls.appendChild(allBtn);
-
-        if (allowMulti) {
-            var multiBtn = document.createElement('button');
-            multiBtn.type = 'button';
-            multiBtn.className = 'tab-button skills-search-dropdown-item';
-            multiBtn.textContent = '\u2611';
-            bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
-            applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled(filterKey));
-            multiBtn.addEventListener('click', function() {
-                var next = !isGlobalFilterMultiEnabled(filterKey);
-                setGlobalFilterMultiEnabled(filterKey, next);
-                applyGlobalFilterIconButtonStyle(multiBtn, next);
-                refreshExistingGlobalFilterUi();
-            });
-            controls.appendChild(multiBtn);
-        }
-
-        var clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.className = 'tab-button skills-search-dropdown-item';
-        clearBtn.textContent = '\u21BA';
-        bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
-        applyGlobalFilterIconButtonStyle(clearBtn, false);
-        clearBtn.addEventListener('click', function() {
-            var keepOpen = filterKey !== 'roles' && allowMulti && isGlobalFilterMultiEnabled(filterKey);
-            updateGlobalFilterSelection(filterKey, '', 'clear', keepOpen);
-            triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
-            syncOptionRowsVisualState();
-        });
-        controls.appendChild(clearBtn);
-        menu.appendChild(controls);
     }
+
+    if (allowMulti) {
+        var multiBtn = document.createElement('button');
+        multiBtn.type = 'button';
+        multiBtn.className = 'tab-button skills-search-dropdown-item';
+        multiBtn.textContent = '\u2611';
+        bindGlobalFilterTooltip(multiBtn, 'Мультивыбор');
+        applyGlobalFilterIconButtonStyle(multiBtn, isGlobalFilterMultiEnabled(filterKey));
+        multiBtn.addEventListener('click', function() {
+            var next = !isGlobalFilterMultiEnabled(filterKey);
+            setGlobalFilterMultiEnabled(filterKey, next);
+            applyGlobalFilterIconButtonStyle(multiBtn, next);
+            refreshExistingGlobalFilterUi();
+        });
+        controls.appendChild(multiBtn);
+    }
+
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'tab-button skills-search-dropdown-item';
+    clearBtn.textContent = '\u21BA';
+    bindGlobalFilterTooltip(clearBtn, 'Сбросить все');
+    applyGlobalFilterIconButtonStyle(clearBtn, false);
+    clearBtn.addEventListener('click', function() {
+        var keepOpen = filterKey !== 'roles' && allowMulti && isGlobalFilterMultiEnabled(filterKey);
+        updateGlobalFilterSelection(filterKey, '', 'clear', keepOpen);
+        triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
+        syncOptionRowsVisualState();
+    });
+    controls.appendChild(clearBtn);
+    menu.appendChild(controls);
 
     if (filterKey === 'roles' && !disabled) {
         var search = document.createElement('input');
@@ -3966,15 +3789,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         menu.appendChild(search);
     }
 
-    var menuOptions = (options || []).slice();
-    if (!allowMulti) {
-        menuOptions = menuOptions.filter(function(option) {
-            return String(option && option.value || '') !== 'all';
-        });
-        menuOptions.unshift({ value: '', label: 'Не выбрано', action: 'clear' });
-    }
-
-    if (!menuOptions.length) {
+    if (!options.length) {
         var empty = document.createElement('div');
         empty.textContent = disabled ? 'Фильтр недоступен на этой вкладке' : 'Нет значений';
         empty.style.color = 'var(--text-secondary, #52606d)';
@@ -3983,18 +3798,10 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         menu.appendChild(empty);
     } else {
         var searchInput = menu.querySelector('.global-filter-search');
-        function isOptionSelected(optionValue, optionAction) {
-            if (optionAction === 'clear') {
-                return !bucket.include.length && !bucket.exclude.length;
-            }
-            return isGlobalFilterOptionIncluded(filterKey, bucket, optionValue);
-        }
-        menuOptions.forEach(function(option) {
+        options.forEach(function(option) {
             var row = document.createElement('div');
             row.className = 'skills-search-dropdown-item global-filter-option-row';
-            if (option.action === 'clear') row.classList.add('global-filter-option-clear');
             row.dataset.optionValue = option.value;
-            row.dataset.optionAction = option.action || '';
             row.style.display = 'grid';
             row.style.gridTemplateColumns = '1fr';
             row.style.gap = '4px';
@@ -4008,43 +3815,31 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             row.style.transition = 'transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease';
             row.title = '';
             row.addEventListener('click', function() {
-                var isIncluded = isOptionSelected(option.value, option.action);
+                var isIncluded = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 var keepOpen = filterKey !== 'roles' && allowMulti && isGlobalFilterMultiEnabled(filterKey);
-                if (option.action === 'clear') {
-                    updateGlobalFilterSelection(filterKey, '', 'clear', keepOpen);
-                } else {
-                    if (isIncluded && !allowMulti) return;
-                    updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'all' : 'include', keepOpen);
-                }
+                updateGlobalFilterSelection(filterKey, option.value, isIncluded ? 'reset' : 'include', keepOpen);
                 triggerLabel.textContent = summarizeGlobalFilterSelection(filterKey, options, disabled);
                 syncOptionRowsVisualState();
             });
             var label = document.createElement('div');
-            label.className = 'global-filter-option-label';
-            var isIncludedNow = isOptionSelected(option.value, option.action);
+            var isIncludedNow = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
             label.textContent = option.label;
-            label.style.fontWeight = isIncludedNow ? (option.action === 'clear' ? '500' : '600') : '400';
+            label.style.fontWeight = isIncludedNow ? '600' : '400';
             label.style.fontSize = '12px';
-            row.style.background = isIncludedNow
-                ? (option.action === 'clear' ? 'rgba(241, 245, 249, 0.86)' : '#eef2f6')
-                : 'transparent';
+            row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
             row.addEventListener('mouseenter', function() {
-                var isSelected = isOptionSelected(option.value, option.action);
+                var isSelected = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 row.style.transform = 'translateX(4px) translateY(-1px)';
                 row.style.boxShadow = '0 6px 14px rgba(148, 163, 184, 0.12)';
                 if (!isSelected) {
-                    row.style.background = option.action === 'clear'
-                        ? 'rgba(248, 250, 252, 0.92)'
-                        : 'rgba(248, 250, 252, 0.98)';
+                    row.style.background = 'rgba(248, 250, 252, 0.98)';
                 }
             });
             row.addEventListener('mouseleave', function() {
-                var isSelected = isOptionSelected(option.value, option.action);
+                var isSelected = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 row.style.transform = 'translateX(0) translateY(0)';
                 row.style.boxShadow = 'none';
-                row.style.background = isSelected
-                    ? (option.action === 'clear' ? 'rgba(241, 245, 249, 0.86)' : '#eef2f6')
-                    : 'transparent';
+                row.style.background = isSelected ? '#eef2f6' : 'transparent';
             });
             row.appendChild(label);
             menu.appendChild(row);
@@ -4053,12 +3848,9 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             Array.from(menu.querySelectorAll('.global-filter-option-row')).forEach(function(node) {
                 var nodeLabel = node.querySelector('div');
                 var value = node.dataset ? node.dataset.optionValue : '';
-                var action = node.dataset ? node.dataset.optionAction : '';
-                var selected = isOptionSelected(value, action);
-                node.style.background = selected
-                    ? (action === 'clear' ? 'rgba(241, 245, 249, 0.86)' : '#eef2f6')
-                    : 'transparent';
-                if (nodeLabel) nodeLabel.style.fontWeight = selected ? (action === 'clear' ? '500' : '600') : '400';
+                var selected = isGlobalFilterOptionIncluded(filterKey, bucket, value);
+                node.style.background = selected ? '#eef2f6' : 'transparent';
+                if (nodeLabel) nodeLabel.style.fontWeight = selected ? '600' : '400';
             });
         }
         syncOptionRowsVisualState();
@@ -4121,6 +3913,7 @@ function getResolvedGlobalFilterValues(filterKey, options) {
     var include = (bucket.include || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
     var exclude = (bucket.exclude || []).filter(function(v) { return allowed.indexOf(v) >= 0; });
     if (include.length) return include.filter(function(v) { return exclude.indexOf(v) < 0; });
+    if ((bucket.include || []).length) return [];
     return allowed.filter(function(v) { return exclude.indexOf(v) < 0; });
 }
 
@@ -4150,6 +3943,7 @@ function normalizeGlobalPeriodValue(value) {
     var text = normalizePeriodOptionValue(value);
     if (!text) return '';
     if (text === 'today') return 'today';
+    if (text === 'previous_month') return 'previous_month';
     var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) return 'last_' + String(Number(quick[1]) || 0);
     if (/^\d{4}-\d{2}$/.test(text)) return text;
@@ -4224,6 +4018,14 @@ function filterVacanciesBySelectedPeriods(vacancies, selectedPeriods) {
             useToday = true;
             return;
         }
+        if (text === 'За предыдущий месяц' || /^previous_month$/i.test(text)) {
+            var anchorDate = getLatestPublishedAtDate(list);
+            if (anchorDate) {
+                var previousMonth = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - 1, 1);
+                monthSet.add(previousMonth.getFullYear() + '-' + String(previousMonth.getMonth() + 1).padStart(2, '0'));
+            }
+            return;
+        }
         if (/^\d{4}-\d{2}$/.test(text)) {
             monthSet.add(text);
             return;
@@ -4290,6 +4092,194 @@ function filterVacanciesBySelectedStatuses(vacancies, selectedStatuses) {
     });
 }
 
+function hasExplicitGlobalFilterSelection(filterKey) {
+    var bucket = ensureGlobalFilterBucket(filterKey);
+    return !!((bucket.include && bucket.include.length) || (bucket.exclude && bucket.exclude.length));
+}
+
+function getGlobalSkillsFilterSelections() {
+    var state = (uiState.skills_search_global && typeof uiState.skills_search_global === 'object')
+        ? uiState.skills_search_global
+        : {};
+    return {
+        includeSkills: normalizeSkillsSearchSkillList(state.includeSkills || []),
+        excludeSkills: normalizeSkillsSearchSkillList(state.excludeSkills || []),
+        logic: state.logic === 'and' ? 'and' : 'or'
+    };
+}
+
+function hasExplicitGlobalSkillsSelection() {
+    var selections = getGlobalSkillsFilterSelections();
+    return !!(selections.includeSkills.length || selections.excludeSkills.length);
+}
+
+function filterVacanciesByCurrencySelection(vacancies, selectedCurrencies) {
+    var allowed = new Set((selectedCurrencies || []).map(function(value) {
+        return String(value || '').trim().toLowerCase();
+    }).filter(Boolean));
+    if (!allowed.size) return dedupeVacanciesById((vacancies || []).slice());
+    return dedupeVacanciesById((vacancies || []).slice()).filter(function(vacancy) {
+        return allowed.has(normalizeGlobalCurrencyFilterValue(vacancy && vacancy.currency));
+    });
+}
+
+function filterVacanciesByCountrySelection(vacancies, selectedCountries) {
+    var allowed = new Set((selectedCountries || []).map(function(value) {
+        return String(value || '').trim().toLowerCase();
+    }).filter(Boolean));
+    if (!allowed.size) return dedupeVacanciesById((vacancies || []).slice());
+    return dedupeVacanciesById((vacancies || []).slice()).filter(function(vacancy) {
+        return allowed.has(getGlobalCountryFilterValue(vacancy));
+    });
+}
+
+function filterVacanciesByBooleanSelection(vacancies, filterKey, selectedValues) {
+    var allowed = new Set((selectedValues || []).map(function(value) {
+        return String(value || '').trim().toLowerCase();
+    }).filter(Boolean));
+    if (!allowed.size) return dedupeVacanciesById((vacancies || []).slice());
+    return dedupeVacanciesById((vacancies || []).slice()).filter(function(vacancy) {
+        return allowed.has(getSkillsSearchVacancyBooleanValue(vacancy, filterKey) ? 'true' : 'false');
+    });
+}
+
+function filterVacanciesByResponseSelection(vacancies, selectedValues, resolver) {
+    var allowed = new Set((selectedValues || []).map(function(value) {
+        return String(value || '').trim().toLowerCase();
+    }).filter(Boolean));
+    if (!allowed.size) return dedupeVacanciesById((vacancies || []).slice());
+    return dedupeVacanciesById((vacancies || []).slice()).filter(function(vacancy) {
+        return allowed.has(resolver(vacancy) ? 'yes' : 'no');
+    });
+}
+
+function getMergedMyResponseFilterSource(parentRole) {
+    var list = Array.isArray(uiState.my_responses_cache) && uiState.my_responses_cache.length
+        ? uiState.my_responses_cache.slice()
+        : collectMyResponsesVacancies();
+    var roleVacancies = [];
+    if (typeof getAllRoleContents === 'function') {
+        getAllRoleContents().forEach(function(roleContent) {
+            roleVacancies = roleVacancies.concat((getRoleVacancies(roleContent) || []).slice());
+        });
+    } else if (parentRole) {
+        roleVacancies = (getRoleVacancies(parentRole) || []).slice();
+    }
+    var roleVacancyMap = new Map();
+    roleVacancies.forEach(function(vacancy) {
+        getMyResponseIdCandidates(vacancy).forEach(function(id) {
+            if (!roleVacancyMap.has(id)) roleVacancyMap.set(id, vacancy);
+        });
+    });
+    if (!roleVacancyMap.size) return list;
+    var matchedByRole = [];
+    var enriched = [];
+    list.forEach(function(item) {
+        var source = null;
+        getMyResponseIdCandidates(item).some(function(id) {
+            if (!roleVacancyMap.has(id)) return false;
+            source = roleVacancyMap.get(id);
+            return true;
+        });
+        var merged = source ? Object.assign({}, source, item) : item;
+        enriched.push(merged);
+        if (source) matchedByRole.push(merged);
+    });
+    return matchedByRole.length ? matchedByRole : enriched;
+}
+
+function getFilteredVacanciesForAnalysis(parentRole, analysisType, options) {
+    options = options || {};
+    var current = analysisType || (parentRole ? (parentRole.dataset.activeAnalysis || '') : '') || '';
+    var list = Array.isArray(options.sourceVacancies)
+        ? options.sourceVacancies.slice()
+        : collectScopedVacancies(parentRole);
+    list = dedupeVacanciesById(list);
+
+    if (!hasExplicitGlobalFilterSelection('periods')) {
+        ensureDefaultPeriodFilterSelection(parentRole, current);
+    }
+    if (options.respondedOnly) {
+        list = list.filter(function(vacancy) {
+            return isRespondedVacancy(vacancy);
+        });
+    }
+
+    if (!options.skipPeriods && hasExplicitGlobalFilterSelection('periods')) {
+        var periodOptions = getGlobalFilterOptions(parentRole, 'periods', current);
+        var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+        list = options.useResponsePeriods
+            ? filterMyResponsesBySelectedPeriods(list, selectedPeriods)
+            : filterVacanciesBySelectedPeriods(list, selectedPeriods);
+    }
+
+    var selectedExps = Array.isArray(options.forcedExperiences)
+        ? options.forcedExperiences.slice()
+        : (hasExplicitGlobalFilterSelection('experiences')
+            ? getResolvedGlobalFilterValues('experiences', getGlobalFilterOptions(parentRole, 'experiences', current))
+            : []);
+    if (!options.skipExperiences && selectedExps.length) {
+        list = filterVacanciesBySelectedExperiences(list, selectedExps);
+    }
+
+    if (!options.skipStatuses && hasExplicitGlobalFilterSelection('status')) {
+        var selectedStatuses = getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', current));
+        list = filterVacanciesBySelectedStatuses(list, selectedStatuses);
+    }
+
+    if (!options.skipCurrency && hasExplicitGlobalFilterSelection('currency')) {
+        var selectedCurrencies = getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', current));
+        list = filterVacanciesByCurrencySelection(list, selectedCurrencies);
+    }
+
+    if (!options.skipCountry && hasExplicitGlobalFilterSelection('country')) {
+        var selectedCountries = getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', current));
+        list = filterVacanciesByCountrySelection(list, selectedCountries);
+    }
+
+    if (!options.skipAccreditation && hasExplicitGlobalFilterSelection('accreditation')) {
+        var selectedAccreditation = getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', current));
+        list = filterVacanciesByBooleanSelection(list, 'accreditation', selectedAccreditation);
+    }
+
+    if (!options.skipCoverLetter && hasExplicitGlobalFilterSelection('cover_letter_required')) {
+        var selectedCover = getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', current));
+        list = filterVacanciesByBooleanSelection(list, 'cover_letter_required', selectedCover);
+    }
+
+    if (!options.skipHasTest && hasExplicitGlobalFilterSelection('has_test')) {
+        var selectedHasTest = getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', current));
+        list = filterVacanciesByBooleanSelection(list, 'has_test', selectedHasTest);
+    }
+
+    if (!options.skipInterview && hasExplicitGlobalFilterSelection('interview')) {
+        var selectedInterview = getResolvedGlobalFilterValues('interview', getGlobalFilterOptions(parentRole, 'interview', current));
+        list = filterVacanciesByResponseSelection(list, selectedInterview, hasScheduledInterview);
+    }
+
+    if (!options.skipResult && hasExplicitGlobalFilterSelection('result')) {
+        var selectedResult = getResolvedGlobalFilterValues('result', getGlobalFilterOptions(parentRole, 'result', current));
+        list = filterVacanciesByResponseSelection(list, selectedResult, hasResultContent);
+    }
+
+    if (!options.skipOffer && hasExplicitGlobalFilterSelection('offer')) {
+        var selectedOffer = getResolvedGlobalFilterValues('offer', getGlobalFilterOptions(parentRole, 'offer', current));
+        list = filterVacanciesByResponseSelection(list, selectedOffer, hasOfferContent);
+    }
+
+    if (!options.skipSkills && hasExplicitGlobalSkillsSelection()) {
+        var skillSelections = getGlobalSkillsFilterSelections();
+        list = filterVacanciesBySkills(
+            list,
+            skillSelections.includeSkills,
+            skillSelections.excludeSkills,
+            skillSelections.logic
+        );
+    }
+
+    return dedupeVacanciesById(list);
+}
+
 function buildWeekdayTableHtml(days) {
     var rows = (days || []).map(function(day) {
         return '<tr>' +
@@ -4344,12 +4334,9 @@ function renderGlobalSkillsFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'skills-monthly');
-    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
-    var vacancies = getSkillsSourceVacancies(parentRole);
-    vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
-    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
-    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
+    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'skills-monthly', {
+        sourceVacancies: getSkillsSourceVacancies(parentRole)
+    });
 
     Array.from(block.querySelectorAll('.monthly-skills-month-content')).forEach(function(monthDiv) {
         monthDiv.style.display = 'none';
@@ -4421,12 +4408,7 @@ function renderGlobalSalaryFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'salary');
-    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
-    var vacancies = getRoleVacancies(parentRole);
-    vacancies = filterVacanciesBySelectedPeriods(vacancies, selectedPeriods);
-    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
-    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
+    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'salary');
     var monthData = buildSalaryMonthFromVacancies(vacancies, periodLabel);
     var summaryExp = (monthData.experiences || []).find(function(exp) { return exp && exp.experience === 'Все'; });
     var entries = summaryExp ? (summaryExp.entries || []) : [];
@@ -4476,14 +4458,10 @@ function renderGlobalActivityFiltered(parentRole) {
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'activity');
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
-    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'activity');
-    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
-    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
-    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
+    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'activity');
     var entries = computeActivityEntriesFromVacancies(vacancies);
 
     Array.from(parentRole.querySelectorAll('.month-content.activity-only')).forEach(function(monthDiv) {
@@ -4522,12 +4500,8 @@ function renderGlobalWeekdayFiltered(parentRole) {
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'weekday');
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
-    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'weekday');
-    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
-    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
-    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
+    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'weekday');
     var weekdays = computeWeekdayStatsFromVacancies(vacancies);
 
     block.dataset.weekdays = JSON.stringify(weekdays || []);
@@ -4567,14 +4541,12 @@ function renderGlobalEmployerFiltered(parentRole) {
 
     var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'employer-analysis');
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
-    var selectedExps = getResolvedAnalysisExperienceValues(parentRole, 'employer-analysis');
-    var statusOptions = getGlobalFilterOptions(parentRole, 'status', 'employer-analysis');
-    var selectedStatuses = getResolvedGlobalFilterValues('status', statusOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, getResolvedAnalysisExperienceLabel(parentRole, 'employer-analysis'));
-    var baseVacancies = filterVacanciesBySelectedExperiences(dedupeVacanciesById(getRoleVacancies(parentRole) || []), selectedExps);
-    baseVacancies = filterVacanciesBySelectedStatuses(baseVacancies, selectedStatuses);
+    var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'employer-analysis', {
+        skipPeriods: true
+    });
     var rows;
     var effectivePeriods = selectedPeriods.filter(function(label) {
         var text = String(label || '').trim();
@@ -5396,8 +5368,8 @@ function renderMarketTrends(parentRole, mountNode) {
     var currency = normalizeTotalsCurrency(uiState.market_trends_currency || 'RUR');
     if (['RUR', 'USD', 'EUR'].indexOf(currency) < 0) currency = 'RUR';
     uiState.market_trends_currency = currency;
-    var salaryMetric = String(uiState.market_trends_salary_metric || 'median').toLowerCase();
-    if (['min', 'max', 'avg', 'median', 'mode'].indexOf(salaryMetric) < 0) salaryMetric = 'median';
+    var salaryMetric = String(uiState.market_trends_salary_metric || 'avg').toLowerCase();
+    if (['min', 'max', 'avg', 'median', 'mode'].indexOf(salaryMetric) < 0) salaryMetric = 'avg';
     uiState.market_trends_salary_metric = salaryMetric;
     var salaryMetricLabelMap = {
         min: 'Мин',
@@ -5449,13 +5421,15 @@ function renderMarketTrends(parentRole, mountNode) {
         });
     }
     var allVacancies = [];
-    roleContents.forEach(function(rc) { allVacancies = allVacancies.concat(getRoleVacancies(rc) || []); });
+    roleContents.forEach(function(rc) {
+        allVacancies = allVacancies.concat(getFilteredVacanciesForAnalysis(rc, 'totals', {
+            skipPeriods: true
+        }));
+    });
     allVacancies = dedupeVacanciesById(allVacancies || []);
-    if (hasExplicitExperienceFilter) {
-        allVacancies = filterVacanciesBySelectedExperiences(allVacancies, selectedExps);
-    }
-    allVacancies = filterVacanciesBySelectedStatuses(allVacancies, selectedStatuses);
-    var periodFilteredVacancies = filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends);
+    var periodFilteredVacancies = hasExplicitGlobalFilterSelection('periods')
+        ? filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends)
+        : allVacancies.slice();
     if (!periodFilteredVacancies.length) {
         block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
         return;
@@ -5488,10 +5462,10 @@ function renderMarketTrends(parentRole, mountNode) {
         roleContents.forEach(function(rc) {
             var list = dedupeVacanciesById(getRoleVacancies(rc) || []);
             if (hasExplicitExperienceFilter || !splitMetricsByExperience) {
-                var filteredList = filterVacanciesBySelectedStatuses(
-                    filterVacanciesBySelectedExperiences(list, selectedExps),
-                    selectedStatuses
-                );
+                var filteredList = getFilteredVacanciesForAnalysis(rc, 'totals', {
+                    sourceVacancies: list,
+                    skipPeriods: true
+                });
                 var filteredRow = marketTrendsBuildRoleMetricsWindowed(rc, filteredList, currency, recentStart, recentEnd, prevStart, prevEnd);
                 filteredRow.experience = selectedExps.length === 1 ? String(selectedExps[0] || '').trim() : '';
                 filteredRow.roleAxisId = String(filteredRow.id || '').trim();
@@ -5503,10 +5477,11 @@ function renderMarketTrends(parentRole, mountNode) {
                 if (!expValue) return;
                 var expRow = marketTrendsBuildRoleMetricsWindowed(
                     rc,
-                    filterVacanciesBySelectedStatuses(
-                        filterVacanciesBySelectedExperiences(list, [expValue]),
-                        selectedStatuses
-                    ),
+                    getFilteredVacanciesForAnalysis(rc, 'totals', {
+                        sourceVacancies: list,
+                        skipPeriods: true,
+                        forcedExperiences: [expValue]
+                    }),
                     currency,
                     recentStart,
                     recentEnd,
@@ -5624,11 +5599,9 @@ function renderMarketTrends(parentRole, mountNode) {
         }
     }
     if (focusRoleContent) {
-        var focusVacancies = dedupeVacanciesById(getRoleVacancies(focusRoleContent) || []);
-        if (hasExplicitExperienceFilter) {
-            focusVacancies = filterVacanciesBySelectedExperiences(focusVacancies, selectedExps);
-        }
-        focusVacancies = filterVacanciesBySelectedStatuses(focusVacancies, selectedStatuses);
+        var focusVacancies = getFilteredVacanciesForAnalysis(focusRoleContent, 'totals', {
+            skipPeriods: true
+        });
         focusMetrics = marketTrendsBuildRoleMetricsWindowed(focusRoleContent, focusVacancies, currency, recentStartTs, anchorTs, prevStartTs, prevEndTs);
     }
 
@@ -5835,10 +5808,8 @@ function renderGlobalTotalsFiltered(parentRole) {
     var expLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var contextText = buildChartContextLabel(periodLabel, expLabel);
 
-    var vacancies = filterVacanciesBySelectedPeriods(getRoleVacancies(parentRole), selectedPeriods);
-    vacancies = filterVacanciesBySelectedExperiences(vacancies, selectedExps);
+    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals');
     var vacancyKpiVacancies = dedupeVacanciesById((vacancies || []).slice());
-    vacancies = filterVacanciesBySelectedStatuses(vacancies, selectedStatuses);
     vacancies = dedupeVacanciesById(vacancies || []);
 
     var salaryRows = totalsComputeSalaryByCurrency(vacancies);
@@ -5894,15 +5865,7 @@ function renderGlobalTotalsFiltered(parentRole) {
         allRoleVacancies = vacancies.slice();
     }
     allRoleVacancies = dedupeVacanciesById(allRoleVacancies || []);
-    var responseRowsSource = Array.isArray(uiState.my_responses_cache) ? uiState.my_responses_cache.slice() : [];
-    if (!responseRowsSource.length) {
-        responseRowsSource = allRoleVacancies.filter(function(v) {
-            return isRespondedVacancy(v);
-        });
-    }
-    var responseRows = filterMyResponsesBySelectedPeriods(responseRowsSource, selectedPeriods).filter(function(v) {
-        return isRespondedVacancy(v);
-    });
+    var responseRows = applyMyResponsesGlobalFilters(parentRole, getMergedMyResponseFilterSource(parentRole));
     var responseInterview = responseRows.filter(function(v) {
         return hasScheduledInterview(v);
     }).length;
@@ -6253,121 +6216,91 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
 
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
     var currentForFilters = current;
-    panel.dataset.analysis = currentForFilters || '';
-    if (activeRole) {
-        activeRole.querySelectorAll('.skills-search-content').forEach(function(node) {
-            node.classList.toggle('skills-search-managed-by-panel', currentForFilters === 'skills-search');
-        });
-    }
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
-    if (currentForFilters === 'skills-search') {
-        var rolesControl = createUnifiedRolesControl(activeRole, currentForFilters);
-        var trendsExcludedRolesControlForSkills = (typeof createMarketTrendsExcludedRolesControl === 'function')
-            ? createMarketTrendsExcludedRolesControl(activeRole, currentForFilters, true)
-            : null;
-        var periodsControl = createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false);
-        var experiencesControl = createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false);
-        var statusOptionsForSkills = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
-        var statusControlForSkills = statusOptionsForSkills.length
-            ? createGlobalFilterDropdown('status', 'Статус', statusOptionsForSkills, false)
-            : null;
-        var currencyControlForSkills = createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false);
-        var countryControlForSkills = createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false);
-        var interviewControlForSkills = createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false);
-        var resultControlForSkills = createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false);
-        var offerControlForSkills = createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false);
-        var topControlForSkills = (typeof createTotalsTopFilterControl === 'function')
-            ? createTotalsTopFilterControl(activeRole, currentForFilters, 'top', { hideCaption: true, hideCurrency: true })
-            : null;
-        var salaryMetricControlForSkills = (typeof createSalaryMetricFilterControl === 'function')
-            ? createSalaryMetricFilterControl(activeRole, currentForFilters)
-            : null;
-        var accreditationControl = createGlobalFilterDropdown('accreditation', 'ИТ-аккредитация', getGlobalFilterOptions(activeRole, 'accreditation', currentForFilters), false);
-        var coverLetterControl = createGlobalFilterDropdown('cover_letter_required', 'Сопроводительное письмо', getGlobalFilterOptions(activeRole, 'cover_letter_required', currentForFilters), false);
-        var hasTestControl = createGlobalFilterDropdown('has_test', 'Тестовое задание', getGlobalFilterOptions(activeRole, 'has_test', currentForFilters), false);
-        var favoritesControl = (typeof createSkillsSearchFavoritesControl === 'function')
-            ? createSkillsSearchFavoritesControl(activeRole, currentForFilters)
-            : null;
-        var skillsLogicControl = (typeof createSkillsSearchLogicControl === 'function')
-            ? createSkillsSearchLogicControl(activeRole, currentForFilters)
-            : null;
-        var skillsIncludeControl = (typeof createSkillsSearchSelectionControl === 'function')
-            ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'include')
-            : null;
-        var skillsExcludeControl = (typeof createSkillsSearchSelectionControl === 'function')
-            ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude')
-            : null;
+    ensureDefaultPeriodFilterSelection(activeRole, currentForFilters);
+    var rolesControl = createUnifiedRolesControl(activeRole, currentForFilters);
+    var trendsExcludedRolesControl = (typeof createMarketTrendsExcludedRolesControl === 'function')
+        ? createMarketTrendsExcludedRolesControl(activeRole, currentForFilters, true)
+        : null;
+    var periodsControl = createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false);
+    var experiencesControl = createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false);
+    var statusOptions = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
+    var statusControl = statusOptions.length
+        ? createGlobalFilterDropdown('status', 'Статус', statusOptions, false)
+        : null;
+    var currencyControl = createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false);
+    var countryControl = createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false);
+    var interviewControl = createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false);
+    var resultControl = createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false);
+    var offerControl = createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false);
+    var topControl = (typeof createTotalsTopFilterControl === 'function')
+        ? createTotalsTopFilterControl(activeRole, currentForFilters, 'top', { hideCaption: true, hideCurrency: true })
+        : null;
+    var salaryMetricControl = (typeof createSalaryMetricFilterControl === 'function')
+        ? createSalaryMetricFilterControl(activeRole, currentForFilters)
+        : null;
+    var accreditationControl = createGlobalFilterDropdown('accreditation', 'ИТ-аккредитация', getGlobalFilterOptions(activeRole, 'accreditation', currentForFilters), false);
+    var coverLetterControl = createGlobalFilterDropdown('cover_letter_required', 'Сопроводительное письмо', getGlobalFilterOptions(activeRole, 'cover_letter_required', currentForFilters), false);
+    var hasTestControl = createGlobalFilterDropdown('has_test', 'Тестовое задание', getGlobalFilterOptions(activeRole, 'has_test', currentForFilters), false);
+    var favoritesControl = (typeof createMyFiltersControl === 'function')
+        ? createMyFiltersControl(activeRole, currentForFilters)
+        : null;
+    var skillsLogicControl = (typeof createSkillsSearchLogicControl === 'function')
+        ? createSkillsSearchLogicControl(activeRole, currentForFilters)
+        : null;
+    var skillsIncludeControl = (typeof createSkillsSearchSelectionControl === 'function')
+        ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'include')
+        : null;
+    var skillsExcludeControl = (typeof createSkillsSearchSelectionControl === 'function')
+        ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude')
+        : null;
 
-        if (favoritesControl) body.appendChild(favoritesControl);
+    var favoritesGroup = createSharedFilterGroup('Мои фильтры', [
+        favoritesControl
+    ]);
+    if (favoritesGroup) body.appendChild(favoritesGroup);
 
-        var roleGroup = createSharedFilterGroup('Фильтры роли', [
-            rolesControl,
-            trendsExcludedRolesControlForSkills,
-            periodsControl,
-            experiencesControl,
-            statusControlForSkills
-        ]);
-        if (roleGroup) body.appendChild(roleGroup);
+    var roleGroup = createSharedFilterGroup('Фильтры роли', [
+        rolesControl,
+        trendsExcludedRolesControl,
+        periodsControl,
+        experiencesControl,
+        statusControl
+    ]);
+    if (roleGroup) body.appendChild(roleGroup);
 
-        var salaryGroup = createSharedFilterGroup('Фильтры зарплаты', [
-            currencyControlForSkills,
-            countryControlForSkills,
-            salaryMetricControlForSkills
-        ]);
-        if (salaryGroup) body.appendChild(salaryGroup);
+    var salaryGroup = createSharedFilterGroup('Фильтры зарплаты', [
+        currencyControl,
+        countryControl,
+        salaryMetricControl
+    ]);
+    if (salaryGroup) body.appendChild(salaryGroup);
 
-        var responsesGroup = createSharedFilterGroup('Фильтры откликов', [
-            interviewControlForSkills,
-            resultControlForSkills,
-            offerControlForSkills
-        ]);
-        if (responsesGroup) body.appendChild(responsesGroup);
+    var responsesGroup = createSharedFilterGroup('Фильтры откликов', [
+        interviewControl,
+        resultControl,
+        offerControl
+    ]);
+    if (responsesGroup) body.appendChild(responsesGroup);
 
-        var topGroup = createSharedFilterGroup('', [topControlForSkills]);
-        if (topGroup) body.appendChild(topGroup);
+    var topGroup = createSharedFilterGroup('', [topControl]);
+    if (topGroup) body.appendChild(topGroup);
 
-        var vacancyGroup = createSharedFilterGroup('Фильтры вакансии', [
-            accreditationControl,
-            coverLetterControl,
-            hasTestControl
-        ]);
-        if (vacancyGroup) body.appendChild(vacancyGroup);
+    var vacancyGroup = createSharedFilterGroup('Фильтры вакансии', [
+        accreditationControl,
+        coverLetterControl,
+        hasTestControl
+    ]);
+    if (vacancyGroup) body.appendChild(vacancyGroup);
 
-        var skillsGroup = createSharedFilterGroup('Фильтр навыки', [
-            skillsLogicControl,
-            skillsIncludeControl,
-            skillsExcludeControl
-        ]);
-        if (skillsGroup) body.appendChild(skillsGroup);
-    } else {
-        body.appendChild(createUnifiedRolesControl(activeRole, currentForFilters));
-    }
-    if (currentForFilters !== 'skills-search' && typeof createMarketTrendsExcludedRolesControl === 'function') {
-        var trendsExcludedRolesControl = createMarketTrendsExcludedRolesControl(activeRole, currentForFilters);
-        if (trendsExcludedRolesControl) body.appendChild(trendsExcludedRolesControl);
-    }
-    if (currentForFilters !== 'skills-search') {
-        body.appendChild(createGlobalFilterDropdown('periods', 'Период', getGlobalFilterOptions(activeRole, 'periods', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('experiences', 'Опыт', getGlobalFilterOptions(activeRole, 'experiences', currentForFilters), false));
-        var statusOptions = getGlobalFilterOptions(activeRole, 'status', currentForFilters);
-        if (statusOptions.length) {
-            body.appendChild(createGlobalFilterDropdown('status', 'Статус', statusOptions, false));
-        }
-    }
-    if (isResponsesCalendarAnalysis(currentForFilters)) {
-        body.appendChild(createGlobalFilterDropdown('currency', 'Валюта', getGlobalFilterOptions(activeRole, 'currency', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('country', 'Страна', getGlobalFilterOptions(activeRole, 'country', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('interview', 'Собес назначен', getGlobalFilterOptions(activeRole, 'interview', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('result', 'Результат указан', getGlobalFilterOptions(activeRole, 'result', currentForFilters), false));
-        body.appendChild(createGlobalFilterDropdown('offer', 'Оффер', getGlobalFilterOptions(activeRole, 'offer', currentForFilters), false));
-    }
-    if (currentForFilters !== 'skills-search' && typeof createTotalsTopFilterControl === 'function') {
-        var totalsTopControl = createTotalsTopFilterControl(activeRole, currentForFilters);
-        if (totalsTopControl) body.appendChild(totalsTopControl);
-    }
+    var skillsGroup = createSharedFilterGroup('Фильтры навыков', [
+        skillsLogicControl,
+        skillsIncludeControl,
+        skillsExcludeControl
+    ]);
+    if (skillsGroup) body.appendChild(skillsGroup);
     panel.style.display = body.children.length ? 'block' : 'none';
-    renderActiveGlobalFilterChips(panel, activeRole, currentForFilters);
     if (!skipActiveApply) applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
 
@@ -6381,11 +6314,6 @@ function normalizeSalaryControls(parentRole) {
         updateViewToggleIcons(block);
         return;
     }
-    if (monthTabs.classList.contains('all-roles-period-tabs')) {
-        updateViewToggleIcons(block);
-        return;
-    }
-
     var controlRow = block.querySelector('.salary-control-row');
     if (!controlRow) {
         controlRow = document.createElement('div');
@@ -6725,8 +6653,8 @@ function initSkillsSearch(parentRole) {
             { key: 'd7', label: 'За 7 дней', month: 'last_7' },
             { key: 'd14', label: 'За 14 дней', month: 'last_14' }
         ];
-        if (lastMonth) periodItems.push({ key: 'm_last', label: lastMonth, month: lastMonth });
-        prevMonths.forEach((m, i) => periodItems.push({ key: 'm_prev_' + (i + 1), label: m, month: m }));
+        if (lastMonth) periodItems.push({ key: 'm_last', label: typeof formatMonthLabel === 'function' ? formatMonthLabel(lastMonth) : lastMonth, month: lastMonth });
+        prevMonths.forEach((m, i) => periodItems.push({ key: 'm_prev_' + (i + 1), label: typeof formatMonthLabel === 'function' ? formatMonthLabel(m) : m, month: m }));
         periodItems.push({ key: 'all', label: periodAllLabel, month: null });
         block._data = {
             vacancies: vacanciesSource,
@@ -6737,145 +6665,12 @@ function initSkillsSearch(parentRole) {
         };
     }
 
-    block.querySelectorAll('.skills-search-dropdown[data-filter="period"], .skills-search-dropdown[data-filter="exp"]').forEach(function(node) {
-        if (node && node.parentElement) node.parentElement.removeChild(node);
-    });
-    ensureSkillsSearchBooleanFilters(block);
-
-    ensureSkillsSearchFavoritesControls(block);
-
-    var statusDropdown = block.querySelector('.skills-search-dropdown[data-filter="status"]');
-    if (statusDropdown && !statusDropdown.dataset.ready) {
-        var statusItems = [
-            { value: 'Открытая', label: 'Открытая' },
-            { value: 'Архивная', label: 'Архивная' }
-        ];
-        renderSkillsSearchDropdown(statusDropdown, statusItems, 'Статус', 'Все', false, true);
-        statusDropdown.dataset.ready = '1';
-        block.dataset.status = '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f';
-    }
-
-    var currencyDropdown = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
-    if (currencyDropdown && !currencyDropdown.dataset.ready) {
-        var currItems = [
-            { value: 'rur', label: 'RUR' },
-            { value: 'usd', label: 'USD' },
-            { value: 'eur', label: 'EUR' },
-            { value: 'other', label: 'Другая' },
-            { value: 'none', label: 'Не заполнена' }
-        ];
-        renderSkillsSearchDropdown(currencyDropdown, currItems, 'Валюта', 'Все', false, true);
-        currencyDropdown.dataset.ready = '1';
-        block.dataset.currency = 'all';
-        setSkillsSearchDropdownValue(currencyDropdown, 'all');
-    }
-
-    var countryDropdown = block.querySelector('.skills-search-dropdown[data-filter="country"]');
-    if (countryDropdown && !countryDropdown.dataset.ready) {
-        var countryItems = [
-            { value: 'ru', label: '\u0420\u043e\u0441\u0441\u0438\u044f' },
-            { value: 'not_ru', label: '\u041d\u0435 \u0420\u043e\u0441\u0441\u0438\u044f' }
-        ];
-        renderSkillsSearchDropdown(countryDropdown, countryItems, '\u0421\u0442\u0440\u0430\u043d\u0430', '\u0412\u0441\u0435', false, true);
-        countryDropdown.dataset.ready = '1';
-        block.dataset.country = 'all';
-        setSkillsSearchDropdownValue(countryDropdown, 'all');
-    }
-
-    var logicDropdown = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
-    if (logicDropdown && !logicDropdown.dataset.ready) {
-        var logicItems = [
-            { value: 'or', label: 'OR' },
-            { value: 'and', label: 'AND' }
-        ];
-        renderSkillsSearchDropdown(logicDropdown, logicItems, 'Логика', 'OR', false, false);
-        logicDropdown.dataset.ready = '1';
-        block.dataset.logic = 'or';
-    }
-    renderSkillsSearchFavoritesDropdown(block);
-
     var buttonsWrap = block.querySelector('.skills-search-buttons');
     if (buttonsWrap && !buttonsWrap.dataset.ready) {
         renderSkillsSearchButtons(block, (block._data && block._data.skills) ? block._data.skills : []);
         buttonsWrap.dataset.ready = '1';
     }
-
-    var favorite = getActiveSkillsSearchFavorite();
-    if (favorite && favorite.state) {
-        applySkillsSearchState(block, favorite.state);
-        renderSkillsSearchFavoritesDropdown(block);
-    } else {
-        var saved = getSkillsSearchState(block);
-        if (saved) {
-            applySkillsSearchState(block, saved);
-        } else {
-            if (statusDropdown) {
-                setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
-                block.dataset.status = 'Открытая';
-            }
-        }
-    }
-    if (!favorite || !favorite.state) {
-        if (statusDropdown) {
-            var statusValue = getSkillsSearchFilterValue(block, 'status');
-            if (!statusValue || statusValue === 'all') {
-                setSkillsSearchDropdownValue(statusDropdown, 'Открытая');
-                block.dataset.status = 'Открытая';
-            }
-        }
-    }
     updateSkillsSearchData(block);
-}
-
-function ensureSkillsSearchFavoritesControls(block) {
-    if (!block) return;
-    var header = block.querySelector('.skills-search-panel-header');
-    if (!header) return;
-
-    var saveBtn = header.querySelector('.skills-search-save-favorite');
-    if (!saveBtn) {
-        saveBtn = document.createElement('button');
-        saveBtn.className = 'skills-search-save-favorite skills-search-icon-btn';
-        saveBtn.type = 'button';
-        header.appendChild(saveBtn);
-    }
-    saveBtn.classList.add('skills-search-icon-btn');
-    saveBtn.classList.add('skills-search-favorite-action');
-    saveBtn.textContent = '+';
-    saveBtn.title = 'Сохранить набор';
-    saveBtn.setAttribute('aria-label', 'Сохранить набор');
-
-    var legacyRemoveBtn = header.querySelector('.skills-search-remove-favorite');
-    if (legacyRemoveBtn && legacyRemoveBtn.parentElement) {
-        legacyRemoveBtn.parentElement.removeChild(legacyRemoveBtn);
-    }
-
-    var favoriteWrap = header.querySelector('.skills-search-dropdown[data-filter="favorite"]');
-    if (!favoriteWrap) {
-        var favoriteWrap = document.createElement('div');
-        favoriteWrap.className = 'skills-search-dropdown skills-search-favorite-inline';
-        favoriteWrap.setAttribute('data-filter', 'favorite');
-        favoriteWrap.innerHTML =
-            '<button class="skills-search-dropdown-btn skills-search-favorite-trigger" type="button" data-value="" title="Наборы" aria-label="Наборы"></button>' +
-            '<div class="skills-search-dropdown-menu"></div>';
-        header.appendChild(favoriteWrap);
-    }
-    var favoriteBtn = favoriteWrap.querySelector('.skills-search-dropdown-btn');
-    if (favoriteBtn) {
-        favoriteBtn.classList.remove('skills-search-icon-btn');
-        favoriteBtn.classList.add('skills-search-favorite-trigger');
-        favoriteBtn.title = favoriteBtn.title || 'Наборы';
-        favoriteBtn.setAttribute('aria-label', 'Наборы');
-    }
-
-    var toggleBtn = header.querySelector('.skills-search-toggle');
-    if (toggleBtn) {
-        header.insertBefore(favoriteWrap, toggleBtn);
-        header.insertBefore(saveBtn, favoriteWrap);
-    } else {
-        header.appendChild(saveBtn);
-        header.appendChild(favoriteWrap);
-    }
 }
 function setSkillsSearchFavoriteTrigger(dropdown, favoriteName, favoriteId) {
     if (!dropdown) return;
@@ -7199,8 +6994,9 @@ function syncSkillsSearchButtonsFromState(block) {
 }
 
 function refreshSkillsSearchPanel(parentRole) {
-    if (!parentRole || String(parentRole.dataset.activeAnalysis || '') !== 'skills-search') return;
-    if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(parentRole, 'skills-search', true);
+    if (!parentRole) return;
+    var activeAnalysis = String(parentRole.dataset.activeAnalysis || 'skills-search').trim() || 'skills-search';
+    if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(parentRole, activeAnalysis, true);
 }
 
 function scrollSharedFilterPanelToEnd() {
@@ -7269,152 +7065,14 @@ function clearSkillsSearchSkillState(block, rawSkill, mode) {
 function updateSkillsSearchData(block) {
     if (!block || !block._data) return;
     var parentRole = block.closest('.role-content');
-    var globalPeriodOptions = getGlobalFilterOptions(parentRole, 'periods', 'skills-search');
-    var globalExpOptions = getGlobalFilterOptions(parentRole, 'experiences', 'skills-search');
-    var globalStatusOptions = getGlobalFilterOptions(parentRole, 'status', 'skills-search');
-    var globalCurrencyOptions = getGlobalFilterOptions(parentRole, 'currency', 'skills-search');
-    var globalCountryOptions = getGlobalFilterOptions(parentRole, 'country', 'skills-search');
-    var globalInterviewOptions = getGlobalFilterOptions(parentRole, 'interview', 'skills-search');
-    var globalResultOptions = getGlobalFilterOptions(parentRole, 'result', 'skills-search');
-    var globalOfferOptions = getGlobalFilterOptions(parentRole, 'offer', 'skills-search');
-    var globalAccreditationOptions = getGlobalFilterOptions(parentRole, 'accreditation', 'skills-search');
-    var globalCoverOptions = getGlobalFilterOptions(parentRole, 'cover_letter_required', 'skills-search');
-    var globalHasTestOptions = getGlobalFilterOptions(parentRole, 'has_test', 'skills-search');
-    var selectedPeriods = getResolvedGlobalFilterValues('periods', globalPeriodOptions);
-    var selectedExps = getResolvedGlobalFilterValues('experiences', globalExpOptions);
-    var selectedGlobalStatuses = getResolvedGlobalFilterValues('status', globalStatusOptions);
-    var selectedGlobalCurrencies = getResolvedGlobalFilterValues('currency', globalCurrencyOptions);
-    var selectedGlobalCountries = getResolvedGlobalFilterValues('country', globalCountryOptions);
-    var selectedGlobalInterview = getResolvedGlobalFilterValues('interview', globalInterviewOptions);
-    var selectedGlobalResult = getResolvedGlobalFilterValues('result', globalResultOptions);
-    var selectedGlobalOffer = getResolvedGlobalFilterValues('offer', globalOfferOptions);
-    var selectedGlobalAccreditation = getResolvedGlobalFilterValues('accreditation', globalAccreditationOptions);
-    var selectedGlobalCover = getResolvedGlobalFilterValues('cover_letter_required', globalCoverOptions);
-    var selectedGlobalHasTest = getResolvedGlobalFilterValues('has_test', globalHasTestOptions);
-    var baseVacancies = (block._data.vacancies || []).slice();
-    if (selectedPeriods.length) {
-        baseVacancies = filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods);
-    }
+    var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'skills-search', {
+        sourceVacancies: (block._data.vacancies || []).slice(),
+        skipSkills: true
+    });
     baseVacancies = dedupeVacanciesById(baseVacancies);
 
-    var statusVal = getSkillsSearchFilterValue(block, 'status');
-    var countryVal = getSkillsSearchFilterValue(block, 'country');
-    var currencyVal = getSkillsSearchFilterValue(block, 'currency');
-    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
-    var currencyVals = [];
-    if (currencyDd && currencyDd.dataset.multi === '1') {
-        try {
-            currencyVals = JSON.parse(currencyDd.dataset.values || '[]');
-        } catch (_e) {
-            currencyVals = [];
-        }
-    }
-    var logicVal = getSkillsSearchFilterValue(block, 'logic') || 'or';
-    var booleanFilterValues = getSkillsSearchBooleanFilterValues(block);
-    var booleanFilterDefs = getSkillsSearchBooleanFilterDefs();
-
-    var filteredBase = baseVacancies.filter(v => {
-        if (!v) return false;
-        var vExpGlobal = normalizeExperience(v._experience || v.experience || '');
-        var allowedGlobal = selectedExps.map(function(x) { return normalizeExperience(x); }).filter(Boolean);
-        if (allowedGlobal.length && allowedGlobal.indexOf(vExpGlobal) < 0) return false;
-        if (globalExpOptions.length && selectedExps.length && allowedGlobal.length === 0) {
-            return false;
-        }
-        if (booleanFilterDefs.length) {
-            for (var i = 0; i < booleanFilterDefs.length; i += 1) {
-                var filterKey = booleanFilterDefs[i].key;
-                var filterValue = booleanFilterValues[filterKey] || 'all';
-                if (filterValue === 'all') continue;
-                var boolValue = getSkillsSearchVacancyBooleanValue(v, filterKey);
-                if (filterValue === 'true' && !boolValue) return false;
-                if (filterValue === 'false' && boolValue) return false;
-            }
-        }
-        if (selectedGlobalAccreditation.length) {
-            var vacancyAccredited = getSkillsSearchVacancyBooleanValue(v, 'accreditation');
-            if (selectedGlobalAccreditation.indexOf(vacancyAccredited ? 'true' : 'false') < 0) return false;
-        }
-        if (selectedGlobalCover.length) {
-            var vacancyCover = getSkillsSearchVacancyBooleanValue(v, 'cover_letter_required');
-            if (selectedGlobalCover.indexOf(vacancyCover ? 'true' : 'false') < 0) return false;
-        }
-        if (selectedGlobalHasTest.length) {
-            var vacancyHasTest = getSkillsSearchVacancyBooleanValue(v, 'has_test');
-            if (selectedGlobalHasTest.indexOf(vacancyHasTest ? 'true' : 'false') < 0) return false;
-        }
-        if (selectedGlobalStatuses.length) {
-            var globalStatus = v._status || (v.archived_at ? 'Архивная' : 'Открытая');
-            var globalStatusKey = globalStatus === 'Архивная' ? 'archived' : 'open';
-            if (selectedGlobalStatuses.indexOf(globalStatusKey) < 0) return false;
-        }
-        if (selectedGlobalInterview.length) {
-            var interviewKey = hasScheduledInterview(v) ? 'yes' : 'no';
-            if (selectedGlobalInterview.indexOf(interviewKey) < 0) return false;
-        }
-        if (selectedGlobalResult.length) {
-            var resultKey = hasResultContent(v) ? 'yes' : 'no';
-            if (selectedGlobalResult.indexOf(resultKey) < 0) return false;
-        }
-        if (selectedGlobalOffer.length) {
-            var offerKey = hasOfferContent(v) ? 'yes' : 'no';
-            if (selectedGlobalOffer.indexOf(offerKey) < 0) return false;
-        }
-        if (statusVal !== 'all') {
-            var status = v._status || (v.archived_at ? '????????' : '????????');
-            if (status !== statusVal) return false;
-        }
-        if (selectedGlobalCountries.length) {
-            var globalCountry = (v.country || '').trim();
-            var globalCountryKey = globalCountry ? (globalCountry === 'Россия' ? 'ru' : 'not_ru') : 'none';
-            if (selectedGlobalCountries.indexOf(globalCountryKey) < 0) return false;
-        }
-        if (countryVal !== 'all') {
-            var country = (v.country || '').trim();
-            if (countryVal === 'none') {
-                if (country) return false;
-            } else if (countryVal === 'ru') {
-                if (country !== '\u0420\u043e\u0441\u0441\u0438\u044f') return false;
-            } else if (countryVal === 'not_ru') {
-                if (!country || country === '\u0420\u043e\u0441\u0441\u0438\u044f') return false;
-            } else if (country !== countryVal) {
-                return false;
-            }
-        }
-          var selectedCurrencies = (currencyVals && currencyVals.length) ? currencyVals : null;
-          if (selectedCurrencies && selectedCurrencies.length) {
-              var currRaw = v.currency;
-              var currNorm = String(currRaw || '').trim().toUpperCase();
-              var isCurrencyEmpty = !currNorm || currNorm === '—' || currNorm === '-';
-              var match = false;
-              selectedCurrencies.forEach(sel => {
-                  var selNorm = String(sel || '').trim().toLowerCase();
-                  if (selNorm === 'rur' && (currNorm === 'RUR' || currNorm === 'RUB')) match = true;
-                  else if (selNorm === 'usd' && currNorm === 'USD') match = true;
-                  else if (selNorm === 'eur' && currNorm === 'EUR') match = true;
-                  else if (selNorm === 'other') {
-                      if (!isCurrencyEmpty && currNorm !== 'RUR' && currNorm !== 'RUB' && currNorm !== 'USD' && currNorm !== 'EUR') match = true;
-                  } else if (selNorm === 'none' && isCurrencyEmpty) match = true;
-              });
-              if (!match) return false;
-          }
-          if (selectedGlobalCurrencies.length) {
-              var globalCurrRaw = v.currency;
-              var globalCurrNorm = String(globalCurrRaw || '').trim().toUpperCase();
-              var globalCurrencyKey = (!globalCurrNorm || globalCurrNorm === '—' || globalCurrNorm === '-') ? 'none'
-                  : ((globalCurrNorm === 'RUR' || globalCurrNorm === 'RUB') ? 'rur'
-                  : (globalCurrNorm === 'USD' ? 'usd'
-                  : (globalCurrNorm === 'EUR' ? 'eur' : 'other')));
-              if (selectedGlobalCurrencies.indexOf(globalCurrencyKey) < 0) return false;
-          } else if (currencyVal !== 'all') {
-              var currRaw2 = v.currency;
-              if (currRaw2 !== currencyVal) return false;
-          }
-          return true;
-      });
-
-    block._data.currentVacancies = filteredBase;
-    var skills = computeSalarySkillsFromVacancies(filteredBase, 50);
+    block._data.currentVacancies = baseVacancies;
+    var skills = computeSalarySkillsFromVacancies(baseVacancies, 50);
     block._data.skills = skills;
     renderSkillsSearchButtons(block, skills);
     syncSkillsSearchButtonsFromState(block);
@@ -7481,6 +7139,240 @@ function updateSkillsSearchSummaryLine(block) {
 function getSkillsSearchState(block) {
     return uiState.skills_search_global || null;
 }
+var SHARED_FILTER_PRESETS_STORAGE_KEY = 'research_vacancies_filter_presets_v1';
+var SHARED_FILTER_PRESET_ANALYSES = ['totals', 'activity', 'weekday', 'skills-monthly', 'salary', 'employer-analysis', 'skills-search'];
+var SHARED_FILTER_STATE_KEYS = ['roles', 'periods', 'experiences', 'status', 'currency', 'country', 'interview', 'result', 'offer', 'accreditation', 'cover_letter_required', 'has_test'];
+
+function getSharedFilterPresetAnalysisKey(analysisType) {
+    var current = String(analysisType || '').trim();
+    if (SHARED_FILTER_PRESET_ANALYSES.indexOf(current) >= 0) return current;
+    if (current.indexOf('skills-search') === 0) return 'skills-search';
+    return 'totals';
+}
+
+function ensureSharedFilterPresetsState() {
+    if (uiState.shared_filter_presets && typeof uiState.shared_filter_presets === 'object') return uiState.shared_filter_presets;
+    var fallback = {};
+    SHARED_FILTER_PRESET_ANALYSES.forEach(function(key) {
+        fallback[key] = { activeId: '', items: [] };
+    });
+    if (typeof window === 'undefined' || !window.localStorage) {
+        uiState.shared_filter_presets = fallback;
+        return uiState.shared_filter_presets;
+    }
+    try {
+        var raw = window.localStorage.getItem(SHARED_FILTER_PRESETS_STORAGE_KEY);
+        if (!raw) {
+            uiState.shared_filter_presets = fallback;
+            return uiState.shared_filter_presets;
+        }
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') {
+            uiState.shared_filter_presets = fallback;
+            return uiState.shared_filter_presets;
+        }
+        var next = {};
+        SHARED_FILTER_PRESET_ANALYSES.forEach(function(key) {
+            var bucket = parsed[key] || {};
+            var items = Array.isArray(bucket.items) ? bucket.items.filter(function(item) {
+                return item && item.id && item.name && item.state && typeof item.state === 'object';
+            }).map(function(item) {
+                return { id: String(item.id), name: String(item.name), state: item.state };
+            }) : [];
+            var activeId = String(bucket.activeId || '');
+            if (items.length && !items.some(function(item) { return item.id === activeId; })) {
+                activeId = items[0].id;
+            }
+            next[key] = { activeId: activeId, items: items };
+        });
+        var legacySkillsFavorites = typeof ensureSkillsSearchFavoritesState === 'function'
+            ? ensureSkillsSearchFavoritesState()
+            : (uiState.skills_search_favorites || null);
+        if ((!next['skills-search'] || !next['skills-search'].items.length) && legacySkillsFavorites && Array.isArray(legacySkillsFavorites.items) && legacySkillsFavorites.items.length) {
+            next['skills-search'] = {
+                activeId: String(legacySkillsFavorites.activeId || (legacySkillsFavorites.items[0] && legacySkillsFavorites.items[0].id) || ''),
+                items: legacySkillsFavorites.items.map(function(item) {
+                    return { id: String(item.id), name: String(item.name), state: item.state || {} };
+                })
+            };
+        }
+        uiState.shared_filter_presets = next;
+    } catch (_e) {
+        uiState.shared_filter_presets = fallback;
+    }
+    return uiState.shared_filter_presets;
+}
+
+function persistSharedFilterPresetsState() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    var state = ensureSharedFilterPresetsState();
+    try {
+        window.localStorage.setItem(SHARED_FILTER_PRESETS_STORAGE_KEY, JSON.stringify(state));
+    } catch (_e) {
+        // ignore storage failures
+    }
+}
+
+function cloneSharedFilterSnapshot(snapshot) {
+    try {
+        return JSON.parse(JSON.stringify(snapshot || {}));
+    } catch (_e) {
+        return snapshot || {};
+    }
+}
+
+function getSharedFilterSnapshot(activeRole, analysisType) {
+    var snapshot = {
+        globalFilters: {},
+        totals_dashboard_mode: uiState.totals_dashboard_mode || 'overview',
+        totals_top_limit: normalizeTotalsTopLimit(uiState.totals_top_limit || 15),
+        market_trends_currency: normalizeTotalsCurrency(uiState.market_trends_currency || 'RUR'),
+        market_trends_salary_metric: String(uiState.market_trends_salary_metric || 'avg').toLowerCase(),
+        market_trends_excluded_roles: Array.isArray(uiState.market_trends_excluded_roles) ? uiState.market_trends_excluded_roles.slice() : [],
+        my_responses_currency: String(uiState.my_responses_currency || 'all'),
+        my_responses_offer_filter: String(uiState.my_responses_offer_filter || 'all'),
+        skills_search_global: cloneSharedFilterSnapshot(uiState.skills_search_global || null),
+        skills_search_filter_query: String(uiState.skills_search_filter_query || ''),
+        skills_search_skill_pick_mode: String(uiState.skills_search_skill_pick_mode || 'include')
+    };
+    SHARED_FILTER_STATE_KEYS.forEach(function(filterKey) {
+        var bucket = ensureGlobalFilterBucket(filterKey);
+        snapshot.globalFilters[filterKey] = {
+            include: (bucket.include || []).slice(),
+            exclude: (bucket.exclude || []).slice()
+        };
+    });
+    if (activeRole && String(analysisType || '') === 'skills-search') {
+        snapshot.skills_search_global = getSkillsSearchStateSnapshot(activeRole.querySelector('.skills-search-content'));
+    }
+    return snapshot;
+}
+
+function applySharedFilterSnapshot(snapshot, activeRole, analysisType) {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    if (snapshot.globalFilters && typeof snapshot.globalFilters === 'object') {
+        Object.keys(snapshot.globalFilters).forEach(function(filterKey) {
+            var bucket = ensureGlobalFilterBucket(filterKey);
+            var item = snapshot.globalFilters[filterKey] || {};
+            bucket.include = Array.isArray(item.include) ? item.include.slice() : [];
+            bucket.exclude = Array.isArray(item.exclude) ? item.exclude.slice() : [];
+        });
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'totals_dashboard_mode')) {
+        uiState.totals_dashboard_mode = String(snapshot.totals_dashboard_mode || 'overview').trim() || 'overview';
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'totals_top_limit')) {
+        uiState.totals_top_limit = normalizeTotalsTopLimit(snapshot.totals_top_limit || 15);
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'market_trends_currency')) {
+        uiState.market_trends_currency = normalizeTotalsCurrency(snapshot.market_trends_currency || 'RUR');
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'market_trends_salary_metric')) {
+        var metric = String(snapshot.market_trends_salary_metric || 'avg').toLowerCase();
+        uiState.market_trends_salary_metric = ['min', 'max', 'avg', 'median', 'mode'].indexOf(metric) >= 0 ? metric : 'avg';
+    }
+    if (Array.isArray(snapshot.market_trends_excluded_roles)) {
+        uiState.market_trends_excluded_roles = snapshot.market_trends_excluded_roles.slice();
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'my_responses_currency')) {
+        uiState.my_responses_currency = String(snapshot.my_responses_currency || 'all');
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'my_responses_offer_filter')) {
+        uiState.my_responses_offer_filter = String(snapshot.my_responses_offer_filter || 'all');
+    }
+    if (snapshot.skills_search_global && typeof snapshot.skills_search_global === 'object') {
+        uiState.skills_search_global = cloneSharedFilterSnapshot(snapshot.skills_search_global);
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'skills_search_filter_query')) {
+        uiState.skills_search_filter_query = String(snapshot.skills_search_filter_query || '');
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'skills_search_skill_pick_mode')) {
+        uiState.skills_search_skill_pick_mode = String(snapshot.skills_search_skill_pick_mode || 'include') === 'exclude' ? 'exclude' : 'include';
+    }
+    if (activeRole && String(analysisType || activeRole.dataset.activeAnalysis || '') === 'skills-search') {
+        var block = activeRole.querySelector('.skills-search-content');
+        if (block && uiState.skills_search_global) {
+            applySkillsSearchState(block, uiState.skills_search_global);
+        }
+    }
+    return true;
+}
+
+function saveSharedFilterPreset(activeRole, analysisType, name) {
+    var trimmed = String(name || '').trim();
+    if (!trimmed) return false;
+    var key = getSharedFilterPresetAnalysisKey(analysisType);
+    var state = ensureSharedFilterPresetsState();
+    var bucket = state[key] || { activeId: '', items: [] };
+    var snapshot = getSharedFilterSnapshot(activeRole, analysisType);
+    var existing = (bucket.items || []).find(function(item) {
+        return String(item.name || '').toLowerCase() === trimmed.toLowerCase();
+    });
+    if (existing) {
+        existing.state = snapshot;
+        bucket.activeId = existing.id;
+    } else {
+        var nextId = 'preset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        bucket.items = bucket.items || [];
+        bucket.items.push({ id: nextId, name: trimmed, state: snapshot });
+        bucket.activeId = nextId;
+    }
+    state[key] = bucket;
+    persistSharedFilterPresetsState();
+    return true;
+}
+
+function removeSharedFilterPreset(analysisType, presetId) {
+    var key = getSharedFilterPresetAnalysisKey(analysisType);
+    var state = ensureSharedFilterPresetsState();
+    var bucket = state[key] || { activeId: '', items: [] };
+    var selectedId = String(presetId || '').trim();
+    if (!selectedId) return false;
+    var before = (bucket.items || []).length;
+    bucket.items = (bucket.items || []).filter(function(item) { return item.id !== selectedId; });
+    if (bucket.activeId === selectedId) bucket.activeId = bucket.items.length ? bucket.items[0].id : '';
+    state[key] = bucket;
+    if (bucket.items.length === before) return false;
+    persistSharedFilterPresetsState();
+    return true;
+}
+
+function applySharedFilterPreset(activeRole, analysisType, presetId) {
+    var key = getSharedFilterPresetAnalysisKey(analysisType);
+    var state = ensureSharedFilterPresetsState();
+    var bucket = state[key] || { activeId: '', items: [] };
+    var item = (bucket.items || []).find(function(entry) { return entry.id === presetId; });
+    if (!item) return false;
+    applySharedFilterSnapshot(item.state || {}, activeRole, analysisType);
+    bucket.activeId = item.id;
+    state[key] = bucket;
+    persistSharedFilterPresetsState();
+    return true;
+}
+
+function getSharedFilterPresetState(analysisType) {
+    var key = getSharedFilterPresetAnalysisKey(analysisType);
+    var state = ensureSharedFilterPresetsState();
+    if (!state[key]) state[key] = { activeId: '', items: [] };
+    return state[key];
+}
+
+function ensureDefaultPeriodFilterSelection(activeRole, analysisType) {
+    if (hasExplicitGlobalFilterSelection('periods')) return false;
+    var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
+    if (!Array.isArray(options) || !options.length) return false;
+    var defaultOption = options.find(function(option) {
+        return String(option && option.value || '') === 'previous_month';
+    }) || options.find(function(option) {
+        return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
+    });
+    if (!defaultOption) return false;
+    var bucket = ensureGlobalFilterBucket('periods');
+    bucket.include = [defaultOption.value];
+    bucket.exclude = [];
+    return true;
+}
+
 var SKILLS_SEARCH_FAVORITES_STORAGE_KEY = 'research_vacancies_skills_search_favorites_v1';
 function ensureSkillsSearchFavoritesState() {
     if (uiState.skills_search_favorites && Array.isArray(uiState.skills_search_favorites.items)) return uiState.skills_search_favorites;
@@ -7531,25 +7423,25 @@ function persistSkillsSearchFavoritesState() {
     }
 }
 function getSkillsSearchStateSnapshot(block) {
-    var currencyVals = [];
-    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
-    if (currencyDd && currencyDd.dataset.multi === '1') {
-        try {
-            currencyVals = JSON.parse(currencyDd.dataset.values || '[]');
-        } catch (_e) {
-            currencyVals = [];
-        }
-    }
+    var filterKeys = ['periods', 'experiences', 'status', 'currency', 'country', 'interview', 'result', 'offer', 'accreditation', 'cover_letter_required', 'has_test'];
+    var globalFilters = {};
+    filterKeys.forEach(function(filterKey) {
+        var bucket = ensureGlobalFilterBucket(filterKey);
+        globalFilters[filterKey] = {
+            include: (bucket.include || []).slice(),
+            exclude: (bucket.exclude || []).slice()
+        };
+    });
     return {
-        status: getSkillsSearchFilterValue(block, 'status') || 'all',
-        country: getSkillsSearchFilterValue(block, 'country') || 'all',
-        currency: (currencyVals && currencyVals.length) ? currencyVals : 'all',
+        globalFilters: globalFilters,
         sort: 'count',
         logic: getSkillsSearchSelections(block).logic,
-        employerFlags: getSkillsSearchBooleanFilterValues(block),
         includeSkills: getSkillsSearchSelections(block).includeSkills.slice(),
         excludeSkills: getSkillsSearchSelections(block).excludeSkills.slice(),
-        collapsed: block.querySelector('.skills-search-panel') ? block.querySelector('.skills-search-panel').classList.contains('collapsed') : false
+        status: 'all',
+        country: 'all',
+        currency: 'all',
+        employerFlags: {}
     };
 }
 function renderSkillsSearchFavoritesDropdown(block) {
@@ -7639,31 +7531,29 @@ function saveSkillsSearchState(block) {
 }
 function applySkillsSearchState(block, state) {
     if (!state) return;
-    var statusDd = block.querySelector('.skills-search-dropdown[data-filter="status"]');
-    var countryDd = block.querySelector('.skills-search-dropdown[data-filter="country"]');
-    var currencyDd = block.querySelector('.skills-search-dropdown[data-filter="currency"]');
-    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
-
-    if (statusDd) setSkillsSearchDropdownValue(statusDd, state.status || '\u041e\u0442\u043a\u0440\u044b\u0442\u0430\u044f');
-    if (countryDd) setSkillsSearchDropdownValue(countryDd, state.country || 'all');
-    if (currencyDd) {
-        if (Array.isArray(state.currency)) setSkillsSearchDropdownMulti(currencyDd, state.currency);
-        else setSkillsSearchDropdownValue(currencyDd, state.currency || 'all');
+    var nextState = state && typeof state === 'object' ? state : {};
+    var current = ensureSkillsSearchGlobalState(block);
+    current.sort = 'count';
+    current.logic = nextState.logic === 'and' ? 'and' : 'or';
+    current.includeSkills = normalizeSkillsSearchSkillList(nextState.includeSkills || []);
+    current.excludeSkills = normalizeSkillsSearchSkillList(nextState.excludeSkills || []);
+    if (nextState.globalFilters && typeof nextState.globalFilters === 'object') {
+        Object.keys(nextState.globalFilters).forEach(function(filterKey) {
+            var snapshot = nextState.globalFilters[filterKey] || {};
+            var bucket = ensureGlobalFilterBucket(filterKey);
+            bucket.include = Array.isArray(snapshot.include) ? snapshot.include.slice() : [];
+            bucket.exclude = Array.isArray(snapshot.exclude) ? snapshot.exclude.slice() : [];
+        });
+    } else {
+        ['periods', 'experiences', 'status', 'currency', 'country', 'interview', 'result', 'offer', 'accreditation', 'cover_letter_required', 'has_test'].forEach(function(filterKey) {
+            var snapshot = (nextState && Object.prototype.hasOwnProperty.call(nextState, filterKey)) ? nextState[filterKey] : null;
+            if (!snapshot) return;
+            var bucket = ensureGlobalFilterBucket(filterKey);
+            bucket.include = Array.isArray(snapshot.include) ? snapshot.include.slice() : [];
+            bucket.exclude = Array.isArray(snapshot.exclude) ? snapshot.exclude.slice() : [];
+        });
     }
-    if (logicDd) setSkillsSearchDropdownValue(logicDd, state.logic || 'or');
-    setSkillsSearchBooleanFilterValues(block, state.employerFlags || []);
-    ensureSkillsSearchGlobalState(block).sort = 'count';
-
-    if (state.collapsed) {
-        var panel = block.querySelector('.skills-search-panel');
-        var toggle = block.querySelector('.skills-search-toggle');
-        if (panel && toggle) {
-            panel.classList.add('collapsed');
-            toggle.setAttribute('aria-expanded', 'false');
-            toggle.innerHTML = '&#9660;';
-        }
-    }
-    applySkillsSearchSkillState(block, state.includeSkills || [], state.excludeSkills || [], state.logic || 'or');
+    applySkillsSearchSkillState(block, current.includeSkills || [], current.excludeSkills || [], current.logic || 'or');
 }
 function setSkillsSearchDropdownValue(dropdown, value) {
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');
@@ -7974,11 +7864,6 @@ function normalizeActivityControls(parentRole) {
     if (!parentRole) return;
     var monthTabs = parentRole.querySelector('.tabs.month-tabs.activity-only');
     if (!monthTabs) return;
-    if (monthTabs.classList.contains('all-roles-period-tabs')) {
-        updateViewToggleIcons(parentRole);
-        return;
-    }
-
     if (!monthTabs.classList.contains('activity-month-tabs') && !monthTabs.classList.contains('activity-filter-tabs')) {
         monthTabs.classList.add('activity-month-tabs');
     }
@@ -8116,11 +8001,6 @@ function normalizeSkillsMonthlyControls(parentRole) {
         updateViewToggleIcons(block);
         return;
     }
-    if (monthTabs.classList.contains('all-roles-period-tabs')) {
-        updateViewToggleIcons(block);
-        return;
-    }
-
     var controlRow = block.querySelector('.skills-control-row');
     if (!controlRow) {
         controlRow = document.createElement('div');
@@ -8427,10 +8307,9 @@ function applyEmployerAnalysisMonthFilter(block, month) {
     }
     if (block.dataset.employerActiveMonth === month) return;
     var parentRole = block.closest('.role-content');
-    var baseVacancies = filterVacanciesBySelectedExperiences(
-        dedupeVacanciesById((parentRole ? getRoleVacancies(parentRole) : []) || []),
-        getResolvedAnalysisExperienceValues(parentRole, 'employer-analysis')
-    );
+    var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'employer-analysis', {
+        skipPeriods: true
+    });
     var periodLabel = block.dataset.employerAllLabel || '';
     var rows = [];
     var explicitLabel = '';
@@ -9310,60 +9189,6 @@ function getAllRolesSkillsRowsByCurrency(target) {
     return target._data.currencyEntries;
 }
 
-function applyAllRolesSkillsCurrency(target, currency, contextText) {
-    if (!target) return;
-    var normalizedCurrency = String(currency || 'RUR').trim().toUpperCase();
-    var rowsByCurrency = getAllRolesSkillsRowsByCurrency(target);
-    var rows = rowsByCurrency[normalizedCurrency] || [];
-    if (!rows.length) {
-        var fallbackCurrency = Object.keys(rowsByCurrency).find(function(curr) {
-            return Array.isArray(rowsByCurrency[curr]) && rowsByCurrency[curr].length;
-        }) || normalizedCurrency;
-        normalizedCurrency = String(fallbackCurrency || normalizedCurrency).trim().toUpperCase();
-        rows = rowsByCurrency[normalizedCurrency] || [];
-    }
-    target.dataset.activeCurrency = normalizedCurrency;
-    uiState.all_roles_skills_currency = normalizedCurrency;
-    target._data = target._data || {};
-    target._data.entries = rows;
-    target.dataset.entries = encodeURIComponent(JSON.stringify(rows));
-
-    var tableContainer = target.querySelector('.table-container');
-    if (tableContainer && typeof buildAllRolesSkillsTableHtml === 'function') {
-        tableContainer.innerHTML = buildAllRolesSkillsTableHtml(rows, normalizedCurrency);
-    }
-
-    var switchButtons = target.querySelectorAll('.skills-currency-switch-btn');
-    switchButtons.forEach(function(btn) {
-        btn.classList.toggle('active', String(btn.dataset.currency || '').toUpperCase() === normalizedCurrency);
-    });
-
-    var mode = getAllRolesViewMode('skills');
-    if (mode !== 'table') {
-        var graphId = target.dataset.graphId;
-        if (graphId) renderAllRolesSkillsChartFromTable(target, graphId, contextText);
-    }
-}
-
-function ensureAllRolesSkillsCurrencyControls(target, contextText) {
-    if (!target) return;
-    var switchWrap = target.querySelector('.skills-currency-switch');
-    var defaultCurrency = String(
-        uiState.all_roles_skills_currency ||
-        target.dataset.activeCurrency ||
-        'RUR'
-    ).trim().toUpperCase();
-    if (switchWrap && switchWrap.dataset.bound !== '1') {
-        switchWrap.addEventListener('click', function(e) {
-            var btn = e.target.closest('.skills-currency-switch-btn');
-            if (!btn) return;
-            applyAllRolesSkillsCurrency(target, btn.dataset.currency || defaultCurrency, contextText);
-        });
-        switchWrap.dataset.bound = '1';
-    }
-    applyAllRolesSkillsCurrency(target, defaultCurrency, contextText);
-}
-
 function getAllRolesSalaryRowsByCurrency(target) {
     if (!target) return {};
     if (target._data && target._data.currencyEntries) return target._data.currencyEntries;
@@ -9371,91 +9196,6 @@ function getAllRolesSalaryRowsByCurrency(target) {
     target._data = target._data || {};
     target._data.currencyEntries = parsed || {};
     return target._data.currencyEntries;
-}
-
-function applyAllRolesSalaryCurrency(target, currency, contextText) {
-    if (!target) return;
-    var normalizedCurrency = String(currency || 'RUR').trim().toUpperCase();
-    var rowsByCurrency = getAllRolesSalaryRowsByCurrency(target);
-    var rows = rowsByCurrency[normalizedCurrency] || [];
-    if (!rows.length) {
-        var fallbackCurrency = Object.keys(rowsByCurrency).find(function(curr) {
-            return Array.isArray(rowsByCurrency[curr]) && rowsByCurrency[curr].length;
-        }) || normalizedCurrency;
-        normalizedCurrency = String(fallbackCurrency || normalizedCurrency).trim().toUpperCase();
-        rows = rowsByCurrency[normalizedCurrency] || [];
-    }
-    target.dataset.activeCurrency = normalizedCurrency;
-    uiState.all_roles_salary_currency = normalizedCurrency;
-    target._data = target._data || {};
-    target._data.entries = rows;
-    target.dataset.entries = encodeURIComponent(JSON.stringify(rows));
-
-    var tableContainer = target.querySelector('.table-container');
-    if (tableContainer && typeof buildAllRolesSalaryTableHtml === 'function') {
-        tableContainer.innerHTML = buildAllRolesSalaryTableHtml(rows, normalizedCurrency);
-    }
-
-    target.querySelectorAll('.salary-currency-switch-btn').forEach(function(btn) {
-        btn.classList.toggle('active', String(btn.dataset.currency || '').toUpperCase() === normalizedCurrency);
-    });
-
-    var mode = getAllRolesViewMode('salary');
-    if (mode !== 'table') {
-        var graphId = target.dataset.graphId;
-        var metricKey = String(target.dataset.activeSalaryMetric || uiState.all_roles_salary_metric || 'avg_salary');
-        if (graphId) {
-            buildAllRolesSalaryChart(rows, graphId, metricKey);
-            var metricTitleMap = {
-                avg_salary: 'Средняя зарплата по ролям',
-                median_salary: 'Медианная зарплата по ролям',
-                mode_salary: 'Модальная зарплата по ролям',
-                min_salary: 'Минимальная зарплата по ролям',
-                max_salary: 'Максимальная зарплата по ролям'
-            };
-            applyChartTitleContext(graphId, metricTitleMap[metricKey] || 'Сравнение зарплат по ролям', contextText);
-        }
-    }
-}
-
-function ensureAllRolesSalaryCurrencyControls(target, contextText) {
-    if (!target) return;
-    var switchWrap = target.querySelector('.salary-currency-switch');
-    var defaultCurrency = String(
-        uiState.all_roles_salary_currency ||
-        target.dataset.activeCurrency ||
-        'RUR'
-    ).trim().toUpperCase();
-    if (switchWrap && switchWrap.dataset.bound !== '1') {
-        switchWrap.addEventListener('click', function(e) {
-            var btn = e.target.closest('.salary-currency-switch-btn');
-            if (!btn) return;
-            applyAllRolesSalaryCurrency(target, btn.dataset.currency || defaultCurrency, contextText);
-        });
-        switchWrap.dataset.bound = '1';
-    }
-    var metricWrap = target.querySelector('.salary-metric-switch');
-    if (metricWrap && metricWrap.dataset.bound !== '1') {
-        metricWrap.addEventListener('click', function(e) {
-            var btn = e.target.closest('.salary-metric-switch-btn');
-            if (!btn) return;
-            target.dataset.activeSalaryMetric = String(btn.dataset.metric || 'avg_salary');
-            uiState.all_roles_salary_metric = target.dataset.activeSalaryMetric;
-            metricWrap.querySelectorAll('.salary-metric-switch-btn').forEach(function(node) {
-                node.classList.toggle('active', node === btn);
-            });
-            applyAllRolesSalaryCurrency(target, target.dataset.activeCurrency || defaultCurrency, contextText);
-        });
-        metricWrap.dataset.bound = '1';
-    }
-    if (!target.dataset.activeSalaryMetric) target.dataset.activeSalaryMetric = String(uiState.all_roles_salary_metric || 'avg_salary');
-    if (metricWrap) {
-        var currentMetric = String(target.dataset.activeSalaryMetric || 'avg_salary');
-        metricWrap.querySelectorAll('.salary-metric-switch-btn').forEach(function(node) {
-            node.classList.toggle('active', String(node.dataset.metric || '') === currentMetric);
-        });
-    }
-    applyAllRolesSalaryCurrency(target, defaultCurrency, contextText);
 }
 
 function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attempt) {
@@ -9828,7 +9568,7 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
     var parentRole = wrapper.closest('.role-content');
     var contents = wrapper.querySelectorAll('.all-roles-period-content');
     contents.forEach(c => c.style.display = 'none');
-    var buttons = wrapper.querySelectorAll('.all-roles-period-button');
+    var buttons = wrapper.querySelectorAll('.month-button');
     buttons.forEach(b => b.classList.remove('active'));
     var target = document.getElementById(contentId);
     if (target) target.style.display = 'block';
@@ -9836,7 +9576,6 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
     if (uiState.all_roles_periods) {
         uiState.all_roles_periods[analysisType] = evt.currentTarget.dataset.period || null;
     }
-    syncAllRolesSharedPeriodTabs(parentRole, evt.currentTarget.dataset.period || 'all');
 
     if (analysisType === 'activity' && target) {
         var mode = applyAllRolesViewMode(target, analysisType);
@@ -9860,13 +9599,9 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
             applyChartTitleContext(graphId, 'Публикации и архивы по ролям', allRolesWeekdayContext);
         }
     } else if (analysisType === 'skills' && target) {
-        var mode = applyAllRolesViewMode(target, analysisType);
-        var allRolesSkillsContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        ensureAllRolesSkillsCurrencyControls(target, allRolesSkillsContext);
+        applyAllRolesViewMode(target, analysisType);
     } else if (analysisType === 'salary' && target) {
-        var mode = applyAllRolesViewMode(target, analysisType);
-        var allRolesSalaryContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        ensureAllRolesSalaryCurrencyControls(target, allRolesSalaryContext);
+        applyAllRolesViewMode(target, analysisType);
     }
 }
 
@@ -9874,7 +9609,7 @@ function restoreAllRolesPeriodState(parentRole, analysisType) {
     var analysisId = analysisType === 'skills' ? 'skills-monthly-all' : (analysisType + '-all');
     var wrapper = parentRole.querySelector('.all-roles-period-wrapper[data-analysis="' + analysisId + '"]');
     if (!wrapper) return;
-    var buttons = wrapper.querySelectorAll('.all-roles-period-button');
+    var buttons = wrapper.querySelectorAll('.month-button');
     if (!buttons.length) return;
     var saved = uiState.all_roles_periods ? uiState.all_roles_periods[analysisType] : null;
     if (saved) {

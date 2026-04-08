@@ -254,21 +254,9 @@ function renderAllRolesContainer(container, roleContents) {
 
     var currentAnalysis = String(container.dataset.activeAnalysis || 'activity').replace(/-all$/, '');
     var selectedPeriods = [];
-    var selectedExperiences = [];
-    var selectedStatuses = [];
     if (typeof getGlobalFilterOptions === 'function' && typeof getResolvedGlobalFilterValues === 'function') {
         selectedPeriods = getResolvedGlobalFilterValues('periods', getGlobalFilterOptions(container, 'periods', currentAnalysis));
-        selectedExperiences = getResolvedGlobalFilterValues('experiences', getGlobalFilterOptions(container, 'experiences', currentAnalysis));
-        selectedStatuses = getResolvedGlobalFilterValues('status', getGlobalFilterOptions(container, 'status', currentAnalysis));
     }
-    var normalizedSelectedExperiences = selectedExperiences.map(function(value) {
-        return normalizeExperience(value);
-    }).filter(Boolean);
-    var normalizedSelectedStatuses = selectedStatuses.map(function(value) {
-        return String(value || '').trim().toLowerCase();
-    }).filter(function(value) {
-        return value === 'open' || value === 'archived';
-    });
     var baseRoleVacanciesCache = new Map();
     var rolePeriodVacanciesCache = new Map();
 
@@ -289,7 +277,7 @@ function renderAllRolesContainer(container, roleContents) {
         { key: 'd7', label: 'За 7 дней', period: 'last_7' },
         { key: 'd14', label: 'За 14 дней', period: 'last_14' }
     ].concat(periods.map(function(month, index) {
-        return { key: 'm' + (index + 1), label: month, period: month };
+        return { key: 'm' + (index + 1), label: typeof formatMonthLabel === 'function' ? formatMonthLabel(month) : month, period: month };
     })).concat([
         { key: 'all', label: allLabel, period: null }
     ]);
@@ -299,18 +287,11 @@ function renderAllRolesContainer(container, roleContents) {
         var roleKey = roleContent && (roleContent.dataset.roleId || roleContent.id || roleContent.dataset.roleName) || 'role';
         var baseVacancies = baseRoleVacanciesCache.get(roleKey);
         if (!baseVacancies) {
-            baseVacancies = dedupeVacanciesById((getRoleVacancies(roleContent) || []).slice());
+            baseVacancies = typeof getFilteredVacanciesForAnalysis === 'function'
+                ? getFilteredVacanciesForAnalysis(roleContent, currentAnalysis, { skipPeriods: true })
+                : dedupeVacanciesById((getRoleVacancies(roleContent) || []).slice());
             if (selectedPeriods.length && typeof filterVacanciesBySelectedPeriods === 'function') {
                 baseVacancies = filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods);
-            }
-            if (normalizedSelectedExperiences.length) {
-                baseVacancies = baseVacancies.filter(function(vacancy) {
-                    var exp = normalizeExperience(vacancy && (vacancy._experience || vacancy.experience) || '');
-                    return normalizedSelectedExperiences.indexOf(exp) >= 0;
-                });
-            }
-            if (normalizedSelectedStatuses.length && typeof filterVacanciesBySelectedStatuses === 'function') {
-                baseVacancies = filterVacanciesBySelectedStatuses(baseVacancies, normalizedSelectedStatuses);
             }
             baseRoleVacanciesCache.set(roleKey, baseVacancies);
         }
@@ -551,20 +532,14 @@ function renderAllRolesContainer(container, roleContents) {
     }
 
     function buildPeriodTabs(prefix, analysisType) {
-        return '<div class="tabs month-tabs all-roles-period-tabs">' +
-            periodItems.map((p, i) => (
-                '<button class="tab-button month-button all-roles-period-button' + (i === defaultAllRolesPeriodIndex ? ' active' : '') + '" ' +
+        return '<div class="tabs month-tabs">' +
+            periodItems.map(function(p, i) {
+                return '<button class="tab-button month-button' + (i === defaultAllRolesPeriodIndex ? ' active' : '') + '" ' +
                         'data-period="' + (p.period || 'all') + '" ' +
                         'onclick="openAllRolesPeriodTab(event, \'' + prefix + '-' + i + '\', \'' + analysisType + '\')">' +
                     p.label +
-                '</button>'
-            )).join('') +
-        '</div>';
-    }
-
-    function buildSharedPeriodTabs() {
-        return '<div class="all-roles-shared-period-panel" style="display:flex;align-items:flex-start;justify-content:center;gap:4px;flex-wrap:wrap;margin-top:4px;">' +
-            '<div class="all-roles-shared-filter-buttons" style="display:flex;align-items:flex-start;justify-content:center;gap:6px;flex-wrap:wrap;"></div>' +
+                '</button>';
+            }).join('') +
         '</div>';
     }
 
@@ -580,23 +555,6 @@ function renderAllRolesContainer(container, roleContents) {
                         var ratio = r.active ? (r.archived / r.active) : 0;
                         var leadActive = r.active === maxActive && maxActive > 0 ? ' class="leader"' : '';
                         var leadRatio = ratio === maxRatio && maxRatio > 0 ? ' class="leader"' : '';
-                        var details = (r.exp_breakdown && r.exp_breakdown.length) ? (
-                            '<tr class="activity-all-details" style="display: none;">' +
-                                '<td colspan="6">' +
-                                    '<div class="table-container">' +
-                                        '<table class="details-table align-activity">' +
-                                            '<colgroup><col><col><col><col><col><col></colgroup>' +
-                                            '<thead><tr><th>Опыт</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
-                                            '<tbody>' +
-                                                r.exp_breakdown.map(e => (
-                                                    '<tr><td>' + e.experience + '</td><td>' + e.active + '</td><td>' + e.archived + '</td><td>' + e.total + '</td><td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '?') + '</td><td>' + (e.active ? (e.archived / e.active).toFixed(2) : '?') + '</td></tr>'
-                                                )).join('') +
-                                            '</tbody>' +
-                                        '</table>' +
-                                    '</div>' +
-                                '</td>' +
-                            '</tr>'
-                        ) : '';
                         return '<tr class="activity-all-row">' +
                             '<td>' + escapeHtml(r.name) + '</td>' +
                             '<td' + leadActive + '>' + r.active + '</td>' +
@@ -604,7 +562,7 @@ function renderAllRolesContainer(container, roleContents) {
                             '<td>' + r.total + '</td>' +
                             '<td>' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age.toFixed(1) : '?') + '</td>' +
                             '<td' + leadRatio + '>' + (ratio ? ratio.toFixed(2) : '?') + '</td>' +
-                        '</tr>' + details;
+                        '</tr>';
                     }).join('') +
                 '</tbody>' +
             '</table>' +
@@ -643,7 +601,6 @@ function renderAllRolesContainer(container, roleContents) {
     }).join('');
 
     var activityHtml = '<div class="month-content activity-only all-roles-period-wrapper" data-analysis="activity-all">' +
-        buildPeriodTabs('activity-all-period', 'activity') +
         activityPeriodBlocks +
     '</div>';
 
@@ -681,7 +638,6 @@ function renderAllRolesContainer(container, roleContents) {
     }).join('');
 
     var weekdayHtml = '<div class="weekday-content all-roles-period-wrapper" data-analysis="weekday-all" style="display: none;">' +
-        buildPeriodTabs('weekday-all-period', 'weekday') +
         weekdayPeriodBlocks +
     '</div>';
 
@@ -703,11 +659,6 @@ function renderAllRolesContainer(container, roleContents) {
                     buildAllRolesSkillsTableHtml(rows, defaultCurrency) +
                 '</div>' +
                 '<div class="all-roles-graph skills-all-graph-panel">' +
-                    '<div class="stacked-chart-switch chart-switch skills-currency-switch">' +
-                        currencies.map(function(curr) {
-                            return '<button type="button" class="tab-button stacked-chart-switch-btn skills-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
-                        }).join('') +
-                    '</div>' +
                     '<div class="plotly-graph" id="' + graphId + '"></div>' +
                 '</div>' +
             '</div>' +
@@ -715,7 +666,6 @@ function renderAllRolesContainer(container, roleContents) {
     }).join('');
 
     var skillsHtml = '<div class="skills-monthly-content all-roles-period-wrapper skills-all-summary" data-analysis="skills-monthly-all" style="display: none;">' +
-        buildPeriodTabs('skills-all-period', 'skills') +
         skillsPeriodBlocks +
     '</div>';
 
@@ -734,18 +684,6 @@ function renderAllRolesContainer(container, roleContents) {
                     buildAllRolesSalaryTableHtml(rows, defaultCurrency) +
                 '</div>' +
                 '<div class="plotly-graph all-roles-graph salary-all-graph-panel">' +
-                    '<div class="stacked-chart-switch chart-switch salary-currency-switch">' +
-                        currencies.map(function(curr) {
-                            return '<button type="button" class="tab-button stacked-chart-switch-btn salary-currency-switch-btn' + (curr === defaultCurrency ? ' active' : '') + '" data-currency="' + escapeHtml(curr) + '">' + escapeHtml(curr) + '</button>';
-                        }).join('') +
-                    '</div>' +
-                    '<div class="stacked-chart-switch chart-switch salary-metric-switch">' +
-                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn active" data-metric="avg_salary">Средняя</button>' +
-                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="median_salary">Медианная</button>' +
-                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="mode_salary">Мода</button>' +
-                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="min_salary">Минимальная</button>' +
-                        '<button type="button" class="tab-button stacked-chart-switch-btn salary-metric-switch-btn" data-metric="max_salary">Максимальная</button>' +
-                    '</div>' +
                     '<div class="salary-all-plot-host" id="' + graphId + '"></div>' +
                 '</div>' +
             '</div>' +
@@ -753,7 +691,6 @@ function renderAllRolesContainer(container, roleContents) {
     }).join('');
 
     var salaryHtml = '<div class="salary-content all-roles-period-wrapper" data-analysis="salary-all" style="display: none;">' +
-        buildPeriodTabs('salary-all-period', 'salary') +
         salaryPeriodBlocks +
     '</div>';
     var allRolesFilteredVacancies = [];
@@ -777,48 +714,8 @@ function renderAllRolesContainer(container, roleContents) {
         ? formatMonthTitle(allRolesEmployerMonths.length)
         : 'За период';
     var skillsSearchHtml = '<div class="skills-search-content" data-analysis="skills-search-all" style="display: none;">' +
-        '<div class="skills-search-panel">' +
-            '<div class="skills-search-panel-header">' +
-                '<div class="skills-search-summary-line"></div>' +
-                '<button class="skills-search-toggle" type="button" aria-expanded="true">\u25B2</button>' +
-                '<button class="skills-search-select-all" type="button">Выбрать все</button>' +
-                '<button class="skills-search-reset-skills" type="button">Сбросить навыки</button>' +
-                '<div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">' +
-                    '<button class="skills-search-dropdown-btn" type="button" data-value="or">Логика</button>' +
-                    '<div class="skills-search-dropdown-menu"></div>' +
-                '</div>' +
-                '<button class="skills-search-clear" type="button">\u2715</button>' +
-            '</div>' +
-            '<div class="skills-search-filters">' +
-                '<div class="skills-search-filter-bar">' +
-                    '<div class="skills-search-dropdown" data-filter="status">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="country">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="accreditation">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">ИТ-аккредитация</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="cover_letter_required">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Сопроводительное письмо</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<div class="skills-search-dropdown" data-filter="has_test">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="all">Тестовое задание</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>' +
-            '<div class="skills-search-buttons"></div>' +
-        '</div>' +
+        '<div class="skills-search-summary-line"></div>' +
+        '<div class="skills-search-buttons"></div>' +
         '<div class="skills-search-results"><div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div></div>' +
     '</div>';
     var employerHtml = '<div class="employer-analysis-content" data-analysis="employer-analysis-all" style="display: none;">' +
@@ -884,7 +781,6 @@ function renderAllRolesContainer(container, roleContents) {
             '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Топ-навыки</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Вилка по ролям</button>' +
         '</div>' +
-        buildSharedPeriodTabs() +
         activityHtml +
         weekdayHtml +
         skillsHtml +
@@ -1124,9 +1020,9 @@ function renderCombinedContainer(container, roleContents) {
     var skillsBlock = (
         '<div class="skills-monthly-content" data-analysis="skills-monthly-combined" style="display: none;" data-skills-monthly="">' +
             (skillsMonthly.length ? (
-                '<div class="tabs month-tabs monthly-skills-month-tabs all-roles-period-tabs" style="justify-content: center; margin-top: 10px;">' +
+                '<div class="tabs month-tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">' +
                     skillsMonthly.map((m, i) => (
-                        '<button class="tab-button month-button monthly-skills-month-button all-roles-period-button" onclick="openMonthlySkillsMonthTab(event, \'ms-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+                        '<button class="tab-button month-button monthly-skills-month-button" onclick="openMonthlySkillsMonthTab(event, \'ms-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
                     )).join('') +
                 '</div>' +
                 skillsMonthly.map((m, i) => (
@@ -1165,53 +1061,8 @@ function renderCombinedContainer(container, roleContents) {
 
     var skillsSearchBlock = (
         '<div class="skills-search-content" data-analysis="skills-search-combined" style="display: none;">' +
-            '<div class="skills-search-panel">' +
-                '<div class="skills-search-panel-header">' +
-                    '<div class="skills-search-summary-line"></div>' +
-                    '<button class="skills-search-save-favorite skills-search-icon-btn" type="button" title="Сохранить набор" aria-label="Сохранить набор">⤓</button>' +
-                    '<div class="skills-search-dropdown skills-search-favorite-inline" data-filter="favorite">' +
-                        '<button class="skills-search-dropdown-btn skills-search-icon-btn" type="button" data-value="" title="Избранное" aria-label="Избранное">❤</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<button class="skills-search-toggle" type="button" aria-expanded="true">&#9650;</button>' +
-                    '<button class="skills-search-select-all" type="button">Выбрать все</button>' +
-                    '<button class="skills-search-reset-skills" type="button">Сбросить навыки</button>' +
-                    '<div class="skills-search-dropdown skills-search-logic-inline" data-filter="logic">' +
-                        '<button class="skills-search-dropdown-btn" type="button" data-value="or">Логика</button>' +
-                        '<div class="skills-search-dropdown-menu"></div>' +
-                    '</div>' +
-                    '<button class="skills-search-clear" type="button">&#10005;</button>' +
-                '</div>' +
-                '<div class="skills-search-filters">' +
-                    '<div class="skills-search-filter-bar">' +
-                        '<div class="skills-search-dropdown" data-filter="status">' +
-                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Статус</button>' +
-                            '<div class="skills-search-dropdown-menu"></div>' +
-                        '</div>' +
-                        '<div class="skills-search-dropdown" data-filter="currency" data-multi="1">' +
-                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Валюта</button>' +
-                            '<div class="skills-search-dropdown-menu"></div>' +
-                        '</div>' +
-                        '<div class="skills-search-dropdown" data-filter="country">' +
-                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Страна</button>' +
-                            '<div class="skills-search-dropdown-menu"></div>' +
-                        '</div>' +
-                        '<div class="skills-search-dropdown" data-filter="accreditation">' +
-                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">ИТ-аккредитация</button>' +
-                            '<div class="skills-search-dropdown-menu"></div>' +
-                        '</div>' +
-                        '<div class="skills-search-dropdown" data-filter="cover_letter_required">' +
-                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Сопроводительное письмо</button>' +
-                            '<div class="skills-search-dropdown-menu"></div>' +
-                        '</div>' +
-                        '<div class="skills-search-dropdown" data-filter="has_test">' +
-                            '<button class="skills-search-dropdown-btn" type="button" data-value="all">Тестовое задание</button>' +
-                            '<div class="skills-search-dropdown-menu"></div>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="skills-search-buttons"></div>' +
-            '</div>' +
+            '<div class="skills-search-summary-line"></div>' +
+            '<div class="skills-search-buttons"></div>' +
             '<div class="skills-search-results">' +
                 '<div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div>' +
             '</div>' +
@@ -1221,9 +1072,9 @@ function renderCombinedContainer(container, roleContents) {
     var salaryBlock = (
         '<div class="salary-content" data-analysis="salary-combined" style="display: none;" data-salary="">' +
             (salaryMonths.length ? (
-                '<div class="tabs month-tabs salary-month-tabs all-roles-period-tabs" style="justify-content: center; margin-top: 10px;">' +
+                '<div class="tabs month-tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">' +
                     salaryMonths.map((m, i) => (
-                        '<button class="tab-button month-button salary-month-button all-roles-period-button" onclick="openSalaryMonthTab(event, \'sal-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
+                        '<button class="tab-button month-button salary-month-button" onclick="openSalaryMonthTab(event, \'sal-month-combined-' + (i + 1) + '\')">' + m.month + '</button>'
                     )).join('') +
                 '</div>' +
                 salaryMonths.map((m, i) => (

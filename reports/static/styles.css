@@ -418,7 +418,7 @@
 }
 .totals-table-compact td:first-child,
 .totals-table-compact th:first-child {
-    max-width: 220px;
+    max-width: 180px;
 }
 .totals-table-modern td:nth-child(2),
 .totals-table-modern th:nth-child(2) {
@@ -513,7 +513,7 @@
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-sizing: border-box;
-    overflow: visible;
+    overflow: hidden;
 }
 .totals-top-filter-title {
     font-size: 12px;
@@ -551,17 +551,14 @@
     gap: 10px;
     margin-top: 8px;
     align-items: center;
-    overflow: visible;
 }
 .totals-top-filter-range {
-    width: calc(100% - 18px);
-    margin: 0 9px;
+    width: 100%;
     accent-color: var(--accent-green);
     appearance: none;
     -webkit-appearance: none;
     height: 20px;
     background: transparent;
-    overflow: visible;
     --range-progress: 0%;
 }
 .totals-top-filter-range::-webkit-slider-runnable-track {
@@ -675,16 +672,14 @@
     width: 100%;
 }
 .skills-search-top-limit-control .totals-top-filter-limit-controls {
-    grid-template-columns: minmax(0, 95%) minmax(64px, 5%);
-    overflow: visible;
+    grid-template-columns: minmax(0, 1fr) minmax(64px, 10%);
 }
 .skills-search-top-limit-control .totals-top-filter-number {
     width: 100%;
     min-width: 0;
 }
 .shared-filter-panel .skills-search-top-limit-control .totals-top-filter-limit-controls {
-    grid-template-columns: minmax(0, 95%) minmax(64px, 5%) !important;
-    overflow: visible !important;
+    grid-template-columns: minmax(0, 1fr) minmax(64px, 10%) !important;
 }
 .skills-search-top-search-wrap,
 .skills-search-top-toolbar,
@@ -720,22 +715,17 @@
 }
 .skills-search-favorites-panel-row {
     display: grid;
-    grid-template-columns: minmax(168px, 0.9fr) minmax(0, 1.1fr);
+    grid-template-columns: 8% minmax(0, 92%);
     gap: 8px;
     align-items: center;
     width: 100%;
     min-width: 0;
 }
-.skills-search-favorites-panel-caption {
-    font-size: 10px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #94a3b8;
-}
 .skills-search-favorites-panel-picker-wrap {
     position: relative;
-    min-width: 168px;
+    min-width: auto;
     width: 100%;
+    min-width: 0;
     max-width: 100%;
 }
 .skills-search-favorites-panel-field {
@@ -769,10 +759,10 @@
 }
 .skills-search-favorites-panel-action {
     flex: 0 0 auto;
-    width: 40px;
-    min-width: 40px;
-    height: 40px;
-    min-height: 40px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
     padding: 0;
     justify-content: center;
 }
@@ -780,47 +770,38 @@
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    height: 40px;
-    min-height: 40px;
-    padding: 6px 10px 6px 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    text-align: left;
-    border: 1px solid rgba(148, 163, 184, 0.2) !important;
-    border-radius: 16px !important;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 246, 250, 0.95) 100%) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 1px 3px rgba(15, 23, 42, 0.06) !important;
-    color: #667085;
-    font-size: 0.82rem;
-    font-family: inherit;
+    height: clamp(32px, 3.2vw, 44px);
+    min-height: clamp(32px, 3.2vw, 44px);
+    padding: 0;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #8e8e93;
+    font-size: clamp(1.05rem, 1.9vw, 1.55rem);
+    font-family: "Segoe UI Symbol", "Segoe UI Emoji", sans-serif;
     font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.1;
-    transform: translateY(0);
-    transition: color 0.18s ease, transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    transform: scale(1);
+    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
 }
 .skills-search-favorites-panel-picker:hover,
 .skills-search-favorites-panel-picker:focus-visible,
 .skills-search-favorites-panel-picker:active,
 .skills-search-favorites-panel-picker.is-active {
-    border-radius: 14px !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 .skills-search-favorites-panel-picker:hover,
 .skills-search-favorites-panel-picker:focus-visible {
-    border-color: rgba(99, 102, 241, 0.18) !important;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(238, 243, 250, 0.96) 100%) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.94), 0 6px 14px rgba(15, 23, 42, 0.08) !important;
-    color: #475467;
-    transform: translateY(-1px);
+    color: #636366;
+    transform: scale(1.04);
 }
 .skills-search-favorites-panel-picker.is-active {
-    border-color: rgba(244, 114, 182, 0.22) !important;
-    background: linear-gradient(180deg, rgba(255, 247, 250, 0.99) 0%, rgba(255, 239, 245, 0.96) 100%) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.94), 0 8px 18px rgba(244, 114, 182, 0.12) !important;
-    color: #e11d48;
-    transform: translateY(-1px);
+    color: #636366;
+    transform: scale(1.06);
 }
 .skills-search-favorites-panel-save {
     position: absolute;
@@ -2150,18 +2131,9 @@
 .response-calendar-agenda-item.is-today {
     border-color: rgba(96, 165, 250, 0.42);
     background: linear-gradient(180deg, rgba(239, 246, 255, 0.98) 0%, rgba(219, 234, 254, 0.86) 100%);
-    color: #1d4ed8;
     box-shadow:
         inset 0 0 0 1px rgba(96, 165, 250, 0.22),
         0 12px 24px rgba(59, 130, 246, 0.10);
-}
-.response-calendar-agenda-item.is-upcoming {
-    border-color: rgba(16, 185, 129, 0.34);
-    background: linear-gradient(180deg, rgba(236, 253, 245, 0.98) 0%, rgba(209, 250, 229, 0.84) 100%);
-    color: #047857;
-    box-shadow:
-        inset 0 0 0 1px rgba(16, 185, 129, 0.18),
-        0 12px 24px rgba(16, 185, 129, 0.08);
 }
 .response-calendar-agenda-item.is-overdue {
     border-color: rgba(251, 191, 36, 0.4);
@@ -2709,12 +2681,6 @@ h1 {
     width: 100% !important;
     max-width: min(100%, calc(100vw - 32px)) !important;
 }
-#role-selector .shared-filter-active-chips {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    margin-top: 8px !important;
-}
 #mobile-filter-toggle {
     display: none;
     position: fixed;
@@ -2795,11 +2761,6 @@ h1 {
     min-width: var(--analysis-column-min-width);
     margin: 0 auto;
 }
-.activity-all-details .table-container {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 auto;
-}
 .activity-all-table,
 .details-table.align-activity {
     width: 100%;
@@ -2818,9 +2779,6 @@ h1 {
 .details-table.align-activity col:nth-child(4),
 .details-table.align-activity col:nth-child(5),
 .details-table.align-activity col:nth-child(6) { width: 12%; }
-.activity-all-details thead {
-    display: none;
-}
 .activity-graph-wrap {
     display: flex;
     gap: var(--analysis-gap);
@@ -3427,7 +3385,6 @@ tr:hover { background-color: #f0f4f9; }
     border-radius: 0;
     border: none;
 }
-.all-roles-period-tabs,
 .employer-period-chips {
     justify-content: center;
     margin-left: auto;
@@ -3958,7 +3915,6 @@ tr:hover { background-color: #f0f4f9; }
     flex-direction: column;
     gap: 12px;
 }
-.skills-search-panel,
 .skills-search-results {
     background: rgba(255, 255, 255, 0.96);
     border: 0;
@@ -3968,14 +3924,6 @@ tr:hover { background-color: #f0f4f9; }
 }
 .skills-search-results {
     margin-top: 6px;
-}
-.skills-search-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 8px;
 }
 .skills-search-summary-line {
     display: flex;
@@ -4040,14 +3988,8 @@ tr:hover { background-color: #f0f4f9; }
     min-width: 120px;
     text-align: right;
 }
-.skills-search-panel.collapsed .skills-search-summary-line {
-    display: flex;
-}
 .skills-search-logic-inline {
     align-self: center;
-}
-.skills-search-panel.collapsed .skills-search-buttons {
-    display: none;
 }
 .skills-search-toggle,
 .skills-search-select-all,
@@ -4320,20 +4262,6 @@ tr:hover { background-color: #f0f4f9; }
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 12px;
-}
-.skills-search-managed-by-panel .skills-search-panel,
-.skills-search-managed-by-panel .skills-search-buttons,
-.skills-search-managed-by-panel .skills-search-filters,
-.skills-search-managed-by-panel .skills-search-select-all,
-.skills-search-managed-by-panel .skills-search-reset-skills,
-.skills-search-managed-by-panel .skills-search-save-favorite,
-.skills-search-managed-by-panel .skills-search-favorite-inline,
-.skills-search-managed-by-panel .skills-search-logic-inline,
-.skills-search-managed-by-panel .skills-search-sort-inline {
-    display: none !important;
-}
-.skills-search-managed-by-panel .skills-search-results {
-    margin-top: 0;
 }
 .skills-search-list {
     border: 1px solid rgba(148, 163, 184, 0.12);
@@ -5284,12 +5212,14 @@ tbody tr:hover {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-.shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) {
+.shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]),
+.shared-filter-panel .global-filter-dropdown[data-filter-key="shared-filter-presets"] {
     min-width: 192px !important;
     width: 192px !important;
     max-width: 192px !important;
 }
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"],
+.shared-filter-panel .global-filter-dropdown[data-filter-key="shared-filter-presets"],
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"],
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"],
 .shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] {
@@ -5303,61 +5233,12 @@ tbody tr:hover {
     padding: 4px 9px !important;
     font-size: 0.8rem !important;
 }
-.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .global-filter-menu {
-    width: 380px !important;
-    min-width: 380px !important;
-    max-width: min(380px, calc(100vw - 32px)) !important;
-}
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .global-filter-menu,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="shared-filter-presets"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] .global-filter-menu {
     width: 248px !important;
-}
-
-.shared-filter-panel .global-filter-menu > div:first-child {
-    gap: 10px !important;
-    padding: 4px 2px !important;
-    margin-bottom: 4px !important;
-}
-
-.shared-filter-panel .global-filter-menu > .global-filter-search {
-    margin-top: 6px !important;
-    margin-bottom: 10px !important;
-}
-
-.shared-filter-panel .global-filter-menu > div:first-child > .skills-search-dropdown-item {
-    width: 30px !important;
-    min-width: 30px !important;
-    height: 30px !important;
-    min-height: 30px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #475569 !important;
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-}
-
-.shared-filter-panel .global-filter-menu > div:first-child > .skills-search-dropdown-item:hover,
-.shared-filter-panel .global-filter-menu > div:first-child > .skills-search-dropdown-item:focus-visible,
-.shared-filter-panel .global-filter-menu > div:first-child > .skills-search-dropdown-item.is-active {
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #0f172a !important;
-    transform: none !important;
-}
-
-.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .skills-search-favorite-panel-item {
-    gap: 12px;
-    align-items: start;
-}
-
-.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .skills-search-favorite-panel-name {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
 }
 
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-action {
@@ -5366,7 +5247,7 @@ tbody tr:hover {
     max-width: 100% !important;
     height: clamp(30px, 3vw, 38px) !important;
     min-height: clamp(30px, 3vw, 38px) !important;
-    padding: 6px 10px 6px 12px !important;
+    padding: 0 !important;
 }
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-action {
     width: 100% !important;
@@ -5374,8 +5255,8 @@ tbody tr:hover {
     min-width: 0 !important;
     height: clamp(30px, 3vw, 38px) !important;
     min-height: clamp(30px, 3vw, 38px) !important;
-    padding: 6px 10px 6px 12px !important;
-    justify-content: space-between !important;
+    padding: 0 !important;
+    justify-content: center !important;
 }
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap,
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-dropdown-btn {
@@ -5398,6 +5279,14 @@ tbody tr:hover {
     max-width: 100% !important;
     min-width: 0 !important;
     box-sizing: border-box !important;
+}
+
+.active-role-filter-chip {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.active-role-filter-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(148, 163, 184, 0.14);
 }
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-menu {
@@ -5880,10 +5769,6 @@ tbody tr:hover {
         padding: 8px !important;
     }
 
-    .shared-filter-active-chips {
-        gap: 6px !important;
-    }
-
     .activity-graph-item > div,
     .plotly-graph {
         height: auto;
@@ -6004,35 +5889,34 @@ body.mobile-filters-open .report-layout .role-selector > * {
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:focus-visible,
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:active,
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker.is-active {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 246, 250, 0.95) 100%) !important;
-    border: 1px solid rgba(148, 163, 184, 0.2) !important;
-    border-radius: 14px !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-color: transparent !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     outline: none !important;
-    padding: 6px 10px 6px 12px !important;
-    font-size: 0.8rem !important;
-    font-family: inherit !important;
+    padding: 0 !important;
+    font-size: clamp(1.05rem, 1.9vw, 1.55rem) !important;
+    font-family: "Segoe UI Symbol", "Segoe UI Emoji", sans-serif !important;
     font-weight: 400 !important;
-    letter-spacing: 0 !important;
-    line-height: 1.1 !important;
-    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1 !important;
+    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease !important;
 }
 
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker {
-    color: #475467 !important;
+    color: #8e8e93 !important;
 }
 
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker.is-active {
-    color: #344054 !important;
-    border-color: rgba(111, 143, 178, 0.24) !important;
-    background: rgba(244, 248, 252, 0.98) !important;
+    color: #636366 !important;
+    transform: scale(1.06) !important;
 }
 
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:hover,
 #role-selector .skills-search-favorites-panel-row .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:focus-visible {
-    color: #344054 !important;
-    border-color: rgba(72, 87, 102, 0.24) !important;
-    background: rgba(248, 250, 252, 0.98) !important;
+    color: #636366 !important;
+    transform: scale(1.04) !important;
 }
 
 .tab-button.active,
@@ -6073,463 +5957,6 @@ body.mobile-filters-open .report-layout .role-selector > * {
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] {
-    --ios-filter-text: #1c1c1e;
-    --ios-filter-muted: #8e8e93;
-    --ios-filter-label: #475569;
-    --ios-filter-border: rgba(60, 60, 67, 0.14);
-    --ios-filter-fill: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 245, 248, 0.94) 100%);
-    --ios-filter-hover: rgba(0, 122, 255, 0.08);
-    --ios-filter-active: rgba(0, 122, 255, 0.14);
-    --ios-filter-shadow: 0 6px 16px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-panel-body {
-    gap: 10px !important;
-    overflow: visible !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-panel-body > .skills-search-favorites-panel {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group {
-    position: relative !important;
-    overflow: visible !important;
-    z-index: 1;
-    gap: 8px !important;
-    padding: 10px !important;
-    border: 1px solid var(--ios-filter-border) !important;
-    border-radius: 18px !important;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(246, 247, 250, 0.78) 100%) !important;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04) !important;
-    backdrop-filter: blur(18px) saturate(1.08) !important;
-    -webkit-backdrop-filter: blur(18px) saturate(1.08) !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group.is-menu-open {
-    z-index: 220 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group-title {
-    padding: 0 4px !important;
-    color: #94a3b8 !important;
-    font-size: 10px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.02em !important;
-    text-transform: none !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group-body {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)) !important;
-    gap: 8px !important;
-    align-items: stretch !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group-body > * {
-    margin-top: 0 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-dropdown,
-#global-shared-filter-panel[data-analysis="skills-search"] .summary-filter-dropdown,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-control {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-dropdown:not([data-filter-key="skills-search-favorites"]) > div:first-child,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-caption,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-subtitle,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-limit-head {
-    padding-left: 4px !important;
-    margin-bottom: 4px !important;
-    color: #94a3b8 !important;
-    font-size: 10px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.02em !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-trigger,
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-proxy-button,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorite-trigger,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-dropdown-btn {
-    min-height: 30px !important;
-    padding: 4px 9px !important;
-    border: 1px solid rgba(15, 23, 42, 0.08) !important;
-    border-radius: 12px !important;
-    background: rgba(255, 255, 255, 0.96) !important;
-    box-shadow: none !important;
-    color: #4b6076 !important;
-    font-size: 0.8rem !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:focus-visible,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker:active {
-    width: 38px !important;
-    min-width: 38px !important;
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 0 !important;
-    justify-content: center !important;
-    border-radius: 14px !important;
-    border: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #667085 !important;
-    font-size: 1.18rem !important;
-    line-height: 1 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-picker.is-active {
-    border-color: transparent !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #667085 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-trigger:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-proxy-button:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorite-trigger:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-dropdown-btn:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-chip:hover {
-    background: rgba(248, 250, 252, 0.98) !important;
-    border-color: rgba(72, 87, 102, 0.24) !important;
-    box-shadow: none !important;
-    color: #46525f !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group .tab-button.active,
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group .totals-top-filter-chip.active,
-#global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group .totals-top-filter-chip[aria-pressed="true"] {
-    background: rgba(241, 245, 249, 0.98) !important;
-    border-color: rgba(111, 143, 178, 0.22) !important;
-    box-shadow: none !important;
-    color: #3f4b57 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-trigger-label,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorite-trigger-value,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-chip {
-    color: inherit !important;
-    font-weight: 400 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-trigger-arrow,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorite-trigger-arrow {
-    color: #64748b !important;
-    font-size: 0.66rem !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu {
-    border: 1px solid var(--border-color, #d9e2ec) !important;
-    border-radius: 16px !important;
-    padding: 6px !important;
-    background: var(--card-background, #fff) !important;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child:not(.global-filter-option-row) {
-    gap: 10px !important;
-    padding: 4px 2px !important;
-    margin-bottom: 4px !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child:not(.global-filter-option-row) > .skills-search-dropdown-item {
-    width: 30px !important;
-    min-width: 30px !important;
-    height: 30px !important;
-    min-height: 30px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 999px !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #475569 !important;
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child:not(.global-filter-option-row) > .skills-search-dropdown-item:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child:not(.global-filter-option-row) > .skills-search-dropdown-item:focus-visible,
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child:not(.global-filter-option-row) > .skills-search-dropdown-item.is-active {
-    background: transparent !important;
-    border-color: transparent !important;
-    color: #0f172a !important;
-    transform: none !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-search,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-number {
-    min-height: 30px !important;
-    height: 30px !important;
-    padding: 7px 9px !important;
-    border: 1px solid rgba(15, 23, 42, 0.08) !important;
-    border-radius: 12px !important;
-    background: rgba(255, 255, 255, 0.96) !important;
-    box-shadow: none !important;
-    color: #4b6076 !important;
-    font-size: 0.8rem !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-input {
-    min-height: 30px !important;
-    height: 30px !important;
-    padding: 7px 24px 7px 9px !important;
-    border: 1px solid rgba(15, 23, 42, 0.08) !important;
-    border-radius: 12px !important;
-    background: rgba(255, 255, 255, 0.96) !important;
-    box-shadow: none !important;
-    color: #4b6076 !important;
-    font-size: 0.8rem !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-field {
-    max-width: 220px !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-search::placeholder,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-input::placeholder,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-number::placeholder {
-    color: var(--ios-filter-label) !important;
-    font-size: 0.8rem !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-search:focus,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-input:focus,
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-number:focus {
-    outline: none !important;
-    border-color: rgba(0, 122, 255, 0.4) !important;
-    background: rgba(255, 255, 255, 0.98) !important;
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.12) !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-row {
-    grid-template-columns: minmax(152px, 0.9fr) minmax(0, 1fr) !important;
-    gap: 8px !important;
-    align-items: center !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-picker-wrap .skills-search-dropdown-btn {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    height: 38px !important;
-    min-height: 38px !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-save {
-    right: 3px !important;
-    width: 18px !important;
-    min-width: 18px !important;
-    height: 18px !important;
-    min-height: 18px !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #64748b !important;
-    font-size: 0.9rem !important;
-    font-weight: 800 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-save:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-save:focus-visible,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-field:focus-within .skills-search-favorites-panel-save {
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-save.is-ready,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-field:focus-within .skills-search-favorites-panel-save.is-ready,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-favorites-panel-save.is-ready:hover {
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #0f766e !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-option-row,
-#global-shared-filter-panel[data-analysis="skills-search"] .summary-filter-item,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-dropdown-item[data-role-value] {
-    border-radius: 12px !important;
-    padding: 6px 8px !important;
-    transform: none !important;
-    box-shadow: none !important;
-    font-size: 0.74rem !important;
-    line-height: 1.25 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-option-row:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .summary-filter-item:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-dropdown-item[data-role-value]:hover {
-    background: var(--ios-filter-hover) !important;
-    border-color: rgba(0, 122, 255, 0.12) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 10px rgba(0, 122, 255, 0.06) !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-option-clear {
-    padding: 6px 8px !important;
-    margin-bottom: 2px !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-limit-controls {
-    gap: 8px !important;
-    grid-template-columns: minmax(0, 95%) minmax(64px, 5%) !important;
-    overflow: visible !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .totals-top-filter-chip {
-    min-width: 46px !important;
-    min-height: 30px !important;
-    height: 30px !important;
-    padding: 5px 9px !important;
-    font-size: 11.5px !important;
-}
-
-.global-filter-chip-control {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.global-filter-chip-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    margin-top: 0;
-}
-
-.global-filter-chip-option {
-    width: 100%;
-    min-width: 0;
-    justify-content: center;
-    text-align: center;
-}
-
-.global-filter-chip-option.is-disabled,
-.global-filter-chip-option:disabled {
-    opacity: 0.48;
-    cursor: default;
-    pointer-events: none;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-chip-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 8px !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-chip-option {
-    width: 100% !important;
-    min-width: 0 !important;
-    justify-content: center !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-logic-control {
-    width: auto !important;
-    min-width: auto !important;
-    max-width: max-content !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-logic-segmented {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    width: auto !important;
-    padding: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-logic-option {
-    min-width: 0 !important;
-    min-height: 28px !important;
-    padding: 0 12px !important;
-    border: 1px solid rgba(148, 163, 184, 0.18) !important;
-    border-radius: 999px !important;
-    background: rgba(255, 255, 255, 0.92) !important;
-    box-shadow: none !important;
-    font-size: 0.72rem !important;
-    font-weight: 600 !important;
-    letter-spacing: 0.02em !important;
-    color: #667085 !important;
-}
-
-#global-shared-filter-panel[data-analysis="skills-search"] .skills-search-logic-option.active {
-    border-color: rgba(99, 102, 241, 0.18) !important;
-    background: linear-gradient(180deg, rgba(245, 247, 255, 0.98) 0%, rgba(236, 242, 255, 0.94) 100%) !important;
-    color: #344054 !important;
-    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.1) !important;
-}
-
-.ios-menu-icon-btn,
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child > .skills-search-dropdown-item.ios-menu-icon-btn {
-    width: 32px !important;
-    min-width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    padding: 0 !important;
-    border: 1px solid rgba(60, 60, 67, 0.14) !important;
-    border-radius: 999px !important;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(242, 244, 247, 0.94) 100%) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.92),
-        0 1px 2px rgba(15, 23, 42, 0.08) !important;
-    color: #4b6076 !important;
-    font-size: 0.92rem !important;
-    font-weight: 400 !important;
-    line-height: 1 !important;
-    transform: translateY(0) !important;
-}
-
-.ios-menu-icon-btn:hover,
-.ios-menu-icon-btn:focus-visible,
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child > .skills-search-dropdown-item.ios-menu-icon-btn:hover,
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child > .skills-search-dropdown-item.ios-menu-icon-btn:focus-visible {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(237, 242, 248, 0.94) 100%) !important;
-    border-color: rgba(0, 122, 255, 0.18) !important;
-    color: #0a84ff !important;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.92),
-        0 4px 10px rgba(0, 122, 255, 0.14) !important;
-    transform: translateY(-1px) !important;
-}
-
-.ios-menu-icon-btn.is-active,
-#global-shared-filter-panel[data-analysis="skills-search"] .global-filter-menu > div:first-child > .skills-search-dropdown-item.ios-menu-icon-btn.is-active {
-    background: linear-gradient(180deg, rgba(233, 244, 255, 0.98) 0%, rgba(219, 236, 255, 0.94) 100%) !important;
-    border-color: rgba(10, 132, 255, 0.24) !important;
-    color: #0a84ff !important;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.94),
-        0 6px 14px rgba(10, 132, 255, 0.16) !important;
-}
-
-@media (max-width: 760px) {
-    #global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group {
-        padding: 9px !important;
-        border-radius: 16px !important;
-    }
-
-    #global-shared-filter-panel[data-analysis="skills-search"] .shared-filter-group-body {
-        grid-template-columns: 1fr !important;
-    }
 }
 
 @media (min-width: 961px) {

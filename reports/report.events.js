@@ -19,7 +19,7 @@
         sortableHeader.classList.add(nextDir === 'asc' ? 'sort-asc' : 'sort-desc');
 
         function getSortValue(row) {
-            if (!row || row.classList.contains('activity-all-details')) return { type: 'missing', value: null };
+            if (!row) return { type: 'missing', value: null };
             var cell = row.cells && row.cells[colIdx] ? row.cells[colIdx] : null;
             if (!cell) return { type: 'missing', value: null };
 
@@ -68,13 +68,8 @@
         var allRows = Array.from(tbody.querySelectorAll('tr'));
         for (var i = 0; i < allRows.length; i++) {
             var main = allRows[i];
-            if (!main || main.classList.contains('activity-all-details')) continue;
-            var details = null;
-            var next = main.nextElementSibling;
-            if (next && next.classList && next.classList.contains('activity-all-details')) details = next;
             groups.push({
                 main: main,
-                details: details,
                 total: isTotalRow(main),
                 sort: getSortValue(main)
             });
@@ -103,7 +98,6 @@
 
         groups.forEach(function(group) {
             tbody.appendChild(group.main);
-            if (group.details) tbody.appendChild(group.details);
         });
         return;
     }
@@ -628,14 +622,6 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-document.addEventListener('click', function(e) {
-    var row = e.target.closest('.activity-all-row');
-    if (!row) return;
-    var details = row.nextElementSibling;
-    if (!details || !details.classList.contains('activity-all-details')) return;
-    details.style.display = (details.style.display === 'none' || details.style.display === '') ? 'table-row' : 'none';
-});
-
 // ---------- Обработчик кликов по иконкам режимов ----------
 document.addEventListener('click', function(e) {
     var btn = e.target.closest('.view-mode-btn, .view-mode-button');
@@ -730,7 +716,7 @@ document.addEventListener('click', function(e) {
             var graphId = container.dataset.graphId;
             if (graphId) {
                 var activePeriodBtn = container.closest('.all-roles-period-wrapper')
-                    ? container.closest('.all-roles-period-wrapper').querySelector('.all-roles-period-button.active')
+                    ? container.closest('.all-roles-period-wrapper').querySelector('.month-button.active')
                     : null;
                 var contextText = buildChartContextLabel(((activePeriodBtn || {}).textContent || '').trim(), null);
                 renderAllRolesSkillsChartFromTable(container, graphId, contextText);
@@ -742,11 +728,6 @@ document.addEventListener('click', function(e) {
     if (container.dataset.analysis === 'salary-all') {
         var viewContainer = container.querySelector('.view-mode-container');
         applyViewMode(viewContainer, mode);
-        var activePeriodBtn = container.closest('.all-roles-period-wrapper')
-            ? container.closest('.all-roles-period-wrapper').querySelector('.all-roles-period-button.active')
-            : null;
-        var contextText = buildChartContextLabel(((activePeriodBtn || {}).textContent || '').trim(), null);
-        ensureAllRolesSalaryCurrencyControls(container, contextText);
         return;
     }
 
