@@ -270,13 +270,15 @@ function renderAllRolesContainer(container, roleContents) {
         if (!published) return '';
         return published.getFullYear() + '-' + String(published.getMonth() + 1).padStart(2, '0');
     }).filter(Boolean))).sort().reverse();
-    var allLabel = periods.length && typeof formatMonthTitle === 'function' ? formatMonthTitle(periods.length) : 'За период';
-    var periodItems = [
-        { key: 'today', label: 'Сегодня', period: 'today' },
-        { key: 'd3', label: 'За 3 дня', period: 'last_3' },
-        { key: 'd7', label: 'За 7 дней', period: 'last_7' },
-        { key: 'd14', label: 'За 14 дней', period: 'last_14' }
-    ].concat(periods.map(function(month, index) {
+    var allLabel = periods.length && typeof formatMonthTitle === 'function' ? formatMonthTitle(periods.length) : 'Весь период';
+    var periodItems = (typeof getStandardPeriodFilterItems === 'function'
+        ? getStandardPeriodFilterItems()
+        : [
+            { key: 'today', label: 'Сегодня', period: 'today' },
+            { key: 'd3', label: 'За 3 дня', period: 'last_3' },
+            { key: 'd7', label: 'За 7 дней', period: 'last_7' },
+            { key: 'd14', label: 'За 14 дней', period: 'last_14' }
+        ]).concat(periods.map(function(month, index) {
         return { key: 'm' + (index + 1), label: typeof formatMonthLabel === 'function' ? formatMonthLabel(month) : month, period: month };
     })).concat([
         { key: 'all', label: allLabel, period: null }
@@ -712,7 +714,7 @@ function renderAllRolesContainer(container, roleContents) {
     }
     var allRolesEmployerAllLabel = allRolesEmployerMonths.length && typeof formatMonthTitle === 'function'
         ? formatMonthTitle(allRolesEmployerMonths.length)
-        : 'За период';
+        : 'Весь период';
     var skillsSearchHtml = '<div class="skills-search-content" data-analysis="skills-search-all" style="display: none;">' +
         '<div class="skills-search-summary-line"></div>' +
         '<div class="skills-search-buttons"></div>' +
@@ -756,7 +758,8 @@ function renderAllRolesContainer(container, roleContents) {
             { type: 'detail', label: 'Детальный анализ' },
             { type: 'summary', label: 'Сравнительный анализ' },
             { type: 'skills-search', label: 'Поиск вакансий' },
-            { type: 'my-responses', label: 'Мои отклики' }
+            { type: 'my-responses', label: 'Мои отклики' },
+            { type: 'responses-calendar', label: 'Календарь' }
         ];
     }
     var allRolesPeriod = computePublicationPeriod(allVacancies) || '—';
@@ -905,12 +908,12 @@ function renderCombinedContainer(container, roleContents) {
     var combinedEmployerPeriods = combinedMonths.slice();
     var combinedEmployerAllLabel = combinedEmployerPeriods.length && typeof formatMonthTitle === 'function'
         ? formatMonthTitle(combinedEmployerPeriods.length)
-        : 'За период';
+        : 'Весь период';
 
     var period = computePublicationPeriod(combinedVacancies) || '—';
     var combinedSummaryLabel = combinedMonths.length && typeof formatMonthTitle === 'function'
         ? formatMonthTitle(combinedMonths.length)
-        : 'За период';
+        : 'Весь период';
     var combinedActivity = {
         month: combinedSummaryLabel,
         entries: typeof computeActivityEntriesFromVacancies === 'function' ? computeActivityEntriesFromVacancies(combinedVacancies) : []
@@ -924,7 +927,7 @@ function renderCombinedContainer(container, roleContents) {
         var total = Number(entry.total_vacancies || 0);
         if (!skills.length && !total) return null;
         return {
-            month: label || entry.month || 'За период',
+            month: label || entry.month || 'Весь период',
             experiences: [{
                 experience: 'Все',
                 total_vacancies: total,
@@ -1132,11 +1135,15 @@ function renderCombinedContainer(container, roleContents) {
         '<div class="employer-analysis-content" data-analysis="employer-analysis-combined" style="display: none;">' +
             (combinedEmployerRows.length ? (
                 '<div class="employer-topbar">' +
-                    '<div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">' +
-                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="today">Сегодня</button>' +
-                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_3">За 3 дня</button>' +
-                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_7">За 7 дней</button>' +
-                        '<button type="button" class="tab-button month-button employer-period-chip" data-month="last_14">За 14 дней</button>' +
+                '<div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">' +
+                        (typeof getStandardPeriodFilterItems === 'function' ? getStandardPeriodFilterItems() : [
+                            { key: 'today', label: 'Сегодня', period: 'today' },
+                            { key: 'd3', label: 'За 3 дня', period: 'last_3' },
+                            { key: 'd7', label: 'За 7 дней', period: 'last_7' },
+                            { key: 'd14', label: 'За 14 дней', period: 'last_14' }
+                        ]).map(function(item) {
+                            return '<button type="button" class="tab-button month-button employer-period-chip" data-month="' + item.period + '">' + item.label + '</button>';
+                        }).join('') +
                         '<button type="button" class="tab-button month-button employer-period-chip active" data-month="all">' + combinedEmployerAllLabel + '</button>' +
                     '</div>' +
                     '<div class="employer-view-toggle employer-side-toggle">' +

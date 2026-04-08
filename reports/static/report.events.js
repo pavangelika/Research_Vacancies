@@ -823,6 +823,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (id.indexOf('skills-monthly') >= 0) return 'skills-monthly';
         if (id.indexOf('skills-search') >= 0) return 'skills-search';
         if (id.indexOf('my-responses') >= 0) return 'my-responses';
+        if (id.indexOf('responses-calendar') >= 0) return 'responses-calendar';
         if (id.indexOf('totals') >= 0) return 'totals';
         if (id.indexOf('salary') >= 0) return 'salary';
         if (id.indexOf('employer-analysis') >= 0) return 'employer-analysis';

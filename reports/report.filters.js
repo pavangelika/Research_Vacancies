@@ -1472,7 +1472,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
 
 function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, controlOptions) {
     var currentAnalysis = String(analysisType || '').trim();
-    if (!activeRole || (currentAnalysis !== 'totals' && currentAnalysis !== 'skills-search')) return null;
+    if (!activeRole) return null;
     var opts = controlOptions || {};
     var dashboardMode = String(forcedMode || uiState.totals_dashboard_mode || 'overview').trim();
     var isTopMode = dashboardMode === 'top';
@@ -1678,8 +1678,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
 }
 
 function createSalaryMetricFilterControl(activeRole, analysisType) {
-    var currentAnalysis = String(analysisType || '').trim();
-    if (!activeRole || (currentAnalysis !== 'skills-search' && currentAnalysis !== 'salary')) return null;
+    if (!activeRole) return null;
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control';
@@ -1731,8 +1730,7 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
 }
 
 function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceVisible) {
-    var currentAnalysis = String(analysisType || '').trim();
-    if (!activeRole || (currentAnalysis !== 'totals' && currentAnalysis !== 'skills-search')) return null;
+    if (!activeRole) return null;
     if (!forceVisible && String(uiState.totals_dashboard_mode || 'overview').trim() !== 'market-trends') return null;
 
     var roleOptions = (typeof getRoleMetaList === 'function')
@@ -2033,7 +2031,6 @@ function normalizePeriodOptionValue(value) {
     var text = String(value || '').trim();
     if (!text) return '';
     if (text === 'Сегодня' || /^today$/i.test(text)) return 'today';
-    if (text === 'За предыдущий месяц' || /^previous_month$/i.test(text) || /^previous month$/i.test(text)) return 'previous_month';
     var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) return 'last_' + String(Number(quick[1]) || 0);
     return text;
@@ -2043,7 +2040,6 @@ function formatPeriodSelectionValue(value) {
     var text = normalizePeriodOptionValue(value);
     if (!text) return '';
     if (text === 'today') return 'Сегодня';
-    if (text === 'previous_month') return 'За предыдущий месяц';
     var quick = text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
     if (quick) {
         var days = Number(quick[1]) || 0;
@@ -2057,11 +2053,11 @@ function formatPeriodSelectionValue(value) {
 
 function summarizeSelectedPeriodsLabel(selectedPeriods) {
     var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean).map(function(v) { return formatPeriodSelectionValue(v); }).filter(Boolean) : [];
-    if (!labels.length) return 'За все время';
+    if (!labels.length) return 'Весь период';
     var specificLabels = labels.filter(function(label) {
-        return !(isSummaryMonth(label) || label === 'За период' || label === 'Весь период' || label === 'За все время');
+        return !(label === 'За период' || label === 'Весь период' || label === 'За все время');
     });
-    if (!specificLabels.length) return 'За все время';
+    if (!specificLabels.length) return 'Весь период';
     if (specificLabels.length === 1) return specificLabels[0];
     return 'По выбранному периоду';
 }

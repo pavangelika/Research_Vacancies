@@ -44,6 +44,14 @@ function getExperienceOrder() {
         [labels.sixPlus]: 4
     };
 }
+function getStandardPeriodFilterItems() {
+    return [
+        { key: 'today', label: 'Сегодня', period: 'today' },
+        { key: 'd3', label: 'За 3 дня', period: 'last_3' },
+        { key: 'd7', label: 'За 7 дней', period: 'last_7' },
+        { key: 'd14', label: 'За 14 дней', period: 'last_14' }
+    ];
+}
 function formatMonthTitle(numMonths) {
     if (numMonths === 1) return 'За 1 месяц';
     if (numMonths >= 2 && numMonths <= 4) return 'За ' + numMonths + ' месяца';
