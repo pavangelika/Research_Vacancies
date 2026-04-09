@@ -10485,7 +10485,7 @@ function applyCompositeViewMode(layoutRoot, table, graph, mode, options) {
     if (normalizedMode === 'table') {
         graph.style.display = 'none';
         if (compact) {
-            layoutRoot.style.overflowX = 'auto';
+        layoutRoot.style.overflowX = 'hidden';
             table.style.setProperty('width', '100%', 'important');
             table.style.setProperty('max-width', 'none', 'important');
             table.style.setProperty('min-width', compactTableMinWidth, 'important');

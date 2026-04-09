@@ -122,14 +122,14 @@ function buildSalaryTablesHtml(entries) {
     }).join('');
 
     return '<div class="salary-split-tables">' +
-        '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
+        '<div class="vacancy-table-wrap" style="margin-bottom: 16px;">' +
             '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
             '<table class="vacancy-table salary-table">' +
                 '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>—</th></tr></thead>' +
                 '<tbody>' + coverageRows + '</tbody>' +
             '</table>' +
         '</div>' +
-        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+        '<div class="vacancy-table-wrap">' +
             '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
             '<table class="vacancy-table salary-table">' +
                 '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
@@ -790,7 +790,7 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     container.innerHTML =
-        '<div class="role-period-label">Период публикации: ' + allRolesPeriod + '</div>' +
+        '<div class="role-period-label">Период сбора вакансий: ' + allRolesPeriod + '</div>' +
         summaryReturnTabsHtml +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Динамика по ролям</button>' +
@@ -863,7 +863,7 @@ function addSummaryTabs(root) {
             '<div class="salary-display-flex" data-exp-index="' + expIndex + '">' +
                 '<div class="salary-main-content">' +
                     '<div class="salary-table-container">' +
-                        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+                        '<div class="vacancy-table-wrap">' +
                             '<table class="vacancy-table salary-table">' +
                                 '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                                 '<tbody>' +
@@ -1107,7 +1107,7 @@ function renderCombinedContainer(container, roleContents) {
                                 '<div class="salary-display-flex" data-exp-index="' + (j + 1) + '">' +
                                     '<div class="salary-main-content">' +
                                         '<div class="salary-table-container">' +
-                                            '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+                                            '<div class="vacancy-table-wrap">' +
                                                 '<table class="vacancy-table salary-table">' +
                                                     '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
                                                     '<tbody>' +
@@ -1192,7 +1192,7 @@ function renderCombinedContainer(container, roleContents) {
     );
 
     container.innerHTML =
-        '<div class="role-period-label">Период публикации: ' + period + '</div>' +
+        '<div class="role-period-label">Период сбора вакансий: ' + period + '</div>' +
         '<div class="tabs analysis-tabs">' +
             '<button class="tab-button analysis-button active" data-analysis-id="activity-combined" onclick="switchAnalysis(event, \'activity-combined\')">Динамика вакансий</button>' +
             '<button class="tab-button analysis-button" data-analysis-id="weekday-combined" onclick="switchAnalysis(event, \'weekday-combined\')">Дни активности</button>' +
@@ -1294,7 +1294,7 @@ function showSingleRole(idx) {
             if (h2) h2.insertAdjacentElement('afterend', periodNode);
             else roleContent.insertAdjacentElement('afterbegin', periodNode);
         }
-        if (periodNode) periodNode.textContent = 'Период публикации: ' + period;
+        if (periodNode) periodNode.textContent = 'Период сбора вакансий: ' + period;
     } else if (periodNode && periodNode.parentElement) {
         periodNode.parentElement.removeChild(periodNode);
     }
