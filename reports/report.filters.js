@@ -671,7 +671,9 @@ function getSkillsSearchPanelContext(activeRole, analysisType) {
 function syncSkillsSearchFilterEffects(activeRole) {
     if (!activeRole) return;
     if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
-    if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+    if (typeof requestActiveAnalysisRender === 'function') {
+        requestActiveAnalysisRender(activeRole, activeRole.dataset.activeAnalysis || '');
+    } else if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
         applyGlobalFiltersToActiveAnalysis(activeRole, activeRole.dataset.activeAnalysis || '');
     }
 }
@@ -1555,7 +1557,8 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
             var next = syncLimitPreview(rawValue);
             if (uiState.totals_top_limit === next) return;
             uiState.totals_top_limit = next;
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         }
 
         range.addEventListener('input', function() {
@@ -1620,7 +1623,8 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
                     other.classList.toggle('active', other === button);
                     other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
                 });
-                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+                if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+                else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
             currencyButtons.push(button);
             currencyTabs.appendChild(button);
@@ -1665,7 +1669,8 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
                     other.classList.toggle('active', other === button);
                     other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
                 });
-                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+                if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+                else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
             metricButtons.push(button);
             metricTabs.appendChild(button);
@@ -1719,7 +1724,8 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
                 other.classList.toggle('active', other === button);
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
             });
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         });
         metricButtons.push(button);
         metricTabs.appendChild(button);
@@ -2045,9 +2051,10 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
         triggerArrow.textContent = '\u25BE';
         unbindOutsideClose();
-        if (uiState.market_trends_excluded_roles_pending_apply) {
+            if (uiState.market_trends_excluded_roles_pending_apply) {
             uiState.market_trends_excluded_roles_pending_apply = false;
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         }
     }
 

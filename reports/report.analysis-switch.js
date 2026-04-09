@@ -208,6 +208,24 @@ function handleEmployerAnalysisSwitch(ctx) {
     employerAnalysisBlock.style.display = 'block';
     initEmployerAnalysisFilter(employerAnalysisBlock);
 }
+function scheduleAnalysisUiRefresh(parentRole, analysisType) {
+    if (!parentRole) return;
+    var cancel = (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function')
+        ? window.cancelAnimationFrame.bind(window)
+        : function(handle) { clearTimeout(handle); };
+    var request = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+        ? window.requestAnimationFrame.bind(window)
+        : function(callback) { return setTimeout(callback, 0); };
+    if (parentRole.__analysisUiRefreshHandle) {
+        cancel(parentRole.__analysisUiRefreshHandle);
+    }
+    parentRole.__analysisUiRefreshHandle = request(function() {
+        parentRole.__analysisUiRefreshHandle = 0;
+        if (!parentRole || !parentRole.isConnected) return;
+        if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(parentRole, analysisType, true);
+        if (typeof updateViewToggleIcons === 'function') updateViewToggleIcons(parentRole);
+    });
+}
 var ANALYSIS_SWITCH_HANDLERS = {
     'activity': handleActivityAnalysisSwitch,
     'weekday': handleWeekdayAnalysisSwitch,
@@ -220,8 +238,11 @@ var ANALYSIS_SWITCH_HANDLERS = {
     'employer-analysis': handleEmployerAnalysisSwitch
 };
 function switchAnalysis(evt, analysisId) {
-    applyAnalysisTabNaming(document);
     var parentRole = evt.currentTarget.closest('.role-content');
+    var analysisType = resolveAnalysisType(analysisId);
+    if (parentRole && parentRole.dataset.activeAnalysis === analysisType && evt.currentTarget.classList.contains('active')) {
+        return;
+    }
     ensureMyResponsesTab(parentRole);
     if (typeof ensureResponseCalendarTab === 'function') ensureResponseCalendarTab(parentRole);
     ensureTotalsTab(parentRole);
@@ -233,7 +254,6 @@ function switchAnalysis(evt, analysisId) {
     evt.currentTarget.className += " active";
 
     var blocks = getAnalysisSwitchBlocks(parentRole);
-    var analysisType = resolveAnalysisType(analysisId);
     uiState.global_analysis_type = analysisType;
     uiState[getAnalysisStateKey(roleId)] = analysisType;
     hideAllAnalysisBlocks(blocks);
@@ -251,8 +271,7 @@ function switchAnalysis(evt, analysisId) {
 
     parentRole.dataset.activeAnalysis = analysisType || '';
     syncDetailAnalysisUi(parentRole, analysisType);
-    syncSharedFilterPanel(parentRole, analysisType, true);
-    updateViewToggleIcons(parentRole);
+    scheduleAnalysisUiRefresh(parentRole, analysisType);
 }
 
 function switchFromSummaryToAnalysis(analysisType) {
@@ -301,9 +320,12 @@ function switchFromSummaryToAnalysis(analysisType) {
 
     if (targetButton) {
         targetButton.click();
-        if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+        if (typeof requestActiveAnalysisRender === 'function') {
             var activeRole = getActiveRoleContent();
-            if (activeRole) applyGlobalFiltersToActiveAnalysis(activeRole, analysisType);
+            if (activeRole) requestActiveAnalysisRender(activeRole, analysisType);
+        } else if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+            var activeRoleFallback = getActiveRoleContent();
+            if (activeRoleFallback) applyGlobalFiltersToActiveAnalysis(activeRoleFallback, analysisType);
         }
     }
 }

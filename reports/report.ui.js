@@ -225,10 +225,16 @@ function normalizeUnifiedTraceStyles(data) {
         if (trace.type === 'scatter' && String(trace.mode || '').indexOf('lines') !== -1) {
             trace.line = trace.line || {};
             trace.line.width = 3;
+            trace.line.shape = trace.line.shape || 'spline';
             if (String(trace.mode || '').indexOf('markers') !== -1) {
                 trace.marker = trace.marker || {};
                 if (!isFinite(Number(trace.marker.size))) trace.marker.size = 7;
             }
+        } else if (trace.type === 'bar') {
+            trace.marker = trace.marker || {};
+            trace.marker.line = trace.marker.line || {};
+            if (!isFinite(Number(trace.marker.line.width))) trace.marker.line.width = 0;
+            if (!isFinite(Number(trace.opacity))) trace.opacity = 0.94;
         }
     });
 }
@@ -236,37 +242,20 @@ function normalizeUnifiedChartLayout(data, layout) {
     if (!layout || typeof layout !== 'object') return;
     var traces = Array.isArray(data) ? data.filter(Boolean) : [];
     var isHorizontal = isHorizontalBarChartData(traces);
-    var fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     layout.height = resolveUnifiedChartHeight(traces);
     layout.autosize = true;
-    layout.font = layout.font || {};
-    layout.font.family = fontFamily;
-    layout.margin = layout.margin || {};
-    layout.margin.t = 8;
-    layout.margin.b = isHorizontal ? 28 : Math.max(Number(layout.margin.b) || 0, 20);
-    layout.margin.l = Math.max(Number(layout.margin.l) || 0, isHorizontal ? 170 : 56);
-    layout.margin.r = Math.max(Number(layout.margin.r) || 0, 20);
-    if (isHorizontal) {
-        layout.bargap = 0.28;
-        layout.bargroupgap = 0.04;
-    }
+    applyIosChartDefaults(layout, traces);
+    layout.margin.t = Math.max(Number(layout.margin.t) || 0, 8);
+    layout.margin.b = isHorizontal ? Math.max(Number(layout.margin.b) || 0, 28) : Math.max(Number(layout.margin.b) || 0, 20);
     Object.keys(layout).forEach(function(key) {
         if (!/^(x|y)axis\d*$/.test(key)) return;
         var axis = layout[key];
         if (!axis || typeof axis !== 'object') return;
-        axis.automargin = true;
         axis.tickfont = axis.tickfont || {};
-        axis.tickfont.family = fontFamily;
+        axis.tickfont.family = layout.font && layout.font.family ? layout.font.family : axis.tickfont.family;
     });
-    layout.xaxis = layout.xaxis || {};
-    layout.yaxis = layout.yaxis || {};
     layout.xaxis.automargin = true;
     layout.yaxis.automargin = true;
-    layout.xaxis.tickfont = layout.xaxis.tickfont || {};
-    layout.yaxis.tickfont = layout.yaxis.tickfont || {};
-    layout.xaxis.tickfont.family = fontFamily;
-    layout.yaxis.tickfont.family = fontFamily;
-    if (isHorizontal) layout.yaxis.autorange = 'reversed';
 }
 function stripAxisTitles(layout) {
     if (!layout || typeof layout !== 'object') return;
@@ -282,6 +271,46 @@ function stripAxisTitles(layout) {
             axis.title.text = '';
         }
     });
+}
+function applyIosChartDefaults(layout, traces) {
+    if (!layout || typeof layout !== 'object') return;
+    var fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    var isHorizontal = isHorizontalBarChartData(traces);
+    layout.font = layout.font || {};
+    layout.font.family = fontFamily;
+    layout.font.color = layout.font.color || '#475569';
+    layout.paper_bgcolor = 'rgba(0,0,0,0)';
+    layout.plot_bgcolor = 'rgba(0,0,0,0)';
+    layout.colorway = layout.colorway || [CHART_COLORS.light, CHART_COLORS.medium, CHART_COLORS.dark, '#89a8c2', '#b7c8d8'];
+    layout.hoverlabel = layout.hoverlabel || {};
+    layout.hoverlabel.bgcolor = 'rgba(255,255,255,0.97)';
+    layout.hoverlabel.bordercolor = 'rgba(148, 163, 184, 0.16)';
+    layout.hoverlabel.font = layout.hoverlabel.font || {};
+    layout.hoverlabel.font.family = fontFamily;
+    layout.hoverlabel.font.color = '#0f172a';
+    layout.margin = layout.margin || {};
+    layout.margin.t = Math.max(12, Number(layout.margin.t) || 0);
+    layout.margin.b = Math.max(Number(layout.margin.b) || 0, 18);
+    layout.margin.l = Math.max(Number(layout.margin.l) || 0, isHorizontal ? 170 : 52);
+    layout.margin.r = Math.max(Number(layout.margin.r) || 0, 18);
+    layout.xaxis = layout.xaxis || {};
+    layout.yaxis = layout.yaxis || {};
+    [layout.xaxis, layout.yaxis].forEach(function(axis) {
+        if (!axis || typeof axis !== 'object') return;
+        axis.automargin = true;
+        axis.showgrid = axis.showgrid !== false;
+        axis.gridcolor = axis.gridcolor || 'rgba(148, 163, 184, 0.14)';
+        axis.zeroline = false;
+        axis.linecolor = axis.linecolor || 'rgba(148, 163, 184, 0.18)';
+        axis.tickfont = axis.tickfont || {};
+        axis.tickfont.family = fontFamily;
+        axis.tickfont.color = axis.tickfont.color || '#64748b';
+    });
+    if (isHorizontal) {
+        layout.yaxis.autorange = 'reversed';
+        layout.bargap = layout.bargap !== undefined ? layout.bargap : 0.28;
+        layout.bargroupgap = layout.bargroupgap !== undefined ? layout.bargroupgap : 0.04;
+    }
 }
 function detectChartAnalysisType(target) {
     var el = typeof target === 'string' ? document.getElementById(target) : target;
@@ -409,8 +438,6 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
             if (layout) {
                 normalizeUnifiedChartLayout(data, layout);
                 stripAxisTitles(layout);
-                layout.paper_bgcolor = 'rgba(0,0,0,0)';
-                layout.plot_bgcolor = 'rgba(0,0,0,0)';
                 layout.showlegend = false;
                 if (layout.legend) layout.legend = undefined;
                 if (typeof layout.title === 'string') layout.title = '';
@@ -428,8 +455,6 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function' && 
             if (layout) {
                 normalizeUnifiedChartLayout(data, layout);
                 stripAxisTitles(layout);
-                layout.paper_bgcolor = 'rgba(0,0,0,0)';
-                layout.plot_bgcolor = 'rgba(0,0,0,0)';
                 layout.showlegend = false;
                 if (layout.legend) layout.legend = undefined;
                 if (typeof layout.title === 'string') layout.title = '';
@@ -2588,8 +2613,15 @@ function reorderPrimaryAnalysisTabsAll(scope) {
     });
 }
 
+function markAnalysisTabNamingDirty(root) {
+    var scope = root || document;
+    scope.__analysisTabNamingDirty = true;
+}
 function applyAnalysisTabNaming(root) {
     var scope = root || document;
+    if (scope.__analysisTabNamingApplied && !scope.__analysisTabNamingDirty) return;
+    scope.__analysisTabNamingApplied = true;
+    scope.__analysisTabNamingDirty = false;
     if (typeof ensureMyResponsesTabs === 'function') ensureMyResponsesTabs(scope);
     if (typeof ensureResponseCalendarTabs === 'function') ensureResponseCalendarTabs(scope);
     if (typeof ensureTotalsTabs === 'function') ensureTotalsTabs(scope);
@@ -3308,6 +3340,11 @@ function syncAllRolesPeriodStateFromGlobalFilter(activeRole, analysisType) {
 function applyGlobalRoleFilter() {
     var ctx = uiState.roleSelectionContext;
     if (!ctx) return;
+    var activeRole = getActiveRoleContent();
+    var currentAnalysis = activeRole && activeRole.dataset ? String(activeRole.dataset.activeAnalysis || '').trim() : '';
+    if (currentAnalysis) {
+        uiState.global_analysis_type = currentAnalysis;
+    }
     var allOptions = getGlobalFilterOptions(null, 'roles', null);
     var allIds = allOptions.map(function(item) { return item.value; });
     var bucket = ensureGlobalFilterBucket('roles');
@@ -7578,8 +7615,13 @@ function ensureDefaultPeriodFilterSelection(activeRole, analysisType) {
     var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
     if (!Array.isArray(options) || !options.length) return false;
     var defaultOption = options.find(function(option) {
-        return normalizeGlobalPeriodValue(option && option.value) === 'summary';
+        return normalizeGlobalPeriodValue(option && option.value) === 'last_14';
     });
+    if (!defaultOption) {
+        defaultOption = options.find(function(option) {
+            return normalizeGlobalPeriodValue(option && option.value) === 'summary';
+        });
+    }
     if (!defaultOption) {
         defaultOption = options.find(function(option) {
             return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());

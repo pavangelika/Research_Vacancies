@@ -878,6 +878,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 btn.dataset.bound = '1';
             }
         });
+        if (typeof markAnalysisTabNamingDirty === 'function') markAnalysisTabNamingDirty(document);
         if (typeof applyAnalysisTabNaming === 'function') applyAnalysisTabNaming(document);
     }
 

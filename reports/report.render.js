@@ -287,7 +287,17 @@ function renderAllRolesContainer(container, roleContents) {
     })).concat([
         { key: 'all', label: allLabel, period: null }
     ]);
-    var defaultAllRolesPeriodIndex = periods.length ? (periodItems.length - 1) : Math.max(0, periodItems.length - 1);
+    var defaultAllRolesPeriodIndex = periodItems.findIndex(function(item) {
+        return normalizeGlobalPeriodValue(item && item.period) === 'last_14';
+    });
+    if (defaultAllRolesPeriodIndex < 0) {
+        defaultAllRolesPeriodIndex = periodItems.findIndex(function(item) {
+            return normalizeGlobalPeriodValue(item && item.period) === 'summary';
+        });
+    }
+    if (defaultAllRolesPeriodIndex < 0) {
+        defaultAllRolesPeriodIndex = periods.length ? (periodItems.length - 1) : Math.max(0, periodItems.length - 1);
+    }
 
     function getRoleFilteredVacancies(roleContent, periodValue) {
         var roleKey = roleContent && (roleContent.dataset.roleId || roleContent.id || roleContent.dataset.roleName) || 'role';
@@ -819,6 +829,7 @@ function renderAllRolesContainer(container, roleContents) {
     }
 }
 function addSummaryTabs(root) {
+    if (typeof markAnalysisTabNamingDirty === 'function') markAnalysisTabNamingDirty(root);
     var skillsMonths = root.querySelectorAll('.monthly-skills-month-content');
     skillsMonths.forEach(monthDiv => {
         monthDiv.querySelectorAll('.monthly-skills-exp-button[data-summary="1"]').forEach(btn => btn.remove());
@@ -1312,12 +1323,15 @@ function getSelectedRoleContents(selectedIndices) {
 function resolveRoleViewMode(selectedIndices) {
     if (uiState.all_roles_active) return 'all';
     if (!selectedIndices || !selectedIndices.size) return 'empty';
+    var roleCount = typeof getRoleMetaList === 'function' ? getRoleMetaList().length : 0;
+    if (roleCount > 0 && selectedIndices.size === roleCount) return 'combined';
     if (selectedIndices.size === 1) return 'single';
     return 'combined';
 }
-function buildUnifiedTabsDataContract(selectedIndices) {
+function buildUnifiedTabsDataContract(selectedIndices, preferredAnalysisType) {
     var normalizedSelected = selectedIndices instanceof Set ? selectedIndices : new Set(Array.from(selectedIndices || []));
     var selectedRoleContents = getSelectedRoleContents(normalizedSelected);
+    var activeAnalysis = normalizeAnalysisTypeForButtonLookup(preferredAnalysisType || uiState.global_analysis_type || 'activity');
     return {
         version: 1,
         mode: resolveRoleViewMode(normalizedSelected),
@@ -1328,7 +1342,7 @@ function buildUnifiedTabsDataContract(selectedIndices) {
         selected_role_names: selectedRoleContents.map(function(roleContent) {
             return String(roleContent.dataset.roleName || roleContent.dataset.roleId || roleContent.id || '');
         }),
-        active_analysis: normalizeAnalysisTypeForButtonLookup(uiState.global_analysis_type || 'activity'),
+        active_analysis: activeAnalysis,
         tabs: {
             activity: { key: 'activity', enabled: true },
             weekday: { key: 'weekday', enabled: true },
@@ -1441,10 +1455,17 @@ function renderRoleViewUnifiedV2(context) {
 }
 function updateRoleView(selectedIndices) {
     var normalizedSelected = selectedIndices instanceof Set ? selectedIndices : new Set(Array.from(selectedIndices || []));
+    var currentRole = getActiveRoleContent();
+    var preferredAnalysis = String(currentRole && currentRole.dataset ? currentRole.dataset.activeAnalysis || '' : '').trim() || uiState.global_analysis_type || 'activity';
+    uiState.global_analysis_type = preferredAnalysis;
     var combined = document.getElementById('role-combined');
     var allRoles = document.getElementById('role-all');
     var roleContents = Array.from(document.querySelectorAll('.role-content')).filter(c => c.id !== 'role-combined');
-    var contract = buildUnifiedTabsDataContract(normalizedSelected);
+    var contract = buildUnifiedTabsDataContract(normalizedSelected, preferredAnalysis);
+    if (allRoles && contract.mode === 'all') {
+        allRoles.dataset.activeAnalysis = contract.active_analysis || preferredAnalysis;
+        uiState[getAnalysisStateKey(allRoles.id)] = allRoles.dataset.activeAnalysis || preferredAnalysis;
+    }
     var context = {
         mode: contract.mode,
         contract: contract,
