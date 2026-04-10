@@ -7295,23 +7295,17 @@ function setSkillsSearchFavoriteTrigger(dropdown, favoriteName, favoriteId) {
     if (!dropdown) return;
     var btn = dropdown.querySelector('.skills-search-dropdown-btn');
     if (!btn) return;
-    var state = ensureSkillsSearchFavoritesState();
-    var totalCount = Array.isArray(state.items) ? state.items.length : 0;
     var hasActive = !!favoriteName && favoriteId && favoriteId !== 'all';
-    var secondaryText = hasActive
-        ? favoriteName
-        : (totalCount ? ('Сохранено: ' + totalCount) : 'Не выбрано');
+    var triggerText = hasActive ? favoriteName : 'Не выбрано';
     btn.classList.remove('skills-search-icon-btn');
     btn.classList.add('skills-search-favorite-trigger');
     btn.dataset.value = favoriteId || 'all';
     btn.dataset.hasSelection = hasActive ? '1' : '0';
     btn.innerHTML =
         '<span class="skills-search-favorite-trigger-body">' +
-            '<span class="skills-search-favorite-trigger-title">Наборы</span>' +
-            '<span class="skills-search-favorite-trigger-value">' + escapeHtml(secondaryText) + '</span>' +
-        '</span>' +
-        '<span class="skills-search-favorite-trigger-arrow" aria-hidden="true">▾</span>';
-    var title = hasActive ? ('Набор: ' + favoriteName) : 'Наборы';
+            escapeHtml(triggerText) +
+        '</span>';
+    var title = hasActive ? ('Набор: ' + favoriteName) : 'Не выбрано';
     btn.title = title;
     btn.setAttribute('aria-label', title);
 }

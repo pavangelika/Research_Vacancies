@@ -4149,38 +4149,19 @@ tr:hover { background-color: #f0f4f9; }
     border-radius: 18px;
 }
 .skills-search-favorite-trigger-body {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+    display: block;
     min-width: 0;
-    gap: 1px;
-}
-.skills-search-favorite-trigger-title {
-    font-size: 0.69rem;
-    line-height: 1.1;
-    color: #64748b;
-}
-.skills-search-favorite-trigger-value {
-    max-width: 150px;
+    flex: 1 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8rem;
+    font-size: 0.84rem;
     line-height: 1.15;
     color: #0f172a;
-}
-.skills-search-favorite-trigger-arrow {
-    flex: 0 0 auto;
-    font-size: 0.76rem;
-    color: #64748b;
-    transition: transform 0.18s ease;
 }
 .skills-search-favorite-trigger[data-has-selection="1"] {
     border-color: rgba(111, 143, 178, 0.24);
     background: rgba(244, 248, 252, 0.98);
-}
-.skills-search-dropdown.open .skills-search-favorite-trigger-arrow {
-    transform: rotate(180deg);
 }
 .skills-search-logic-control {
     position: relative;

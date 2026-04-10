@@ -1045,9 +1045,12 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
             ? (items.find(function(item) { return item.id === activeId; }) || null)
             : null;
         trigger.classList.toggle('is-active', !!activeItem);
-        trigger.textContent = activeItem ? '\u2665' : '\u2661';
+        trigger.innerHTML =
+            '<span class="skills-search-favorite-trigger-body">' +
+                escapeHtml(activeItem ? activeItem.name : 'Не выбрано') +
+            '</span>';
         input.placeholder = activeItem ? activeItem.name : 'Сохранить фильтр';
-        trigger.title = activeItem ? ('Избранное: ' + activeItem.name) : 'Избранное';
+        trigger.title = activeItem ? ('Набор: ' + activeItem.name) : 'Не выбрано';
         trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = activeItem ? ('Сохранить текущий фильтр: ' + activeItem.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
@@ -1241,17 +1244,15 @@ function createMyFiltersControl(activeRole, analysisType) {
             : null;
         var activeName = currentActive ? currentActive.name : 'Не выбрано';
         trigger.classList.toggle('is-active', !!currentActive);
-        trigger.title = currentActive ? ('Избранное: ' + currentActive.name) : 'Избранное';
+        trigger.title = currentActive ? ('Набор: ' + currentActive.name) : 'Не выбрано';
         trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = currentActive ? ('Сохранить текущий фильтр: ' + currentActive.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
         syncSaveButtonState();
         trigger.innerHTML =
             '<span class="skills-search-favorite-trigger-body">' +
-                '<span class="skills-search-favorite-trigger-title">Избранное</span>' +
-                '<span class="skills-search-favorite-trigger-value">' + escapeHtml(activeName) + '</span>' +
-            '</span>' +
-            '<span class="skills-search-favorite-trigger-arrow" aria-hidden="true">\u25BE</span>';
+                escapeHtml(activeName) +
+            '</span>';
 
         menu.innerHTML = '';
         var clearBtn = document.createElement('button');
@@ -2549,7 +2550,6 @@ function applyGlobalFilterIconButtonStyle(button, isActive) {
     button.style.color = isActive ? '#2563eb' : '#475569';
     button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
 }
-
 
 
 
