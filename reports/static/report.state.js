@@ -34,10 +34,23 @@ let uiState = {
     weekday_view_mode: 'together',
     skills_monthly_view_mode: 'together',
     salary_view_mode: 'together',
-    employer_analysis_view_mode: 'together'
+    employer_analysis_view_mode: 'together',
+    shared_filter_panel_state: {
+        open: true,
+        collapsed: false,
+        sections: {
+            roles: true,
+            salary: true,
+            responses: true,
+            top: true,
+            vacancy: true,
+            skills: true
+        }
+    }
 };
 
 var VIEW_MODE_STORAGE_KEY = 'research_vacancies_view_modes';
+var SHARED_FILTER_PANEL_STORAGE_KEY = 'research_vacancies_shared_filter_panel_state';
 var VIEW_MODE_STATE_KEYS = [
     'unified_view_mode',
     'activity_view_mode',
@@ -46,6 +59,29 @@ var VIEW_MODE_STATE_KEYS = [
     'salary_view_mode',
     'employer_analysis_view_mode'
 ];
+
+var SHARED_FILTER_PANEL_SECTION_KEYS = ['roles', 'salary', 'responses', 'top', 'vacancy', 'skills'];
+
+function ensureSharedFilterPanelState() {
+    if (!uiState.shared_filter_panel_state || typeof uiState.shared_filter_panel_state !== 'object') {
+        uiState.shared_filter_panel_state = {};
+    }
+    if (typeof uiState.shared_filter_panel_state.open !== 'boolean') {
+        uiState.shared_filter_panel_state.open = true;
+    }
+    if (typeof uiState.shared_filter_panel_state.collapsed !== 'boolean') {
+        uiState.shared_filter_panel_state.collapsed = !uiState.shared_filter_panel_state.open;
+    }
+    if (!uiState.shared_filter_panel_state.sections || typeof uiState.shared_filter_panel_state.sections !== 'object') {
+        uiState.shared_filter_panel_state.sections = {};
+    }
+    SHARED_FILTER_PANEL_SECTION_KEYS.forEach(function(key) {
+        if (typeof uiState.shared_filter_panel_state.sections[key] !== 'boolean') {
+            uiState.shared_filter_panel_state.sections[key] = true;
+        }
+    });
+    return uiState.shared_filter_panel_state;
+}
 
 function syncAllViewModes(mode) {
     var normalized = (mode === 'table' || mode === 'graph') ? mode : 'together';
@@ -91,7 +127,46 @@ function persistViewModes() {
     }
 }
 
+function loadPersistedSharedFilterPanelState() {
+    ensureSharedFilterPanelState();
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        var raw = window.localStorage.getItem(SHARED_FILTER_PANEL_STORAGE_KEY);
+        if (!raw) return;
+        var parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+        if (typeof parsed.open === 'boolean') {
+            uiState.shared_filter_panel_state.open = parsed.open;
+        }
+        if (typeof parsed.collapsed === 'boolean') {
+            uiState.shared_filter_panel_state.collapsed = parsed.collapsed;
+        } else {
+            uiState.shared_filter_panel_state.collapsed = !uiState.shared_filter_panel_state.open;
+        }
+        if (parsed.sections && typeof parsed.sections === 'object') {
+            SHARED_FILTER_PANEL_SECTION_KEYS.forEach(function(key) {
+                if (typeof parsed.sections[key] === 'boolean') {
+                    uiState.shared_filter_panel_state.sections[key] = parsed.sections[key];
+                }
+            });
+        }
+    } catch (err) {
+        // Ignore malformed or unavailable localStorage state.
+    }
+}
+
+function persistSharedFilterPanelState() {
+    ensureSharedFilterPanelState();
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        window.localStorage.setItem(SHARED_FILTER_PANEL_STORAGE_KEY, JSON.stringify(uiState.shared_filter_panel_state));
+    } catch (err) {
+        // Ignore storage write failures.
+    }
+}
+
 loadPersistedViewModes();
+loadPersistedSharedFilterPanelState();
 
 function getAnalysisStateKey(roleId) {
     return roleId + '_analysis';

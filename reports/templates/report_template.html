@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анализ вакансий с HH - {{ current_date }} {{ current_time }}</title>
+    <title>Анализ вакансий HH - {{ current_date }} {{ current_time }}</title>
     <link rel="stylesheet" href="static/styles.css?v={{ asset_version }}">
-    <link rel="stylesheet" href="static/report-dashboard.css?v={{ asset_version }}">
     <script src="static/plotly-2.27.0.min.js?v={{ asset_version }}" charset="utf-8"></script>
     <script>
         if (typeof Plotly === 'undefined') {
@@ -23,35 +22,15 @@
     <script src="static/report.analysis-switch.js?v={{ asset_version }}"></script>
     <script src="static/report.events.js?v={{ asset_version }}"></script>
 </head>
-<body class="report-dashboard">
+<body class="report-dashboard" data-current-date="{{ current_date }}" data-current-time="{{ current_time }}" data-asset-version="{{ asset_version }}">
     <div class="dashboard-shell">
-    <div class="report-header">
-        <div class="report-header-brand">
-            <div class="report-header-mark" aria-hidden="true">
-                <span></span>
-                <span></span>
-            </div>
-            <div class="report-header-brand-text">
-                <div class="report-header-eyebrow">Анализ вакансий с HH</div>
-                <h1>Анализ вакансий с HH</h1>
-            </div>
-        </div>
-        <div class="report-header-meta">
-            <div class="report-updated-at">Обновлено: {{ current_date }} {{ current_time }}</div>
-        </div>
-    </div>
+        <div class="report-layout">
+            <aside class="dashboard-sidebar">
+                <div id="role-selector" class="role-selector"></div>
+            </aside>
 
-    <div class="report-layout">
-        <aside class="dashboard-sidebar">
-            <div class="dashboard-sidebar-header">
-                <div class="dashboard-sidebar-title">Dashboard</div>
-                <div class="dashboard-sidebar-subtitle">Навигация по ролям</div>
-            </div>
-            <!-- Вкладки по ролям -->
-            <div id="role-selector" class="role-selector"></div>
-        </aside>
+            <main class="dashboard-main">
 
-        <main class="dashboard-main">
     {% for role in roles %}
     {% set role_index = loop.index %}
     <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}"
@@ -261,8 +240,8 @@
 
         <div id="role-combined" class="role-content" style="display: none;"></div>
         <div id="role-all" class="role-content" style="display: none;"></div>
-        </main>
-    </div>
+            </main>
+        </div>
     </div>
 
     <div id="vacancy-modal-backdrop" class="vacancy-modal-backdrop" style="display: none;">

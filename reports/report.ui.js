@@ -6402,44 +6402,94 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
 }
 
 function createSharedFilterGroup(title, nodes) {
+    var options = arguments.length > 2 ? arguments[2] : {};
     var items = (nodes || []).filter(function(node) { return !!node; });
     if (!items.length) return null;
+    var state = typeof ensureSharedFilterPanelState === 'function'
+        ? ensureSharedFilterPanelState()
+        : { open: true, sections: {} };
+    var sectionKey = String(options && options.sectionKey || '').trim();
+    var isCollapsible = !!sectionKey;
+    var isOpen = isCollapsible ? (state.sections && state.sections[sectionKey] !== false) : true;
 
     var wrap = document.createElement('section');
     wrap.className = 'shared-filter-group';
     wrap.style.display = 'flex';
     wrap.style.flexDirection = 'column';
-    wrap.style.gap = '6px';
+    wrap.style.gap = '2px';
     wrap.style.flex = '1 1 100%';
     wrap.style.width = '100%';
     wrap.style.maxWidth = '100%';
-    wrap.style.padding = '6px 8px';
+    wrap.style.padding = '0';
     wrap.style.border = '1px solid rgba(148, 163, 184, 0.14)';
-    wrap.style.borderRadius = '12px';
-    wrap.style.background = 'rgba(248, 250, 252, 0.82)';
+    wrap.style.borderRadius = '0';
+    wrap.style.background = 'rgba(248, 250, 252, 0.84)';
     wrap.style.boxSizing = 'border-box';
+    if (sectionKey) wrap.dataset.sectionKey = sectionKey;
+    if (isCollapsible) wrap.dataset.collapsible = '1';
 
     var titleText = String(title || '').trim();
     if (titleText) {
-        var heading = document.createElement('div');
+        var heading = document.createElement(isCollapsible ? 'button' : 'div');
         heading.className = 'shared-filter-group-title';
         heading.textContent = titleText;
-        heading.style.fontSize = '10px';
+        heading.style.fontSize = '11px';
         heading.style.fontWeight = '700';
-        heading.style.color = '#64748b';
+        heading.style.color = '#334155';
         heading.style.textTransform = 'none';
+        heading.style.width = '100%';
+        heading.style.boxSizing = 'border-box';
+        heading.style.textAlign = 'left';
+        heading.style.border = '0';
+        heading.style.borderRadius = '0';
+        heading.style.background = 'transparent';
+        heading.style.padding = '0';
+        heading.style.display = 'flex';
+        heading.style.alignItems = 'center';
+        heading.style.justifyContent = 'space-between';
+        heading.style.gap = '10px';
+        heading.style.minHeight = '28px';
+        heading.style.padding = '6px 10px';
+        heading.style.cursor = isCollapsible ? 'pointer' : 'default';
+        if (isCollapsible) {
+            heading.type = 'button';
+            heading.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            var label = document.createElement('span');
+            label.textContent = titleText;
+            label.style.flex = '1 1 auto';
+            label.style.minWidth = '0';
+            label.style.overflow = 'hidden';
+            label.style.textOverflow = 'ellipsis';
+            label.style.whiteSpace = 'nowrap';
+            label.style.lineHeight = '1.2';
+            var arrow = document.createElement('span');
+            arrow.className = 'shared-filter-group-arrow';
+            arrow.textContent = isOpen ? '\u25B4' : '\u25BE';
+            arrow.style.flex = '0 0 auto';
+            arrow.style.opacity = '0.8';
+            heading.innerHTML = '';
+            heading.appendChild(label);
+            heading.appendChild(arrow);
+            heading.addEventListener('click', function() {
+                if (typeof setSharedFilterPanelSectionOpen === 'function') {
+                    setSharedFilterPanelSectionOpen(sectionKey, !(wrap.dataset.sectionOpen === '1'));
+                }
+            });
+        }
         wrap.appendChild(heading);
     }
 
     var body = document.createElement('div');
     body.className = 'shared-filter-group-body';
-    body.style.display = 'flex';
+    body.style.display = isOpen ? 'flex' : 'none';
     body.style.flexWrap = 'wrap';
-    body.style.alignItems = 'flex-start';
-    body.style.gap = '5px';
+    body.style.alignItems = 'stretch';
+    body.style.gap = '4px';
     body.style.width = '100%';
     body.style.maxWidth = '100%';
     body.style.boxSizing = 'border-box';
+    body.style.padding = '0 10px 8px';
+    wrap.dataset.sectionOpen = isOpen ? '1' : '0';
 
     items.forEach(function(node) {
         body.appendChild(node);
@@ -6447,6 +6497,41 @@ function createSharedFilterGroup(title, nodes) {
 
     wrap.appendChild(body);
     return wrap;
+}
+
+function setSharedFilterPanelOpen(open) {
+    if (typeof ensureSharedFilterPanelState === 'function') ensureSharedFilterPanelState();
+    if (!uiState.shared_filter_panel_state) uiState.shared_filter_panel_state = { open: true, sections: {} };
+    uiState.shared_filter_panel_state.open = !!open;
+    uiState.shared_filter_panel_state.collapsed = !uiState.shared_filter_panel_state.open;
+    if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
+    var panel = document.getElementById('global-shared-filter-panel');
+    if (!panel) return;
+    panel.dataset.panelOpen = uiState.shared_filter_panel_state.open ? '1' : '0';
+    if (typeof syncSharedFilterPanelCollapsedUi === 'function') {
+        syncSharedFilterPanelCollapsedUi(panel);
+    }
+}
+
+function setSharedFilterPanelSectionOpen(sectionKey, open) {
+    var key = String(sectionKey || '').trim();
+    if (!key) return;
+    if (typeof ensureSharedFilterPanelState === 'function') ensureSharedFilterPanelState();
+    if (!uiState.shared_filter_panel_state) uiState.shared_filter_panel_state = { open: true, sections: {} };
+    if (!uiState.shared_filter_panel_state.sections) uiState.shared_filter_panel_state.sections = {};
+    uiState.shared_filter_panel_state.sections[key] = !!open;
+    if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
+    var panel = document.getElementById('global-shared-filter-panel');
+    if (!panel) return;
+    var group = panel.querySelector('.shared-filter-group[data-section-key="' + key + '"]');
+    if (!group) return;
+    group.dataset.sectionOpen = open ? '1' : '0';
+    var body = group.querySelector('.shared-filter-group-body');
+    var heading = group.querySelector('.shared-filter-group-title');
+    var arrow = group.querySelector('.shared-filter-group-arrow');
+    if (body) body.style.display = open ? 'flex' : 'none';
+    if (heading) heading.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (arrow) arrow.textContent = open ? '\u25B4' : '\u25BE';
 }
 
 function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
@@ -6462,9 +6547,14 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     var body = panel.querySelector('.shared-filter-panel-body');
     if (!body) return;
     body.innerHTML = '';
-
+    var panelState = typeof ensureSharedFilterPanelState === 'function'
+        ? ensureSharedFilterPanelState()
+        : { open: true, sections: {} };
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
     var currentForFilters = current;
+    panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
+    panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(current);
+    body.style.display = panelState.open === false ? 'none' : 'flex';
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
     ensureDefaultPeriodFilterSelection(activeRole, currentForFilters);
@@ -6508,7 +6598,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
 
     var favoritesGroup = createSharedFilterGroup('Мои фильтры', [
         favoritesControl
-    ]);
+    ], { sectionKey: 'my-filters' });
     if (favoritesGroup) body.appendChild(favoritesGroup);
 
     var roleGroup = createSharedFilterGroup('Фильтры роли', [
@@ -6517,24 +6607,24 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         periodsControl,
         experiencesControl,
         statusControl
-    ]);
+    ], { sectionKey: 'roles' });
     if (roleGroup) body.appendChild(roleGroup);
 
     var salaryGroup = createSharedFilterGroup('Фильтры зарплаты', [
         currencyControl,
         countryControl,
         salaryMetricControl
-    ]);
+    ], { sectionKey: 'salary' });
     if (salaryGroup) body.appendChild(salaryGroup);
 
     var responsesGroup = createSharedFilterGroup('Фильтры откликов', [
         interviewControl,
         resultControl,
         offerControl
-    ]);
+    ], { sectionKey: 'responses' });
     if (responsesGroup) body.appendChild(responsesGroup);
 
-    var topGroup = createSharedFilterGroup('', [topControl]);
+    var topGroup = createSharedFilterGroup('Размер топа', [topControl], { sectionKey: 'top' });
     if (topGroup) body.appendChild(topGroup);
 
     var vacancyGroup = createSharedFilterGroup('Фильтры вакансии', [
@@ -6542,16 +6632,19 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         accreditationControl,
         coverLetterControl,
         hasTestControl
-    ]);
+    ], { sectionKey: 'vacancy' });
     if (vacancyGroup) body.appendChild(vacancyGroup);
 
     var skillsGroup = createSharedFilterGroup('Фильтры навыков', [
         skillsLogicControl,
         skillsIncludeControl,
         skillsExcludeControl
-    ]);
+    ], { sectionKey: 'skills' });
     if (skillsGroup) body.appendChild(skillsGroup);
-    panel.style.display = body.children.length ? 'block' : 'none';
+    panel.style.display = body.children.length ? 'flex' : 'none';
+    if (typeof syncSharedFilterPanelCollapsedUi === 'function') {
+        syncSharedFilterPanelCollapsedUi(panel);
+    }
     if (!skipActiveApply) applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
 

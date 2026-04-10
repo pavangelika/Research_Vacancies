@@ -1,29 +1,231 @@
-﻿// ---------- Shared Filters Module ----------
+// ---------- Shared Filters Module ----------
+var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
+var SHARED_FILTER_PANEL_SECTION_META = [
+    { key: 'my-filters', label: 'Избранное', icon: '\u2605' },
+    { key: 'roles', label: 'Роли', icon: '\u25A6' },
+    { key: 'salary', label: 'Зарплата', icon: '\u20BD' },
+    { key: 'responses', label: 'Отклики', icon: '\u2709' },
+    { key: 'top', label: 'Топ', icon: '\u25B2' },
+    { key: 'employer', label: 'Работодатель', icon: '\u2302' },
+    { key: 'skills', label: 'Навыки', icon: '\u2699' }
+];
+
+function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
+    var current = String(analysisType || '').trim().replace(/-all$/, '');
+    if (current === 'skills-search') return 'skills';
+    if (current === 'my-responses' || current === 'responses-calendar') return 'responses';
+    if (current === 'salary') return 'salary';
+    if (current === 'employer-analysis') return 'employer';
+    if (current === 'totals' || current === 'market-trends') return 'top';
+    if (current === 'activity' || current === 'weekday' || current === 'skills-monthly') return 'roles';
+    if (current === 'all' || current === 'combined') return 'roles';
+    return 'roles';
+}
+
+function ensureSharedFilterPanelState() {
+    if (!uiState.shared_filter_panel_state || typeof uiState.shared_filter_panel_state !== 'object') {
+        uiState.shared_filter_panel_state = { collapsed: false };
+    }
+    if (typeof uiState.shared_filter_panel_state.collapsed !== 'boolean') {
+        uiState.shared_filter_panel_state.collapsed = false;
+    }
+    return uiState.shared_filter_panel_state;
+}
+
+function persistSharedFilterPanelState() {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    try {
+        window.localStorage.setItem(SHARED_FILTER_PANEL_STATE_STORAGE_KEY, JSON.stringify(ensureSharedFilterPanelState()));
+    } catch (_e) {
+        // ignore storage failures
+    }
+}
+
+function isSharedFilterPanelCollapsed() {
+    return !!ensureSharedFilterPanelState().collapsed;
+}
+
+function setSharedFilterPanelCollapsed(collapsed) {
+    var state = ensureSharedFilterPanelState();
+    state.collapsed = !!collapsed;
+    state.open = !state.collapsed;
+    persistSharedFilterPanelState();
+}
+
+function getSharedFilterPanelToggleLabel(collapsed) {
+    return collapsed ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
+}
+
+function syncSharedFilterPanelCollapsedUi(panel) {
+    if (!panel) return;
+    var collapsed = isSharedFilterPanelCollapsed();
+    panel.classList.toggle('is-collapsed', collapsed);
+    panel.dataset.collapsed = collapsed ? '1' : '0';
+    panel.dataset.panelOpen = collapsed ? '0' : '1';
+
+    if (document && document.body) {
+        document.body.classList.toggle('shared-filters-collapsed', collapsed);
+        document.body.classList.toggle('shared-filters-expanded', !collapsed);
+    }
+
+    var body = panel.querySelector('.shared-filter-panel-body');
+    var head = panel.querySelector('.shared-filter-panel-head');
+    var rail = panel.querySelector('.shared-filter-panel-rail');
+    var footer = panel.querySelector('.shared-filter-panel-footer');
+    if (body) body.style.display = collapsed ? 'none' : 'flex';
+    if (head) head.classList.toggle('is-collapsed', collapsed);
+    if (rail) rail.style.display = collapsed ? 'flex' : 'none';
+    if (footer) footer.style.display = collapsed ? 'none' : 'block';
+
+    var toggle = panel.querySelector('.shared-filter-panel-toggle');
+    if (toggle) {
+        toggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+        toggle.title = getSharedFilterPanelToggleLabel(collapsed);
+        toggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+
+    if (typeof updateReportLayoutScrollZones === 'function') {
+        updateReportLayoutScrollZones();
+    }
+    if (typeof resizePlotlyScope === 'function') {
+        resizePlotlyScope(document);
+    }
+
+    var activeKey = String(panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '') || '').trim() || 'roles';
+    if (rail) {
+        rail.querySelectorAll('.shared-filter-panel-rail-button[data-section-key]').forEach(function(btn) {
+            var btnKey = String(btn.dataset.sectionKey || '').trim();
+            var isActive = btnKey === activeKey;
+            btn.classList.toggle('active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
+    var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
+    if (railToggle) {
+        railToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+        railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
+        railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
+    }
+}
 function ensureSharedFilterPanel() {
     var host = document.getElementById('role-selector');
     if (!host) return null;
     var panel = document.getElementById('global-shared-filter-panel');
     if (!panel) {
+        var panelState = typeof ensureSharedFilterPanelState === 'function'
+            ? ensureSharedFilterPanelState()
+            : { open: true };
         panel = document.createElement('div');
         panel.id = 'global-shared-filter-panel';
         panel.className = 'shared-filter-panel';
         panel.style.display = 'none';
-        panel.style.margin = '6px 0 10px';
-        panel.style.padding = '8px 10px';
-        panel.style.border = '1px solid rgba(148, 163, 184, 0.28)';
-        panel.style.borderRadius = '18px';
-        panel.style.background = 'rgba(255, 255, 255, 0.9)';
-        panel.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.05)';
-        panel.style.backdropFilter = 'blur(14px)';
+        panel.style.margin = '0';
+        panel.style.padding = '0';
+        panel.style.border = '0';
+        panel.style.borderRadius = '0';
+        panel.style.background = 'transparent';
+        panel.style.boxShadow = 'none';
+        panel.style.backdropFilter = 'none';
         panel.style.position = 'relative';
         panel.style.zIndex = '50';
-        panel.style.overflow = 'visible';
+        panel.style.overflow = 'hidden';
+        panel.style.height = '100%';
+        panel.style.minHeight = '0';
+        panel.style.boxSizing = 'border-box';
+        panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
+
+        var head = document.createElement('div');
+        head.className = 'shared-filter-panel-head';
+        head.style.display = 'flex';
+        head.style.alignItems = 'center';
+        head.style.justifyContent = 'space-between';
+        head.style.gap = '10px';
+        head.style.width = '100%';
+        head.style.boxSizing = 'border-box';
+        head.style.padding = '12px 14px';
+        head.style.background = '#262626';
+        head.style.color = '#f8fafc';
 
         var title = document.createElement('div');
         title.className = 'shared-filter-panel-title';
-        title.textContent = '';
-        title.style.fontWeight = '600';
+        title.textContent = 'Анализ вакансий HH';
+        title.style.fontWeight = '700';
         title.style.marginBottom = '0';
+        title.style.fontSize = '0.95rem';
+        title.style.lineHeight = '1.25';
+        title.style.color = '#f8fafc';
+
+        var toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'shared-filter-panel-toggle';
+        toggle.textContent = panelState.open === false ? '\u2630' : '\u25C0';
+        toggle.setAttribute('aria-expanded', panelState.open === false ? 'false' : 'true');
+        toggle.setAttribute('aria-label', panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
+        toggle.title = panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
+        toggle.style.flex = '0 0 auto';
+        toggle.style.border = '0';
+        toggle.style.borderRadius = '0';
+        toggle.style.background = 'rgba(255, 255, 255, 0.08)';
+        toggle.style.color = '#f8fafc';
+        toggle.style.padding = '5px 10px';
+        toggle.style.fontSize = '12px';
+        toggle.style.fontWeight = '600';
+        toggle.style.cursor = 'pointer';
+        toggle.addEventListener('click', function() {
+            if (typeof setSharedFilterPanelOpen === 'function') {
+                var nextOpen = !(panel.dataset.panelOpen === '1');
+                setSharedFilterPanelOpen(nextOpen);
+            }
+        });
+
+        head.appendChild(title);
+        head.appendChild(toggle);
+
+        var rail = document.createElement('div');
+        rail.className = 'shared-filter-panel-rail';
+        rail.style.display = 'none';
+        rail.style.flexDirection = 'column';
+        rail.style.alignItems = 'stretch';
+        rail.style.gap = '8px';
+        rail.style.padding = '10px 10px 12px';
+        rail.style.boxSizing = 'border-box';
+        rail.style.borderTop = '1px solid rgba(148, 163, 184, 0.14)';
+        rail.style.marginTop = '2px';
+
+        var railToggle = document.createElement('button');
+        railToggle.type = 'button';
+        railToggle.className = 'shared-filter-panel-rail-toggle';
+        railToggle.textContent = '\u25C0';
+        railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(false));
+        railToggle.title = getSharedFilterPanelToggleLabel(false);
+        railToggle.addEventListener('click', function() {
+            setSharedFilterPanelCollapsed(false);
+            syncSharedFilterPanelCollapsedUi(panel);
+        });
+        rail.appendChild(railToggle);
+
+        SHARED_FILTER_PANEL_SECTION_META.forEach(function(section) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'shared-filter-panel-rail-button';
+            btn.dataset.sectionKey = section.key;
+            btn.setAttribute('aria-pressed', 'false');
+            btn.setAttribute('aria-label', section.label);
+            btn.title = section.label;
+            btn.innerHTML = '<span class="shared-filter-panel-rail-icon" aria-hidden="true">' + section.icon + '</span>' +
+                '<span class="shared-filter-panel-rail-text">' + section.label + '</span>';
+            btn.addEventListener('click', function() {
+                panel.dataset.activeSection = section.key;
+                setSharedFilterPanelCollapsed(false);
+                if (typeof setSharedFilterPanelSectionOpen === 'function') {
+                    setSharedFilterPanelSectionOpen(section.key, true);
+                }
+                syncSharedFilterPanelCollapsedUi(panel);
+            });
+            rail.appendChild(btn);
+        });
 
         var hint = document.createElement('div');
         hint.className = 'shared-filter-panel-hint';
@@ -31,21 +233,36 @@ function ensureSharedFilterPanel() {
         hint.style.fontSize = '10px';
         hint.style.color = '#94a3b8';
         hint.style.marginBottom = '0';
+        hint.style.display = 'none';
 
         var body = document.createElement('div');
         body.className = 'shared-filter-panel-body';
-        body.style.display = 'flex';
-        body.style.flexWrap = 'wrap';
-        body.style.alignItems = 'flex-start';
-        body.style.gap = '6px';
+        body.style.display = panelState.open === false ? 'none' : 'flex';
+        body.style.flexDirection = 'column';
+        body.style.flexWrap = 'nowrap';
+        body.style.alignItems = 'stretch';
+        body.style.gap = '8px';
         body.style.width = '100%';
         body.style.maxWidth = '100%';
-        body.style.overflowX = 'visible';
-        body.style.overflowY = 'visible';
+        body.style.flex = '1 1 auto';
+        body.style.minHeight = '0';
+        body.style.overflowX = 'hidden';
+        body.style.overflowY = 'auto';
 
-        panel.appendChild(title);
+        var footer = document.createElement('div');
+        footer.className = 'shared-filter-panel-footer';
+        footer.style.marginTop = '12px';
+        footer.style.paddingTop = '10px';
+        footer.style.borderTop = '1px solid rgba(148, 163, 184, 0.16)';
+        footer.style.textAlign = 'center';
+        footer.style.fontSize = '0.84rem';
+        footer.style.color = '#64748b';
+
+        panel.appendChild(head);
         panel.appendChild(hint);
+        panel.appendChild(rail);
         panel.appendChild(body);
+        panel.appendChild(footer);
         host.appendChild(panel);
 
         if (!document.body.dataset.globalFilterMenusBound) {
@@ -66,6 +283,29 @@ function ensureSharedFilterPanel() {
             document.body.dataset.globalFilterMenusBound = '1';
         }
     }
+    var currentPanelState = typeof ensureSharedFilterPanelState === 'function'
+        ? ensureSharedFilterPanelState()
+        : { open: true };
+    panel.dataset.panelOpen = currentPanelState.open === false ? '0' : '1';
+    var headNode = panel.querySelector('.shared-filter-panel-head');
+    var bodyNode = panel.querySelector('.shared-filter-panel-body');
+    var toggleNode = panel.querySelector('.shared-filter-panel-toggle');
+    if (headNode) headNode.style.paddingBottom = currentPanelState.open === false ? '0' : '8px';
+    if (bodyNode) bodyNode.style.display = currentPanelState.open === false ? 'none' : 'flex';
+    if (toggleNode) {
+        toggleNode.textContent = currentPanelState.open === false ? '\u2630' : '\u25C0';
+        toggleNode.setAttribute('aria-expanded', currentPanelState.open === false ? 'false' : 'true');
+        toggleNode.setAttribute('aria-label', currentPanelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
+        toggleNode.title = currentPanelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
+    }
+    var footerNode = panel.querySelector('.shared-filter-panel-footer');
+    if (footerNode) {
+        var currentDate = document.body && document.body.dataset ? String(document.body.dataset.currentDate || '').trim() : '';
+        var currentTime = document.body && document.body.dataset ? String(document.body.dataset.currentTime || '').trim() : '';
+        footerNode.textContent = (currentDate && currentTime) ? ('Обновлено: ' + currentDate + ' ' + currentTime) : 'Обновлено';
+    }
+    panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '');
+    syncSharedFilterPanelCollapsedUi(panel);
     return panel;
 }
 
@@ -546,8 +786,10 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
             option.style.fontWeight = '600';
         }
         option.addEventListener('click', function() {
+            syncSelectionSnapshot();
             if (typeof applySkillsSearchSkillState === 'function') {
-                applySkillsSearchSkillState(block, state.includeSkills || [], state.excludeSkills || [], item.value);
+                var liveSelections = getSkillsSearchSelections(ctx.block);
+                applySkillsSearchSkillState(block, liveSelections.includeSkills || [], liveSelections.excludeSkills || [], item.value);
             }
             if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
             syncSkillsSearchFilterEffects(activeRole);
@@ -890,38 +1132,42 @@ function createMyFiltersControl(activeRole, analysisType) {
     wrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel';
     wrap.dataset.filterKey = 'shared-filter-presets';
     wrap.style.marginTop = '4px';
-    wrap.style.flex = '1 1 320px';
+    wrap.style.flex = '1 1 auto';
     wrap.style.minWidth = '0';
     wrap.style.width = '100%';
     wrap.style.maxWidth = '100%';
 
     var row = document.createElement('div');
     row.className = 'skills-search-favorites-panel-row';
+    row.style.display = 'flex';
+    row.style.flexDirection = 'column';
+    row.style.alignItems = 'stretch';
+    row.style.gap = '8px';
 
     var dropdownWrap = document.createElement('div');
     dropdownWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel-picker-wrap';
     dropdownWrap.style.flex = '0 0 auto';
-    dropdownWrap.style.minWidth = 'auto';
+    dropdownWrap.style.minWidth = '0';
+    dropdownWrap.style.width = '100%';
 
     var trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn skills-search-icon-btn skills-search-favorites-panel-action skills-search-favorites-panel-picker';
-    trigger.textContent = '\u2661';
+    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn skills-search-favorite-trigger shared-filter-preset-trigger';
     trigger.title = 'Избранные фильтры';
     trigger.setAttribute('aria-label', 'Избранные фильтры');
     trigger.setAttribute('aria-haspopup', 'menu');
     trigger.setAttribute('aria-expanded', 'false');
-    applyGlobalFilterIconButtonStyle(trigger, false);
     dropdownWrap.appendChild(trigger);
     row.appendChild(dropdownWrap);
 
     var inputWrap = document.createElement('div');
     inputWrap.className = 'skills-search-favorites-panel-field';
+    inputWrap.style.width = '100%';
 
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
-    input.placeholder = activeItem ? activeItem.name : 'Сохранить фильтр';
+    input.placeholder = 'Сохранить набор';
     input.autocomplete = 'off';
     input.spellcheck = false;
     inputWrap.appendChild(input);
@@ -942,11 +1188,11 @@ function createMyFiltersControl(activeRole, analysisType) {
     menu.style.marginTop = '0';
     menu.style.padding = '6px';
     menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '12px';
+    menu.style.borderRadius = '0';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '280px';
-    menu.style.maxWidth = 'calc(100vw - 48px)';
+    menu.style.width = '100%';
+    menu.style.maxWidth = '100%';
     menu.style.maxHeight = '280px';
     menu.style.overflowY = 'auto';
     bindGlobalFilterMenuScrollLock(menu);
@@ -971,14 +1217,19 @@ function createMyFiltersControl(activeRole, analysisType) {
         var currentActive = currentState.activeId
             ? (currentItems.find(function(item) { return item.id === currentState.activeId; }) || null)
             : null;
+        var activeName = currentActive ? currentActive.name : 'Не выбрано';
         trigger.classList.toggle('is-active', !!currentActive);
-        trigger.textContent = currentActive ? '\u2665' : '\u2661';
         trigger.title = currentActive ? ('Мои фильтры: ' + currentActive.name) : 'Мои фильтры';
         trigger.setAttribute('aria-label', trigger.title);
-        input.placeholder = currentActive ? currentActive.name : 'Сохранить фильтр';
         saveBtn.title = currentActive ? ('Сохранить текущий фильтр: ' + currentActive.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
         syncSaveButtonState();
+        trigger.innerHTML =
+            '<span class="skills-search-favorite-trigger-body">' +
+                '<span class="skills-search-favorite-trigger-title">Избранное</span>' +
+                '<span class="skills-search-favorite-trigger-value">' + escapeHtml(activeName) + '</span>' +
+            '</span>' +
+            '<span class="skills-search-favorite-trigger-arrow" aria-hidden="true">\u25BE</span>';
 
         menu.innerHTML = '';
         var clearBtn = document.createElement('button');
@@ -1297,6 +1548,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     applyGlobalFilterIconButtonStyle(allBtn, false);
     allBtn.addEventListener('click', function(e) {
         e.stopPropagation();
+        syncSelectionSnapshot();
         var nextSkills = ctx.skills.map(function(item) { return item.skill; });
         applySkillsSearchSkillState(
             ctx.block,
@@ -1318,6 +1570,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     applyGlobalFilterIconButtonStyle(clearBtn, false);
     clearBtn.addEventListener('click', function(e) {
         e.stopPropagation();
+        syncSelectionSnapshot();
         applySkillsSearchSkillState(
             ctx.block,
             isExcludeMode ? (getSkillsSearchSelections(ctx.block).includeSkills || []) : [],
@@ -1417,6 +1670,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
         row.title = '';
         row.addEventListener('click', function(e) {
             e.stopPropagation();
+            syncSelectionSnapshot();
             toggleSkillsSearchSkillState(ctx.block, displaySkill, isExcludeMode ? 'exclude' : 'include');
             updateSkillsSearchResults(ctx.block);
             syncSkillsSearchFilterEffects(activeRole);

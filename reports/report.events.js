@@ -603,11 +603,11 @@ document.addEventListener('click', function(e) {
     var block = toggleBtn.closest('.skills-search-content');
     if (!block) return;
     var panel = block.querySelector('.skills-search-panel');
-    if (!panel) return;
-    panel.classList.toggle('collapsed');
-    var expanded = !panel.classList.contains('collapsed');
+    if (!panel) panel = block;
+    var collapsed = panel.classList.toggle('collapsed');
+    var expanded = !collapsed;
     toggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-    toggleBtn.innerHTML = expanded ? '&#9650;' : '&#9660;';
+    toggleBtn.textContent = expanded ? '\u25B2' : '\u25BC';
     updateSkillsSearchSummaryLine(block);
 });
 
