@@ -6914,6 +6914,96 @@ body.report-dashboard .analysis-tabs {
     margin-bottom: 10px !important;
 }
 
+body.report-dashboard .summary-return-tabs,
+body.report-dashboard .analysis-tabs {
+    margin: 0 0 10px !important;
+    padding: 0 !important;
+    gap: 16px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab,
+body.report-dashboard .summary-return-tabs .analysis-button,
+body.report-dashboard .summary-return-tabs .summary-return-tab,
+body.report-dashboard .analysis-tabs .analysis-text-tab,
+body.report-dashboard .analysis-tabs .analysis-button {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #5f7084 !important;
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+    font-weight: 500 !important;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .analysis-button .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .summary-return-tab .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-text-tab .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-button .shared-filter-group-title-label {
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab:hover,
+body.report-dashboard .summary-return-tabs .analysis-button:hover,
+body.report-dashboard .summary-return-tabs .summary-return-tab:hover,
+body.report-dashboard .analysis-tabs .analysis-text-tab:hover,
+body.report-dashboard .analysis-tabs .analysis-button:hover {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #233142 !important;
+    transform: translateY(-1px);
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab.active,
+body.report-dashboard .summary-return-tabs .analysis-button.active,
+body.report-dashboard .summary-return-tabs .summary-return-tab.active,
+body.report-dashboard .analysis-tabs .analysis-text-tab.active,
+body.report-dashboard .analysis-tabs .analysis-button.active {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #B0B9BD !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab.active .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .analysis-button.active .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .summary-return-tab.active .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-text-tab.active .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-button.active .shared-filter-group-title-label {
+    font-weight: 700 !important;
+    color: #B0B9BD !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab:focus-visible,
+body.report-dashboard .summary-return-tabs .analysis-button:focus-visible,
+body.report-dashboard .summary-return-tabs .summary-return-tab:focus-visible,
+body.report-dashboard .analysis-tabs .analysis-text-tab:focus-visible,
+body.report-dashboard .analysis-tabs .analysis-button:focus-visible {
+    outline: 2px solid rgba(148, 163, 184, 0.55);
+    outline-offset: 2px;
+}
+
 body.report-dashboard .monthly-skills-month-tabs {
     margin-top: 10px !important;
 }
@@ -7149,14 +7239,16 @@ body.report-dashboard .dashboard-topbar-brand-subtitle {
 
 body.report-dashboard .dashboard-topbar-meta {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     flex: 1 1 auto;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 10px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 8px;
     min-width: 0;
     font-size: 0.78rem;
     color: rgba(226, 232, 240, 0.76);
+    min-height: 52px;
 }
 
 body.report-dashboard .dashboard-topbar-meta-group {
@@ -7166,31 +7258,85 @@ body.report-dashboard .dashboard-topbar-meta-group {
     justify-content: flex-end;
     gap: 6px;
     min-width: 0;
+    width: 100%;
+    min-height: 20px;
 }
 
-body.report-dashboard .dashboard-topbar-meta .tab-button {
+body.report-dashboard .dashboard-topbar-meta-secondary.is-empty {
+    visibility: hidden;
+}
+
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    min-height: 30px;
-    padding: 6px 11px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    background: rgba(255, 255, 255, 0.05);
+    justify-content: flex-start;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
     box-shadow: none;
-    font-size: 0.74rem;
-    line-height: 1;
-    white-space: nowrap;
+    color: #5f7084;
+    font-size: 0.84rem;
+    line-height: 1.2;
+    font-weight: 500;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
 }
 
-body.report-dashboard .dashboard-topbar-meta .tab-button.active {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: rgba(255, 255, 255, 0.18);
-    box-shadow: 0 6px 16px rgba(2, 6, 23, 0.18);
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button .shared-filter-group-title-label {
+    font-size: 0.84rem;
+    line-height: 1.2;
 }
 
-body.report-dashboard .dashboard-topbar-meta .tab-button:hover {
-    background: rgba(255, 255, 255, 0.09);
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button:hover {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: #233142;
+    transform: translateY(-1px);
+}
+
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button.active {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: #B0B9BD;
+}
+
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button.active .shared-filter-group-title-label {
+    font-weight: 700;
+    color: #B0B9BD;
+}
+
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button:focus-visible {
+    outline: 2px solid rgba(148, 163, 184, 0.55);
+    outline-offset: 2px;
+}
+
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-nav-button {
+    min-height: 0;
+    padding: 0;
+    font-size: 0.84rem;
+    letter-spacing: 0.01em;
+}
+
+body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-subnav-button {
+    min-height: 0;
+    padding: 0;
+    font-size: 0.84rem;
+    opacity: 0.98;
+}
+
+body.report-dashboard .dashboard-topbar-separator {
+    flex: 0 0 auto;
+    color: rgba(176, 185, 189, 0.6);
+    font-size: 0.8rem;
+    line-height: 1.2;
+    user-select: none;
 }
 
 body.report-dashboard .dashboard-main .role-content .tabs {
@@ -7586,6 +7732,10 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     }
 
     body.report-dashboard .dashboard-topbar-meta {
+        justify-content: flex-start;
+    }
+
+    body.report-dashboard .dashboard-topbar-meta-group {
         justify-content: flex-start;
     }
 

@@ -796,6 +796,9 @@ document.addEventListener("DOMContentLoaded", function() {
     syncRoleFilterState();
     updateRoleSelectionUI(selected);
     updateRoleView(selected);
+    if (typeof syncDashboardTopbarMeta === 'function') {
+        syncDashboardTopbarMeta(getActiveRoleContent(), uiState.global_analysis_type || '');
+    }
     if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading && typeof fetchMyResponsesVacancies === 'function') {
         uiState.my_responses_cache_loading = true;
         fetchMyResponsesVacancies().then(function() {
@@ -900,6 +903,9 @@ document.addEventListener("DOMContentLoaded", function() {
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
         ensureSummaryAnalysisTabs();
+        if (typeof syncDashboardTopbarMeta === 'function') {
+            syncDashboardTopbarMeta(getActiveRoleContent(), uiState.global_analysis_type || '');
+        }
         if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(null, null, true);
     }
 
@@ -913,6 +919,9 @@ document.addEventListener("DOMContentLoaded", function() {
         updateRoleSelectionUI(selected);
         updateRoleView(selected);
         ensureSummaryAnalysisTabs();
+        if (typeof syncDashboardTopbarMeta === 'function') {
+            syncDashboardTopbarMeta(getActiveRoleContent(), uiState.global_analysis_type || '');
+        }
         if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(null, null, true);
     }
 

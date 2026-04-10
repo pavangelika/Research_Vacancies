@@ -114,53 +114,186 @@ function updateViewToggleIcons(root) {
     });
     syncResponsiveViewModeButtons(root);
 }
+var DASHBOARD_TOP_NAV_SECTIONS = [
+    {
+        key: 'dashboard',
+        label: 'Дашборд',
+        items: [
+            { key: 'overview', label: 'Общее' },
+            { key: 'top', label: 'Топ' },
+            { key: 'market-trends', label: 'Тренды рынка' }
+        ]
+    },
+    {
+        key: 'detail',
+        label: 'Детальный анализ',
+        items: [
+            { key: 'activity', label: 'Динамика вакансий' },
+            { key: 'weekday', label: 'Дни активности' },
+            { key: 'skills-monthly', label: 'Топ-навыки' },
+            { key: 'salary', label: 'Вилка зарплат' },
+            { key: 'employer-analysis', label: 'Анализ компаний' }
+        ]
+    },
+    {
+        key: 'summary',
+        label: 'Сравнительный анализ',
+        items: [
+            { key: 'activity', label: 'Динамика по ролям' },
+            { key: 'weekday', label: 'Лидер публикаций' },
+            { key: 'skills-monthly', label: 'Стоимость навыков' },
+            { key: 'salary', label: 'Вилка по ролям' }
+        ]
+    },
+    { key: 'skills-search', label: 'Поиск вакансий', items: [] },
+    { key: 'my-responses', label: 'Мои отклики', items: [] },
+    { key: 'responses-calendar', label: 'Календарь', items: [] }
+];
+
 function getDashboardTopbarMetaHost() {
     return document.getElementById('dashboard-topbar-meta') || document.querySelector('.dashboard-topbar-meta');
 }
-function cloneDashboardTopbarMetaButton(sourceButton) {
-    if (!sourceButton || !sourceButton.tagName || sourceButton.tagName !== 'BUTTON') return null;
-    var clone = sourceButton.cloneNode(true);
-    clone.removeAttribute('id');
-    clone.removeAttribute('onclick');
-    clone.onclick = null;
-    clone.type = 'button';
-    clone.classList.add('dashboard-topbar-meta-tab-button');
-    clone.setAttribute('aria-pressed', sourceButton.classList.contains('active') ? 'true' : 'false');
-    clone.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (sourceButton.disabled) return;
-        if (!sourceButton.isConnected) return;
-        sourceButton.click();
-    });
-    return clone;
+
+function getTopNavigationSection(sectionKey) {
+    var key = String(sectionKey || '').trim();
+    return DASHBOARD_TOP_NAV_SECTIONS.find(function(section) {
+        return section.key === key;
+    }) || null;
 }
-function appendDashboardTopbarMetaGroup(host, source, sectionKey) {
-    if (!host || !source) return false;
-    var buttons = Array.from(source.children).filter(function(node) {
-        return node && node.tagName === 'BUTTON';
-    });
-    if (!buttons.length) return false;
-    var group = document.createElement('div');
-    group.className = 'dashboard-topbar-meta-group';
-    if (sectionKey) group.dataset.topbarSection = sectionKey;
-    buttons.forEach(function(button) {
-        var clone = cloneDashboardTopbarMetaButton(button);
-        if (clone) group.appendChild(clone);
-    });
-    if (!group.children.length) return false;
-    host.appendChild(group);
-    return true;
+
+function normalizeTopNavigationSection(analysisType, activeRole) {
+    var current = String(analysisType || (activeRole && activeRole.dataset && activeRole.dataset.activeAnalysis) || uiState.global_analysis_type || '').trim();
+    if (uiState.all_roles_active || (activeRole && activeRole.id === 'role-all')) return 'summary';
+    if (current === 'totals') return 'dashboard';
+    if (current === 'activity' || current === 'weekday' || current === 'skills-monthly' || current === 'salary' || current === 'employer-analysis') return 'detail';
+    if (current === 'skills-search') return 'skills-search';
+    if (current === 'my-responses') return 'my-responses';
+    if (current === 'responses-calendar') return 'responses-calendar';
+    return 'dashboard';
 }
-function findVisibleTabContainer(root, selector) {
-    if (!root || !selector) return null;
-    var nodes = root.querySelectorAll(selector);
-    for (var i = 0; i < nodes.length; i++) {
-        var node = nodes[i];
-        if (!node) continue;
-        if (node.getClientRects && node.getClientRects().length) return node;
+
+function normalizeTopNavigationItem(sectionKey, activeRole, analysisType) {
+    var section = getTopNavigationSection(sectionKey);
+    if (!section) return '';
+    if (!section.items || !section.items.length) return section.key;
+
+    var current = String(analysisType || (activeRole && activeRole.dataset && activeRole.dataset.activeAnalysis) || uiState.global_analysis_type || '').trim();
+    if (section.key === 'dashboard') {
+        var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
+        return getTopNavigationSection(section.key).items.some(function(item) { return item.key === dashboardMode; }) ? dashboardMode : 'overview';
     }
-    return null;
+    if (section.key === 'detail') {
+        if (section.items.some(function(item) { return item.key === current; })) return current;
+        var lastDetail = activeRole && activeRole.dataset ? String(activeRole.dataset.lastDetailAnalysisType || '').trim() : '';
+        return section.items.some(function(item) { return item.key === lastDetail; }) ? lastDetail : 'activity';
+    }
+    if (section.key === 'summary') {
+        if (section.items.some(function(item) { return item.key === current; })) return current;
+        return 'activity';
+    }
+    return section.items[0] ? section.items[0].key : section.key;
 }
+
+function buildDashboardTopbarButtonHtml(sectionKey, label, isActive, itemKey, extraClass, level) {
+    var classes = ['dashboard-topbar-button', 'dashboard-topbar-text-button'];
+    if (extraClass) classes.push(extraClass);
+    if (isActive) classes.push('active');
+    if (level) classes.push('dashboard-topbar-' + level + '-button');
+    var attrs = [
+        'type="button"',
+        'class="' + classes.join(' ') + '"',
+        'data-topnav-section="' + escapeHtml(sectionKey) + '"'
+    ];
+    if (itemKey) attrs.push('data-topnav-item="' + escapeHtml(itemKey) + '"');
+    attrs.push('onclick="handleTopNavigationClick(\'' + escapeHtml(sectionKey) + '\'' + (itemKey ? ', \'' + escapeHtml(itemKey) + '\'' : ', null') + ')"');
+    return '<button ' + attrs.join(' ') + '><span class="shared-filter-group-title-label">' + escapeHtml(label) + '</span></button>';
+}
+
+function clickAnalysisButtonByType(root, analysisType) {
+    var container = getActiveRoleContent(root) || root || document;
+    var btn = findAnalysisButtonByType(container, analysisType);
+    if (btn) {
+        btn.click();
+        return true;
+    }
+    return false;
+}
+
+function scheduleTopNavigationAction(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(function() {
+            window.requestAnimationFrame(function() {
+                callback();
+            });
+        });
+        return;
+    }
+    setTimeout(callback, 0);
+}
+
+function handleTopNavigationClick(sectionKey, itemKey) {
+    var section = String(sectionKey || '').trim();
+    if (!section) return;
+    var targetItem = String(itemKey || '').trim();
+    var activeRole = getActiveRoleContent();
+
+    function exitSummaryIfNeeded(callback) {
+        if (!uiState.all_roles_active || !uiState.roleSelectionContext || typeof uiState.roleSelectionContext.setSummaryActive !== 'function') {
+            callback();
+            return;
+        }
+        uiState.roleSelectionContext.setSummaryActive(false);
+        scheduleTopNavigationAction(callback);
+    }
+
+    function activateSummary(targetType) {
+        var type = targetType || 'activity';
+        uiState.global_analysis_type = type;
+        if (uiState.roleSelectionContext && typeof uiState.roleSelectionContext.setSummaryActive === 'function') {
+            uiState.roleSelectionContext.setSummaryActive(true);
+        }
+        scheduleTopNavigationAction(function() {
+            var summaryRoot = getActiveRoleContent() || document.getElementById('role-all');
+            if (!clickAnalysisButtonByType(summaryRoot, type)) {
+                syncDashboardTopbarMeta(summaryRoot, type);
+            }
+        });
+    }
+
+    if (section === 'summary') {
+        activateSummary(targetItem || normalizeTopNavigationItem('summary', activeRole, uiState.global_analysis_type || 'activity'));
+        return;
+    }
+
+    exitSummaryIfNeeded(function() {
+        var role = getActiveRoleContent();
+        if (!role) return;
+        if (section === 'dashboard') {
+            var dashboardMode = targetItem || normalizeTopNavigationItem('dashboard', role, 'totals');
+            uiState.global_analysis_type = 'totals';
+            uiState.totals_dashboard_mode = dashboardMode || 'overview';
+            if (String(role.dataset && role.dataset.activeAnalysis || '') === 'totals') {
+                if (typeof renderGlobalTotalsFiltered === 'function') {
+                    renderGlobalTotalsFiltered(role);
+                }
+            } else if (!clickAnalysisButtonByType(role, 'totals') && typeof renderGlobalTotalsFiltered === 'function') {
+                renderGlobalTotalsFiltered(role);
+            }
+            syncDashboardTopbarMeta(role, 'totals');
+            return;
+        }
+        var targetAnalysis = section;
+        if (section === 'detail') {
+            targetAnalysis = targetItem || normalizeTopNavigationItem('detail', role, uiState.global_analysis_type || 'activity');
+        }
+        if (!clickAnalysisButtonByType(role, targetAnalysis)) {
+            if (targetAnalysis === 'totals' && typeof renderGlobalTotalsFiltered === 'function') {
+                renderGlobalTotalsFiltered(role);
+            }
+        }
+    });
+}
+
 function syncDashboardTopbarMeta(parentRole, analysisType) {
     var host = getDashboardTopbarMetaHost();
     if (!host) return;
@@ -169,36 +302,56 @@ function syncDashboardTopbarMeta(parentRole, analysisType) {
         host.innerHTML = '';
         host.dataset.activeRoleId = '';
         host.dataset.activeAnalysis = '';
+        host.dataset.activeTopnavSection = '';
+        host.dataset.activeTopnavItem = '';
         return;
     }
 
     var currentAnalysis = String(analysisType || activeRole.dataset.activeAnalysis || uiState.global_analysis_type || '').trim();
-    host.innerHTML = '';
+    var sectionKey = normalizeTopNavigationSection(currentAnalysis, activeRole);
+    var section = getTopNavigationSection(sectionKey) || getTopNavigationSection('dashboard');
+    var activeItem = normalizeTopNavigationItem(sectionKey, activeRole, currentAnalysis);
+    var separatorHtml = '<span class="dashboard-topbar-separator" aria-hidden="true">|</span>';
+    var hasSecondary = !!(section && section.items && section.items.length);
+    var topRows = [];
+
+    topRows.push(
+        '<div class="dashboard-topbar-meta-group dashboard-topbar-meta-primary" data-topnav-row="primary">' +
+            DASHBOARD_TOP_NAV_SECTIONS.map(function(item) {
+                return buildDashboardTopbarButtonHtml(
+                    item.key,
+                    item.label,
+                    item.key === sectionKey,
+                    null,
+                    'dashboard-topbar-nav-button',
+                    'nav'
+                );
+            }).join(separatorHtml) +
+        '</div>'
+    );
+
+    topRows.push(
+        '<div class="dashboard-topbar-meta-group dashboard-topbar-meta-secondary' + (hasSecondary ? '' : ' is-empty') + '" data-topnav-row="secondary" data-topnav-section="' + escapeHtml(section.key) + '">' +
+            (hasSecondary
+                ? section.items.map(function(item) {
+                    return buildDashboardTopbarButtonHtml(
+                        section.key,
+                        item.label,
+                        item.key === activeItem,
+                        item.key,
+                        'dashboard-topbar-subnav-button',
+                        'subnav'
+                    );
+                }).join(separatorHtml)
+                : '<span class="dashboard-topbar-placeholder" aria-hidden="true">&nbsp;</span>') +
+        '</div>'
+    );
+
+    host.innerHTML = topRows.join('');
     host.dataset.activeRoleId = activeRole.id || '';
     host.dataset.activeAnalysis = currentAnalysis;
-
-    appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.tabs.analysis-tabs'), 'analysis');
-    if (currentAnalysis === 'activity' || currentAnalysis === 'weekday' || currentAnalysis === 'skills-monthly' || currentAnalysis === 'salary' || currentAnalysis === 'employer-analysis') {
-        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.tabs.detail-analysis-tabs'), 'detail');
-    }
-    if (currentAnalysis === 'activity') {
-        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.activity-month-tabs') || activeRole.querySelector('.tabs.month-tabs.activity-only'), 'activity');
-    } else if (currentAnalysis === 'skills-monthly') {
-        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.monthly-skills-month-tabs'), 'skills-month');
-        var visibleSkillsMonth = activeRole.querySelector('.monthly-skills-month-content[style*="display: block"]') || activeRole.querySelector('.monthly-skills-month-content');
-        appendDashboardTopbarMetaGroup(host, visibleSkillsMonth ? visibleSkillsMonth.querySelector('.monthly-skills-exp-tabs') : null, 'skills-exp');
-    } else if (currentAnalysis === 'salary') {
-        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.salary-month-tabs'), 'salary-month');
-        var visibleSalaryMonth = activeRole.querySelector('.salary-month-content[style*="display: block"]') || activeRole.querySelector('.salary-month-content');
-        appendDashboardTopbarMetaGroup(host, visibleSalaryMonth ? visibleSalaryMonth.querySelector('.salary-exp-tabs') : null, 'salary-exp');
-    } else if (currentAnalysis === 'employer-analysis') {
-        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.employer-period-chips'), 'employer-period');
-    } else if (currentAnalysis === 'totals') {
-        var totalsSwitches = activeRole.querySelectorAll('.totals-switch');
-        totalsSwitches.forEach(function(row, index) {
-            appendDashboardTopbarMetaGroup(host, row, row.classList.contains('totals-dashboard-switch') ? 'totals-dashboard' : ('totals-switch-' + index));
-        });
-    }
+    host.dataset.activeTopnavSection = sectionKey;
+    host.dataset.activeTopnavItem = activeItem;
 }
 function stripChartTitleText(value) {
     return String(value || '')
@@ -6232,7 +6385,7 @@ function renderGlobalTotalsFiltered(parentRole) {
     function buildDashboardModeSwitchRow(currentValue) {
         return '<div class="tabs month-tabs totals-switch totals-dashboard-switch">' +
             [
-                { value: 'overview', label: 'Общие' },
+                { value: 'overview', label: 'Общее' },
                 { value: 'top', label: 'Топ' },
                 { value: 'market-trends', label: 'Тренды рынка' }
             ].map(function(v) {
@@ -6477,6 +6630,9 @@ function renderGlobalTotalsFiltered(parentRole) {
             uiState.my_responses_cache_loading = false;
         });
     }
+    if (typeof syncDashboardTopbarMeta === 'function') {
+        syncDashboardTopbarMeta(parentRole, 'totals');
+    }
     if (dashboardMode === 'market-trends') {
         var embeddedTrends = block.querySelector('.market-trends-content.market-trends-embedded');
         if (embeddedTrends) renderMarketTrends(parentRole, embeddedTrends);
@@ -6502,6 +6658,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             curr
         );
     });
+
 }
 
 function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {

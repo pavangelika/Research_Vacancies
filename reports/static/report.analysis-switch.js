@@ -272,6 +272,9 @@ function switchAnalysis(evt, analysisId) {
     parentRole.dataset.activeAnalysis = analysisType || '';
     syncDetailAnalysisUi(parentRole, analysisType);
     scheduleAnalysisUiRefresh(parentRole, analysisType);
+    if (typeof syncDashboardTopbarMeta === 'function') {
+        syncDashboardTopbarMeta(parentRole, analysisType);
+    }
 }
 
 function switchFromSummaryToAnalysis(analysisType) {

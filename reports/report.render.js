@@ -762,8 +762,18 @@ function renderAllRolesContainer(container, roleContents) {
                     '<div class="plotly-graph employer-analysis-graph" id="employer-analysis-graph-all" style="display: none;"></div>' +
                 '</div>' +
             '</div>'
-        ) : '<p>Нет данных анализа работодателей для выбранных ролей</p>') +
+    ) : '<p>Нет данных анализа работодателей для выбранных ролей</p>') +
     '</div>';
+
+    function buildUpperTextTabButtonHtml(label, className, attrs) {
+        var buttonClass = ['analysis-text-tab'];
+        String(className || '').split(/\s+/).forEach(function(token) {
+            if (token) buttonClass.push(token);
+        });
+        return '<button type="button" class="' + escapeHtml(buttonClass.join(' ')) + '"' + (attrs ? ' ' + attrs : '') + '>' +
+            '<span class="shared-filter-group-title-label">' + escapeHtml(label) + '</span>' +
+        '</button>';
+    }
 
     var summaryReturnTabs = Array.isArray(uiState.summary_return_tabs) ? uiState.summary_return_tabs.slice() : [];
     if (!summaryReturnTabs.length) {
@@ -783,9 +793,9 @@ function renderAllRolesContainer(container, roleContents) {
             var label = String((item && item.label) || '').trim();
             if (!type || !label) return '';
             if (type === 'summary') {
-                return '<button type="button" class="tab-button summary-return-tab active" data-preserve-label="1">' + escapeHtml(label) + '</button>';
+                return buildUpperTextTabButtonHtml(label, 'summary-return-tab active', 'data-preserve-label="1"');
             }
-            return '<button type="button" class="tab-button analysis-button summary-return-tab" data-preserve-label="1" onclick="switchFromSummaryToAnalysis(\'' + type + '\')">' + escapeHtml(label) + '</button>';
+            return buildUpperTextTabButtonHtml(label, 'analysis-button summary-return-tab', 'data-preserve-label="1" onclick="switchFromSummaryToAnalysis(\'' + type + '\')"');
         }).join('') +
     '</div>';
 
@@ -793,10 +803,10 @@ function renderAllRolesContainer(container, roleContents) {
         '<div class="role-period-label">Период публикации: ' + allRolesPeriod + '</div>' +
         summaryReturnTabsHtml +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')">Динамика по ролям</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')">Лидер публикаций</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')">Топ-навыки</button>' +
-            '<button class="tab-button analysis-button" data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')">Вилка по ролям</button>' +
+            buildUpperTextTabButtonHtml('Динамика по ролям', 'analysis-button active', 'data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')"') +
+            buildUpperTextTabButtonHtml('Лидер публикаций', 'analysis-button', 'data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')"') +
+            buildUpperTextTabButtonHtml('Топ-навыки', 'analysis-button', 'data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')"') +
+            buildUpperTextTabButtonHtml('Вилка по ролям', 'analysis-button', 'data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')"') +
         '</div>' +
         activityHtml +
         weekdayHtml +
