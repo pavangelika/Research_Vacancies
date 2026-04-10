@@ -274,20 +274,20 @@ function stripAxisTitles(layout) {
 }
 function applyIosChartDefaults(layout, traces) {
     if (!layout || typeof layout !== 'object') return;
-    var fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    var fontFamily = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
     var isHorizontal = isHorizontalBarChartData(traces);
     layout.font = layout.font || {};
     layout.font.family = fontFamily;
-    layout.font.color = layout.font.color || '#475569';
+    layout.font.color = layout.font.color || '#334155';
     layout.paper_bgcolor = 'rgba(0,0,0,0)';
     layout.plot_bgcolor = 'rgba(0,0,0,0)';
-    layout.colorway = layout.colorway || [CHART_COLORS.light, CHART_COLORS.medium, CHART_COLORS.dark, '#89a8c2', '#b7c8d8'];
+    layout.colorway = layout.colorway || [CHART_COLORS.light, CHART_COLORS.medium, CHART_COLORS.dark, '#22c55e', '#f59e0b'];
     layout.hoverlabel = layout.hoverlabel || {};
-    layout.hoverlabel.bgcolor = 'rgba(255,255,255,0.97)';
-    layout.hoverlabel.bordercolor = 'rgba(148, 163, 184, 0.16)';
+    layout.hoverlabel.bgcolor = 'rgba(15, 23, 42, 0.96)';
+    layout.hoverlabel.bordercolor = 'rgba(148, 163, 184, 0.24)';
     layout.hoverlabel.font = layout.hoverlabel.font || {};
     layout.hoverlabel.font.family = fontFamily;
-    layout.hoverlabel.font.color = '#0f172a';
+    layout.hoverlabel.font.color = '#f8fafc';
     layout.margin = layout.margin || {};
     layout.margin.t = Math.max(12, Number(layout.margin.t) || 0);
     layout.margin.b = Math.max(Number(layout.margin.b) || 0, 18);
@@ -299,12 +299,12 @@ function applyIosChartDefaults(layout, traces) {
         if (!axis || typeof axis !== 'object') return;
         axis.automargin = true;
         axis.showgrid = axis.showgrid !== false;
-        axis.gridcolor = axis.gridcolor || 'rgba(148, 163, 184, 0.14)';
+        axis.gridcolor = axis.gridcolor || 'rgba(148, 163, 184, 0.16)';
         axis.zeroline = false;
-        axis.linecolor = axis.linecolor || 'rgba(148, 163, 184, 0.18)';
+        axis.linecolor = axis.linecolor || 'rgba(148, 163, 184, 0.22)';
         axis.tickfont = axis.tickfont || {};
         axis.tickfont.family = fontFamily;
-        axis.tickfont.color = axis.tickfont.color || '#64748b';
+        axis.tickfont.color = axis.tickfont.color || '#475569';
     });
     if (isHorizontal) {
         layout.yaxis.autorange = 'reversed';
