@@ -6914,6 +6914,96 @@ body.report-dashboard .analysis-tabs {
     margin-bottom: 10px !important;
 }
 
+body.report-dashboard .summary-return-tabs,
+body.report-dashboard .analysis-tabs {
+    margin: 0 0 10px !important;
+    padding: 0 !important;
+    gap: 16px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab,
+body.report-dashboard .summary-return-tabs .analysis-button,
+body.report-dashboard .summary-return-tabs .summary-return-tab,
+body.report-dashboard .analysis-tabs .analysis-text-tab,
+body.report-dashboard .analysis-tabs .analysis-button {
+    appearance: none;
+    -webkit-appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #5f7084 !important;
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+    font-weight: 500 !important;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .analysis-button .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .summary-return-tab .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-text-tab .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-button .shared-filter-group-title-label {
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab:hover,
+body.report-dashboard .summary-return-tabs .analysis-button:hover,
+body.report-dashboard .summary-return-tabs .summary-return-tab:hover,
+body.report-dashboard .analysis-tabs .analysis-text-tab:hover,
+body.report-dashboard .analysis-tabs .analysis-button:hover {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #233142 !important;
+    transform: translateY(-1px);
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab.active,
+body.report-dashboard .summary-return-tabs .analysis-button.active,
+body.report-dashboard .summary-return-tabs .summary-return-tab.active,
+body.report-dashboard .analysis-tabs .analysis-text-tab.active,
+body.report-dashboard .analysis-tabs .analysis-button.active {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: #B0B9BD !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab.active .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .analysis-button.active .shared-filter-group-title-label,
+body.report-dashboard .summary-return-tabs .summary-return-tab.active .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-text-tab.active .shared-filter-group-title-label,
+body.report-dashboard .analysis-tabs .analysis-button.active .shared-filter-group-title-label {
+    font-weight: 700 !important;
+    color: #B0B9BD !important;
+}
+
+body.report-dashboard .summary-return-tabs .analysis-text-tab:focus-visible,
+body.report-dashboard .summary-return-tabs .analysis-button:focus-visible,
+body.report-dashboard .summary-return-tabs .summary-return-tab:focus-visible,
+body.report-dashboard .analysis-tabs .analysis-text-tab:focus-visible,
+body.report-dashboard .analysis-tabs .analysis-button:focus-visible {
+    outline: 2px solid rgba(148, 163, 184, 0.55);
+    outline-offset: 2px;
+}
+
 body.report-dashboard .monthly-skills-month-tabs {
     margin-top: 10px !important;
 }
@@ -7249,7 +7339,7 @@ body.report-dashboard .dashboard-topbar-separator {
     user-select: none;
 }
 
-body.report-dashboard .dashboard-main .role-content .tabs {
+body.report-dashboard .role-content .tabs {
     display: none !important;
 }
 
@@ -7287,6 +7377,13 @@ body.report-dashboard .dashboard-main {
     background:
         radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 34%),
         linear-gradient(180deg, #f6f8fb 0%, #f2f5f8 100%);
+}
+
+body.report-dashboard .report-layout > #role-combined,
+body.report-dashboard .report-layout > #role-all {
+    grid-column: 2 / 3;
+    grid-row: 1;
+    min-width: 0;
 }
 
 body.report-dashboard .report-layout .role-selector {
@@ -7414,6 +7511,8 @@ body.report-dashboard .role-content {
     margin: 0;
     padding: 0;
     border-radius: 0;
+    border: 0;
+    background: transparent;
     box-shadow: none;
 }
 
@@ -7440,6 +7539,10 @@ body.report-dashboard .role-period-label {
     color: #334155;
     font-size: 0.92rem;
     font-weight: 700;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
 }
 
 body.report-dashboard .summary-return-tabs,
@@ -7613,6 +7716,17 @@ body.report-dashboard .totals-overview-chart-card {
     border-radius: 18px;
 }
 
+body.report-dashboard .totals-content {
+    align-self: stretch;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
     gap: 2px !important;
 }
@@ -7625,86 +7739,6 @@ body.report-dashboard #role-selector .shared-filter-group-body {
 
 body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group {
     margin-top: -1px !important;
-}
-
-body.report-dashboard .summary-return-tabs,
-body.report-dashboard .analysis-tabs,
-body.report-dashboard .month-tabs,
-body.report-dashboard .monthly-skills-month-tabs,
-body.report-dashboard .monthly-skills-exp-tabs,
-body.report-dashboard .salary-month-tabs,
-body.report-dashboard .salary-exp-tabs,
-body.report-dashboard .employer-period-chips {
-    margin: 0 0 10px !important;
-    padding: 10px !important;
-    gap: 8px !important;
-    justify-content: flex-start !important;
-    align-items: stretch !important;
-    background: linear-gradient(180deg, rgba(39, 50, 56, 0.98) 0%, rgba(24, 33, 39, 0.98) 100%) !important;
-    border: 1px solid #33424a !important;
-    border-radius: 18px !important;
-    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.18) !important;
-}
-
-body.report-dashboard .summary-return-tabs .tab-button,
-body.report-dashboard .analysis-tabs .tab-button,
-body.report-dashboard .month-tabs .tab-button,
-body.report-dashboard .monthly-skills-month-tabs .tab-button,
-body.report-dashboard .monthly-skills-exp-tabs .tab-button,
-body.report-dashboard .salary-month-tabs .tab-button,
-body.report-dashboard .salary-exp-tabs .tab-button,
-body.report-dashboard .employer-period-chips .tab-button {
-    flex: 0 1 auto !important;
-    min-height: 40px !important;
-    padding: 9px 14px !important;
-    border-radius: 0 !important;
-    border: 1px solid #455963 !important;
-    background: #36474f !important;
-    color: #d7e1e8 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-    transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
-}
-
-body.report-dashboard .summary-return-tabs .tab-button:hover,
-body.report-dashboard .analysis-tabs .tab-button:hover,
-body.report-dashboard .month-tabs .tab-button:hover,
-body.report-dashboard .monthly-skills-month-tabs .tab-button:hover,
-body.report-dashboard .monthly-skills-exp-tabs .tab-button:hover,
-body.report-dashboard .salary-month-tabs .tab-button:hover,
-body.report-dashboard .salary-exp-tabs .tab-button:hover,
-body.report-dashboard .employer-period-chips .tab-button:hover {
-    background: #41555f !important;
-    border-color: #546972 !important;
-    color: #eef4f7 !important;
-    transform: translateY(-1px) !important;
-}
-
-body.report-dashboard .summary-return-tabs .tab-button.active,
-body.report-dashboard .analysis-tabs .tab-button.active,
-body.report-dashboard .month-tabs .tab-button.active,
-body.report-dashboard .monthly-skills-month-tabs .tab-button.active,
-body.report-dashboard .monthly-skills-exp-tabs .tab-button.active,
-body.report-dashboard .salary-month-tabs .tab-button.active,
-body.report-dashboard .salary-exp-tabs .tab-button.active,
-body.report-dashboard .employer-period-chips .tab-button.active {
-    background: #4a5f69 !important;
-    color: #f8fafc !important;
-    border-color: #6a7f89 !important;
-    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18) !important;
-    transform: translateY(-1px) !important;
-}
-
-body.report-dashboard .summary-return-tabs .tab-button:focus-visible,
-body.report-dashboard .analysis-tabs .tab-button:focus-visible,
-body.report-dashboard .month-tabs .tab-button:focus-visible,
-body.report-dashboard .monthly-skills-month-tabs .tab-button:focus-visible,
-body.report-dashboard .monthly-skills-exp-tabs .tab-button:focus-visible,
-body.report-dashboard .salary-month-tabs .tab-button:focus-visible,
-body.report-dashboard .salary-exp-tabs .tab-button:focus-visible,
-body.report-dashboard .employer-period-chips .tab-button:focus-visible {
-    outline: 2px solid rgba(148, 163, 184, 0.55);
-    outline-offset: 2px;
 }
 
 @media (max-width: 1200px) {
@@ -7771,94 +7805,4 @@ body.report-dashboard .employer-period-chips .tab-button:focus-visible {
     body.report-dashboard #global-shared-filter-panel .shared-filter-panel-head .shared-filter-panel-title {
         font-size: 0.98rem !important;
     }
-}
-
-body.report-dashboard .summary-return-tabs,
-body.report-dashboard .analysis-tabs {
-    margin: 0 0 10px !important;
-    padding: 0 !important;
-    gap: 16px !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-}
-
-body.report-dashboard .summary-return-tabs .analysis-text-tab,
-body.report-dashboard .summary-return-tabs .analysis-button,
-body.report-dashboard .summary-return-tabs .summary-return-tab,
-body.report-dashboard .analysis-tabs .analysis-text-tab,
-body.report-dashboard .analysis-tabs .analysis-button {
-    appearance: none;
-    -webkit-appearance: none;
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    color: #5f7084 !important;
-    font-size: 0.84rem !important;
-    line-height: 1.2 !important;
-    font-weight: 500 !important;
-    text-align: left;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    cursor: pointer;
-    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
-}
-
-body.report-dashboard .summary-return-tabs .analysis-text-tab .shared-filter-group-title-label,
-body.report-dashboard .summary-return-tabs .analysis-button .shared-filter-group-title-label,
-body.report-dashboard .summary-return-tabs .summary-return-tab .shared-filter-group-title-label,
-body.report-dashboard .analysis-tabs .analysis-text-tab .shared-filter-group-title-label,
-body.report-dashboard .analysis-tabs .analysis-button .shared-filter-group-title-label {
-    font-size: 0.84rem !important;
-    line-height: 1.2 !important;
-}
-
-body.report-dashboard .summary-return-tabs .analysis-text-tab:hover,
-body.report-dashboard .summary-return-tabs .analysis-button:hover,
-body.report-dashboard .summary-return-tabs .summary-return-tab:hover,
-body.report-dashboard .analysis-tabs .analysis-text-tab:hover,
-body.report-dashboard .analysis-tabs .analysis-button:hover {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    color: #233142 !important;
-    transform: translateY(-1px);
-}
-
-body.report-dashboard .summary-return-tabs .analysis-text-tab.active,
-body.report-dashboard .summary-return-tabs .analysis-button.active,
-body.report-dashboard .summary-return-tabs .summary-return-tab.active,
-body.report-dashboard .analysis-tabs .analysis-text-tab.active,
-body.report-dashboard .analysis-tabs .analysis-button.active {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    color: #B0B9BD !important;
-}
-
-body.report-dashboard .summary-return-tabs .analysis-text-tab.active .shared-filter-group-title-label,
-body.report-dashboard .summary-return-tabs .analysis-button.active .shared-filter-group-title-label,
-body.report-dashboard .summary-return-tabs .summary-return-tab.active .shared-filter-group-title-label,
-body.report-dashboard .analysis-tabs .analysis-text-tab.active .shared-filter-group-title-label,
-body.report-dashboard .analysis-tabs .analysis-button.active .shared-filter-group-title-label {
-    font-weight: 700 !important;
-    color: #B0B9BD !important;
-}
-
-body.report-dashboard .summary-return-tabs .analysis-text-tab:focus-visible,
-body.report-dashboard .summary-return-tabs .analysis-button:focus-visible,
-body.report-dashboard .summary-return-tabs .summary-return-tab:focus-visible,
-body.report-dashboard .analysis-tabs .analysis-text-tab:focus-visible,
-body.report-dashboard .analysis-tabs .analysis-button:focus-visible {
-    outline: 2px solid rgba(148, 163, 184, 0.55);
-    outline-offset: 2px;
 }
