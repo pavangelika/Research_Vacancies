@@ -1,13 +1,13 @@
 // ---------- Shared Filters Module ----------
 var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
 var SHARED_FILTER_PANEL_SECTION_META = [
-    { key: 'my-filters', label: 'Избранное', icon: '\u2605', title: 'Избранные фильтры' },
-    { key: 'roles', label: 'Роли', icon: '\u25A6', title: 'Фильтры роли' },
-    { key: 'salary', label: 'Зарплата', icon: '\u20BD', title: 'Фильтры зарплаты' },
-    { key: 'responses', label: 'Отклики', icon: '\u2709', title: 'Фильтры откликов' },
-    { key: 'top', label: 'Топ', icon: '\u25B2', title: 'Размер топа' },
-    { key: 'employer', label: 'Работодатель', icon: '\u2302', title: 'Работодатель' },
-    { key: 'skills', label: 'Навыки', icon: '\u2699', title: 'Фильтры навыков' }
+    { key: 'my-filters', label: 'Избранное', icon: 'favorite', title: 'Избранное' },
+    { key: 'roles', label: 'Роль', icon: 'person', title: 'Роль' },
+    { key: 'salary', label: 'Зарплата', icon: 'payments', title: 'Зарплата' },
+    { key: 'responses', label: 'Отклики', icon: 'mail', title: 'Отклики' },
+    { key: 'top', label: 'Топ', icon: 'format_size', title: 'Топ' },
+    { key: 'vacancy', label: 'Вакансия', icon: 'work', title: 'Вакансия' },
+    { key: 'skills', label: 'Навыки', icon: 'local_fire_department', title: 'Навыки' }
 ];
 
 function getSharedFilterPanelSectionMeta(sectionKey) {
@@ -22,21 +22,27 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     if (current === 'skills-search') return 'skills';
     if (current === 'my-responses' || current === 'responses-calendar') return 'responses';
     if (current === 'salary') return 'salary';
-    if (current === 'employer-analysis') return 'employer';
+    if (current === 'employer-analysis') return 'vacancy';
     if (current === 'totals' || current === 'market-trends') return 'top';
     if (current === 'activity' || current === 'weekday' || current === 'skills-monthly') return 'roles';
     if (current === 'all' || current === 'combined') return 'roles';
     return 'roles';
 }
 
+function normalizeSharedFilterSectionKey(sectionKey) {
+    var key = String(sectionKey || '').trim();
+    if (key === 'employer') return 'vacancy';
+    return key;
+}
+
 function getSharedFilterPanelActiveSectionKey(analysisType) {
     var state = ensureSharedFilterPanelState();
     var current = getSharedFilterPanelSectionKeyForAnalysis(analysisType);
-    return String(state.activeSection || current || 'roles').trim() || 'roles';
+    return normalizeSharedFilterSectionKey(state.activeSection || current || 'roles') || 'roles';
 }
 
 function setSharedFilterPanelActiveSection(sectionKey) {
-    var key = String(sectionKey || '').trim();
+    var key = normalizeSharedFilterSectionKey(sectionKey);
     if (!key) return;
     var state = ensureSharedFilterPanelState();
     state.activeSection = key;
@@ -55,6 +61,9 @@ function ensureSharedFilterPanelState() {
     }
     if (!uiState.shared_filter_panel_state.sections || typeof uiState.shared_filter_panel_state.sections !== 'object') {
         uiState.shared_filter_panel_state.sections = {};
+    }
+    if (!Object.prototype.hasOwnProperty.call(uiState.shared_filter_panel_state.sections, 'roles')) {
+        uiState.shared_filter_panel_state.sections.roles = true;
     }
     if (typeof uiState.shared_filter_panel_state.activeSection !== 'string') {
         uiState.shared_filter_panel_state.activeSection = 'roles';
@@ -213,7 +222,7 @@ function ensureSharedFilterPanel() {
 
         var title = document.createElement('div');
         title.className = 'shared-filter-panel-title';
-        title.textContent = 'Анализ вакансий HH';
+        title.textContent = 'Фильтры';
         title.style.fontWeight = '600';
         title.style.textAlign = 'left';
         title.style.fontSize = '0.95rem';
@@ -269,8 +278,19 @@ function ensureSharedFilterPanel() {
             btn.setAttribute('aria-pressed', 'false');
             btn.setAttribute('aria-label', section.label);
             btn.title = section.label;
-            btn.innerHTML = '<span class="shared-filter-panel-rail-icon" aria-hidden="true">' + section.icon + '</span>' +
-                '<span class="shared-filter-panel-rail-text">' + section.label + '</span>';
+            if (typeof createSharedFilterMaterialIcon === 'function') {
+                btn.appendChild(createSharedFilterMaterialIcon(section.icon, 'shared-filter-panel-rail-icon'));
+            } else {
+                var icon = document.createElement('span');
+                icon.className = 'shared-filter-panel-rail-icon material-symbols-outlined';
+                icon.setAttribute('aria-hidden', 'true');
+                icon.textContent = section.icon;
+                btn.appendChild(icon);
+            }
+            var text = document.createElement('span');
+            text.className = 'shared-filter-panel-rail-text';
+            text.textContent = section.label;
+            btn.appendChild(text);
             btn.addEventListener('click', function() {
                 focusSharedFilterPanelSection(section.key);
             });

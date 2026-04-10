@@ -1,13 +1,13 @@
-// ---------- Shared Filters Module ----------
+﻿// ---------- Shared Filters Module ----------
 var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
 var SHARED_FILTER_PANEL_SECTION_META = [
-    { key: 'my-filters', label: 'Избранное', icon: '\u2605' },
-    { key: 'roles', label: 'Роли', icon: '\u25A6' },
-    { key: 'salary', label: 'Зарплата', icon: '\u20BD' },
-    { key: 'responses', label: 'Отклики', icon: '\u2709' },
-    { key: 'top', label: 'Топ', icon: '\u25B2' },
-    { key: 'employer', label: 'Работодатель', icon: '\u2302' },
-    { key: 'skills', label: 'Навыки', icon: '\u2699' }
+    { key: 'my-filters', label: 'Избранное', icon: 'favorite' },
+    { key: 'roles', label: 'Роль', icon: 'person' },
+    { key: 'salary', label: 'Зарплата', icon: 'payments' },
+    { key: 'responses', label: 'Отклики', icon: 'mail' },
+    { key: 'top', label: 'Топ', icon: 'format_size' },
+    { key: 'vacancy', label: 'Вакансия', icon: 'work' },
+    { key: 'skills', label: 'Навыки', icon: 'local_fire_department' }
 ];
 
 function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
@@ -15,7 +15,7 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     if (current === 'skills-search') return 'skills';
     if (current === 'my-responses' || current === 'responses-calendar') return 'responses';
     if (current === 'salary') return 'salary';
-    if (current === 'employer-analysis') return 'employer';
+    if (current === 'employer-analysis') return 'vacancy';
     if (current === 'totals' || current === 'market-trends') return 'top';
     if (current === 'activity' || current === 'weekday' || current === 'skills-monthly') return 'roles';
     if (current === 'all' || current === 'combined') return 'roles';
@@ -24,10 +24,25 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
 
 function ensureSharedFilterPanelState() {
     if (!uiState.shared_filter_panel_state || typeof uiState.shared_filter_panel_state !== 'object') {
-        uiState.shared_filter_panel_state = { collapsed: false };
+        uiState.shared_filter_panel_state = { collapsed: false, open: true, sections: {}, activeSection: 'roles', lastAnalysis: '' };
     }
     if (typeof uiState.shared_filter_panel_state.collapsed !== 'boolean') {
         uiState.shared_filter_panel_state.collapsed = false;
+    }
+    if (typeof uiState.shared_filter_panel_state.open !== 'boolean') {
+        uiState.shared_filter_panel_state.open = true;
+    }
+    if (!uiState.shared_filter_panel_state.sections || typeof uiState.shared_filter_panel_state.sections !== 'object') {
+        uiState.shared_filter_panel_state.sections = {};
+    }
+    if (!Object.prototype.hasOwnProperty.call(uiState.shared_filter_panel_state.sections, 'roles')) {
+        uiState.shared_filter_panel_state.sections.roles = true;
+    }
+    if (typeof uiState.shared_filter_panel_state.activeSection !== 'string') {
+        uiState.shared_filter_panel_state.activeSection = 'roles';
+    }
+    if (typeof uiState.shared_filter_panel_state.lastAnalysis !== 'string') {
+        uiState.shared_filter_panel_state.lastAnalysis = '';
     }
     return uiState.shared_filter_panel_state;
 }
@@ -150,7 +165,7 @@ function ensureSharedFilterPanel() {
 
         var title = document.createElement('div');
         title.className = 'shared-filter-panel-title';
-        title.textContent = 'Анализ вакансий HH';
+        title.textContent = 'Фильтры';
         title.style.fontWeight = '700';
         title.style.marginBottom = '0';
         title.style.fontSize = '0.95rem';
@@ -213,8 +228,19 @@ function ensureSharedFilterPanel() {
             btn.setAttribute('aria-pressed', 'false');
             btn.setAttribute('aria-label', section.label);
             btn.title = section.label;
-            btn.innerHTML = '<span class="shared-filter-panel-rail-icon" aria-hidden="true">' + section.icon + '</span>' +
-                '<span class="shared-filter-panel-rail-text">' + section.label + '</span>';
+            if (typeof createSharedFilterMaterialIcon === 'function') {
+                btn.appendChild(createSharedFilterMaterialIcon(section.icon, 'shared-filter-panel-rail-icon'));
+            } else {
+                var icon = document.createElement('span');
+                icon.className = 'shared-filter-panel-rail-icon material-symbols-outlined';
+                icon.setAttribute('aria-hidden', 'true');
+                icon.textContent = section.icon;
+                btn.appendChild(icon);
+            }
+            var text = document.createElement('span');
+            text.className = 'shared-filter-panel-rail-text';
+            text.textContent = section.label;
+            btn.appendChild(text);
             btn.addEventListener('click', function() {
                 panel.dataset.activeSection = section.key;
                 setSharedFilterPanelCollapsed(false);
@@ -464,7 +490,7 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
 
     var caption = document.createElement('div');
     caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Фильтры откликов';
+    caption.textContent = 'Отклики';
     wrap.appendChild(caption);
 
     var currencyWrap = document.createElement('div');
@@ -1021,7 +1047,7 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
         trigger.classList.toggle('is-active', !!activeItem);
         trigger.textContent = activeItem ? '\u2665' : '\u2661';
         input.placeholder = activeItem ? activeItem.name : 'Сохранить фильтр';
-        trigger.title = activeItem ? ('Мои фильтры: ' + activeItem.name) : 'Мои фильтры';
+        trigger.title = activeItem ? ('Избранное: ' + activeItem.name) : 'Избранное';
         trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = activeItem ? ('Сохранить текущий фильтр: ' + activeItem.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
@@ -1215,7 +1241,7 @@ function createMyFiltersControl(activeRole, analysisType) {
             : null;
         var activeName = currentActive ? currentActive.name : 'Не выбрано';
         trigger.classList.toggle('is-active', !!currentActive);
-        trigger.title = currentActive ? ('Мои фильтры: ' + currentActive.name) : 'Мои фильтры';
+        trigger.title = currentActive ? ('Избранное: ' + currentActive.name) : 'Избранное';
         trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = currentActive ? ('Сохранить текущий фильтр: ' + currentActive.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
@@ -1751,7 +1777,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         limitHead.className = 'totals-top-filter-limit-head';
 
         var limitLabel = document.createElement('span');
-        limitLabel.textContent = 'Размер топа';
+        limitLabel.textContent = 'Топ';
         limitHead.appendChild(limitLabel);
 
         var limitBadge = document.createElement('strong');

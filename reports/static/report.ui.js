@@ -14,6 +14,9 @@
     targetRole.offsetWidth;
     targetRole.classList.add('role-switch-enter');
     evt.currentTarget.className += " active";
+    if (typeof syncDashboardTopbarMeta === 'function') {
+        syncDashboardTopbarMeta(targetRole, uiState.global_analysis_type || uiState[getAnalysisStateKey(roleId)] || '');
+    }
 
     var savedType = uiState.global_analysis_type || uiState[getAnalysisStateKey(roleId)] || 'totals';
     if (savedType) {
@@ -31,20 +34,8 @@
 function updateReportLayoutScrollZones() {
     var layout = document.querySelector('.report-layout');
     if (!layout) return;
-
-    var viewportWidth = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-    if (viewportWidth <= 960) {
-        layout.classList.remove('report-layout-scroll-ready');
-        layout.style.removeProperty('--report-layout-scroll-height');
-        return;
-    }
-
-    var rect = layout.getBoundingClientRect();
-    var viewportHeight = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
-    var availableHeight = Math.max(360, Math.floor(viewportHeight - rect.top - 12));
-
-    layout.style.setProperty('--report-layout-scroll-height', availableHeight + 'px');
-    layout.classList.add('report-layout-scroll-ready');
+    layout.classList.remove('report-layout-scroll-ready');
+    layout.style.removeProperty('--report-layout-scroll-height');
 }
 
 var VIEW_ICON_TABLE = '\u25A4';
@@ -55,6 +46,51 @@ function getViewModeMeta(mode) {
     if (mode === 'table') return { title: 'Таблица', icon: VIEW_ICON_TABLE, className: 'table-btn' };
     if (mode === 'graph') return { title: 'График', icon: VIEW_ICON_GRAPH, className: 'graph-btn' };
     return { title: 'Вместе', icon: VIEW_ICON_TOGETHER, className: 'together-btn' };
+}
+
+function getSharedFilterGroupIcon(sectionKey) {
+    var key = String(sectionKey || '').trim();
+    if (!key) return '';
+    var meta = typeof getSharedFilterPanelSectionMeta === 'function'
+        ? getSharedFilterPanelSectionMeta(key)
+        : null;
+    if (meta && meta.icon) return meta.icon;
+    var fallbackIcons = {
+        'my-filters': 'favorite',
+        'roles': 'person',
+        'salary': 'payments',
+        'responses': 'mail',
+        'top': 'format_size',
+        'employer': 'business',
+        'vacancy': 'work',
+        'skills': 'local_fire_department'
+    };
+    return fallbackIcons[key] || '';
+}
+
+function createSharedFilterMaterialIcon(iconName, className) {
+    var icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined' + (className ? ' ' + className : '');
+    icon.setAttribute('aria-hidden', 'true');
+    var name = String(iconName || '').trim();
+    var svgName = name.replace(/_/g, '-');
+    var svgUrl = 'https://api.iconify.design/material-symbols:' + encodeURIComponent(svgName) + '.svg';
+    icon.dataset.icon = name;
+    icon.style.display = 'inline-block';
+    icon.style.flex = '0 0 auto';
+    icon.style.width = '24px';
+    icon.style.height = '24px';
+    icon.style.backgroundColor = 'currentColor';
+    icon.style.webkitMaskImage = 'url("' + svgUrl + '")';
+    icon.style.maskImage = 'url("' + svgUrl + '")';
+    icon.style.webkitMaskRepeat = 'no-repeat';
+    icon.style.maskRepeat = 'no-repeat';
+    icon.style.webkitMaskPosition = 'center';
+    icon.style.maskPosition = 'center';
+    icon.style.webkitMaskSize = '100% 100%';
+    icon.style.maskSize = '100% 100%';
+    icon.textContent = '';
+    return icon;
 }
 
 function buildViewModeButtonsHtml(modes, buttonClass, activeMode) {
@@ -77,6 +113,92 @@ function updateViewToggleIcons(root) {
         btn.title = meta.title;
     });
     syncResponsiveViewModeButtons(root);
+}
+function getDashboardTopbarMetaHost() {
+    return document.getElementById('dashboard-topbar-meta') || document.querySelector('.dashboard-topbar-meta');
+}
+function cloneDashboardTopbarMetaButton(sourceButton) {
+    if (!sourceButton || !sourceButton.tagName || sourceButton.tagName !== 'BUTTON') return null;
+    var clone = sourceButton.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.removeAttribute('onclick');
+    clone.onclick = null;
+    clone.type = 'button';
+    clone.classList.add('dashboard-topbar-meta-tab-button');
+    clone.setAttribute('aria-pressed', sourceButton.classList.contains('active') ? 'true' : 'false');
+    clone.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (sourceButton.disabled) return;
+        if (!sourceButton.isConnected) return;
+        sourceButton.click();
+    });
+    return clone;
+}
+function appendDashboardTopbarMetaGroup(host, source, sectionKey) {
+    if (!host || !source) return false;
+    var buttons = Array.from(source.children).filter(function(node) {
+        return node && node.tagName === 'BUTTON';
+    });
+    if (!buttons.length) return false;
+    var group = document.createElement('div');
+    group.className = 'dashboard-topbar-meta-group';
+    if (sectionKey) group.dataset.topbarSection = sectionKey;
+    buttons.forEach(function(button) {
+        var clone = cloneDashboardTopbarMetaButton(button);
+        if (clone) group.appendChild(clone);
+    });
+    if (!group.children.length) return false;
+    host.appendChild(group);
+    return true;
+}
+function findVisibleTabContainer(root, selector) {
+    if (!root || !selector) return null;
+    var nodes = root.querySelectorAll(selector);
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (!node) continue;
+        if (node.getClientRects && node.getClientRects().length) return node;
+    }
+    return null;
+}
+function syncDashboardTopbarMeta(parentRole, analysisType) {
+    var host = getDashboardTopbarMetaHost();
+    if (!host) return;
+    var activeRole = getActiveRoleContent(parentRole);
+    if (!activeRole) {
+        host.innerHTML = '';
+        host.dataset.activeRoleId = '';
+        host.dataset.activeAnalysis = '';
+        return;
+    }
+
+    var currentAnalysis = String(analysisType || activeRole.dataset.activeAnalysis || uiState.global_analysis_type || '').trim();
+    host.innerHTML = '';
+    host.dataset.activeRoleId = activeRole.id || '';
+    host.dataset.activeAnalysis = currentAnalysis;
+
+    appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.tabs.analysis-tabs'), 'analysis');
+    if (currentAnalysis === 'activity' || currentAnalysis === 'weekday' || currentAnalysis === 'skills-monthly' || currentAnalysis === 'salary' || currentAnalysis === 'employer-analysis') {
+        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.tabs.detail-analysis-tabs'), 'detail');
+    }
+    if (currentAnalysis === 'activity') {
+        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.activity-month-tabs') || activeRole.querySelector('.tabs.month-tabs.activity-only'), 'activity');
+    } else if (currentAnalysis === 'skills-monthly') {
+        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.monthly-skills-month-tabs'), 'skills-month');
+        var visibleSkillsMonth = activeRole.querySelector('.monthly-skills-month-content[style*="display: block"]') || activeRole.querySelector('.monthly-skills-month-content');
+        appendDashboardTopbarMetaGroup(host, visibleSkillsMonth ? visibleSkillsMonth.querySelector('.monthly-skills-exp-tabs') : null, 'skills-exp');
+    } else if (currentAnalysis === 'salary') {
+        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.salary-month-tabs'), 'salary-month');
+        var visibleSalaryMonth = activeRole.querySelector('.salary-month-content[style*="display: block"]') || activeRole.querySelector('.salary-month-content');
+        appendDashboardTopbarMetaGroup(host, visibleSalaryMonth ? visibleSalaryMonth.querySelector('.salary-exp-tabs') : null, 'salary-exp');
+    } else if (currentAnalysis === 'employer-analysis') {
+        appendDashboardTopbarMetaGroup(host, activeRole.querySelector('.employer-period-chips'), 'employer-period');
+    } else if (currentAnalysis === 'totals') {
+        var totalsSwitches = activeRole.querySelectorAll('.totals-switch');
+        totalsSwitches.forEach(function(row, index) {
+            appendDashboardTopbarMetaGroup(host, row, row.classList.contains('totals-dashboard-switch') ? 'totals-dashboard' : ('totals-switch-' + index));
+        });
+    }
 }
 function stripChartTitleText(value) {
     return String(value || '')
@@ -6411,6 +6533,7 @@ function createSharedFilterGroup(title, nodes) {
     var sectionKey = String(options && options.sectionKey || '').trim();
     var isCollapsible = !!sectionKey;
     var isOpen = isCollapsible ? (state.sections && state.sections[sectionKey] !== false) : true;
+    var sectionIcon = getSharedFilterGroupIcon(sectionKey);
 
     var wrap = document.createElement('section');
     wrap.className = 'shared-filter-group';
@@ -6443,9 +6566,13 @@ function createSharedFilterGroup(title, nodes) {
         heading.style.minHeight = '0';
         heading.style.padding = '4px 0 3px';
         heading.style.justifyContent = 'flex-start';
-        heading.style.gap = '0';
+        heading.style.gap = '8px';
         heading.style.cursor = isCollapsible ? 'pointer' : 'default';
+        if (sectionIcon) {
+            heading.appendChild(createSharedFilterMaterialIcon(sectionIcon, 'shared-filter-group-title-icon'));
+        }
         var label = document.createElement('span');
+        label.className = 'shared-filter-group-title-label';
         label.textContent = titleText;
         label.style.flex = '1 1 auto';
         label.style.minWidth = '0';
@@ -6538,6 +6665,9 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         : { open: true, sections: {} };
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
     var currentForFilters = current;
+    if (typeof syncDashboardTopbarMeta === 'function') {
+        syncDashboardTopbarMeta(activeRole, current);
+    }
     panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
     panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(current);
     body.style.display = panelState.open === false ? 'none' : 'flex';
@@ -6582,12 +6712,12 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude')
         : null;
 
-    var favoritesGroup = createSharedFilterGroup('Мои фильтры', [
+    var favoritesGroup = createSharedFilterGroup('Избранное', [
         favoritesControl
     ], { sectionKey: 'my-filters' });
     if (favoritesGroup) body.appendChild(favoritesGroup);
 
-    var roleGroup = createSharedFilterGroup('Фильтры роли', [
+    var roleGroup = createSharedFilterGroup('Роль', [
         rolesControl,
         trendsExcludedRolesControl,
         periodsControl,
@@ -6596,24 +6726,24 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     ], { sectionKey: 'roles' });
     if (roleGroup) body.appendChild(roleGroup);
 
-    var salaryGroup = createSharedFilterGroup('Фильтры зарплаты', [
+    var salaryGroup = createSharedFilterGroup('Зарплата', [
         currencyControl,
         countryControl,
         salaryMetricControl
     ], { sectionKey: 'salary' });
     if (salaryGroup) body.appendChild(salaryGroup);
 
-    var responsesGroup = createSharedFilterGroup('Фильтры откликов', [
+    var responsesGroup = createSharedFilterGroup('Отклики', [
         interviewControl,
         resultControl,
         offerControl
     ], { sectionKey: 'responses' });
     if (responsesGroup) body.appendChild(responsesGroup);
 
-    var topGroup = createSharedFilterGroup('Размер топа', [topControl], { sectionKey: 'top' });
+    var topGroup = createSharedFilterGroup('Топ', [topControl], { sectionKey: 'top' });
     if (topGroup) body.appendChild(topGroup);
 
-    var vacancyGroup = createSharedFilterGroup('Фильтры вакансии', [
+    var vacancyGroup = createSharedFilterGroup('Вакансия', [
         employerControl,
         accreditationControl,
         coverLetterControl,
@@ -6621,7 +6751,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     ], { sectionKey: 'vacancy' });
     if (vacancyGroup) body.appendChild(vacancyGroup);
 
-    var skillsGroup = createSharedFilterGroup('Фильтры навыков', [
+    var skillsGroup = createSharedFilterGroup('Навыки', [
         skillsLogicControl,
         skillsIncludeControl,
         skillsExcludeControl

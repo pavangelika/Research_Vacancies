@@ -6846,6 +6846,50 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-togg
     color: #bcc5c9 !important;
 }
 
+body.report-dashboard #global-shared-filter-panel .material-symbols-outlined,
+body.report-dashboard #role-selector .shared-filter-group-title-icon,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon {
+    font-family: 'Material Symbols Outlined';
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    user-select: none;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon,
+body.report-dashboard #role-selector .shared-filter-group-title-icon {
+    flex: 0 0 20px;
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    font-size: 20px;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-text,
+body.report-dashboard #role-selector .shared-filter-group-title-label {
+    font-size: 0.84rem;
+    line-height: 1.2;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button {
+    gap: 10px;
+}
+
+body.report-dashboard #role-selector .shared-filter-group-title {
+    gap: 10px !important;
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+}
+
 /* Report spacing normalization */
 body.report-dashboard .report-header {
     gap: 12px !important;
@@ -6964,4 +7008,627 @@ body.report-dashboard .employer-analysis-table-container {
 body.report-dashboard .employer-analysis-table-container table {
     margin-left: auto !important;
     margin-right: auto !important;
+}
+
+body.report-dashboard .dashboard-main {
+    overflow: visible !important;
+}
+
+body.report-dashboard .role-content {
+    overflow: visible !important;
+}
+
+body.report-dashboard .report-layout.report-layout-scroll-ready {
+    height: auto !important;
+    min-height: 100vh !important;
+    max-height: none !important;
+}
+
+body.report-dashboard .report-layout.report-layout-scroll-ready .role-selector,
+body.report-dashboard .report-layout.report-layout-scroll-ready .role-content {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group {
+    margin-top: 0 !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group-title {
+    gap: 8px !important;
+    padding-top: 3px !important;
+    padding-bottom: 2px !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group-title-icon {
+    flex: 0 0 auto;
+    width: 18px;
+    text-align: center;
+    font-size: 0.94rem;
+    line-height: 1;
+    opacity: 0.92;
+}
+
+body.report-dashboard #role-selector .shared-filter-group-body {
+    gap: 4px !important;
+    padding-top: 2px !important;
+    padding-bottom: 6px !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-open="0"] {
+    margin-bottom: 2px !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-open="0"] .shared-filter-group-title {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
+    gap: 6px !important;
+}
+
+/* Dashboard ref skin */
+body.report-dashboard {
+    --dashboard-shell-bg: #f3f5f7;
+    --dashboard-sidebar-bg: #263238;
+    --dashboard-sidebar-bg-strong: #1f2a30;
+    --dashboard-sidebar-border: rgba(255, 255, 255, 0.06);
+    --dashboard-sidebar-text: #d6dde2;
+    --dashboard-sidebar-muted: #93a1ab;
+    --dashboard-surface: #ffffff;
+    --dashboard-surface-soft: #f7f9fb;
+    --dashboard-border: #dce3ea;
+    --dashboard-border-strong: rgba(27, 39, 51, 0.12);
+    --dashboard-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+    --dashboard-shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.05);
+    padding: 0;
+    background: linear-gradient(180deg, #edf1f4 0%, #f6f8fa 18%, #eef2f5 100%);
+}
+
+body.report-dashboard .dashboard-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+}
+
+body.report-dashboard .dashboard-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 18px 24px;
+    background: linear-gradient(180deg, #2a3439 0%, #222b30 100%);
+    color: #f8fafc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.14);
+}
+
+body.report-dashboard .dashboard-topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+body.report-dashboard .dashboard-topbar-mark {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 45%, #e91e63 100%);
+    box-shadow:
+        0 0 0 4px rgba(255, 255, 255, 0.06),
+        0 10px 22px rgba(59, 130, 246, 0.22);
+    flex: 0 0 auto;
+}
+
+body.report-dashboard .dashboard-topbar-brand-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+body.report-dashboard .dashboard-topbar-brand-name {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #f8fafc;
+}
+
+body.report-dashboard .dashboard-topbar-brand-subtitle {
+    font-size: 0.8rem;
+    color: rgba(226, 232, 240, 0.78);
+}
+
+body.report-dashboard .dashboard-topbar-meta {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+    min-width: 0;
+    font-size: 0.78rem;
+    color: rgba(226, 232, 240, 0.76);
+}
+
+body.report-dashboard .dashboard-topbar-meta-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+}
+
+body.report-dashboard .dashboard-topbar-meta .tab-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 6px 11px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: none;
+    font-size: 0.74rem;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+body.report-dashboard .dashboard-topbar-meta .tab-button.active {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 6px 16px rgba(2, 6, 23, 0.18);
+}
+
+body.report-dashboard .dashboard-topbar-meta .tab-button:hover {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+body.report-dashboard .dashboard-main .role-content .tabs {
+    display: none !important;
+}
+
+body.report-dashboard .report-layout {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0;
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    background: transparent;
+}
+
+body.report-dashboard.shared-filters-collapsed .report-layout {
+    grid-template-columns: 72px minmax(0, 1fr);
+}
+
+body.report-dashboard .dashboard-sidebar {
+    position: sticky;
+    top: 72px;
+    align-self: stretch;
+    min-height: calc(100vh - 72px);
+    max-height: calc(100vh - 72px);
+    overflow: hidden;
+    background: linear-gradient(180deg, var(--dashboard-sidebar-bg) 0%, var(--dashboard-sidebar-bg-strong) 100%);
+    border-right: 1px solid var(--dashboard-sidebar-border);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
+}
+
+body.report-dashboard .dashboard-main {
+    min-width: 0;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 34%),
+        linear-gradient(180deg, #f6f8fb 0%, #f2f5f8 100%);
+}
+
+body.report-dashboard .report-layout .role-selector {
+    height: 100%;
+    min-height: 0;
+    background: transparent;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+body.report-dashboard #global-shared-filter-panel {
+    width: 100%;
+    min-height: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--dashboard-sidebar-text) !important;
+    overflow: hidden !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-head {
+    padding: 18px 16px 12px !important;
+    background: transparent !important;
+    color: #f8fafc !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f8fafc !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-hint {
+    color: var(--dashboard-sidebar-muted) !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-toggle,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-toggle {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #f8fafc !important;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 14px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0;
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--dashboard-sidebar-text) !important;
+    box-shadow: none;
+    transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button:hover,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button:focus-visible {
+    transform: translateX(2px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #ffffff !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon {
+    width: 20px;
+    font-size: 0.98rem;
+    color: inherit;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-text {
+    font-size: 0.84rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: inherit;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding: 10px 14px 14px !important;
+    gap: 10px !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-footer {
+    margin-top: auto;
+    padding: 12px 16px 16px;
+    text-align: center;
+    color: rgba(226, 232, 240, 0.76);
+    font-size: 0.76rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.report-dashboard .role-content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+body.report-dashboard .role-period-label,
+body.report-dashboard .tabs,
+body.report-dashboard .analysis-flex,
+body.report-dashboard .skills-search-content,
+body.report-dashboard .weekday-content,
+body.report-dashboard .skills-monthly-content,
+body.report-dashboard .salary-content,
+body.report-dashboard .employer-analysis-content,
+body.report-dashboard .totals-content,
+body.report-dashboard .response-calendar-content,
+body.report-dashboard .my-responses-content {
+    border: 1px solid var(--dashboard-border);
+    border-radius: 22px;
+    background: var(--dashboard-surface);
+    box-shadow: var(--dashboard-shadow);
+}
+
+body.report-dashboard .role-period-label {
+    margin: 0;
+    padding: 16px 18px;
+    color: #334155;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+body.report-dashboard .summary-return-tabs,
+body.report-dashboard .analysis-tabs,
+body.report-dashboard .monthly-skills-month-tabs,
+body.report-dashboard .monthly-skills-exp-tabs,
+body.report-dashboard .salary-month-tabs,
+body.report-dashboard .salary-exp-tabs,
+body.report-dashboard .employer-period-chips {
+    margin: 0;
+    padding: 10px;
+    gap: 8px;
+    justify-content: flex-start;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--dashboard-border);
+    border-radius: 18px;
+    box-shadow: var(--dashboard-shadow-soft);
+}
+
+body.report-dashboard .summary-return-tabs,
+body.report-dashboard .analysis-tabs {
+    flex-wrap: wrap;
+}
+
+body.report-dashboard .summary-return-tabs .tab-button,
+body.report-dashboard .analysis-tabs .tab-button,
+body.report-dashboard .tabs .tab-button,
+body.report-dashboard .month-tabs .tab-button,
+body.report-dashboard .monthly-skills-month-tabs .tab-button,
+body.report-dashboard .monthly-skills-exp-tabs .tab-button,
+body.report-dashboard .salary-month-tabs .tab-button,
+body.report-dashboard .salary-exp-tabs .tab-button,
+body.report-dashboard .employer-period-chips .tab-button {
+    min-height: 40px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: linear-gradient(180deg, #ffffff 0%, #f4f7fa 100%);
+    color: #475569;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+body.report-dashboard .summary-return-tabs .tab-button.active,
+body.report-dashboard .analysis-tabs .tab-button.active,
+body.report-dashboard .tabs .tab-button.active,
+body.report-dashboard .month-tabs .tab-button.active,
+body.report-dashboard .monthly-skills-month-tabs .tab-button.active,
+body.report-dashboard .monthly-skills-exp-tabs .tab-button.active,
+body.report-dashboard .salary-month-tabs .tab-button.active,
+body.report-dashboard .salary-exp-tabs .tab-button.active,
+body.report-dashboard .employer-period-chips .tab-button.active {
+    background: linear-gradient(180deg, #24313b 0%, #1f2830 100%) !important;
+    color: #f8fafc !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18) !important;
+}
+
+body.report-dashboard .analysis-flex {
+    gap: 16px;
+    padding: 16px;
+    align-items: stretch;
+    justify-content: stretch;
+}
+
+body.report-dashboard .view-toggle-horizontal,
+body.report-dashboard .salary-view-toggle,
+body.report-dashboard .employer-side-toggle {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    margin-bottom: 0 !important;
+    border: 1px solid var(--dashboard-border) !important;
+    border-radius: 16px !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    box-shadow: var(--dashboard-shadow-soft) !important;
+}
+
+body.report-dashboard .view-mode-btn {
+    min-height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 10px !important;
+    border-radius: 10px !important;
+}
+
+body.report-dashboard .analysis-flex .table-container,
+body.report-dashboard .analysis-flex .plotly-graph {
+    margin: 0 !important;
+    min-width: 0;
+}
+
+body.report-dashboard .analysis-flex .table-container table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+body.report-dashboard .analysis-flex .table-container th,
+body.report-dashboard .analysis-flex .table-container td {
+    padding: 10px 12px;
+    border-color: rgba(226, 232, 240, 0.9);
+}
+
+body.report-dashboard .analysis-flex .table-container thead th {
+    background: #f8fafc;
+    color: #334155;
+}
+
+body.report-dashboard .skills-search-content,
+body.report-dashboard .weekday-content,
+body.report-dashboard .skills-monthly-content,
+body.report-dashboard .salary-content,
+body.report-dashboard .employer-analysis-content,
+body.report-dashboard .totals-content,
+body.report-dashboard .response-calendar-content,
+body.report-dashboard .my-responses-content {
+    padding: 16px;
+    gap: 14px;
+    border-radius: 22px;
+}
+
+body.report-dashboard .skills-search-results,
+body.report-dashboard .response-calendar-shell,
+body.report-dashboard .totals-layout,
+body.report-dashboard .totals-grid,
+body.report-dashboard .totals-overview-chart-card,
+body.report-dashboard .my-responses-results {
+    border-radius: 18px;
+}
+
+body.report-dashboard .skills-search-results {
+    margin-top: 0;
+    padding: 16px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: #ffffff;
+    box-shadow: var(--dashboard-shadow-soft);
+}
+
+body.report-dashboard .skills-search-summary-line,
+body.report-dashboard .skills-search-buttons {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+body.report-dashboard .employer-analysis-view {
+    justify-content: center;
+    align-items: flex-start;
+}
+
+body.report-dashboard .employer-analysis-table-container {
+    margin: 0 auto;
+    width: 100%;
+}
+
+body.report-dashboard .employer-analysis-table-container table {
+    width: 100%;
+}
+
+body.report-dashboard .response-calendar-shell {
+    background: transparent;
+    box-shadow: none;
+}
+
+body.report-dashboard .response-calendar-panel,
+body.report-dashboard .totals-kpi,
+body.report-dashboard .totals-card,
+body.report-dashboard .totals-overview-chart-card {
+    border-radius: 18px;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
+    gap: 2px !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group-body {
+    gap: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 2px !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group {
+    margin-top: -1px !important;
+}
+
+@media (max-width: 1200px) {
+    body.report-dashboard .report-layout {
+        grid-template-columns: minmax(280px, 300px) minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 960px) {
+    body.report-dashboard .dashboard-topbar {
+        position: static;
+        padding: 16px 18px;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    body.report-dashboard .dashboard-topbar-meta {
+        justify-content: flex-start;
+    }
+
+    body.report-dashboard .report-layout,
+    body.report-dashboard.shared-filters-collapsed .report-layout {
+        grid-template-columns: 1fr;
+    }
+
+    body.report-dashboard .dashboard-sidebar {
+        position: relative;
+        top: auto;
+        min-height: auto;
+        max-height: none;
+    }
+
+    body.report-dashboard .dashboard-main {
+        padding: 16px;
+    }
+
+    body.report-dashboard .role-content {
+        gap: 12px;
+    }
+
+    body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button,
+    body.report-dashboard #role-selector .shared-filter-group-title {
+        gap: 8px !important;
+    }
+
+    body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon,
+    body.report-dashboard #role-selector .shared-filter-group-title-icon {
+        width: 24px !important;
+        min-width: 24px !important;
+        height: 24px !important;
+        flex-basis: 24px !important;
+    }
+
+    body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-text,
+    body.report-dashboard #role-selector .shared-filter-group-title-label {
+        font-size: 0.82rem !important;
+        line-height: 1.15 !important;
+    }
+
+    body.report-dashboard #global-shared-filter-panel .shared-filter-panel-head .shared-filter-panel-title {
+        font-size: 0.98rem !important;
+    }
 }

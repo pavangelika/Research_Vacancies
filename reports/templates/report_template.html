@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анализ вакансий HH - {{ current_date }} {{ current_time }}</title>
+    <title>Анализ вакансий HH · Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/styles.css?v={{ asset_version }}">
     <script src="static/plotly-2.27.0.min.js?v={{ asset_version }}" charset="utf-8"></script>
     <script>
@@ -24,6 +27,16 @@
 </head>
 <body class="report-dashboard" data-current-date="{{ current_date }}" data-current-time="{{ current_time }}" data-asset-version="{{ asset_version }}">
     <div class="dashboard-shell">
+        <header class="dashboard-topbar" aria-label="Шапка дашборда">
+            <div class="dashboard-topbar-brand">
+                <span class="dashboard-topbar-mark" aria-hidden="true"></span>
+                <div class="dashboard-topbar-brand-copy">
+                    <div class="dashboard-topbar-brand-name">Анализ вакансий HH</div>
+                </div>
+            </div>
+            <div class="dashboard-topbar-meta" id="dashboard-topbar-meta" aria-label="Вкладки">
+            </div>
+        </header>
         <div class="report-layout">
             <aside class="dashboard-sidebar">
                 <div id="role-selector" class="role-selector"></div>
