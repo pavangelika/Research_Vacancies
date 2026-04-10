@@ -6416,14 +6416,13 @@ function createSharedFilterGroup(title, nodes) {
     wrap.className = 'shared-filter-group';
     wrap.style.display = 'flex';
     wrap.style.flexDirection = 'column';
-    wrap.style.gap = '2px';
+    wrap.style.gap = '0';
     wrap.style.flex = '1 1 100%';
     wrap.style.width = '100%';
     wrap.style.maxWidth = '100%';
     wrap.style.padding = '0';
-    wrap.style.border = '1px solid rgba(148, 163, 184, 0.14)';
-    wrap.style.borderRadius = '0';
-    wrap.style.background = 'rgba(248, 250, 252, 0.84)';
+    wrap.style.marginTop = '0';
+    wrap.style.overflow = 'visible';
     wrap.style.boxSizing = 'border-box';
     if (sectionKey) wrap.dataset.sectionKey = sectionKey;
     if (isCollapsible) wrap.dataset.collapsible = '1';
@@ -6432,11 +6431,6 @@ function createSharedFilterGroup(title, nodes) {
     if (titleText) {
         var heading = document.createElement(isCollapsible ? 'button' : 'div');
         heading.className = 'shared-filter-group-title';
-        heading.textContent = titleText;
-        heading.style.fontSize = '11px';
-        heading.style.fontWeight = '700';
-        heading.style.color = '#334155';
-        heading.style.textTransform = 'none';
         heading.style.width = '100%';
         heading.style.boxSizing = 'border-box';
         heading.style.textAlign = 'left';
@@ -6446,30 +6440,23 @@ function createSharedFilterGroup(title, nodes) {
         heading.style.padding = '0';
         heading.style.display = 'flex';
         heading.style.alignItems = 'center';
-        heading.style.justifyContent = 'space-between';
-        heading.style.gap = '10px';
-        heading.style.minHeight = '28px';
-        heading.style.padding = '6px 10px';
+        heading.style.minHeight = '0';
+        heading.style.padding = '4px 0 3px';
+        heading.style.justifyContent = 'flex-start';
+        heading.style.gap = '0';
         heading.style.cursor = isCollapsible ? 'pointer' : 'default';
+        var label = document.createElement('span');
+        label.textContent = titleText;
+        label.style.flex = '1 1 auto';
+        label.style.minWidth = '0';
+        label.style.overflow = 'hidden';
+        label.style.textOverflow = 'ellipsis';
+        label.style.whiteSpace = 'nowrap';
+        label.style.lineHeight = '1.2';
+        heading.appendChild(label);
         if (isCollapsible) {
             heading.type = 'button';
             heading.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            var label = document.createElement('span');
-            label.textContent = titleText;
-            label.style.flex = '1 1 auto';
-            label.style.minWidth = '0';
-            label.style.overflow = 'hidden';
-            label.style.textOverflow = 'ellipsis';
-            label.style.whiteSpace = 'nowrap';
-            label.style.lineHeight = '1.2';
-            var arrow = document.createElement('span');
-            arrow.className = 'shared-filter-group-arrow';
-            arrow.textContent = isOpen ? '\u25B4' : '\u25BE';
-            arrow.style.flex = '0 0 auto';
-            arrow.style.opacity = '0.8';
-            heading.innerHTML = '';
-            heading.appendChild(label);
-            heading.appendChild(arrow);
             heading.addEventListener('click', function() {
                 if (typeof setSharedFilterPanelSectionOpen === 'function') {
                     setSharedFilterPanelSectionOpen(sectionKey, !(wrap.dataset.sectionOpen === '1'));
@@ -6484,11 +6471,12 @@ function createSharedFilterGroup(title, nodes) {
     body.style.display = isOpen ? 'flex' : 'none';
     body.style.flexWrap = 'wrap';
     body.style.alignItems = 'stretch';
-    body.style.gap = '4px';
+    body.style.gap = '6px';
     body.style.width = '100%';
     body.style.maxWidth = '100%';
     body.style.boxSizing = 'border-box';
-    body.style.padding = '0 10px 8px';
+    body.style.padding = '4px 0 10px';
+    body.style.overflow = 'visible';
     wrap.dataset.sectionOpen = isOpen ? '1' : '0';
 
     items.forEach(function(node) {
@@ -6528,10 +6516,8 @@ function setSharedFilterPanelSectionOpen(sectionKey, open) {
     group.dataset.sectionOpen = open ? '1' : '0';
     var body = group.querySelector('.shared-filter-group-body');
     var heading = group.querySelector('.shared-filter-group-title');
-    var arrow = group.querySelector('.shared-filter-group-arrow');
     if (body) body.style.display = open ? 'flex' : 'none';
     if (heading) heading.setAttribute('aria-expanded', open ? 'true' : 'false');
-    if (arrow) arrow.textContent = open ? '\u25B4' : '\u25BE';
 }
 
 function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {

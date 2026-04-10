@@ -103,7 +103,7 @@
              data-skills-monthly='{{ skills_monthly_role.months_list | tojson if skills_monthly_role else "[]" }}'>
             {% if skills_monthly_role and skills_monthly_role.months_list %}
                 <!-- Вкладки для выбора месяца -->
-                <div class="tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">
+                <div class="tabs monthly-skills-month-tabs">
                     {% for month_data in skills_monthly_role.months_list %}
                     <button class="tab-button monthly-skills-month-button" onclick="openMonthlySkillsMonthTab(event, 'ms-month-{{ role_index }}-{{ loop.index }}')">{{ month_data.month }}</button>
                     {% endfor %}
@@ -114,7 +114,7 @@
                 {% set month_index = loop.index %}
                 <div id="ms-month-{{ role_index }}-{{ month_index }}" class="monthly-skills-month-content" data-month='{{ month_data | tojson }}' style="display: none;">
                     <!-- Внутри месяца - вкладки для выбора опыта -->
-                    <div class="tabs monthly-skills-exp-tabs" style="justify-content: center; margin-top: 5px;">
+                    <div class="tabs monthly-skills-exp-tabs">
                         {% for exp in month_data.experiences %}
                         <button class="tab-button monthly-skills-exp-button" onclick="openMonthlySkillsExpTab(event, 'ms-exp-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
                         {% endfor %}
@@ -164,7 +164,7 @@
         <div class="employer-analysis-content" data-analysis="employer-analysis-{{ role_index }}" style="display: none;">
             {% if employer_analysis_role and employer_analysis_role.rows %}
             <div class="employer-topbar">
-                <div class="tabs month-tabs employer-period-chips" style="justify-content: center; margin: 8px 0;">
+                <div class="tabs month-tabs employer-period-chips">
                     <button type="button" class="tab-button month-button employer-period-chip active" data-month="all">За период</button>
                 </div>
                 <div class="employer-view-toggle employer-side-toggle">
@@ -173,9 +173,9 @@
                     <button class="view-mode-btn graph-btn employer-view-btn" data-view="graph" title="График">◔</button>
                 </div>
             </div>
-            <div class="analysis-flex employer-analysis-view" style="justify-content: center; align-items: flex-start;">
+            <div class="analysis-flex employer-analysis-view">
                 <div class="employer-analysis-main">
-                    <div class="table-container employer-analysis-table-container" style="margin: 0 auto;">
+                    <div class="table-container employer-analysis-table-container">
                         <table>
                             <thead>
                                 <tr>

@@ -187,11 +187,6 @@ function ensureSharedFilterPanel() {
         panel.style.display = 'none';
         panel.style.margin = '0';
         panel.style.padding = '0';
-        panel.style.border = '1px solid rgba(148, 163, 184, 0.18)';
-        panel.style.borderRadius = '0';
-        panel.style.background = 'rgba(255, 255, 255, 0.92)';
-        panel.style.boxShadow = 'none';
-        panel.style.backdropFilter = 'none';
         panel.style.position = 'relative';
         panel.style.zIndex = '50';
         panel.style.overflow = 'hidden';
@@ -221,7 +216,6 @@ function ensureSharedFilterPanel() {
         title.textContent = 'Анализ вакансий HH';
         title.style.fontWeight = '600';
         title.style.textAlign = 'left';
-        title.style.color = '#233142';
         title.style.fontSize = '0.95rem';
         title.style.minWidth = '0';
 
@@ -242,7 +236,7 @@ function ensureSharedFilterPanel() {
         hint.className = 'shared-filter-panel-hint';
         hint.textContent = '';
         hint.style.fontSize = '10px';
-        hint.style.color = '#94a3b8';
+        hint.style.marginBottom = '0';
         hint.style.display = 'none';
 
         var rail = document.createElement('div');
@@ -253,7 +247,6 @@ function ensureSharedFilterPanel() {
         rail.style.gap = '8px';
         rail.style.padding = '10px 10px 12px';
         rail.style.boxSizing = 'border-box';
-        rail.style.borderTop = '1px solid rgba(148, 163, 184, 0.14)';
         rail.style.marginTop = '2px';
 
         var railToggle = document.createElement('button');
@@ -302,10 +295,8 @@ function ensureSharedFilterPanel() {
         footer.className = 'shared-filter-panel-footer';
         footer.style.marginTop = '12px';
         footer.style.paddingTop = '10px';
-        footer.style.borderTop = '1px solid rgba(148, 163, 184, 0.16)';
         footer.style.textAlign = 'center';
         footer.style.fontSize = '0.84rem';
-        footer.style.color = '#64748b';
 
         head.appendChild(titleRow);
         head.appendChild(hint);
@@ -2396,13 +2387,15 @@ function pruneMarketTrendsExcludedRolesConflicts() {
 function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {
     var group = document.createElement('div');
     group.className = 'shared-filter-group';
-    group.style.marginTop = '8px';
+    group.style.marginTop = '0';
+    group.style.overflow = 'visible';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-group-caption';
     caption.textContent = label;
-    caption.style.fontSize = '12px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
+    caption.style.fontSize = '11px';
+    caption.style.fontWeight = '500';
+    caption.style.marginBottom = '4px';
     caption.style.color = 'var(--text-secondary, #52606d)';
     group.appendChild(caption);
 

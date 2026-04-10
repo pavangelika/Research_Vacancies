@@ -191,7 +191,6 @@ function ensureSharedFilterPanel() {
         rail.style.gap = '8px';
         rail.style.padding = '10px 10px 12px';
         rail.style.boxSizing = 'border-box';
-        rail.style.borderTop = '1px solid rgba(148, 163, 184, 0.14)';
         rail.style.marginTop = '2px';
 
         var railToggle = document.createElement('button');
@@ -231,7 +230,6 @@ function ensureSharedFilterPanel() {
         hint.className = 'shared-filter-panel-hint';
         hint.textContent = '';
         hint.style.fontSize = '10px';
-        hint.style.color = '#94a3b8';
         hint.style.marginBottom = '0';
         hint.style.display = 'none';
 
@@ -253,10 +251,8 @@ function ensureSharedFilterPanel() {
         footer.className = 'shared-filter-panel-footer';
         footer.style.marginTop = '12px';
         footer.style.paddingTop = '10px';
-        footer.style.borderTop = '1px solid rgba(148, 163, 184, 0.16)';
         footer.style.textAlign = 'center';
         footer.style.fontSize = '0.84rem';
-        footer.style.color = '#64748b';
 
         panel.appendChild(head);
         panel.appendChild(hint);
@@ -2313,13 +2309,15 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
 function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {
     var group = document.createElement('div');
     group.className = 'shared-filter-group';
-    group.style.marginTop = '8px';
+    group.style.marginTop = '0';
+    group.style.overflow = 'visible';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-group-caption';
     caption.textContent = label;
-    caption.style.fontSize = '12px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '6px';
+    caption.style.fontSize = '11px';
+    caption.style.fontWeight = '500';
+    caption.style.marginBottom = '4px';
     caption.style.color = 'var(--text-secondary, #52606d)';
     group.appendChild(caption);
 
