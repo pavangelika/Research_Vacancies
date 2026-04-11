@@ -3347,36 +3347,52 @@ function bindGlobalFilterMenuScrollLock(menu) {
     menu.dataset.scrollLockBound = '1';
 }
 
+function resetGlobalFilterMenuPosition(menu) {
+    if (!menu) return;
+    [
+        'position',
+        'top',
+        'left',
+        'right',
+        'bottom',
+        'width',
+        'max-height',
+        'overflow-y',
+        'overscroll-behavior',
+        '-ms-scroll-chaining',
+        'margin',
+        'transform',
+        'inset',
+        'z-index',
+        'box-sizing'
+    ].forEach(function(prop) {
+        menu.style.removeProperty(prop);
+    });
+}
+
 function restoreGlobalFilterMenuHost(menu) {
     if (!menu || !menu.__host) return;
     if (menu.parentElement !== menu.__host) {
         menu.__host.appendChild(menu);
     }
+    resetGlobalFilterMenuPosition(menu);
 }
 
 function positionGlobalFilterMenu(trigger, menu) {
     if (!trigger || !menu) return;
     restoreGlobalFilterMenuHost(menu);
     var host = menu.__host || menu.parentElement;
-    var isSharedPanelMenu = !!(host && host.closest && host.closest('#global-shared-filter-panel'));
-    if (host && !isSharedPanelMenu) {
+    if (host) {
         host.style.position = 'relative';
         host.style.overflow = 'visible';
     }
     var rect = trigger.getBoundingClientRect();
-    var width = Math.max(220, Math.round((isSharedPanelMenu ? rect.width : (trigger.offsetWidth || 0))));
+    var width = Math.max(220, Math.round(trigger.offsetWidth || rect.width || 0));
     var viewportBottomSpace = window.innerHeight - Math.round(rect.bottom) - 12;
     var maxHeight = Math.max(240, Math.min(viewportBottomSpace, Math.round(window.innerHeight * 0.72)));
-    if (isSharedPanelMenu) {
-        var left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
-        menu.style.setProperty('position', 'fixed', 'important');
-        menu.style.setProperty('top', Math.round(rect.bottom + 2) + 'px', 'important');
-        menu.style.setProperty('left', Math.round(left) + 'px', 'important');
-    } else {
-        menu.style.setProperty('position', 'absolute', 'important');
-        menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
-        menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
-    }
+    menu.style.setProperty('position', 'absolute', 'important');
+    menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
+    menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
     menu.style.setProperty('right', 'auto', 'important');
     menu.style.setProperty('bottom', 'auto', 'important');
     menu.style.setProperty('box-sizing', 'border-box', 'important');
