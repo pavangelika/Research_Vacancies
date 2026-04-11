@@ -6876,14 +6876,11 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     var favoritesControl = (typeof createMyFiltersControl === 'function')
         ? createMyFiltersControl(activeRole, currentForFilters)
         : null;
+    var skillsFilterControl = (typeof createSkillsSearchFilterControl === 'function')
+        ? createSkillsSearchFilterControl(activeRole, currentForFilters)
+        : null;
     var skillsLogicControl = (typeof createSkillsSearchLogicControl === 'function')
         ? createSkillsSearchLogicControl(activeRole, currentForFilters)
-        : null;
-    var skillsIncludeControl = (typeof createSkillsSearchSelectionControl === 'function')
-        ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'include')
-        : null;
-    var skillsExcludeControl = (typeof createSkillsSearchSelectionControl === 'function')
-        ? createSkillsSearchSelectionControl(activeRole, currentForFilters, 'exclude')
         : null;
 
     var favoritesGroup = createSharedFilterGroup('Избранное', [
@@ -6927,8 +6924,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
 
     var skillsGroup = createSharedFilterGroup('Навыки', [
         skillsLogicControl,
-        skillsIncludeControl,
-        skillsExcludeControl
+        skillsFilterControl
     ], { sectionKey: 'skills' });
     if (skillsGroup) body.appendChild(skillsGroup);
     panel.style.display = body.children.length ? 'flex' : 'none';
@@ -7667,7 +7663,14 @@ function toggleSkillsSearchSkillState(block, rawSkill, mode) {
     var exclude = selections.excludeSkills.filter(function(item) {
         return normalizeSkillName(item) !== skillKey;
     });
-    if (mode === 'exclude') {
+    if (mode === 'cycle') {
+        if (isIncluded) exclude.push(skill);
+        else if (isExcluded) {
+            // Third click clears the skill from both include/exclude lists.
+        } else {
+            include.push(skill);
+        }
+    } else if (mode === 'exclude') {
         if (!isExcluded) exclude.push(skill);
     } else if (mode === 'include') {
         if (!isIncluded) include.push(skill);

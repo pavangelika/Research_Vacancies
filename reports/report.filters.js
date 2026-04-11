@@ -1,21 +1,14 @@
 // ---------- Shared Filters Module ----------
 var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
 var SHARED_FILTER_PANEL_SECTION_META = [
-    { key: 'my-filters', label: 'Избранное', icon: 'favorite', title: 'Избранное' },
-    { key: 'roles', label: 'Роль', icon: 'person', title: 'Роль' },
-    { key: 'salary', label: 'Зарплата', icon: 'payments', title: 'Зарплата' },
-    { key: 'responses', label: 'Отклики', icon: 'mail', title: 'Отклики' },
-    { key: 'top', label: 'Топ', icon: 'format_size', title: 'Топ' },
-    { key: 'vacancy', label: 'Вакансия', icon: 'work', title: 'Вакансия' },
-    { key: 'skills', label: 'Навыки', icon: 'local_fire_department', title: 'Навыки' }
+    { key: 'my-filters', label: 'Избранное', icon: 'favorite' },
+    { key: 'roles', label: 'Роль', icon: 'person' },
+    { key: 'salary', label: 'Зарплата', icon: 'payments' },
+    { key: 'responses', label: 'Отклики', icon: 'mail' },
+    { key: 'top', label: 'Топ', icon: 'format_size' },
+    { key: 'vacancy', label: 'Вакансия', icon: 'work' },
+    { key: 'skills', label: 'Навыки', icon: 'local_fire_department' }
 ];
-
-function getSharedFilterPanelSectionMeta(sectionKey) {
-    var key = String(sectionKey || '').trim();
-    return SHARED_FILTER_PANEL_SECTION_META.find(function(item) {
-        return item.key === key;
-    }) || null;
-}
 
 function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     var current = String(analysisType || '').trim().replace(/-all$/, '');
@@ -27,26 +20,6 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     if (current === 'activity' || current === 'weekday' || current === 'skills-monthly') return 'roles';
     if (current === 'all' || current === 'combined') return 'roles';
     return 'roles';
-}
-
-function normalizeSharedFilterSectionKey(sectionKey) {
-    var key = String(sectionKey || '').trim();
-    if (key === 'employer') return 'vacancy';
-    return key;
-}
-
-function getSharedFilterPanelActiveSectionKey(analysisType) {
-    var state = ensureSharedFilterPanelState();
-    var current = getSharedFilterPanelSectionKeyForAnalysis(analysisType);
-    return normalizeSharedFilterSectionKey(state.activeSection || current || 'roles') || 'roles';
-}
-
-function setSharedFilterPanelActiveSection(sectionKey) {
-    var key = normalizeSharedFilterSectionKey(sectionKey);
-    if (!key) return;
-    var state = ensureSharedFilterPanelState();
-    state.activeSection = key;
-    persistSharedFilterPanelState();
 }
 
 function ensureSharedFilterPanelState() {
@@ -98,7 +71,7 @@ function getSharedFilterPanelToggleLabel(collapsed) {
     return collapsed ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
 }
 
-function syncSharedFilterPanelCollapsedUi(panel, activeSectionKey) {
+function syncSharedFilterPanelCollapsedUi(panel) {
     if (!panel) return;
     var collapsed = isSharedFilterPanelCollapsed();
     panel.classList.toggle('is-collapsed', collapsed);
@@ -127,13 +100,6 @@ function syncSharedFilterPanelCollapsedUi(panel, activeSectionKey) {
         toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
 
-    var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
-    if (railToggle) {
-        railToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
-        railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
-        railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
-    }
-
     if (typeof updateReportLayoutScrollZones === 'function') {
         updateReportLayoutScrollZones();
     }
@@ -141,9 +107,7 @@ function syncSharedFilterPanelCollapsedUi(panel, activeSectionKey) {
         resizePlotlyScope(document);
     }
 
-    var activeKey = String(activeSectionKey || ensureSharedFilterPanelState().activeSection || '').trim();
-    if (!activeKey) activeKey = getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '');
-    panel.dataset.activeSection = activeKey;
+    var activeKey = String(panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '') || '').trim() || 'roles';
     if (rail) {
         rail.querySelectorAll('.shared-filter-panel-rail-button[data-section-key]').forEach(function(btn) {
             var btnKey = String(btn.dataset.sectionKey || '').trim();
@@ -152,101 +116,87 @@ function syncSharedFilterPanelCollapsedUi(panel, activeSectionKey) {
             btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
     }
-}
 
-function scrollSharedFilterPanelSectionIntoView(panel, sectionKey) {
-    if (!panel) return;
-    var body = panel.querySelector('.shared-filter-panel-body');
-    if (!body) return;
-    var key = String(sectionKey || '').trim();
-    if (!key) return;
-    var group = body.querySelector('.shared-filter-group[data-section-key="' + key + '"]');
-    if (!group) return;
-    try {
-        group.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    } catch (_e) {
-        var offset = Math.max(0, group.offsetTop - 8);
-        body.scrollTop = offset;
+    var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
+    if (railToggle) {
+        railToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+        railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
+        railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
     }
-}
-
-function focusSharedFilterPanelSection(sectionKey) {
-    var key = String(sectionKey || '').trim();
-    if (!key) return;
-    setSharedFilterPanelActiveSection(key);
-    setSharedFilterPanelCollapsed(false);
-    var panel = document.getElementById('global-shared-filter-panel');
-    if (!panel) return;
-    if (typeof setSharedFilterPanelSectionOpen === 'function') {
-        setSharedFilterPanelSectionOpen(key, true);
-    }
-    syncSharedFilterPanelCollapsedUi(panel, key);
-    setTimeout(function() {
-        scrollSharedFilterPanelSectionIntoView(panel, key);
-    }, 0);
 }
 function ensureSharedFilterPanel() {
     var host = document.getElementById('role-selector');
     if (!host) return null;
     var panel = document.getElementById('global-shared-filter-panel');
     if (!panel) {
+        var panelState = typeof ensureSharedFilterPanelState === 'function'
+            ? ensureSharedFilterPanelState()
+            : { open: true };
         panel = document.createElement('div');
         panel.id = 'global-shared-filter-panel';
         panel.className = 'shared-filter-panel';
         panel.style.display = 'none';
         panel.style.margin = '0';
         panel.style.padding = '0';
+        panel.style.border = '0';
+        panel.style.borderRadius = '0';
+        panel.style.background = 'transparent';
+        panel.style.boxShadow = 'none';
+        panel.style.backdropFilter = 'none';
         panel.style.position = 'relative';
         panel.style.zIndex = '50';
         panel.style.overflow = 'hidden';
-        panel.style.display = 'flex';
-        panel.style.flexDirection = 'column';
-        panel.style.minHeight = '0';
         panel.style.height = '100%';
+        panel.style.minHeight = '0';
         panel.style.boxSizing = 'border-box';
+        panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
 
         var head = document.createElement('div');
         head.className = 'shared-filter-panel-head';
         head.style.display = 'flex';
-        head.style.flexDirection = 'column';
-        head.style.gap = '8px';
-        head.style.padding = '12px 12px 0';
+        head.style.alignItems = 'center';
+        head.style.justifyContent = 'space-between';
+        head.style.gap = '10px';
+        head.style.width = '100%';
         head.style.boxSizing = 'border-box';
-
-        var titleRow = document.createElement('div');
-        titleRow.className = 'shared-filter-panel-title-row';
-        titleRow.style.display = 'flex';
-        titleRow.style.alignItems = 'center';
-        titleRow.style.justifyContent = 'space-between';
-        titleRow.style.gap = '10px';
+        head.style.padding = '12px 14px';
+        head.style.background = '#262626';
+        head.style.color = '#f8fafc';
 
         var title = document.createElement('div');
         title.className = 'shared-filter-panel-title';
         title.textContent = 'Фильтры';
-        title.style.fontWeight = '600';
-        title.style.textAlign = 'left';
+        title.style.fontWeight = '700';
+        title.style.marginBottom = '0';
         title.style.fontSize = '0.95rem';
-        title.style.minWidth = '0';
+        title.style.lineHeight = '1.25';
+        title.style.color = '#f8fafc';
 
         var toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'shared-filter-panel-toggle';
-        toggle.textContent = '\u25C0';
-        toggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(false));
-        toggle.setAttribute('aria-expanded', 'true');
+        toggle.textContent = panelState.open === false ? '\u2630' : '\u25C0';
+        toggle.setAttribute('aria-expanded', panelState.open === false ? 'false' : 'true');
+        toggle.setAttribute('aria-label', panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
+        toggle.title = panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
+        toggle.style.flex = '0 0 auto';
+        toggle.style.border = '0';
+        toggle.style.borderRadius = '0';
+        toggle.style.background = 'rgba(255, 255, 255, 0.08)';
+        toggle.style.color = '#f8fafc';
+        toggle.style.padding = '5px 10px';
+        toggle.style.fontSize = '12px';
+        toggle.style.fontWeight = '600';
+        toggle.style.cursor = 'pointer';
         toggle.addEventListener('click', function() {
-            setSharedFilterPanelCollapsed(!isSharedFilterPanelCollapsed());
-            syncSharedFilterPanelCollapsedUi(panel, panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || ''));
+            if (typeof setSharedFilterPanelOpen === 'function') {
+                var nextOpen = !(panel.dataset.panelOpen === '1');
+                setSharedFilterPanelOpen(nextOpen);
+            }
         });
-        titleRow.appendChild(title);
-        titleRow.appendChild(toggle);
 
-        var hint = document.createElement('div');
-        hint.className = 'shared-filter-panel-hint';
-        hint.textContent = '';
-        hint.style.fontSize = '10px';
-        hint.style.marginBottom = '0';
-        hint.style.display = 'none';
+        head.appendChild(title);
+        head.appendChild(toggle);
 
         var rail = document.createElement('div');
         rail.className = 'shared-filter-panel-rail';
@@ -266,7 +216,7 @@ function ensureSharedFilterPanel() {
         railToggle.title = getSharedFilterPanelToggleLabel(false);
         railToggle.addEventListener('click', function() {
             setSharedFilterPanelCollapsed(false);
-            syncSharedFilterPanelCollapsedUi(panel, panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || ''));
+            syncSharedFilterPanelCollapsedUi(panel);
         });
         rail.appendChild(railToggle);
 
@@ -292,14 +242,26 @@ function ensureSharedFilterPanel() {
             text.textContent = section.label;
             btn.appendChild(text);
             btn.addEventListener('click', function() {
-                focusSharedFilterPanelSection(section.key);
+                panel.dataset.activeSection = section.key;
+                setSharedFilterPanelCollapsed(false);
+                if (typeof setSharedFilterPanelSectionOpen === 'function') {
+                    setSharedFilterPanelSectionOpen(section.key, true);
+                }
+                syncSharedFilterPanelCollapsedUi(panel);
             });
             rail.appendChild(btn);
         });
 
+        var hint = document.createElement('div');
+        hint.className = 'shared-filter-panel-hint';
+        hint.textContent = '';
+        hint.style.fontSize = '10px';
+        hint.style.marginBottom = '0';
+        hint.style.display = 'none';
+
         var body = document.createElement('div');
         body.className = 'shared-filter-panel-body';
-        body.style.display = 'flex';
+        body.style.display = panelState.open === false ? 'none' : 'flex';
         body.style.flexDirection = 'column';
         body.style.flexWrap = 'nowrap';
         body.style.alignItems = 'stretch';
@@ -318,9 +280,8 @@ function ensureSharedFilterPanel() {
         footer.style.textAlign = 'center';
         footer.style.fontSize = '0.84rem';
 
-        head.appendChild(titleRow);
-        head.appendChild(hint);
         panel.appendChild(head);
+        panel.appendChild(hint);
         panel.appendChild(rail);
         panel.appendChild(body);
         panel.appendChild(footer);
@@ -344,14 +305,29 @@ function ensureSharedFilterPanel() {
             document.body.dataset.globalFilterMenusBound = '1';
         }
     }
-    panel.style.display = 'flex';
+    var currentPanelState = typeof ensureSharedFilterPanelState === 'function'
+        ? ensureSharedFilterPanelState()
+        : { open: true };
+    panel.dataset.panelOpen = currentPanelState.open === false ? '0' : '1';
+    var headNode = panel.querySelector('.shared-filter-panel-head');
+    var bodyNode = panel.querySelector('.shared-filter-panel-body');
+    var toggleNode = panel.querySelector('.shared-filter-panel-toggle');
+    if (headNode) headNode.style.paddingBottom = currentPanelState.open === false ? '0' : '8px';
+    if (bodyNode) bodyNode.style.display = currentPanelState.open === false ? 'none' : 'flex';
+    if (toggleNode) {
+        toggleNode.textContent = currentPanelState.open === false ? '\u2630' : '\u25C0';
+        toggleNode.setAttribute('aria-expanded', currentPanelState.open === false ? 'false' : 'true');
+        toggleNode.setAttribute('aria-label', currentPanelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
+        toggleNode.title = currentPanelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
+    }
     var footerNode = panel.querySelector('.shared-filter-panel-footer');
     if (footerNode) {
         var currentDate = document.body && document.body.dataset ? String(document.body.dataset.currentDate || '').trim() : '';
         var currentTime = document.body && document.body.dataset ? String(document.body.dataset.currentTime || '').trim() : '';
         footerNode.textContent = (currentDate && currentTime) ? ('Обновлено: ' + currentDate + ' ' + currentTime) : 'Обновлено';
     }
-    syncSharedFilterPanelCollapsedUi(panel, getSharedFilterPanelActiveSectionKey(panel.dataset.activeAnalysis || ''));
+    panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '');
+    syncSharedFilterPanelCollapsedUi(panel);
     return panel;
 }
 
@@ -511,11 +487,6 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control my-responses-filter-control';
-
-    var caption = document.createElement('div');
-    caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Фильтры откликов';
-    wrap.appendChild(caption);
 
     var currencyWrap = document.createElement('div');
     currencyWrap.className = 'totals-top-filter-currency';
@@ -688,13 +659,12 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
 }
 
 function createSkillsSearchFilterControl(activeRole, analysisType) {
-    if (!activeRole || String(analysisType || '') !== 'skills-search') return null;
+    if (!activeRole) return null;
     if (typeof initSkillsSearch === 'function') initSkillsSearch(activeRole);
     var block = activeRole.querySelector('.skills-search-content');
     if (!block) return null;
 
     var state = (typeof getSkillsSearchSelections === 'function') ? getSkillsSearchSelections(block) : { includeSkills: [], excludeSkills: [], logic: 'or' };
-    var pickMode = (uiState.skills_search_skill_pick_mode === 'exclude') ? 'exclude' : 'include';
     var searchQuery = String(uiState.skills_search_filter_query || '').trim().toLowerCase();
     var skills = (block._data && Array.isArray(block._data.skills)) ? block._data.skills.slice() : [];
     skills.sort(function(a, b) {
@@ -708,20 +678,41 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
         if (!searchQuery) return true;
         return display.toLowerCase().indexOf(searchQuery) >= 0;
     });
+    visibleSkills = (function(items) {
+        var groups = new Map();
+        items.forEach(function(item) {
+            var countKey = String(Number(item && item.count) || 0);
+            if (!groups.has(countKey)) groups.set(countKey, []);
+            groups.get(countKey).push(item);
+        });
+        var orderedCountKeys = Array.from(groups.keys()).sort(function(a, b) {
+            return Number(b) - Number(a);
+        });
+        var arranged = [];
+        var lastLabelLength = 0;
+        orderedCountKeys.forEach(function(countKey) {
+            var group = (groups.get(countKey) || []).slice().sort(function(a, b) {
+                var aLabel = registerSkillDisplayName(a && a.skill ? a.skill : '');
+                var bLabel = registerSkillDisplayName(b && b.skill ? b.skill : '');
+                return aLabel.length - bLabel.length || aLabel.localeCompare(bLabel, 'ru');
+            });
+            while (group.length) {
+                var nextItem = lastLabelLength >= 16 ? group.shift() : group.pop();
+                arranged.push(nextItem);
+                lastLabelLength = registerSkillDisplayName(nextItem && nextItem.skill ? nextItem.skill : '').length;
+            }
+        });
+        return arranged;
+    })(visibleSkills);
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control skills-search-top-filter-control';
-
-    var caption = document.createElement('div');
-    caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Навыки';
-    wrap.appendChild(caption);
 
     var searchWrap = document.createElement('div');
     searchWrap.className = 'skills-search-top-search-wrap';
     var searchInput = document.createElement('input');
     searchInput.type = 'search';
-    searchInput.className = 'skills-search-top-search';
+    searchInput.className = 'global-filter-search skills-search-top-search';
     searchInput.placeholder = 'Поиск навыка';
     searchInput.value = String(uiState.skills_search_filter_query || '');
     searchInput.addEventListener('input', function() {
@@ -729,7 +720,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
         uiState.skills_search_filter_query = nextQuery;
         if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
         setTimeout(function() {
-            var nextInput = document.querySelector('#global-shared-filter-panel .skills-search-top-search');
+            var nextInput = document.querySelector('#global-shared-filter-panel .skills-search-top-filter-control .global-filter-search');
             if (!nextInput) return;
             nextInput.focus();
             if (typeof nextInput.setSelectionRange === 'function') {
@@ -740,170 +731,13 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
     searchWrap.appendChild(searchInput);
     wrap.appendChild(searchWrap);
 
-    var toolbar = document.createElement('div');
-    toolbar.className = 'skills-search-top-toolbar';
-
-    var modeWrap = document.createElement('div');
-    modeWrap.className = 'skills-search-top-group';
-    [
-        { value: 'include', label: 'Включать' },
-        { value: 'exclude', label: 'Исключать' }
-    ].forEach(function(item) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'totals-top-filter-chip skills-search-top-chip';
-        button.textContent = item.label;
-        button.setAttribute('aria-pressed', item.value === pickMode ? 'true' : 'false');
-        if (item.value === pickMode) button.classList.add('active');
-        button.addEventListener('click', function() {
-            uiState.skills_search_skill_pick_mode = item.value;
-            if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
-        });
-        modeWrap.appendChild(button);
-    });
-    toolbar.appendChild(modeWrap);
-
-    var logicWrap = document.createElement('div');
-    logicWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-top-logic-dropdown';
-    logicWrap.style.flex = '0 0 auto';
-    logicWrap.style.minWidth = '132px';
-    logicWrap.style.width = '132px';
-
-    var logicTrigger = document.createElement('button');
-    logicTrigger.type = 'button';
-    logicTrigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    logicTrigger.style.width = '100%';
-    logicTrigger.style.borderRadius = '999px';
-    logicTrigger.style.padding = '5px 10px';
-    logicTrigger.style.minHeight = '34px';
-    logicTrigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    logicTrigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    logicTrigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    logicTrigger.style.display = 'flex';
-    logicTrigger.style.alignItems = 'center';
-    logicTrigger.style.justifyContent = 'space-between';
-
-    var logicLabel = document.createElement('span');
-    logicLabel.className = 'global-filter-trigger-label';
-    logicLabel.textContent = 'Логика: ' + String(state.logic || 'or').trim().toUpperCase();
-    logicLabel.style.overflow = 'hidden';
-    logicLabel.style.textOverflow = 'ellipsis';
-    logicLabel.style.whiteSpace = 'nowrap';
-    logicLabel.style.maxWidth = 'calc(100% - 18px)';
-    logicTrigger.appendChild(logicLabel);
-
-    var logicArrow = document.createElement('span');
-    logicArrow.className = 'global-filter-trigger-arrow';
-    logicArrow.textContent = '\u25BE';
-    logicArrow.style.fontSize = '12px';
-    logicArrow.style.opacity = '0.8';
-    logicTrigger.appendChild(logicArrow);
-    logicWrap.appendChild(logicTrigger);
-
-    var logicMenu = document.createElement('div');
-    logicMenu.className = 'global-filter-menu skills-search-dropdown-menu';
-    logicMenu.style.display = 'none';
-    logicMenu.style.marginTop = '0';
-    logicMenu.style.padding = '6px';
-    logicMenu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    logicMenu.style.borderRadius = '12px';
-    logicMenu.style.background = 'var(--card-background, #fff)';
-    logicMenu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    logicMenu.style.width = '132px';
-    logicMenu.style.maxWidth = 'calc(100vw - 48px)';
-
-    [
-        { value: 'or', label: 'OR' },
-        { value: 'and', label: 'AND' }
-    ].forEach(function(item, idx) {
-        var option = document.createElement('button');
-        option.type = 'button';
-        option.className = 'tab-button summary-filter-item global-filter-option-row';
-        option.textContent = item.label;
-        option.style.display = 'block';
-        option.style.width = '100%';
-        option.style.boxSizing = 'border-box';
-        option.style.margin = idx < 1 ? '0 0 2px' : '0';
-        option.style.textAlign = 'left';
-        option.style.borderRadius = '8px';
-        option.style.padding = '5px 8px';
-        if (item.value === state.logic) {
-            option.classList.add('active');
-            option.style.fontWeight = '600';
-        }
-        option.addEventListener('click', function() {
-            syncSelectionSnapshot();
-            if (typeof applySkillsSearchSkillState === 'function') {
-                var liveSelections = getSkillsSearchSelections(ctx.block);
-                applySkillsSearchSkillState(block, liveSelections.includeSkills || [], liveSelections.excludeSkills || [], item.value);
-            }
-            if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
-            syncSkillsSearchFilterEffects(activeRole);
-            logicMenu.style.display = 'none';
-            if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(logicMenu);
-            logicArrow.textContent = '\u25BE';
-        });
-        logicMenu.appendChild(option);
-    });
-
-    logicTrigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var nextState = logicMenu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(logicMenu, nextState === 'block' ? logicArrow : null);
-        logicMenu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(logicTrigger, logicMenu);
-        else if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(logicMenu);
-        logicArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
-    });
-
-    logicWrap.appendChild(logicMenu);
-    toolbar.appendChild(logicWrap);
-
-    var actionWrap = document.createElement('div');
-    actionWrap.className = 'skills-search-top-group';
-
-    var selectAllBtn = document.createElement('button');
-    selectAllBtn.type = 'button';
-    selectAllBtn.className = 'totals-top-filter-chip skills-search-top-chip';
-    selectAllBtn.textContent = pickMode === 'exclude' ? 'Исключить все' : 'Выбрать все';
-    selectAllBtn.addEventListener('click', function() {
-        var nextSkills = visibleSkills.map(function(item) { return item.skill; });
-        if (typeof applySkillsSearchSkillState === 'function') {
-            applySkillsSearchSkillState(
-                block,
-                pickMode === 'exclude' ? [] : nextSkills,
-                pickMode === 'exclude' ? nextSkills : [],
-                state.logic || 'or'
-            );
-        }
-        if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
-        syncSkillsSearchFilterEffects(activeRole);
-    });
-    actionWrap.appendChild(selectAllBtn);
-
-    var resetBtn = document.createElement('button');
-    resetBtn.type = 'button';
-    resetBtn.className = 'totals-top-filter-chip skills-search-top-chip';
-    resetBtn.textContent = 'Сбросить';
-    resetBtn.addEventListener('click', function() {
-        if (typeof applySkillsSearchSkillState === 'function') {
-            applySkillsSearchSkillState(block, [], [], state.logic || 'or');
-        }
-        if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
-        syncSkillsSearchFilterEffects(activeRole);
-    });
-    actionWrap.appendChild(resetBtn);
-    toolbar.appendChild(actionWrap);
-
-    wrap.appendChild(toolbar);
-
     var summary = document.createElement('div');
     summary.className = 'skills-search-top-meta';
-    summary.textContent = 'Навыков: ' + visibleSkills.length + ' из ' + skills.length + ' · сортировка по частоте';
+    summary.textContent = 'Навыков: ' + visibleSkills.length + ' из ' + skills.length + ' · клик: включить → исключить → снять';
     wrap.appendChild(summary);
 
     var list = document.createElement('div');
-    list.className = 'skills-search-top-list skills-search-top-list-rows';
+    list.className = 'skills-search-top-list totals-top-filter-chip-row skills-search-top-chipset-row';
     if (!visibleSkills.length) {
         var empty = document.createElement('div');
         empty.className = 'skills-search-top-empty';
@@ -915,7 +749,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
             var key = normalizeSkillName(displaySkill);
             var button = document.createElement('button');
             button.type = 'button';
-            button.className = 'skills-search-top-skill global-filter-option-row';
+            button.className = 'totals-top-filter-chip skills-search-top-skill-chip';
             if (includeKeys.has(key)) button.classList.add('active');
             if (excludeKeys.has(key)) button.classList.add('excluded');
             button.innerHTML =
@@ -923,7 +757,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
                 '<span class="skills-search-top-skill-count">' + escapeHtml(item.count) + '</span>';
             button.addEventListener('click', function() {
                 if (typeof toggleSkillsSearchSkillState === 'function') {
-                    toggleSkillsSearchSkillState(block, displaySkill, uiState.skills_search_skill_pick_mode === 'exclude' ? 'exclude' : 'include');
+                    toggleSkillsSearchSkillState(block, displaySkill, 'cycle');
                 }
                 if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
                 if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
@@ -959,9 +793,7 @@ function getSkillsSearchPanelContext(activeRole, analysisType) {
 function syncSkillsSearchFilterEffects(activeRole) {
     if (!activeRole) return;
     if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
-    if (typeof requestActiveAnalysisRender === 'function') {
-        requestActiveAnalysisRender(activeRole, activeRole.dataset.activeAnalysis || '');
-    } else if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+    if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
         applyGlobalFiltersToActiveAnalysis(activeRole, activeRole.dataset.activeAnalysis || '');
     }
 }
@@ -1071,9 +903,12 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
             ? (items.find(function(item) { return item.id === activeId; }) || null)
             : null;
         trigger.classList.toggle('is-active', !!activeItem);
-        trigger.textContent = activeItem ? '\u2665' : '\u2661';
+        trigger.innerHTML =
+            '<span class="skills-search-favorite-trigger-body">' +
+                escapeHtml(activeItem ? activeItem.name : 'Не выбрано') +
+            '</span>';
         input.placeholder = activeItem ? activeItem.name : 'Сохранить фильтр';
-        trigger.title = activeItem ? ('Мои фильтры: ' + activeItem.name) : 'Мои фильтры';
+        trigger.title = activeItem ? ('Набор: ' + activeItem.name) : 'Не выбрано';
         trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = activeItem ? ('Сохранить текущий фильтр: ' + activeItem.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
@@ -1192,6 +1027,11 @@ function createMyFiltersControl(activeRole, analysisType) {
     row.style.alignItems = 'stretch';
     row.style.gap = '8px';
 
+    var dropdownLabel = document.createElement('div');
+    dropdownLabel.className = 'shared-filter-field-label';
+    dropdownLabel.textContent = 'Избранное';
+    row.appendChild(dropdownLabel);
+
     var dropdownWrap = document.createElement('div');
     dropdownWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel-picker-wrap';
     dropdownWrap.style.flex = '0 0 auto';
@@ -1208,6 +1048,11 @@ function createMyFiltersControl(activeRole, analysisType) {
     dropdownWrap.appendChild(trigger);
     row.appendChild(dropdownWrap);
 
+    var inputLabel = document.createElement('div');
+    inputLabel.className = 'shared-filter-field-label';
+    inputLabel.textContent = 'Сохранить набор';
+    row.appendChild(inputLabel);
+
     var inputWrap = document.createElement('div');
     inputWrap.className = 'skills-search-favorites-panel-field';
     inputWrap.style.width = '100%';
@@ -1215,7 +1060,7 @@ function createMyFiltersControl(activeRole, analysisType) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
-    input.placeholder = 'Сохранить набор';
+    input.placeholder = 'Введите название';
     input.autocomplete = 'off';
     input.spellcheck = false;
     inputWrap.appendChild(input);
@@ -1388,112 +1233,58 @@ function createSkillsSearchLogicControl(activeRole, analysisType) {
     if (!ctx) return null;
 
     var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-top-logic-control';
-    wrap.dataset.filterKey = 'logic';
-    wrap.style.marginTop = '4px';
-    wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
+    wrap.className = 'totals-top-filter-control skills-search-top-logic-control';
 
-    var caption = document.createElement('div');
-    caption.textContent = 'Логика';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
-    wrap.appendChild(caption);
+    var row = document.createElement('div');
+    row.className = 'skills-search-logic-switch-row';
 
-    var trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    trigger.style.width = '100%';
-    trigger.style.borderRadius = '999px';
-    trigger.style.padding = '5px 10px';
-    trigger.style.minHeight = '34px';
-    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    trigger.style.display = 'flex';
-    trigger.style.alignItems = 'center';
-    trigger.style.justifyContent = 'space-between';
+    var orLabel = document.createElement('span');
+    orLabel.className = 'skills-search-logic-switch-label';
+    orLabel.textContent = 'OR';
+    row.appendChild(orLabel);
 
-    var triggerLabel = document.createElement('span');
-    triggerLabel.className = 'global-filter-trigger-label';
-    triggerLabel.textContent = String(ctx.selections.logic || 'or').trim().toUpperCase();
-    triggerLabel.style.overflow = 'hidden';
-    triggerLabel.style.textOverflow = 'ellipsis';
-    triggerLabel.style.whiteSpace = 'nowrap';
-    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
-    trigger.appendChild(triggerLabel);
+    var switchWrap = document.createElement('label');
+    switchWrap.className = 'totals-ios-checkbox-wrap skills-search-logic-switch';
+    switchWrap.setAttribute('aria-label', 'Переключить логику навыков OR/AND');
 
-    var triggerArrow = document.createElement('span');
-    triggerArrow.className = 'global-filter-trigger-arrow';
-    triggerArrow.textContent = '\u25BE';
-    triggerArrow.style.fontSize = '12px';
-    triggerArrow.style.opacity = '0.8';
-    trigger.appendChild(triggerArrow);
-    wrap.appendChild(trigger);
+    var switchInput = document.createElement('input');
+    switchInput.type = 'checkbox';
+    switchInput.className = 'totals-ios-checkbox';
 
-    var menu = document.createElement('div');
-    menu.className = 'global-filter-menu skills-search-dropdown-menu';
-    menu.style.display = 'none';
-    menu.style.marginTop = '0';
-    menu.style.padding = '6px';
-    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '12px';
-    menu.style.background = 'var(--card-background, #fff)';
-    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '220px';
-    menu.style.maxWidth = 'calc(100vw - 48px)';
+    var switchUi = document.createElement('span');
+    switchUi.className = 'totals-ios-checkbox-ui';
 
-    [
-        { value: 'or', label: 'OR' },
-        { value: 'and', label: 'AND' }
-    ].forEach(function(item, idx) {
-        var option = document.createElement('button');
-        option.type = 'button';
-        option.className = 'tab-button summary-filter-item global-filter-option-row';
-        option.textContent = item.label;
-        option.style.display = 'block';
-        option.style.width = '100%';
-        option.style.boxSizing = 'border-box';
-        option.style.margin = idx < 1 ? '0 0 2px' : '0';
-        option.style.textAlign = 'left';
-        option.style.borderRadius = '8px';
-        option.style.padding = '5px 8px';
-        if (item.value === ctx.selections.logic) {
-            option.classList.add('active');
-            option.style.fontWeight = '600';
-        }
-        option.addEventListener('click', function() {
-            var selections = getSkillsSearchSelections(ctx.block);
-            applySkillsSearchSkillState(
-                ctx.block,
-                selections.includeSkills || [],
-                selections.excludeSkills || [],
-                item.value
-            );
-            updateSkillsSearchResults(ctx.block);
-            syncSkillsSearchFilterEffects(activeRole);
-            menu.style.display = 'none';
-            if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-            triggerArrow.textContent = '\u25BE';
-        });
-        menu.appendChild(option);
-    });
-    menu.__host = wrap;
+    switchWrap.appendChild(switchInput);
+    switchWrap.appendChild(switchUi);
+    row.appendChild(switchWrap);
 
-    trigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var nextState = menu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
-        menu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        else if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-        triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
+    var andLabel = document.createElement('span');
+    andLabel.className = 'skills-search-logic-switch-label';
+    andLabel.textContent = 'AND';
+    row.appendChild(andLabel);
+
+    function syncLogicUi(value) {
+        var isAnd = value === 'and';
+        switchInput.checked = isAnd;
+        orLabel.classList.toggle('active', !isAnd);
+        andLabel.classList.toggle('active', isAnd);
+    }
+
+    switchInput.addEventListener('change', function() {
+        var selections = getSkillsSearchSelections(ctx.block);
+        applySkillsSearchSkillState(
+            ctx.block,
+            selections.includeSkills || [],
+            selections.excludeSkills || [],
+            switchInput.checked ? 'and' : 'or'
+        );
+        syncLogicUi(switchInput.checked ? 'and' : 'or');
+        updateSkillsSearchResults(ctx.block);
+        syncSkillsSearchFilterEffects(activeRole);
     });
 
-    wrap.appendChild(menu);
+    syncLogicUi(ctx.selections.logic || 'or');
+    wrap.appendChild(row);
     return wrap;
 }
 
@@ -1732,7 +1523,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
 
         var count = document.createElement('div');
         count.className = 'skills-search-filter-option-count';
-        count.textContent = String(Number(skillItem.count) || 0);
+        count.textContent = '"' + (Number(skillItem.count) || 0) + '"';
         count.style.fontSize = '11px';
         count.style.whiteSpace = 'nowrap';
         row.appendChild(count);
@@ -1781,13 +1572,6 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
     wrap.className = 'totals-top-filter-control';
     if (currentAnalysis === 'skills-search') wrap.classList.add('skills-search-top-limit-control');
 
-    if (!opts.hideCaption) {
-        var caption = document.createElement('div');
-        caption.className = 'totals-top-filter-title';
-        caption.textContent = isMarketTrendsMode ? 'Фильтры трендов' : 'Фильтры топа';
-        wrap.appendChild(caption);
-    }
-
     if (isTopMode) {
         var limitValue = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
         uiState.totals_top_limit = limitValue;
@@ -1799,7 +1583,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         limitHead.className = 'totals-top-filter-limit-head';
 
         var limitLabel = document.createElement('span');
-        limitLabel.textContent = 'Размер топа';
+        limitLabel.textContent = 'Топ';
         limitHead.appendChild(limitLabel);
 
         var limitBadge = document.createElement('strong');
@@ -1853,8 +1637,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
             var next = syncLimitPreview(rawValue);
             if (uiState.totals_top_limit === next) return;
             uiState.totals_top_limit = next;
-            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
-            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         }
 
         range.addEventListener('input', function() {
@@ -1919,8 +1702,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
                     other.classList.toggle('active', other === button);
                     other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
                 });
-                if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
-                else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
             currencyButtons.push(button);
             currencyTabs.appendChild(button);
@@ -1965,8 +1747,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
                     other.classList.toggle('active', other === button);
                     other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
                 });
-                if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
-                else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
             metricButtons.push(button);
             metricTabs.appendChild(button);
@@ -2020,8 +1801,7 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
                 other.classList.toggle('active', other === button);
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
             });
-            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
-            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         });
         metricButtons.push(button);
         metricTabs.appendChild(button);
@@ -2070,24 +1850,10 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
             return allowed.indexOf(String(value || '')) >= 0;
         });
     };
-    var getIncludedRoles = function() {
-        var rolesBucket = (typeof ensureGlobalFilterBucket === 'function')
-            ? ensureGlobalFilterBucket('roles')
-            : { include: [] };
-        return Array.isArray(rolesBucket.include) ? rolesBucket.include.map(function(value) {
-            return String(value || '').trim();
-        }).filter(Boolean) : [];
-    };
-    var isRoleIncludedInMainFilter = function(value) {
-        return getIncludedRoles().indexOf(String(value || '').trim()) >= 0;
-    };
     var setExcludedRoles = function(nextValues) {
-        var included = new Set(getIncludedRoles());
         uiState.market_trends_excluded_roles = Array.from(new Set((nextValues || []).map(function(value) {
             return String(value || '').trim();
-        }).filter(function(value) {
-            return value && !included.has(value);
-        })));
+        }).filter(Boolean)));
     };
     var getSearchQuery = function() {
         return String(uiState.market_trends_excluded_roles_query || '');
@@ -2212,8 +1978,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     }
 
     function applySearchFilter() {
-        if (typeof applyGlobalFilterTextSearch === 'function') {
-            applyGlobalFilterTextSearch(menu, getSearchQuery(), '.global-filter-option-row[data-option-value]');
+        if (typeof applyGlobalFilterSearch === 'function') {
+            applyGlobalFilterSearch(menu, getSearchQuery(), '.global-filter-option-row[data-option-value]');
             return;
         }
         var q = String(getSearchQuery() || '').trim().toLowerCase();
@@ -2244,24 +2010,18 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     }
 
     function syncExcludedRolesVisualState() {
-        pruneMarketTrendsExcludedRolesConflicts();
         var selected = getExcludedRoles();
-        var included = new Set(getIncludedRoles());
         triggerLabel.textContent = summarizeExcludedRoles();
         Array.from(menu.querySelectorAll('.global-filter-option-row[data-option-value]')).forEach(function(node) {
             var value = String((node.dataset && node.dataset.optionValue) || '');
             var labelNode = node.querySelector('div');
             var isExcluded = selected.indexOf(value) >= 0;
-            var isBlocked = included.has(value);
-            node.style.background = isExcluded ? '#fee2e2' : (isBlocked ? 'rgba(148, 163, 184, 0.12)' : 'transparent');
-            node.style.color = isExcluded ? '#991b1b' : (isBlocked ? (document.body && document.body.classList.contains('report-dashboard') ? '#94a3b8' : '#64748b') : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a'));
-            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : (isBlocked ? '1px solid rgba(148, 163, 184, 0.18)' : '1px solid transparent');
-            node.style.cursor = isBlocked ? 'not-allowed' : 'pointer';
-            node.style.opacity = isBlocked ? '0.72' : '1';
-            node.title = isBlocked ? 'Роль уже выбрана в списке "Роли"' : '';
+            node.style.background = isExcluded ? '#fee2e2' : 'transparent';
+            node.style.color = isExcluded ? '#991b1b' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
+            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
             if (labelNode) {
                 labelNode.style.fontWeight = isExcluded ? '600' : '400';
-                labelNode.style.color = isExcluded ? '#991b1b' : (isBlocked ? (document.body && document.body.classList.contains('report-dashboard') ? '#94a3b8' : '#64748b') : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a'));
+                labelNode.style.color = isExcluded ? '#991b1b' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
             }
         });
         reorderRoleRows();
@@ -2287,7 +2047,6 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         row.dataset.searchText = String(option.label || option.value || '');
         row.addEventListener('click', function(e) {
             e.stopPropagation();
-            if (isRoleIncludedInMainFilter(option.value)) return;
             var selected = getExcludedRoles();
             var value = String(option.value || '');
             if (selected.indexOf(value) >= 0) {
@@ -2345,10 +2104,9 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
         triggerArrow.textContent = '\u25BE';
         unbindOutsideClose();
-            if (uiState.market_trends_excluded_roles_pending_apply) {
+        if (uiState.market_trends_excluded_roles_pending_apply) {
             uiState.market_trends_excluded_roles_pending_apply = false;
-            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
-            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         }
     }
 
@@ -2376,26 +2134,6 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         triggerArrow.textContent = '\u25B4';
     }
     return wrap;
-}
-
-function pruneMarketTrendsExcludedRolesConflicts() {
-    if (!uiState || !uiState.global_filters || !uiState.global_filters.roles) return false;
-    if (!Array.isArray(uiState.market_trends_excluded_roles)) return false;
-
-    var included = Array.isArray(uiState.global_filters.roles.include)
-        ? uiState.global_filters.roles.include.map(function(value) {
-            return String(value || '').trim();
-        }).filter(Boolean)
-        : [];
-    if (!included.length) return false;
-
-    var includedSet = new Set(included);
-    var before = uiState.market_trends_excluded_roles.length;
-    uiState.market_trends_excluded_roles = uiState.market_trends_excluded_roles.filter(function(value) {
-        var key = String(value || '').trim();
-        return key && !includedSet.has(key);
-    });
-    return uiState.market_trends_excluded_roles.length !== before;
 }
 
 function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {
@@ -2615,5 +2353,3 @@ function applyGlobalFilterIconButtonStyle(button, isActive) {
     button.style.color = isActive ? '#2563eb' : '#475569';
     button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
 }
-
-

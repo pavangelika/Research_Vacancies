@@ -43,6 +43,12 @@
     --accent-active-soft: rgba(111, 143, 178, 0.1);
     --accent-active-border: rgba(111, 143, 178, 0.18);
     --accent-active-text: #ffffff;
+    --filter-selected-bg: rgba(111, 143, 178, 0.16);
+    --filter-selected-border: rgba(111, 143, 178, 0.34);
+    --filter-selected-text: #44627f;
+    --filter-excluded-bg: rgba(191, 119, 132, 0.14);
+    --filter-excluded-border: rgba(191, 119, 132, 0.30);
+    --filter-excluded-text: #8f4f5d;
 }
 
 /* My responses + details modal (synced with main styles.css) */
@@ -647,12 +653,6 @@
     box-sizing: border-box;
     overflow: hidden;
 }
-.totals-top-filter-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #5f7084;
-    letter-spacing: normal;
-}
 .totals-dashboard-mode-control {
     width: 100%;
     max-width: 100%;
@@ -795,9 +795,9 @@
 }
 .totals-top-filter-chip.active,
 .totals-top-filter-chip[aria-pressed="true"] {
-    background: var(--accent-active-soft);
-    border-color: var(--accent-active-border);
-    color: var(--primary-dark);
+    background: var(--filter-selected-bg);
+    border-color: var(--filter-selected-border);
+    color: var(--filter-selected-text);
     box-shadow: none;
 }
 .skills-search-top-filter-control {
@@ -822,17 +822,9 @@
 .skills-search-top-search {
     width: 100%;
     box-sizing: border-box;
-    padding: 9px 12px;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.94);
-    color: #304254;
-    font-size: 0.84rem;
-    outline: none;
-}
-.skills-search-top-search:focus {
-    border-color: rgba(34, 197, 94, 0.45);
-    box-shadow: 0 0 0 4px var(--accent-green-soft);
+    min-height: 38px;
+    height: 38px;
+    padding: 8px 12px;
 }
 .skills-search-top-toolbar {
     display: flex;
@@ -870,32 +862,31 @@
     box-sizing: border-box;
     min-width: 0;
     width: 100%;
-    height: 34px;
-    padding: 0 40px 0 14px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(250, 252, 255, 0.98) 0%, rgba(244, 247, 251, 0.96) 100%);
-    color: #334155;
-    font-size: 0.82rem;
+    height: 38px;
+    padding: 8px 40px 8px 12px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    color: #304254;
+    font-size: 0.84rem;
     outline: none;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 1px 2px rgba(15, 23, 42, 0.04);
-    transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: none;
+    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .skills-search-favorites-panel-input::placeholder {
     color: #94a3b8;
-    font-size: 0.80rem;
 }
 .skills-search-favorites-panel-input:focus {
     border-color: rgba(111, 143, 178, 0.34);
     background: rgba(255, 255, 255, 0.99);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(191, 219, 254, 0.22);
+    box-shadow: 0 0 0 4px rgba(191, 219, 254, 0.22);
 }
 .skills-search-favorites-panel-action {
     flex: 0 0 auto;
     width: 34px;
     min-width: 34px;
-    height: 34px;
-    min-height: 34px;
+    height: 38px;
+    min-height: 38px;
     padding: 0;
     justify-content: center;
 }
@@ -970,21 +961,36 @@
 .skills-search-top-logic-control {
     width: 196px;
 }
+.global-filter-trigger,
+.summary-filter-trigger,
+.skills-search-dropdown-btn,
+.global-filter-search,
+.skills-search-top-search,
+.skills-search-favorites-panel-input,
+.totals-top-filter-number {
+    border-radius: 0 !important;
+}
 .skills-search-logic-switch-row {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 10px;
     min-height: 34px;
+    width: auto;
+    align-self: flex-start;
+    flex-wrap: wrap;
 }
 .skills-search-logic-switch-label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #94a3b8;
-    transition: color 0.18s ease;
+    color: #7b8da1;
+    letter-spacing: 0.02em;
+    transition: color 0.18s ease, opacity 0.18s ease;
+    opacity: 0.88;
 }
 .skills-search-logic-switch-label.active {
-    color: #334155;
+    color: #7b8da1;
+    opacity: 0.88;
 }
 .skills-search-logic-switch {
     flex: 0 0 auto;
@@ -992,6 +998,21 @@
 .skills-search-logic-switch .totals-ios-checkbox-ui {
     width: 36px;
     height: 20px;
+    border-color: rgba(111, 143, 178, 0.24);
+    background: rgba(226, 232, 240, 0.9);
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.skills-search-logic-switch .totals-ios-checkbox-ui::after {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+}
+.skills-search-logic-switch .totals-ios-checkbox:checked + .totals-ios-checkbox-ui {
+    background: var(--filter-selected-bg);
+    border-color: var(--filter-selected-border);
+}
+.skills-search-logic-switch .totals-ios-checkbox:focus-visible + .totals-ios-checkbox-ui {
+    outline: 2px solid rgba(111, 143, 178, 0.18);
+    outline-offset: 2px;
 }
 .skills-search-top-meta {
     font-size: 12px;
@@ -1001,6 +1022,12 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+.skills-search-top-chipset-row {
+    align-items: flex-start;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 .skills-search-top-list-rows {
     display: flex;
@@ -1050,6 +1077,29 @@
     font-size: 0.75rem;
     opacity: 0.7;
     white-space: nowrap;
+}
+.skills-search-top-skill-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    max-width: 100%;
+}
+.skills-search-top-skill-chip .skills-search-top-skill-label {
+    white-space: nowrap;
+}
+.skills-search-top-skill-chip .skills-search-top-skill-count {
+    font-size: 0.72rem;
+    opacity: 0.76;
+}
+.skills-search-top-skill-chip.excluded {
+    background: var(--filter-excluded-bg) !important;
+    border-color: var(--filter-excluded-border) !important;
+    color: var(--filter-excluded-text) !important;
+}
+.skills-search-top-skill-chip.excluded .skills-search-top-skill-count {
+    color: inherit;
+    opacity: 0.88;
 }
 .skills-search-top-empty {
     color: var(--text-secondary);
@@ -4059,14 +4109,14 @@ tr:hover { background-color: #f0f4f9; }
     transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 .skills-search-summary-skill.include {
-    border-color: rgba(34, 197, 94, 0.16);
-    background: rgba(240, 253, 244, 0.96);
-    color: #15803d;
+    border-color: var(--filter-selected-border);
+    background: var(--filter-selected-bg);
+    color: var(--filter-selected-text);
 }
 .skills-search-summary-skill.exclude {
-    border-color: rgba(239, 68, 68, 0.16);
-    background: rgba(254, 242, 242, 0.96);
-    color: #b91c1c;
+    border-color: var(--filter-excluded-border);
+    background: var(--filter-excluded-bg);
+    color: var(--filter-excluded-text);
 }
 .skills-search-summary-skill:hover {
     border-color: rgba(148, 163, 184, 0.3);
@@ -4386,15 +4436,15 @@ tr:hover { background-color: #f0f4f9; }
     transform: translateY(-1px);
 }
 .skills-search-skill.active {
-    background: rgba(240, 253, 244, 0.96);
-    border-color: rgba(34, 197, 94, 0.16);
-    color: #15803d;
+    background: var(--filter-selected-bg);
+    border-color: var(--filter-selected-border);
+    color: var(--filter-selected-text);
     box-shadow: none;
 }
 .skills-search-skill.excluded {
-    background: rgba(254, 242, 242, 0.96);
-    border-color: rgba(239, 68, 68, 0.16);
-    color: #b91c1c;
+    background: var(--filter-excluded-bg);
+    border-color: var(--filter-excluded-border);
+    color: var(--filter-excluded-text);
     box-shadow: none;
 }
 .skills-search-count {
@@ -5256,8 +5306,9 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .tab-button.active {
-    background-color: var(--accent-active);
-    color: var(--accent-active-text);
+    background-color: var(--filter-selected-bg);
+    border-color: var(--filter-selected-border);
+    color: var(--filter-selected-text);
 }
 
 .shared-filter-panel {
@@ -5307,7 +5358,7 @@ tbody tr:hover {
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-trigger {
     min-height: 30px !important;
-    padding: 4px 9px !important;
+    padding: 8px 12px !important;
     font-size: 0.8rem !important;
 }
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .global-filter-menu,
@@ -5368,7 +5419,7 @@ tbody tr:hover {
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-menu {
     width: 192px !important;
-    padding: 5px !important;
+    padding: 8px 10px !important;
 }
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-option-row,
@@ -5377,7 +5428,7 @@ tbody tr:hover {
     width: 100% !important;
     box-sizing: border-box !important;
     margin-bottom: 2px !important;
-    padding: 4px 7px !important;
+    padding: 6px 10px !important;
     border-radius: 9px !important;
     color: #304254;
     font-size: 0.8rem;
@@ -5399,7 +5450,7 @@ tbody tr:hover {
     width: 100% !important;
     box-sizing: border-box !important;
     margin-bottom: 2px !important;
-    padding: 6px 9px !important;
+    padding: 6px 12px !important;
     border-radius: 10px !important;
     color: #304254;
     font-size: 0.8rem;
@@ -5419,8 +5470,30 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .totals-top-filter-control {
-    padding: 2px 0 0 !important;
+    padding: 2px 8px 0 !important;
     border-radius: 0 !important;
+}
+
+.shared-filter-panel .shared-filter-group-body {
+    padding: 4px 8px 10px !important;
+}
+
+.shared-filter-panel .global-filter-trigger,
+.shared-filter-panel .summary-filter-trigger,
+.shared-filter-panel .global-filter-search,
+.shared-filter-panel .skills-search-top-search,
+.shared-filter-panel .skills-search-favorites-panel-input,
+.shared-filter-panel .totals-top-filter-number {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+}
+
+.shared-filter-field-label {
+    padding: 0 8px;
+    color: var(--text-secondary, #52606d);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
 }
 
 .shared-filter-panel .totals-top-filter-limit,
@@ -6011,10 +6084,10 @@ body.mobile-filters-open .report-layout .role-selector > * {
 .analysis-tabs .tab-button.active,
 .shared-filter-panel .tab-button.active,
 #role-selector .tab-button.active {
-    background: rgba(241, 245, 249, 0.98) !important;
-    border-color: rgba(111, 143, 178, 0.22) !important;
+    background: var(--filter-selected-bg) !important;
+    border-color: var(--filter-selected-border) !important;
     box-shadow: none !important;
-    color: #3f4b57 !important;
+    color: var(--filter-selected-text) !important;
 }
 
 .view-mode-btn::before,
@@ -6768,25 +6841,42 @@ body.report-dashboard #role-selector .totals-top-filter-chip:hover {
     transform: translateY(-1px);
 }
 
+body.report-dashboard #role-selector .totals-top-filter-chip-row .totals-top-filter-chip,
+body.report-dashboard #role-selector .skills-search-top-chipset-row .skills-search-top-skill-chip,
+body.report-dashboard #global-shared-filter-panel .totals-top-filter-chip-row .totals-top-filter-chip,
+body.report-dashboard #global-shared-filter-panel .skills-search-top-chipset-row .skills-search-top-skill-chip {
+    border-radius: 999px !important;
+}
+
 body.report-dashboard #role-selector .global-filter-menu {
     background: #36474f !important;
     border: 1px solid #455963 !important;
 }
 
-body.report-dashboard #role-selector .global-filter-search {
+body.report-dashboard #role-selector .global-filter-search,
+body.report-dashboard #role-selector .skills-search-top-search,
+body.report-dashboard #role-selector .skills-search-favorites-panel-input {
     background: #314149 !important;
     border: 1px solid #546972 !important;
     color: #bcc5c9 !important;
     border-radius: 8px;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
     outline: none;
     transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-body.report-dashboard #role-selector .global-filter-search::placeholder {
+body.report-dashboard #role-selector .global-filter-search::placeholder,
+body.report-dashboard #role-selector .skills-search-top-search::placeholder,
+body.report-dashboard #role-selector .skills-search-favorites-panel-input::placeholder {
     color: rgba(188, 197, 201, 0.72) !important;
 }
 
-body.report-dashboard #role-selector .global-filter-search:focus {
+body.report-dashboard #role-selector .global-filter-search:focus,
+body.report-dashboard #role-selector .skills-search-top-search:focus,
+body.report-dashboard #role-selector .skills-search-favorites-panel-input:focus {
     background: #36474f !important;
     border-color: #6b8791 !important;
     box-shadow: 0 0 0 2px rgba(107, 135, 145, 0.2) !important;

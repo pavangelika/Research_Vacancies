@@ -1,4 +1,4 @@
-﻿// ---------- Shared Filters Module ----------
+// ---------- Shared Filters Module ----------
 var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
 var SHARED_FILTER_PANEL_SECTION_META = [
     { key: 'my-filters', label: 'Избранное', icon: 'favorite' },
@@ -488,11 +488,6 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control my-responses-filter-control';
 
-    var caption = document.createElement('div');
-    caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Отклики';
-    wrap.appendChild(caption);
-
     var currencyWrap = document.createElement('div');
     currencyWrap.className = 'totals-top-filter-currency';
 
@@ -664,13 +659,12 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
 }
 
 function createSkillsSearchFilterControl(activeRole, analysisType) {
-    if (!activeRole || String(analysisType || '') !== 'skills-search') return null;
+    if (!activeRole) return null;
     if (typeof initSkillsSearch === 'function') initSkillsSearch(activeRole);
     var block = activeRole.querySelector('.skills-search-content');
     if (!block) return null;
 
     var state = (typeof getSkillsSearchSelections === 'function') ? getSkillsSearchSelections(block) : { includeSkills: [], excludeSkills: [], logic: 'or' };
-    var pickMode = (uiState.skills_search_skill_pick_mode === 'exclude') ? 'exclude' : 'include';
     var searchQuery = String(uiState.skills_search_filter_query || '').trim().toLowerCase();
     var skills = (block._data && Array.isArray(block._data.skills)) ? block._data.skills.slice() : [];
     skills.sort(function(a, b) {
@@ -684,20 +678,41 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
         if (!searchQuery) return true;
         return display.toLowerCase().indexOf(searchQuery) >= 0;
     });
+    visibleSkills = (function(items) {
+        var groups = new Map();
+        items.forEach(function(item) {
+            var countKey = String(Number(item && item.count) || 0);
+            if (!groups.has(countKey)) groups.set(countKey, []);
+            groups.get(countKey).push(item);
+        });
+        var orderedCountKeys = Array.from(groups.keys()).sort(function(a, b) {
+            return Number(b) - Number(a);
+        });
+        var arranged = [];
+        var lastLabelLength = 0;
+        orderedCountKeys.forEach(function(countKey) {
+            var group = (groups.get(countKey) || []).slice().sort(function(a, b) {
+                var aLabel = registerSkillDisplayName(a && a.skill ? a.skill : '');
+                var bLabel = registerSkillDisplayName(b && b.skill ? b.skill : '');
+                return aLabel.length - bLabel.length || aLabel.localeCompare(bLabel, 'ru');
+            });
+            while (group.length) {
+                var nextItem = lastLabelLength >= 16 ? group.shift() : group.pop();
+                arranged.push(nextItem);
+                lastLabelLength = registerSkillDisplayName(nextItem && nextItem.skill ? nextItem.skill : '').length;
+            }
+        });
+        return arranged;
+    })(visibleSkills);
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control skills-search-top-filter-control';
-
-    var caption = document.createElement('div');
-    caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Навыки';
-    wrap.appendChild(caption);
 
     var searchWrap = document.createElement('div');
     searchWrap.className = 'skills-search-top-search-wrap';
     var searchInput = document.createElement('input');
     searchInput.type = 'search';
-    searchInput.className = 'skills-search-top-search';
+    searchInput.className = 'global-filter-search skills-search-top-search';
     searchInput.placeholder = 'Поиск навыка';
     searchInput.value = String(uiState.skills_search_filter_query || '');
     searchInput.addEventListener('input', function() {
@@ -705,7 +720,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
         uiState.skills_search_filter_query = nextQuery;
         if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
         setTimeout(function() {
-            var nextInput = document.querySelector('#global-shared-filter-panel .skills-search-top-search');
+            var nextInput = document.querySelector('#global-shared-filter-panel .skills-search-top-filter-control .global-filter-search');
             if (!nextInput) return;
             nextInput.focus();
             if (typeof nextInput.setSelectionRange === 'function') {
@@ -716,170 +731,13 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
     searchWrap.appendChild(searchInput);
     wrap.appendChild(searchWrap);
 
-    var toolbar = document.createElement('div');
-    toolbar.className = 'skills-search-top-toolbar';
-
-    var modeWrap = document.createElement('div');
-    modeWrap.className = 'skills-search-top-group';
-    [
-        { value: 'include', label: 'Включать' },
-        { value: 'exclude', label: 'Исключать' }
-    ].forEach(function(item) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'totals-top-filter-chip skills-search-top-chip';
-        button.textContent = item.label;
-        button.setAttribute('aria-pressed', item.value === pickMode ? 'true' : 'false');
-        if (item.value === pickMode) button.classList.add('active');
-        button.addEventListener('click', function() {
-            uiState.skills_search_skill_pick_mode = item.value;
-            if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
-        });
-        modeWrap.appendChild(button);
-    });
-    toolbar.appendChild(modeWrap);
-
-    var logicWrap = document.createElement('div');
-    logicWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-top-logic-dropdown';
-    logicWrap.style.flex = '0 0 auto';
-    logicWrap.style.minWidth = '132px';
-    logicWrap.style.width = '132px';
-
-    var logicTrigger = document.createElement('button');
-    logicTrigger.type = 'button';
-    logicTrigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    logicTrigger.style.width = '100%';
-    logicTrigger.style.borderRadius = '999px';
-    logicTrigger.style.padding = '5px 10px';
-    logicTrigger.style.minHeight = '34px';
-    logicTrigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    logicTrigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    logicTrigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    logicTrigger.style.display = 'flex';
-    logicTrigger.style.alignItems = 'center';
-    logicTrigger.style.justifyContent = 'space-between';
-
-    var logicLabel = document.createElement('span');
-    logicLabel.className = 'global-filter-trigger-label';
-    logicLabel.textContent = 'Логика: ' + String(state.logic || 'or').trim().toUpperCase();
-    logicLabel.style.overflow = 'hidden';
-    logicLabel.style.textOverflow = 'ellipsis';
-    logicLabel.style.whiteSpace = 'nowrap';
-    logicLabel.style.maxWidth = 'calc(100% - 18px)';
-    logicTrigger.appendChild(logicLabel);
-
-    var logicArrow = document.createElement('span');
-    logicArrow.className = 'global-filter-trigger-arrow';
-    logicArrow.textContent = '\u25BE';
-    logicArrow.style.fontSize = '12px';
-    logicArrow.style.opacity = '0.8';
-    logicTrigger.appendChild(logicArrow);
-    logicWrap.appendChild(logicTrigger);
-
-    var logicMenu = document.createElement('div');
-    logicMenu.className = 'global-filter-menu skills-search-dropdown-menu';
-    logicMenu.style.display = 'none';
-    logicMenu.style.marginTop = '0';
-    logicMenu.style.padding = '6px';
-    logicMenu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    logicMenu.style.borderRadius = '12px';
-    logicMenu.style.background = 'var(--card-background, #fff)';
-    logicMenu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    logicMenu.style.width = '132px';
-    logicMenu.style.maxWidth = 'calc(100vw - 48px)';
-
-    [
-        { value: 'or', label: 'OR' },
-        { value: 'and', label: 'AND' }
-    ].forEach(function(item, idx) {
-        var option = document.createElement('button');
-        option.type = 'button';
-        option.className = 'tab-button summary-filter-item global-filter-option-row';
-        option.textContent = item.label;
-        option.style.display = 'block';
-        option.style.width = '100%';
-        option.style.boxSizing = 'border-box';
-        option.style.margin = idx < 1 ? '0 0 2px' : '0';
-        option.style.textAlign = 'left';
-        option.style.borderRadius = '8px';
-        option.style.padding = '5px 8px';
-        if (item.value === state.logic) {
-            option.classList.add('active');
-            option.style.fontWeight = '600';
-        }
-        option.addEventListener('click', function() {
-            syncSelectionSnapshot();
-            if (typeof applySkillsSearchSkillState === 'function') {
-                var liveSelections = getSkillsSearchSelections(ctx.block);
-                applySkillsSearchSkillState(block, liveSelections.includeSkills || [], liveSelections.excludeSkills || [], item.value);
-            }
-            if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
-            syncSkillsSearchFilterEffects(activeRole);
-            logicMenu.style.display = 'none';
-            if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(logicMenu);
-            logicArrow.textContent = '\u25BE';
-        });
-        logicMenu.appendChild(option);
-    });
-
-    logicTrigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var nextState = logicMenu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(logicMenu, nextState === 'block' ? logicArrow : null);
-        logicMenu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(logicTrigger, logicMenu);
-        else if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(logicMenu);
-        logicArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
-    });
-
-    logicWrap.appendChild(logicMenu);
-    toolbar.appendChild(logicWrap);
-
-    var actionWrap = document.createElement('div');
-    actionWrap.className = 'skills-search-top-group';
-
-    var selectAllBtn = document.createElement('button');
-    selectAllBtn.type = 'button';
-    selectAllBtn.className = 'totals-top-filter-chip skills-search-top-chip';
-    selectAllBtn.textContent = pickMode === 'exclude' ? 'Исключить все' : 'Выбрать все';
-    selectAllBtn.addEventListener('click', function() {
-        var nextSkills = visibleSkills.map(function(item) { return item.skill; });
-        if (typeof applySkillsSearchSkillState === 'function') {
-            applySkillsSearchSkillState(
-                block,
-                pickMode === 'exclude' ? [] : nextSkills,
-                pickMode === 'exclude' ? nextSkills : [],
-                state.logic || 'or'
-            );
-        }
-        if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
-        syncSkillsSearchFilterEffects(activeRole);
-    });
-    actionWrap.appendChild(selectAllBtn);
-
-    var resetBtn = document.createElement('button');
-    resetBtn.type = 'button';
-    resetBtn.className = 'totals-top-filter-chip skills-search-top-chip';
-    resetBtn.textContent = 'Сбросить';
-    resetBtn.addEventListener('click', function() {
-        if (typeof applySkillsSearchSkillState === 'function') {
-            applySkillsSearchSkillState(block, [], [], state.logic || 'or');
-        }
-        if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
-        syncSkillsSearchFilterEffects(activeRole);
-    });
-    actionWrap.appendChild(resetBtn);
-    toolbar.appendChild(actionWrap);
-
-    wrap.appendChild(toolbar);
-
     var summary = document.createElement('div');
     summary.className = 'skills-search-top-meta';
-    summary.textContent = 'Навыков: ' + visibleSkills.length + ' из ' + skills.length + ' · сортировка по частоте';
+    summary.textContent = 'Навыков: ' + visibleSkills.length + ' из ' + skills.length + ' · клик: включить → исключить → снять';
     wrap.appendChild(summary);
 
     var list = document.createElement('div');
-    list.className = 'skills-search-top-list skills-search-top-list-rows';
+    list.className = 'skills-search-top-list totals-top-filter-chip-row skills-search-top-chipset-row';
     if (!visibleSkills.length) {
         var empty = document.createElement('div');
         empty.className = 'skills-search-top-empty';
@@ -891,7 +749,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
             var key = normalizeSkillName(displaySkill);
             var button = document.createElement('button');
             button.type = 'button';
-            button.className = 'skills-search-top-skill global-filter-option-row';
+            button.className = 'totals-top-filter-chip skills-search-top-skill-chip';
             if (includeKeys.has(key)) button.classList.add('active');
             if (excludeKeys.has(key)) button.classList.add('excluded');
             button.innerHTML =
@@ -899,7 +757,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
                 '<span class="skills-search-top-skill-count">' + escapeHtml(item.count) + '</span>';
             button.addEventListener('click', function() {
                 if (typeof toggleSkillsSearchSkillState === 'function') {
-                    toggleSkillsSearchSkillState(block, displaySkill, uiState.skills_search_skill_pick_mode === 'exclude' ? 'exclude' : 'include');
+                    toggleSkillsSearchSkillState(block, displaySkill, 'cycle');
                 }
                 if (typeof updateSkillsSearchResults === 'function') updateSkillsSearchResults(block);
                 if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
@@ -1169,6 +1027,11 @@ function createMyFiltersControl(activeRole, analysisType) {
     row.style.alignItems = 'stretch';
     row.style.gap = '8px';
 
+    var dropdownLabel = document.createElement('div');
+    dropdownLabel.className = 'shared-filter-field-label';
+    dropdownLabel.textContent = 'Избранное';
+    row.appendChild(dropdownLabel);
+
     var dropdownWrap = document.createElement('div');
     dropdownWrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel-picker-wrap';
     dropdownWrap.style.flex = '0 0 auto';
@@ -1185,6 +1048,11 @@ function createMyFiltersControl(activeRole, analysisType) {
     dropdownWrap.appendChild(trigger);
     row.appendChild(dropdownWrap);
 
+    var inputLabel = document.createElement('div');
+    inputLabel.className = 'shared-filter-field-label';
+    inputLabel.textContent = 'Сохранить набор';
+    row.appendChild(inputLabel);
+
     var inputWrap = document.createElement('div');
     inputWrap.className = 'skills-search-favorites-panel-field';
     inputWrap.style.width = '100%';
@@ -1192,7 +1060,7 @@ function createMyFiltersControl(activeRole, analysisType) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
-    input.placeholder = 'Сохранить набор';
+    input.placeholder = 'Введите название';
     input.autocomplete = 'off';
     input.spellcheck = false;
     inputWrap.appendChild(input);
@@ -1365,112 +1233,58 @@ function createSkillsSearchLogicControl(activeRole, analysisType) {
     if (!ctx) return null;
 
     var wrap = document.createElement('div');
-    wrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-top-logic-control';
-    wrap.dataset.filterKey = 'logic';
-    wrap.style.marginTop = '4px';
-    wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
+    wrap.className = 'totals-top-filter-control skills-search-top-logic-control';
 
-    var caption = document.createElement('div');
-    caption.textContent = 'Логика';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
-    wrap.appendChild(caption);
+    var row = document.createElement('div');
+    row.className = 'skills-search-logic-switch-row';
 
-    var trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'tab-button global-filter-trigger skills-search-dropdown-btn';
-    trigger.style.width = '100%';
-    trigger.style.borderRadius = '999px';
-    trigger.style.padding = '5px 10px';
-    trigger.style.minHeight = '34px';
-    trigger.style.border = '1px solid rgba(148, 163, 184, 0.22)';
-    trigger.style.background = 'rgba(248, 250, 252, 0.92)';
-    trigger.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
-    trigger.style.display = 'flex';
-    trigger.style.alignItems = 'center';
-    trigger.style.justifyContent = 'space-between';
+    var orLabel = document.createElement('span');
+    orLabel.className = 'skills-search-logic-switch-label';
+    orLabel.textContent = 'OR';
+    row.appendChild(orLabel);
 
-    var triggerLabel = document.createElement('span');
-    triggerLabel.className = 'global-filter-trigger-label';
-    triggerLabel.textContent = String(ctx.selections.logic || 'or').trim().toUpperCase();
-    triggerLabel.style.overflow = 'hidden';
-    triggerLabel.style.textOverflow = 'ellipsis';
-    triggerLabel.style.whiteSpace = 'nowrap';
-    triggerLabel.style.maxWidth = 'calc(100% - 18px)';
-    trigger.appendChild(triggerLabel);
+    var switchWrap = document.createElement('label');
+    switchWrap.className = 'totals-ios-checkbox-wrap skills-search-logic-switch';
+    switchWrap.setAttribute('aria-label', 'Переключить логику навыков OR/AND');
 
-    var triggerArrow = document.createElement('span');
-    triggerArrow.className = 'global-filter-trigger-arrow';
-    triggerArrow.textContent = '\u25BE';
-    triggerArrow.style.fontSize = '12px';
-    triggerArrow.style.opacity = '0.8';
-    trigger.appendChild(triggerArrow);
-    wrap.appendChild(trigger);
+    var switchInput = document.createElement('input');
+    switchInput.type = 'checkbox';
+    switchInput.className = 'totals-ios-checkbox';
 
-    var menu = document.createElement('div');
-    menu.className = 'global-filter-menu skills-search-dropdown-menu';
-    menu.style.display = 'none';
-    menu.style.marginTop = '0';
-    menu.style.padding = '6px';
-    menu.style.border = '1px solid var(--border-color, #d9e2ec)';
-    menu.style.borderRadius = '12px';
-    menu.style.background = 'var(--card-background, #fff)';
-    menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '220px';
-    menu.style.maxWidth = 'calc(100vw - 48px)';
+    var switchUi = document.createElement('span');
+    switchUi.className = 'totals-ios-checkbox-ui';
 
-    [
-        { value: 'or', label: 'OR' },
-        { value: 'and', label: 'AND' }
-    ].forEach(function(item, idx) {
-        var option = document.createElement('button');
-        option.type = 'button';
-        option.className = 'tab-button summary-filter-item global-filter-option-row';
-        option.textContent = item.label;
-        option.style.display = 'block';
-        option.style.width = '100%';
-        option.style.boxSizing = 'border-box';
-        option.style.margin = idx < 1 ? '0 0 2px' : '0';
-        option.style.textAlign = 'left';
-        option.style.borderRadius = '8px';
-        option.style.padding = '5px 8px';
-        if (item.value === ctx.selections.logic) {
-            option.classList.add('active');
-            option.style.fontWeight = '600';
-        }
-        option.addEventListener('click', function() {
-            var selections = getSkillsSearchSelections(ctx.block);
-            applySkillsSearchSkillState(
-                ctx.block,
-                selections.includeSkills || [],
-                selections.excludeSkills || [],
-                item.value
-            );
-            updateSkillsSearchResults(ctx.block);
-            syncSkillsSearchFilterEffects(activeRole);
-            menu.style.display = 'none';
-            if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-            triggerArrow.textContent = '\u25BE';
-        });
-        menu.appendChild(option);
-    });
-    menu.__host = wrap;
+    switchWrap.appendChild(switchInput);
+    switchWrap.appendChild(switchUi);
+    row.appendChild(switchWrap);
 
-    trigger.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var nextState = menu.style.display === 'none' ? 'block' : 'none';
-        closeGlobalFilterMenus(menu, nextState === 'block' ? triggerArrow : null);
-        menu.style.display = nextState;
-        if (nextState === 'block') positionGlobalFilterMenu(trigger, menu);
-        else if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
-        triggerArrow.textContent = nextState === 'block' ? '\u25B4' : '\u25BE';
+    var andLabel = document.createElement('span');
+    andLabel.className = 'skills-search-logic-switch-label';
+    andLabel.textContent = 'AND';
+    row.appendChild(andLabel);
+
+    function syncLogicUi(value) {
+        var isAnd = value === 'and';
+        switchInput.checked = isAnd;
+        orLabel.classList.toggle('active', !isAnd);
+        andLabel.classList.toggle('active', isAnd);
+    }
+
+    switchInput.addEventListener('change', function() {
+        var selections = getSkillsSearchSelections(ctx.block);
+        applySkillsSearchSkillState(
+            ctx.block,
+            selections.includeSkills || [],
+            selections.excludeSkills || [],
+            switchInput.checked ? 'and' : 'or'
+        );
+        syncLogicUi(switchInput.checked ? 'and' : 'or');
+        updateSkillsSearchResults(ctx.block);
+        syncSkillsSearchFilterEffects(activeRole);
     });
 
-    wrap.appendChild(menu);
+    syncLogicUi(ctx.selections.logic || 'or');
+    wrap.appendChild(row);
     return wrap;
 }
 
@@ -1757,13 +1571,6 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control';
     if (currentAnalysis === 'skills-search') wrap.classList.add('skills-search-top-limit-control');
-
-    if (!opts.hideCaption) {
-        var caption = document.createElement('div');
-        caption.className = 'totals-top-filter-title';
-        caption.textContent = isMarketTrendsMode ? 'Фильтры трендов' : 'Фильтры топа';
-        wrap.appendChild(caption);
-    }
 
     if (isTopMode) {
         var limitValue = normalizeTotalsTopLimit(uiState.totals_top_limit || 15);
@@ -2546,5 +2353,3 @@ function applyGlobalFilterIconButtonStyle(button, isActive) {
     button.style.color = isActive ? '#2563eb' : '#475569';
     button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
 }
-
-
