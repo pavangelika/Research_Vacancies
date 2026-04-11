@@ -1,14 +1,21 @@
-﻿// ---------- Shared Filters Module ----------
+// ---------- Shared Filters Module ----------
 var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
 var SHARED_FILTER_PANEL_SECTION_META = [
-    { key: 'my-filters', label: 'Избранное', icon: 'favorite' },
-    { key: 'roles', label: 'Роль', icon: 'person' },
-    { key: 'salary', label: 'Зарплата', icon: 'payments' },
-    { key: 'responses', label: 'Отклики', icon: 'mail' },
-    { key: 'top', label: 'Топ', icon: 'format_size' },
-    { key: 'vacancy', label: 'Вакансия', icon: 'work' },
-    { key: 'skills', label: 'Навыки', icon: 'local_fire_department' }
+    { key: 'my-filters', label: 'Избранное', icon: 'favorite', title: 'Избранное' },
+    { key: 'roles', label: 'Роль', icon: 'person', title: 'Роль' },
+    { key: 'salary', label: 'Зарплата', icon: 'payments', title: 'Зарплата' },
+    { key: 'responses', label: 'Отклики', icon: 'mail', title: 'Отклики' },
+    { key: 'top', label: 'Топ', icon: 'format_size', title: 'Топ' },
+    { key: 'vacancy', label: 'Вакансия', icon: 'work', title: 'Вакансия' },
+    { key: 'skills', label: 'Навыки', icon: 'local_fire_department', title: 'Навыки' }
 ];
+
+function getSharedFilterPanelSectionMeta(sectionKey) {
+    var key = String(sectionKey || '').trim();
+    return SHARED_FILTER_PANEL_SECTION_META.find(function(item) {
+        return item.key === key;
+    }) || null;
+}
 
 function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     var current = String(analysisType || '').trim().replace(/-all$/, '');
@@ -20,6 +27,26 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     if (current === 'activity' || current === 'weekday' || current === 'skills-monthly') return 'roles';
     if (current === 'all' || current === 'combined') return 'roles';
     return 'roles';
+}
+
+function normalizeSharedFilterSectionKey(sectionKey) {
+    var key = String(sectionKey || '').trim();
+    if (key === 'employer') return 'vacancy';
+    return key;
+}
+
+function getSharedFilterPanelActiveSectionKey(analysisType) {
+    var state = ensureSharedFilterPanelState();
+    var current = getSharedFilterPanelSectionKeyForAnalysis(analysisType);
+    return normalizeSharedFilterSectionKey(state.activeSection || current || 'roles') || 'roles';
+}
+
+function setSharedFilterPanelActiveSection(sectionKey) {
+    var key = normalizeSharedFilterSectionKey(sectionKey);
+    if (!key) return;
+    var state = ensureSharedFilterPanelState();
+    state.activeSection = key;
+    persistSharedFilterPanelState();
 }
 
 function ensureSharedFilterPanelState() {
@@ -71,7 +98,7 @@ function getSharedFilterPanelToggleLabel(collapsed) {
     return collapsed ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
 }
 
-function syncSharedFilterPanelCollapsedUi(panel) {
+function syncSharedFilterPanelCollapsedUi(panel, activeSectionKey) {
     if (!panel) return;
     var collapsed = isSharedFilterPanelCollapsed();
     panel.classList.toggle('is-collapsed', collapsed);
@@ -100,6 +127,13 @@ function syncSharedFilterPanelCollapsedUi(panel) {
         toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
 
+    var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
+    if (railToggle) {
+        railToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+        railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
+        railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
+    }
+
     if (typeof updateReportLayoutScrollZones === 'function') {
         updateReportLayoutScrollZones();
     }
@@ -107,7 +141,9 @@ function syncSharedFilterPanelCollapsedUi(panel) {
         resizePlotlyScope(document);
     }
 
-    var activeKey = String(panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '') || '').trim() || 'roles';
+    var activeKey = String(activeSectionKey || ensureSharedFilterPanelState().activeSection || '').trim();
+    if (!activeKey) activeKey = getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '');
+    panel.dataset.activeSection = activeKey;
     if (rail) {
         rail.querySelectorAll('.shared-filter-panel-rail-button[data-section-key]').forEach(function(btn) {
             var btnKey = String(btn.dataset.sectionKey || '').trim();
@@ -116,87 +152,101 @@ function syncSharedFilterPanelCollapsedUi(panel) {
             btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
     }
+}
 
-    var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
-    if (railToggle) {
-        railToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
-        railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
-        railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
+function scrollSharedFilterPanelSectionIntoView(panel, sectionKey) {
+    if (!panel) return;
+    var body = panel.querySelector('.shared-filter-panel-body');
+    if (!body) return;
+    var key = String(sectionKey || '').trim();
+    if (!key) return;
+    var group = body.querySelector('.shared-filter-group[data-section-key="' + key + '"]');
+    if (!group) return;
+    try {
+        group.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } catch (_e) {
+        var offset = Math.max(0, group.offsetTop - 8);
+        body.scrollTop = offset;
     }
+}
+
+function focusSharedFilterPanelSection(sectionKey) {
+    var key = String(sectionKey || '').trim();
+    if (!key) return;
+    setSharedFilterPanelActiveSection(key);
+    setSharedFilterPanelCollapsed(false);
+    var panel = document.getElementById('global-shared-filter-panel');
+    if (!panel) return;
+    if (typeof setSharedFilterPanelSectionOpen === 'function') {
+        setSharedFilterPanelSectionOpen(key, true);
+    }
+    syncSharedFilterPanelCollapsedUi(panel, key);
+    setTimeout(function() {
+        scrollSharedFilterPanelSectionIntoView(panel, key);
+    }, 0);
 }
 function ensureSharedFilterPanel() {
     var host = document.getElementById('role-selector');
     if (!host) return null;
     var panel = document.getElementById('global-shared-filter-panel');
     if (!panel) {
-        var panelState = typeof ensureSharedFilterPanelState === 'function'
-            ? ensureSharedFilterPanelState()
-            : { open: true };
         panel = document.createElement('div');
         panel.id = 'global-shared-filter-panel';
         panel.className = 'shared-filter-panel';
         panel.style.display = 'none';
         panel.style.margin = '0';
         panel.style.padding = '0';
-        panel.style.border = '0';
-        panel.style.borderRadius = '0';
-        panel.style.background = 'transparent';
-        panel.style.boxShadow = 'none';
-        panel.style.backdropFilter = 'none';
         panel.style.position = 'relative';
         panel.style.zIndex = '50';
         panel.style.overflow = 'hidden';
-        panel.style.height = '100%';
+        panel.style.display = 'flex';
+        panel.style.flexDirection = 'column';
         panel.style.minHeight = '0';
+        panel.style.height = '100%';
         panel.style.boxSizing = 'border-box';
-        panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
 
         var head = document.createElement('div');
         head.className = 'shared-filter-panel-head';
         head.style.display = 'flex';
-        head.style.alignItems = 'center';
-        head.style.justifyContent = 'space-between';
-        head.style.gap = '10px';
-        head.style.width = '100%';
+        head.style.flexDirection = 'column';
+        head.style.gap = '8px';
+        head.style.padding = '12px 12px 0';
         head.style.boxSizing = 'border-box';
-        head.style.padding = '12px 14px';
-        head.style.background = '#262626';
-        head.style.color = '#f8fafc';
+
+        var titleRow = document.createElement('div');
+        titleRow.className = 'shared-filter-panel-title-row';
+        titleRow.style.display = 'flex';
+        titleRow.style.alignItems = 'center';
+        titleRow.style.justifyContent = 'space-between';
+        titleRow.style.gap = '10px';
 
         var title = document.createElement('div');
         title.className = 'shared-filter-panel-title';
         title.textContent = 'Фильтры';
-        title.style.fontWeight = '700';
-        title.style.marginBottom = '0';
+        title.style.fontWeight = '600';
+        title.style.textAlign = 'left';
         title.style.fontSize = '0.95rem';
-        title.style.lineHeight = '1.25';
-        title.style.color = '#f8fafc';
+        title.style.minWidth = '0';
 
         var toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'shared-filter-panel-toggle';
-        toggle.textContent = panelState.open === false ? '\u2630' : '\u25C0';
-        toggle.setAttribute('aria-expanded', panelState.open === false ? 'false' : 'true');
-        toggle.setAttribute('aria-label', panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
-        toggle.title = panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
-        toggle.style.flex = '0 0 auto';
-        toggle.style.border = '0';
-        toggle.style.borderRadius = '0';
-        toggle.style.background = 'rgba(255, 255, 255, 0.08)';
-        toggle.style.color = '#f8fafc';
-        toggle.style.padding = '5px 10px';
-        toggle.style.fontSize = '12px';
-        toggle.style.fontWeight = '600';
-        toggle.style.cursor = 'pointer';
+        toggle.textContent = '\u25C0';
+        toggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(false));
+        toggle.setAttribute('aria-expanded', 'true');
         toggle.addEventListener('click', function() {
-            if (typeof setSharedFilterPanelOpen === 'function') {
-                var nextOpen = !(panel.dataset.panelOpen === '1');
-                setSharedFilterPanelOpen(nextOpen);
-            }
+            setSharedFilterPanelCollapsed(!isSharedFilterPanelCollapsed());
+            syncSharedFilterPanelCollapsedUi(panel, panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || ''));
         });
+        titleRow.appendChild(title);
+        titleRow.appendChild(toggle);
 
-        head.appendChild(title);
-        head.appendChild(toggle);
+        var hint = document.createElement('div');
+        hint.className = 'shared-filter-panel-hint';
+        hint.textContent = '';
+        hint.style.fontSize = '10px';
+        hint.style.marginBottom = '0';
+        hint.style.display = 'none';
 
         var rail = document.createElement('div');
         rail.className = 'shared-filter-panel-rail';
@@ -216,7 +266,7 @@ function ensureSharedFilterPanel() {
         railToggle.title = getSharedFilterPanelToggleLabel(false);
         railToggle.addEventListener('click', function() {
             setSharedFilterPanelCollapsed(false);
-            syncSharedFilterPanelCollapsedUi(panel);
+            syncSharedFilterPanelCollapsedUi(panel, panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || ''));
         });
         rail.appendChild(railToggle);
 
@@ -242,26 +292,14 @@ function ensureSharedFilterPanel() {
             text.textContent = section.label;
             btn.appendChild(text);
             btn.addEventListener('click', function() {
-                panel.dataset.activeSection = section.key;
-                setSharedFilterPanelCollapsed(false);
-                if (typeof setSharedFilterPanelSectionOpen === 'function') {
-                    setSharedFilterPanelSectionOpen(section.key, true);
-                }
-                syncSharedFilterPanelCollapsedUi(panel);
+                focusSharedFilterPanelSection(section.key);
             });
             rail.appendChild(btn);
         });
 
-        var hint = document.createElement('div');
-        hint.className = 'shared-filter-panel-hint';
-        hint.textContent = '';
-        hint.style.fontSize = '10px';
-        hint.style.marginBottom = '0';
-        hint.style.display = 'none';
-
         var body = document.createElement('div');
         body.className = 'shared-filter-panel-body';
-        body.style.display = panelState.open === false ? 'none' : 'flex';
+        body.style.display = 'flex';
         body.style.flexDirection = 'column';
         body.style.flexWrap = 'nowrap';
         body.style.alignItems = 'stretch';
@@ -280,8 +318,9 @@ function ensureSharedFilterPanel() {
         footer.style.textAlign = 'center';
         footer.style.fontSize = '0.84rem';
 
+        head.appendChild(titleRow);
+        head.appendChild(hint);
         panel.appendChild(head);
-        panel.appendChild(hint);
         panel.appendChild(rail);
         panel.appendChild(body);
         panel.appendChild(footer);
@@ -305,29 +344,14 @@ function ensureSharedFilterPanel() {
             document.body.dataset.globalFilterMenusBound = '1';
         }
     }
-    var currentPanelState = typeof ensureSharedFilterPanelState === 'function'
-        ? ensureSharedFilterPanelState()
-        : { open: true };
-    panel.dataset.panelOpen = currentPanelState.open === false ? '0' : '1';
-    var headNode = panel.querySelector('.shared-filter-panel-head');
-    var bodyNode = panel.querySelector('.shared-filter-panel-body');
-    var toggleNode = panel.querySelector('.shared-filter-panel-toggle');
-    if (headNode) headNode.style.paddingBottom = currentPanelState.open === false ? '0' : '8px';
-    if (bodyNode) bodyNode.style.display = currentPanelState.open === false ? 'none' : 'flex';
-    if (toggleNode) {
-        toggleNode.textContent = currentPanelState.open === false ? '\u2630' : '\u25C0';
-        toggleNode.setAttribute('aria-expanded', currentPanelState.open === false ? 'false' : 'true');
-        toggleNode.setAttribute('aria-label', currentPanelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
-        toggleNode.title = currentPanelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
-    }
+    panel.style.display = 'flex';
     var footerNode = panel.querySelector('.shared-filter-panel-footer');
     if (footerNode) {
         var currentDate = document.body && document.body.dataset ? String(document.body.dataset.currentDate || '').trim() : '';
         var currentTime = document.body && document.body.dataset ? String(document.body.dataset.currentTime || '').trim() : '';
         footerNode.textContent = (currentDate && currentTime) ? ('Обновлено: ' + currentDate + ' ' + currentTime) : 'Обновлено';
     }
-    panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '');
-    syncSharedFilterPanelCollapsedUi(panel);
+    syncSharedFilterPanelCollapsedUi(panel, getSharedFilterPanelActiveSectionKey(panel.dataset.activeAnalysis || ''));
     return panel;
 }
 
@@ -490,7 +514,7 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
 
     var caption = document.createElement('div');
     caption.className = 'totals-top-filter-title';
-    caption.textContent = 'Отклики';
+    caption.textContent = 'Фильтры откликов';
     wrap.appendChild(caption);
 
     var currencyWrap = document.createElement('div');
@@ -935,7 +959,9 @@ function getSkillsSearchPanelContext(activeRole, analysisType) {
 function syncSkillsSearchFilterEffects(activeRole) {
     if (!activeRole) return;
     if (typeof refreshSkillsSearchPanel === 'function') refreshSkillsSearchPanel(activeRole);
-    if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
+    if (typeof requestActiveAnalysisRender === 'function') {
+        requestActiveAnalysisRender(activeRole, activeRole.dataset.activeAnalysis || '');
+    } else if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
         applyGlobalFiltersToActiveAnalysis(activeRole, activeRole.dataset.activeAnalysis || '');
     }
 }
@@ -1045,12 +1071,9 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
             ? (items.find(function(item) { return item.id === activeId; }) || null)
             : null;
         trigger.classList.toggle('is-active', !!activeItem);
-        trigger.innerHTML =
-            '<span class="skills-search-favorite-trigger-body">' +
-                escapeHtml(activeItem ? activeItem.name : 'Не выбрано') +
-            '</span>';
+        trigger.textContent = activeItem ? '\u2665' : '\u2661';
         input.placeholder = activeItem ? activeItem.name : 'Сохранить фильтр';
-        trigger.title = activeItem ? ('Набор: ' + activeItem.name) : 'Не выбрано';
+        trigger.title = activeItem ? ('Мои фильтры: ' + activeItem.name) : 'Мои фильтры';
         trigger.setAttribute('aria-label', trigger.title);
         saveBtn.title = activeItem ? ('Сохранить текущий фильтр: ' + activeItem.name) : 'Сохранить фильтр';
         saveBtn.setAttribute('aria-label', saveBtn.title);
@@ -1709,7 +1732,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
 
         var count = document.createElement('div');
         count.className = 'skills-search-filter-option-count';
-        count.textContent = '"' + (Number(skillItem.count) || 0) + '"';
+        count.textContent = String(Number(skillItem.count) || 0);
         count.style.fontSize = '11px';
         count.style.whiteSpace = 'nowrap';
         row.appendChild(count);
@@ -1776,7 +1799,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         limitHead.className = 'totals-top-filter-limit-head';
 
         var limitLabel = document.createElement('span');
-        limitLabel.textContent = 'Топ';
+        limitLabel.textContent = 'Размер топа';
         limitHead.appendChild(limitLabel);
 
         var limitBadge = document.createElement('strong');
@@ -1830,7 +1853,8 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
             var next = syncLimitPreview(rawValue);
             if (uiState.totals_top_limit === next) return;
             uiState.totals_top_limit = next;
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         }
 
         range.addEventListener('input', function() {
@@ -1895,7 +1919,8 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
                     other.classList.toggle('active', other === button);
                     other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
                 });
-                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+                if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+                else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
             currencyButtons.push(button);
             currencyTabs.appendChild(button);
@@ -1940,7 +1965,8 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
                     other.classList.toggle('active', other === button);
                     other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
                 });
-                if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+                if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+                else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
             });
             metricButtons.push(button);
             metricTabs.appendChild(button);
@@ -1994,7 +2020,8 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
                 other.classList.toggle('active', other === button);
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
             });
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         });
         metricButtons.push(button);
         metricTabs.appendChild(button);
@@ -2043,10 +2070,24 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
             return allowed.indexOf(String(value || '')) >= 0;
         });
     };
+    var getIncludedRoles = function() {
+        var rolesBucket = (typeof ensureGlobalFilterBucket === 'function')
+            ? ensureGlobalFilterBucket('roles')
+            : { include: [] };
+        return Array.isArray(rolesBucket.include) ? rolesBucket.include.map(function(value) {
+            return String(value || '').trim();
+        }).filter(Boolean) : [];
+    };
+    var isRoleIncludedInMainFilter = function(value) {
+        return getIncludedRoles().indexOf(String(value || '').trim()) >= 0;
+    };
     var setExcludedRoles = function(nextValues) {
+        var included = new Set(getIncludedRoles());
         uiState.market_trends_excluded_roles = Array.from(new Set((nextValues || []).map(function(value) {
             return String(value || '').trim();
-        }).filter(Boolean)));
+        }).filter(function(value) {
+            return value && !included.has(value);
+        })));
     };
     var getSearchQuery = function() {
         return String(uiState.market_trends_excluded_roles_query || '');
@@ -2171,8 +2212,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     }
 
     function applySearchFilter() {
-        if (typeof applyGlobalFilterSearch === 'function') {
-            applyGlobalFilterSearch(menu, getSearchQuery(), '.global-filter-option-row[data-option-value]');
+        if (typeof applyGlobalFilterTextSearch === 'function') {
+            applyGlobalFilterTextSearch(menu, getSearchQuery(), '.global-filter-option-row[data-option-value]');
             return;
         }
         var q = String(getSearchQuery() || '').trim().toLowerCase();
@@ -2203,18 +2244,24 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     }
 
     function syncExcludedRolesVisualState() {
+        pruneMarketTrendsExcludedRolesConflicts();
         var selected = getExcludedRoles();
+        var included = new Set(getIncludedRoles());
         triggerLabel.textContent = summarizeExcludedRoles();
         Array.from(menu.querySelectorAll('.global-filter-option-row[data-option-value]')).forEach(function(node) {
             var value = String((node.dataset && node.dataset.optionValue) || '');
             var labelNode = node.querySelector('div');
             var isExcluded = selected.indexOf(value) >= 0;
-            node.style.background = isExcluded ? '#fee2e2' : 'transparent';
-            node.style.color = isExcluded ? '#991b1b' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
-            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
+            var isBlocked = included.has(value);
+            node.style.background = isExcluded ? '#fee2e2' : (isBlocked ? 'rgba(148, 163, 184, 0.12)' : 'transparent');
+            node.style.color = isExcluded ? '#991b1b' : (isBlocked ? (document.body && document.body.classList.contains('report-dashboard') ? '#94a3b8' : '#64748b') : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a'));
+            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : (isBlocked ? '1px solid rgba(148, 163, 184, 0.18)' : '1px solid transparent');
+            node.style.cursor = isBlocked ? 'not-allowed' : 'pointer';
+            node.style.opacity = isBlocked ? '0.72' : '1';
+            node.title = isBlocked ? 'Роль уже выбрана в списке "Роли"' : '';
             if (labelNode) {
                 labelNode.style.fontWeight = isExcluded ? '600' : '400';
-                labelNode.style.color = isExcluded ? '#991b1b' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
+                labelNode.style.color = isExcluded ? '#991b1b' : (isBlocked ? (document.body && document.body.classList.contains('report-dashboard') ? '#94a3b8' : '#64748b') : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a'));
             }
         });
         reorderRoleRows();
@@ -2240,6 +2287,7 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         row.dataset.searchText = String(option.label || option.value || '');
         row.addEventListener('click', function(e) {
             e.stopPropagation();
+            if (isRoleIncludedInMainFilter(option.value)) return;
             var selected = getExcludedRoles();
             var value = String(option.value || '');
             if (selected.indexOf(value) >= 0) {
@@ -2297,9 +2345,10 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         if (typeof restoreGlobalFilterMenuHost === 'function') restoreGlobalFilterMenuHost(menu);
         triggerArrow.textContent = '\u25BE';
         unbindOutsideClose();
-        if (uiState.market_trends_excluded_roles_pending_apply) {
+            if (uiState.market_trends_excluded_roles_pending_apply) {
             uiState.market_trends_excluded_roles_pending_apply = false;
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof requestActiveAnalysisRender === 'function') requestActiveAnalysisRender(activeRole, 'totals');
+            else if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
         }
     }
 
@@ -2327,6 +2376,26 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         triggerArrow.textContent = '\u25B4';
     }
     return wrap;
+}
+
+function pruneMarketTrendsExcludedRolesConflicts() {
+    if (!uiState || !uiState.global_filters || !uiState.global_filters.roles) return false;
+    if (!Array.isArray(uiState.market_trends_excluded_roles)) return false;
+
+    var included = Array.isArray(uiState.global_filters.roles.include)
+        ? uiState.global_filters.roles.include.map(function(value) {
+            return String(value || '').trim();
+        }).filter(Boolean)
+        : [];
+    if (!included.length) return false;
+
+    var includedSet = new Set(included);
+    var before = uiState.market_trends_excluded_roles.length;
+    uiState.market_trends_excluded_roles = uiState.market_trends_excluded_roles.filter(function(value) {
+        var key = String(value || '').trim();
+        return key && !includedSet.has(key);
+    });
+    return uiState.market_trends_excluded_roles.length !== before;
 }
 
 function buildSharedFilterGroup(parentRole, analysisType, label, buttons, extraBuilder) {

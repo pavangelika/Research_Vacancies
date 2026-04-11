@@ -71,10 +71,18 @@
     flex-direction: column;
     gap: 10px;
 }
+.totals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 10px;
+}
 .totals-kpis {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
     gap: 8px;
+}
+.totals-kpis-inline {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 .totals-overview-layout {
     padding: 12px;
@@ -482,6 +490,39 @@
     color: #64748b;
     margin-bottom: 6px;
 }
+.totals-apply-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(53, 80, 111, 0.28);
+    color: #35506f;
+    text-decoration: none;
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+.totals-apply-link:hover {
+    background: rgba(53, 80, 111, 0.08);
+    color: #243b55;
+}
+.totals-response-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+.totals-response-pill.done {
+    color: var(--accent-green-strong);
+    background: var(--accent-green-soft);
+    border: 1px solid var(--accent-green-border);
+}
+.totals-response-pill.none {
+    color: var(--accent-negative-strong);
+    background: var(--accent-negative-soft);
+    border: 1px solid var(--accent-negative-border);
+}
 .totals-warning {
     font-size: 0.82rem;
     color: var(--accent-negative-strong);
@@ -510,6 +551,43 @@
 .totals-table-compact td:first-child,
 .totals-table-compact th:first-child {
     max-width: 180px;
+}
+.totals-table-modern td:nth-child(2),
+.totals-table-modern th:nth-child(2) {
+    width: 84px;
+    text-align: right;
+    white-space: nowrap;
+}
+.totals-table-modern td:last-child,
+.totals-table-modern th:last-child {
+    min-width: 250px;
+}
+.totals-table-stat {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.totals-table-stat-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.92);
+    border: 1px solid rgba(226, 232, 240, 0.88);
+    white-space: nowrap;
+}
+.totals-table-stat-label {
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+}
+.totals-table-stat-value {
+    color: #0f172a;
+    font-size: 0.72rem;
+    font-weight: 700;
 }
 .totals-status-cell {
     width: 74px;
@@ -891,6 +969,29 @@
 }
 .skills-search-top-logic-control {
     width: 196px;
+}
+.skills-search-logic-switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 34px;
+}
+.skills-search-logic-switch-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #94a3b8;
+    transition: color 0.18s ease;
+}
+.skills-search-logic-switch-label.active {
+    color: #334155;
+}
+.skills-search-logic-switch {
+    flex: 0 0 auto;
+}
+.skills-search-logic-switch .totals-ios-checkbox-ui {
+    width: 36px;
+    height: 20px;
 }
 .skills-search-top-meta {
     font-size: 12px;
@@ -2478,6 +2579,35 @@ h1 {
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-light);
 }
+.report-header {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: var(--analysis-layout-max-width);
+    margin: 0 auto;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: var(--analysis-layout-max-width);
+    margin: 0 auto;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.report-header h1 {
+    margin: 0;
+    flex: 1 1 auto;
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+.report-updated-at {
+    flex: 0 0 auto;
+    padding-top: 3px;
+    font-size: 0.86rem;
+    color: var(--text-secondary);
+    text-align: right;
+    white-space: nowrap;
+}
 
 /* Вкладки */
 .tabs {
@@ -2566,6 +2696,15 @@ h1 {
 .analysis-tabs { margin-top: 8px; margin-bottom: 8px; }
 .analysis-button { font-size: 0.85rem; padding: 6px 10px; }
 .analysis-button.active { background-color: var(--primary-dark); }
+.detailed-analysis-content {
+    display: none;
+    width: 100%;
+}
+.detailed-analysis-tabs {
+    justify-content: center;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
 
 /* Месяцы и опыт */
 .month-tabs, .monthly-skills-month-tabs, .monthly-skills-exp-tabs,
@@ -2773,17 +2912,24 @@ h1 {
     min-width: var(--analysis-column-min-width);
     margin: 0 auto;
 }
-.activity-all-table {
+.activity-all-table,
+.details-table.align-activity {
     width: 100%;
     min-width: 0;
     table-layout: fixed;
 }
-.activity-all-table col:first-child { width: 40%; }
+.activity-all-table col:first-child,
+.details-table.align-activity col:first-child { width: 40%; }
 .activity-all-table col:nth-child(2),
 .activity-all-table col:nth-child(3),
 .activity-all-table col:nth-child(4),
 .activity-all-table col:nth-child(5),
-.activity-all-table col:nth-child(6) { width: 12%; }
+.activity-all-table col:nth-child(6),
+.details-table.align-activity col:nth-child(2),
+.details-table.align-activity col:nth-child(3),
+.details-table.align-activity col:nth-child(4),
+.details-table.align-activity col:nth-child(5),
+.details-table.align-activity col:nth-child(6) { width: 12%; }
 .activity-graph-wrap {
     display: flex;
     gap: var(--analysis-gap);
@@ -3013,6 +3159,29 @@ h1 {
     background: rgba(140, 160, 180, 0.55);
     border: 3px solid transparent;
     background-clip: content-box;
+}
+.vacancy-filter {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 38px;
+    align-items: center;
+}
+.vacancy-filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.vacancy-filter-btn:hover { background: var(--tab-hover-bg); }
+.vacancy-filter-btn.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
 }
 .vacancy-table-wrap {
     flex: 1 1 auto;
@@ -4506,6 +4675,12 @@ tr:hover { background-color: #f0f4f9; }
 .salary-table-container .vacancy-table tbody tr {
     transition: background-color 0.18s ease;
 }
+.skills-search-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
 .skills-search-dropdown {
     position: relative;
 }
@@ -5579,6 +5754,17 @@ tbody tr:hover {
         font-size: 1.45rem;
     }
 
+    .report-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    .report-updated-at {
+        text-align: left;
+        white-space: normal;
+    }
+
     .role-content {
         padding: 12px;
     }
@@ -5745,6 +5931,7 @@ body.mobile-filters-open .report-layout .role-selector > * {
 .totals-switch-btn,
 .totals-top-filter-chip,
 .employer-period-chip,
+.vacancy-filter-btn,
 .role-filter-chip,
 #role-selector .tab-button {
     background: rgba(255, 255, 255, 0.96) !important;
@@ -5760,6 +5947,7 @@ body.mobile-filters-open .report-layout .role-selector > * {
 .totals-switch-btn:hover,
 .totals-top-filter-chip:hover,
 .employer-period-chip:hover,
+.vacancy-filter-btn:hover,
 .role-filter-chip:hover,
 #role-selector .tab-button:hover {
     background: rgba(248, 250, 252, 0.98) !important;
@@ -5817,6 +6005,7 @@ body.mobile-filters-open .report-layout .role-selector > * {
 .totals-top-filter-chip.active,
 .totals-top-filter-chip[aria-pressed="true"],
 .employer-period-chip.active,
+.vacancy-filter-btn.active,
 .role-filter-chip.active,
 .tabs .tab-button.active,
 .analysis-tabs .tab-button.active,
@@ -5881,6 +6070,10 @@ body.report-dashboard {
     background: #f7f9fb;
 }
 
+body.report-dashboard .report-header {
+    display: none !important;
+}
+
 body.report-dashboard .dashboard-shell {
     display: flex;
     flex-direction: column;
@@ -5923,11 +6116,11 @@ body.report-dashboard.shared-filters-collapsed .dashboard-sidebar {
     max-width: 64px;
 }
 
-body.report-dashboard .dashboard-main {
-    min-width: 0;
-    padding: 0;
-    background: #ffffff;
-}
+/*body.report-dashboard .dashboard-main {*/
+/*    min-width: 0;*/
+/*    padding: 0;*/
+/*    background: #ffffff;*/
+/*}*/
 
 body.report-dashboard .report-layout .role-selector {
     position: static;
@@ -6145,12 +6338,12 @@ body.report-dashboard #role-selector .shared-filter-panel-toggle {
 }
 
 /* Dashboard refinement */
-body.report-dashboard .dashboard-main {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-    padding: 0;
-}
+/*body.report-dashboard .dashboard-main {*/
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    min-height: 100vh;*/
+/*    padding: 0;*/
+/*}*/
 body.report-dashboard .role-content {
     flex: 1 1 auto;
     min-height: 0;
@@ -6224,6 +6417,18 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-toggle {
 }
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-head {
     flex: 0 0 auto;
+}
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
 }
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-title {
     font-size: 0.95rem;
@@ -6462,7 +6667,6 @@ body.report-dashboard #role-selector .skills-search-favorites-panel-save,
 body.report-dashboard #role-selector .totals-top-filter-chip,
 body.report-dashboard #role-selector .totals-top-filter-number {
     background: #36474f !important;
-    border-color: #455963 !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group {
@@ -6569,9 +6773,29 @@ body.report-dashboard #role-selector .global-filter-menu {
     border: 1px solid #455963 !important;
 }
 
+body.report-dashboard #role-selector .global-filter-search {
+    background: #314149 !important;
+    border: 1px solid #546972 !important;
+    color: #bcc5c9 !important;
+    border-radius: 8px;
+    outline: none;
+    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+body.report-dashboard #role-selector .global-filter-search::placeholder {
+    color: rgba(188, 197, 201, 0.72) !important;
+}
+
+body.report-dashboard #role-selector .global-filter-search:focus {
+    background: #36474f !important;
+    border-color: #6b8791 !important;
+    box-shadow: 0 0 0 2px rgba(107, 135, 145, 0.2) !important;
+}
+
 body.report-dashboard #role-selector .global-filter-option-row,
 body.report-dashboard #role-selector .summary-filter-item,
 body.report-dashboard #role-selector .skills-search-dropdown-item {
+    color: #bcc5c9;
     transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -6666,6 +6890,12 @@ body.report-dashboard #role-selector .shared-filter-group-title {
     line-height: 1.2 !important;
 }
 
+/* Report spacing normalization */
+body.report-dashboard .report-header {
+    gap: 12px !important;
+    margin-bottom: 12px !important;
+}
+
 body.report-dashboard .tabs,
 body.report-dashboard .month-tabs,
 body.report-dashboard .monthly-skills-month-tabs,
@@ -6721,7 +6951,7 @@ body.report-dashboard .analysis-tabs .analysis-button {
     white-space: normal;
     overflow-wrap: anywhere;
     cursor: pointer;
-    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease;
+    transition: color 0.18s ease, transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
 }
 
 body.report-dashboard .summary-return-tabs .analysis-text-tab .shared-filter-group-title-label,
@@ -6870,9 +7100,9 @@ body.report-dashboard .employer-analysis-table-container table {
     margin-right: auto !important;
 }
 
-body.report-dashboard .dashboard-main {
-    overflow: visible !important;
-}
+/*body.report-dashboard .dashboard-main {*/
+/*    overflow: visible !important;*/
+/*}*/
 
 body.report-dashboard .role-content {
     overflow: visible !important;
@@ -7002,6 +7232,11 @@ body.report-dashboard .dashboard-topbar-brand-name {
     color: #f8fafc;
 }
 
+body.report-dashboard .dashboard-topbar-brand-subtitle {
+    font-size: 0.8rem;
+    color: rgba(226, 232, 240, 0.78);
+}
+
 body.report-dashboard .dashboard-topbar-meta {
     display: flex;
     flex-direction: column;
@@ -7061,7 +7296,7 @@ body.report-dashboard .dashboard-topbar-meta .dashboard-topbar-button:hover {
     background: transparent;
     border: 0;
     box-shadow: none;
-    color: #233142;
+    color: inherit;
     transform: translateY(-1px);
 }
 
@@ -7138,7 +7373,7 @@ body.report-dashboard .dashboard-sidebar {
 
 body.report-dashboard .dashboard-main {
     min-width: 0;
-    padding: 24px;
+    padding: 12px;
     background:
         radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 34%),
         linear-gradient(180deg, #f6f8fb 0%, #f2f5f8 100%);
@@ -7435,6 +7670,7 @@ body.report-dashboard .my-responses-content {
 body.report-dashboard .skills-search-results,
 body.report-dashboard .response-calendar-shell,
 body.report-dashboard .totals-layout,
+body.report-dashboard .totals-grid,
 body.report-dashboard .totals-overview-chart-card,
 body.report-dashboard .my-responses-results {
     border-radius: 18px;
@@ -7539,9 +7775,9 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         max-height: none;
     }
 
-    body.report-dashboard .dashboard-main {
-        padding: 16px;
-    }
+    /*body.report-dashboard .dashboard-main {*/
+    /*    padding: 16px;*/
+    /*}*/
 
     body.report-dashboard .role-content {
         gap: 12px;

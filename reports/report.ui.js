@@ -2752,6 +2752,43 @@ function ensureTotalsTabs(scope) {
         ensureTotalsTab(roleContent);
     });
 }
+function ensureMarketTrendsTab(parentRole) {
+    if (!parentRole || parentRole.id === 'role-all') return;
+    var tabs = parentRole.querySelector('.tabs.analysis-tabs');
+    if (!tabs) return;
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
+    if (!roleSuffix) return;
+    var analysisId = 'market-trends-' + roleSuffix;
+
+    var tab = tabs.querySelector('.analysis-button[data-analysis-id="' + analysisId + '"]');
+    if (!tab) {
+        tab = document.createElement('button');
+        tab.className = 'tab-button analysis-button';
+        tab.setAttribute('data-analysis-id', analysisId);
+        tab.setAttribute('onclick', "switchAnalysis(event, '" + analysisId + "')");
+        tab.textContent = 'Тренды рынка';
+        var summaryBtn = tabs.querySelector('.summary-report-btn');
+        if (summaryBtn) tabs.insertBefore(tab, summaryBtn);
+        else tabs.appendChild(tab);
+    }
+
+    var block = parentRole.querySelector('.market-trends-content[data-analysis="' + analysisId + '"]');
+    if (!block) {
+        block = document.createElement('div');
+        block.className = 'market-trends-content';
+        block.setAttribute('data-analysis', analysisId);
+        block.style.display = 'none';
+        block.innerHTML = '<div class="skills-search-hint">Загрузка трендов...</div>';
+        parentRole.appendChild(block);
+    }
+}
+function ensureMarketTrendsTabs(scope) {
+    var root = scope || document;
+    root.querySelectorAll('.role-content').forEach(function(roleContent) {
+        ensureMarketTrendsTab(roleContent);
+    });
+}
+
 function ensureDetailAnalysisGroup(parentRole) {
     if (!parentRole) return;
     if (parentRole.id === 'role-all') return;
@@ -3606,16 +3643,21 @@ function isRoleFilterOptionExcluded(bucket, optionValue) {
     });
 }
 
+function getDashboardFilterBaseTextColor() {
+    return document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a';
+}
+
 function applyRoleFilterOptionVisualState(row, labelNode, bucket, optionValue) {
     if (!row) return;
     var included = isGlobalFilterOptionIncluded('roles', bucket, optionValue);
     var excluded = isRoleFilterOptionExcluded(bucket, optionValue);
+    var baseColor = getDashboardFilterBaseTextColor();
     row.style.background = included ? '#eef2f6' : (excluded ? '#fee2e2' : 'transparent');
-    row.style.color = excluded ? '#991b1b' : '#0f172a';
+    row.style.color = excluded ? '#991b1b' : baseColor;
     row.style.border = excluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
     if (labelNode) {
         labelNode.style.fontWeight = (included || excluded) ? '600' : '400';
-        labelNode.style.color = excluded ? '#991b1b' : '#0f172a';
+        labelNode.style.color = excluded ? '#991b1b' : baseColor;
     }
 }
 
@@ -3872,8 +3914,6 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     search.style.marginRight = '2px';
     search.style.padding = '7px 10px';
     search.style.fontSize = '12px';
-    search.style.border = '1px solid var(--border-color, #d9e2ec)';
-    search.style.borderRadius = '8px';
     menu.appendChild(search);
 
     function reorderRoleRows() {
@@ -4127,8 +4167,6 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         search.style.marginRight = '2px';
         search.style.padding = '7px 10px';
         search.style.fontSize = '12px';
-        search.style.border = '1px solid var(--border-color, #d9e2ec)';
-        search.style.borderRadius = '8px';
         search.value = getGlobalFilterSearchValue(filterKey);
         menu.appendChild(search);
     }
@@ -5790,7 +5828,6 @@ function resolveMarketTrendsWindow(selectedPeriods, vacancies) {
 }
 function renderMarketTrends(parentRole, mountNode) {
     if (!parentRole) return;
-    // Market trends are supported only as an embedded totals dashboard mode.
     var block = mountNode || parentRole.querySelector('.market-trends-content');
     if (!block) return;
     var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');

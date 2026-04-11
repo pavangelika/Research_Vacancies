@@ -2,8 +2,10 @@ __pycache__/
 *.log
 .env
 reports/*.html
+reports/ui/
 .DS_Store
 allure-results
 allure-report
 logs
 type_test.py
+test-results/

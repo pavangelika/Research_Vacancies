@@ -5,7 +5,6 @@ import psycopg2
 import shutil
 import logging
 import socket
-import re
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
 
@@ -16,7 +15,6 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 REPORTS_DIR = os.path.join(PROJECT_ROOT, 'reports')
 REPORT_TEMPLATES_DIR = os.path.join(REPORTS_DIR, 'templates')
 REPORT_STATIC_DIR = os.path.join(REPORTS_DIR, 'static')
-REPORT_DATA_DIR = os.path.join(REPORTS_DIR, 'data')
 REPORT_OUTPUT_DIR = os.environ.get('REPORTS_OUTPUT_DIR', REPORTS_DIR)
 
 
@@ -30,12 +28,6 @@ def compact_text(value, max_len=240):
     if len(text) <= max_len:
         return text
     return text[: max_len - 1].rstrip() + '…'
-
-
-def build_role_vacancies_filename(role_id):
-    raw = str(role_id if role_id is not None else 'NULL').strip() or 'NULL'
-    safe = re.sub(r'[^0-9A-Za-z._-]+', '_', raw)
-    return f'role-{safe}-vacancies.json'
 
 def load_roles_mapping(json_path):
     """Загружает JSON и возвращает словарь {id: name}."""
@@ -1594,7 +1586,7 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
 
     for role in roles_data:
         role_id = role['id']
-        role['vacancies_data_file'] = f"data/{build_role_vacancies_filename(role_id)}"
+        role['vacancies'] = vacancies_by_role.get(role_id, [])
 
     return template.render(roles=roles_data, weekday_roles=weekday_data,
                            skills_monthly_roles=skills_monthly_data,
@@ -1602,30 +1594,6 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
                            employer_analysis_roles=employer_analysis_data,
                            current_date=current_date, current_time=current_time,
                            asset_version=asset_version)
-
-
-def save_vacancies_payloads(vacancies_by_role):
-    output_dir = os.path.join(REPORT_OUTPUT_DIR, 'data')
-    os.makedirs(output_dir, exist_ok=True)
-
-    index_payload = []
-    for role_id, vacancies in vacancies_by_role.items():
-        filename = build_role_vacancies_filename(role_id)
-        output_path = os.path.join(output_dir, filename)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump({
-                'role_id': role_id,
-                'items': vacancies
-            }, f, ensure_ascii=False, separators=(',', ':'))
-        index_payload.append({
-            'role_id': role_id,
-            'file': f'data/{filename}',
-            'count': len(vacancies)
-        })
-
-    with open(os.path.join(output_dir, 'vacancies.index.json'), 'w', encoding='utf-8') as f:
-        json.dump({'roles': index_payload}, f, ensure_ascii=False, separators=(',', ':'))
-    logging.info("Vacancy payloads saved to %s", output_dir)
 
 
 def save_report(html_content):
@@ -1675,10 +1643,6 @@ def main():
     logging.info("Fetching employer analysis data...")
     employer_analysis_data = fetch_employer_analysis_data(mapping)
 
-    logging.info("Saving vacancy payloads...")
-    save_vacancies_payloads(vacancies_by_role)
-
-    logging.info("Rendering report...")
     html = render_report(roles_data, weekday_data, skills_monthly_data, salary_data, employer_analysis_data, vacancies_by_role)
     save_report(html)
     sync_static_assets()

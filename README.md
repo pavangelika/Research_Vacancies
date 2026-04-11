@@ -57,3 +57,53 @@
 ### 🤖 GitHub Actions (CI)
 
 ### 📈 Автоотчет
+
+## Playwright UI smoke
+
+UI-тесты встроены в текущий `pytest`-проект и запускаются отдельно от API-набора.
+
+### 1. Установить зависимости и браузер
+
+```powershell
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+### 2. Добавить UI-конфиг в `.env`
+
+```env
+UI_BASE_URL=https://example.com
+UI_EXPECTED_TITLE=Example Domain
+UI_READY_SELECTOR=body
+UI_PRIMARY_LINK_SELECTOR=a
+UI_SMOKE_PATHS=/,/docs
+```
+
+Минимально обязателен только `UI_BASE_URL`. Остальные параметры опциональны и нужны для более точных smoke-проверок.
+
+### 3. Локальный запуск
+
+Headless smoke:
+
+```powershell
+pytest tests/ui -m "ui and smoke" --browser chromium --tracing retain-on-failure --video retain-on-failure --screenshot only-on-failure --output test-results --html=reports/ui/ui-report.html --self-contained-html --alluredir=allure-results-ui
+```
+
+Headed/debug:
+
+```powershell
+$env:PWDEBUG="1"
+pytest tests/ui -m "ui and smoke" --browser chromium --headed --tracing on --video on --screenshot on --output test-results
+```
+
+Просмотр trace:
+
+```powershell
+python -m playwright show-trace .\test-results\<trace-folder>\trace.zip
+```
+
+### 4. Артефакты
+
+- `test-results/` — trace, video, screenshots Playwright
+- `reports/ui/ui-report.html` — HTML-отчёт
+- `allure-results-ui/` — результаты для Allure
