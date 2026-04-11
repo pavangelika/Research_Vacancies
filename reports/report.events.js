@@ -233,15 +233,6 @@ document.addEventListener('click', function(e) {
     updateSkillsSearchResults(block);
 });
 
-document.addEventListener('click', function(e) {
-    var skillBtn = e.target.closest('.skills-search-skill');
-    if (!skillBtn) return;
-    var block = skillBtn.closest('.skills-search-content');
-    if (!block) return;
-    toggleSkillsSearchSkillState(block, skillBtn.dataset.skill || skillBtn.textContent, skillBtn.dataset.mode || 'include');
-    updateSkillsSearchResults(block);
-});
-
 var resumeActionModalState = null;
 
 function selectVacancyIdText(node) {
@@ -845,6 +836,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!btn.classList || !btn.classList.contains('analysis-button')) return;
             var isSummaryBtn = btn.classList.contains('summary-report-btn');
             var type = isSummaryBtn ? 'summary' : resolveAnalysisTypeFromId((btn.dataset && btn.dataset.analysisId) || '');
+            if (type === 'skills-search' || type === 'my-responses' || type === 'responses-calendar') return;
             if (!type || seen.has(type)) return;
             seen.add(type);
             items.push({

@@ -163,12 +163,12 @@ function getTopNavigationSection(sectionKey) {
 
 function normalizeTopNavigationSection(analysisType, activeRole) {
     var current = String(analysisType || (activeRole && activeRole.dataset && activeRole.dataset.activeAnalysis) || uiState.global_analysis_type || '').trim();
-    if (uiState.all_roles_active || (activeRole && activeRole.id === 'role-all')) return 'summary';
-    if (current === 'totals') return 'dashboard';
-    if (current === 'activity' || current === 'weekday' || current === 'skills-monthly' || current === 'salary' || current === 'employer-analysis') return 'detail';
     if (current === 'skills-search') return 'skills-search';
     if (current === 'my-responses') return 'my-responses';
     if (current === 'responses-calendar') return 'responses-calendar';
+    if (uiState.all_roles_active || (activeRole && activeRole.id === 'role-all')) return 'summary';
+    if (current === 'totals') return 'dashboard';
+    if (current === 'activity' || current === 'weekday' || current === 'skills-monthly' || current === 'salary' || current === 'employer-analysis') return 'detail';
     return 'dashboard';
 }
 
@@ -236,8 +236,19 @@ function handleTopNavigationClick(sectionKey, itemKey) {
     if (!section) return;
     var targetItem = String(itemKey || '').trim();
     var activeRole = getActiveRoleContent();
+    var isFlatAllRolesSection = function(sectionName) {
+        return activeRole && activeRole.id === 'role-all' && (
+            sectionName === 'skills-search' ||
+            sectionName === 'my-responses' ||
+            sectionName === 'responses-calendar'
+        );
+    };
 
     function exitSummaryIfNeeded(callback) {
+        if (isFlatAllRolesSection(section)) {
+            callback();
+            return;
+        }
         if (!uiState.all_roles_active || !uiState.roleSelectionContext || typeof uiState.roleSelectionContext.setSummaryActive !== 'function') {
             callback();
             return;
@@ -262,6 +273,18 @@ function handleTopNavigationClick(sectionKey, itemKey) {
 
     if (section === 'summary') {
         activateSummary(targetItem || normalizeTopNavigationItem('summary', activeRole, uiState.global_analysis_type || 'activity'));
+        return;
+    }
+
+    if (isFlatAllRolesSection(section)) {
+        uiState.global_analysis_type = section;
+        scheduleTopNavigationAction(function() {
+            var role = getActiveRoleContent() || document.getElementById('role-all');
+            if (!role) return;
+            if (!clickAnalysisButtonByType(role, section)) {
+                syncDashboardTopbarMeta(role, section);
+            }
+        });
         return;
     }
 
@@ -7297,11 +7320,6 @@ function initSkillsSearch(parentRole) {
         };
     }
 
-    var buttonsWrap = block.querySelector('.skills-search-buttons');
-    if (buttonsWrap && !buttonsWrap.dataset.ready) {
-        renderSkillsSearchButtons(block, (block._data && block._data.skills) ? block._data.skills : []);
-        buttonsWrap.dataset.ready = '1';
-    }
     updateSkillsSearchData(block);
 }
 function setSkillsSearchFavoriteTrigger(dropdown, favoriteName, favoriteId) {
@@ -7433,37 +7451,6 @@ function confirmSkillsSearchFavoriteDelete(favoriteName) {
     });
 }
 
-function renderSkillsSearchButtons(block, skillsList) {
-    var buttonsWrap = block.querySelector('.skills-search-buttons');
-    if (!buttonsWrap) return;
-    var list = (skillsList || []).slice().map(function(s) {
-        var displaySkill = registerSkillDisplayName(s.skill);
-        return Object.assign({}, s, { skill: displaySkill });
-    });
-    if (!list.length) {
-        buttonsWrap.innerHTML = '<div class="skills-search-empty">Нет навыков для роли</div>';
-        return;
-    }
-
-    function buildButtons(mode) {
-        return list.map(function(s) {
-            return '<button class="skills-search-skill" type="button" data-mode="' + mode + '" data-skill="' + escapeHtml(s.skill) + '">' +
-                '<span class="skills-search-skill-label">' + escapeHtml(s.skill) + '</span>' +
-                '<span class="skills-search-count">' + escapeHtml(s.count) + '</span>' +
-            '</button>';
-        }).join('');
-    }
-
-    buttonsWrap.innerHTML =
-        '<div class="skills-search-list" data-mode="include">' +
-            '<div class="skills-search-list-title">Включить</div>' +
-            '<div class="skills-search-list-buttons">' + buildButtons('include') + '</div>' +
-        '</div>' +
-        '<div class="skills-search-list" data-mode="exclude">' +
-            '<div class="skills-search-list-title">Исключить</div>' +
-            '<div class="skills-search-list-buttons">' + buildButtons('exclude') + '</div>' +
-        '</div>';
-}
 function renderSkillsSearchDropdown(dropdown, items, label, allLabel, allAtEnd, includeAll) {
     if (!dropdown) return;
     var list = (items || []).slice();
@@ -7604,21 +7591,6 @@ function getSkillsSearchSelections(block) {
     };
 }
 
-function syncSkillsSearchButtonsFromState(block) {
-    if (!block) return;
-    var selections = getSkillsSearchSelections(block);
-    var include = selections.includeSkills.map(normalizeSkillName);
-    var exclude = selections.excludeSkills.map(normalizeSkillName);
-    block.querySelectorAll('.skills-search-skill').forEach(function(btn) {
-        var key = normalizeSkillName(btn.dataset.skill || btn.textContent);
-        var mode = btn.dataset.mode || 'include';
-        btn.classList.toggle('active', mode === 'include' && include.indexOf(key) >= 0);
-        btn.classList.toggle('excluded', mode === 'exclude' && exclude.indexOf(key) >= 0);
-    });
-    var logicDd = block.querySelector('.skills-search-dropdown[data-filter="logic"]');
-    if (logicDd) setSkillsSearchDropdownValue(logicDd, selections.logic);
-}
-
 function refreshSkillsSearchPanel(parentRole) {
     if (!parentRole) return;
     var activeAnalysis = String(parentRole.dataset.activeAnalysis || 'skills-search').trim() || 'skills-search';
@@ -7643,7 +7615,6 @@ function applySkillsSearchSkillState(block, includeSkills, excludeSkills, logicV
     state.includeSkills = normalizeSkillsSearchSkillList(includeSkills);
     state.excludeSkills = normalizeSkillsSearchSkillList(excludeSkills);
     if (logicValue) state.logic = (logicValue === 'and') ? 'and' : 'or';
-    syncSkillsSearchButtonsFromState(block);
 }
 
 function toggleSkillsSearchSkillState(block, rawSkill, mode) {
@@ -7707,8 +7678,6 @@ function updateSkillsSearchData(block) {
     block._data.currentVacancies = baseVacancies;
     var skills = computeSalarySkillsFromVacancies(baseVacancies, 50);
     block._data.skills = skills;
-    renderSkillsSearchButtons(block, skills);
-    syncSkillsSearchButtonsFromState(block);
     updateSkillsSearchResults(block);
 }
 

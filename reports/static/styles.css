@@ -4388,71 +4388,7 @@ tr:hover { background-color: #f0f4f9; }
     padding: 6px 12px;
     font-weight: 500;
 }
-.skills-search-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 12px;
-}
-.skills-search-list {
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 16px;
-    padding: 12px;
-    background: rgba(248, 250, 252, 0.65);
-}
-.skills-search-list-title {
-    margin-bottom: 10px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.skills-search-list-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.skills-search-skill {
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    background: rgba(255, 255, 255, 0.96);
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    color: #334155;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    box-shadow: none;
-    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-}
-.skills-search-skill-label {
-    white-space: nowrap;
-}
-.skills-search-skill:hover {
-    border-color: rgba(148, 163, 184, 0.2);
-    background: rgba(248, 250, 252, 0.98);
-    box-shadow: none;
-    transform: translateY(-1px);
-}
-.skills-search-skill.active {
-    background: var(--filter-selected-bg);
-    border-color: var(--filter-selected-border);
-    color: var(--filter-selected-text);
-    box-shadow: none;
-}
-.skills-search-skill.excluded {
-    background: var(--filter-excluded-bg);
-    border-color: var(--filter-excluded-border);
-    color: var(--filter-excluded-text);
-    box-shadow: none;
-}
-.skills-search-count {
-    font-size: 0.75rem;
-    opacity: 0.7;
-}
-.skills-search-hint,
-.skills-search-empty {
+.skills-search-hint {
     color: var(--text-secondary);
     font-size: 0.9rem;
 }
@@ -5906,15 +5842,6 @@ tbody tr:hover {
         flex: 0 0 auto;
     }
 
-    .skills-search-buttons {
-        gap: 6px;
-    }
-
-    .skills-search-skill {
-        width: 100%;
-        text-align: left;
-    }
-
     .shared-filter-panel {
         padding: 8px !important;
     }
@@ -6454,9 +6381,6 @@ body.report-dashboard .skills-search-content {
 body.report-dashboard .skills-search-summary-line {
     margin-right: 0;
     margin-left: 0;
-}
-body.report-dashboard .skills-search-buttons {
-    gap: 8px;
 }
 body.report-dashboard .skills-search-results {
     margin-top: 0;
@@ -7774,8 +7698,7 @@ body.report-dashboard .skills-search-results {
     box-shadow: var(--dashboard-shadow-soft);
 }
 
-body.report-dashboard .skills-search-summary-line,
-body.report-dashboard .skills-search-buttons {
+body.report-dashboard .skills-search-summary-line {
     margin-left: 0;
     margin-right: 0;
 }

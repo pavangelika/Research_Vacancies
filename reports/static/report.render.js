@@ -731,8 +731,13 @@ function renderAllRolesContainer(container, roleContents) {
         : 'Весь период';
     var skillsSearchHtml = '<div class="skills-search-content" data-analysis="skills-search-all" style="display: none;">' +
         '<div class="skills-search-summary-line"></div>' +
-        '<div class="skills-search-buttons"></div>' +
         '<div class="skills-search-results"><div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div></div>' +
+    '</div>';
+    var myResponsesHtml = '<div class="my-responses-content skills-search-content" data-analysis="my-responses-all" style="display: none;">' +
+        '<div class="skills-search-results my-responses-results"><div class="skills-search-hint">Нет откликов</div></div>' +
+    '</div>';
+    var responsesCalendarHtml = '<div class="response-calendar-content" data-analysis="responses-calendar-all" style="display: none;">' +
+        '<div class="skills-search-hint">Загрузка календаря...</div>' +
     '</div>';
     var employerHtml = '<div class="employer-analysis-content" data-analysis="employer-analysis-all" style="display: none;">' +
         (allRolesEmployerRows.length ? (
@@ -780,10 +785,7 @@ function renderAllRolesContainer(container, roleContents) {
         summaryReturnTabs = [
             { type: 'totals', label: 'Дашборд' },
             { type: 'detail', label: 'Детальный анализ' },
-            { type: 'summary', label: 'Сравнительный анализ' },
-            { type: 'skills-search', label: 'Поиск вакансий' },
-            { type: 'my-responses', label: 'Мои отклики' },
-            { type: 'responses-calendar', label: 'Календарь' }
+            { type: 'summary', label: 'Сравнительный анализ' }
         ];
     }
     var allRolesPeriod = computePublicationPeriod(allVacancies) || '—';
@@ -806,12 +808,17 @@ function renderAllRolesContainer(container, roleContents) {
             buildUpperTextTabButtonHtml('Динамика по ролям', 'analysis-button active', 'data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')"') +
             buildUpperTextTabButtonHtml('Лидер публикаций', 'analysis-button', 'data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')"') +
             buildUpperTextTabButtonHtml('Топ-навыки', 'analysis-button', 'data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')"') +
+            buildUpperTextTabButtonHtml('Поиск вакансий', 'analysis-button', 'data-analysis-id="skills-search-all" onclick="switchAnalysis(event, \'skills-search-all\')"') +
+            buildUpperTextTabButtonHtml('Мои отклики', 'analysis-button', 'data-analysis-id="my-responses-all" onclick="switchAnalysis(event, \'my-responses-all\')"') +
+            buildUpperTextTabButtonHtml('Календарь', 'analysis-button', 'data-analysis-id="responses-calendar-all" onclick="switchAnalysis(event, \'responses-calendar-all\')"') +
             buildUpperTextTabButtonHtml('Вилка по ролям', 'analysis-button', 'data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')"') +
         '</div>' +
         activityHtml +
         weekdayHtml +
         skillsHtml +
         skillsSearchHtml +
+        myResponsesHtml +
+        responsesCalendarHtml +
         salaryHtml +
         employerHtml;
     container._data = container._data || {};
@@ -1090,7 +1097,6 @@ function renderCombinedContainer(container, roleContents) {
     var skillsSearchBlock = (
         '<div class="skills-search-content" data-analysis="skills-search-combined" style="display: none;">' +
             '<div class="skills-search-summary-line"></div>' +
-            '<div class="skills-search-buttons"></div>' +
             '<div class="skills-search-results">' +
                 '<div class="skills-search-hint">Выберите навыки, чтобы увидеть вакансии</div>' +
             '</div>' +
