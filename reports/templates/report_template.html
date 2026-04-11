@@ -8,6 +8,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/styles.css?v={{ asset_version }}">
+    <script>
+        window.__REPORT_ASSET_VERSION__ = "{{ asset_version }}";
+    </script>
     <script src="static/plotly-2.27.0.min.js?v={{ asset_version }}" charset="utf-8"></script>
     <script>
         if (typeof Plotly === 'undefined') {
@@ -47,7 +50,7 @@
     {% for role in roles %}
     {% set role_index = loop.index %}
     <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}"
-         data-vacancies='{{ role.vacancies | tojson if role.vacancies else "[]" }}'>
+         data-vacancies-url="{{ role.vacancies_data_file }}">
         <!-- Вкладки выбора анализа (4) -->
         <div class="tabs analysis-tabs">
             <button class="tab-button analysis-button active"

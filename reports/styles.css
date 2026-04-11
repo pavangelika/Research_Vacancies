@@ -76,9 +76,6 @@
     grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
     gap: 8px;
 }
-.totals-kpis-inline {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-}
 .totals-overview-layout {
     padding: 12px;
     gap: 4px;
@@ -484,39 +481,6 @@
     font-size: 0.84rem;
     color: #64748b;
     margin-bottom: 6px;
-}
-.totals-apply-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 8px;
-    border-radius: 999px;
-    border: 1px solid rgba(53, 80, 111, 0.28);
-    color: #35506f;
-    text-decoration: none;
-    font-size: 0.74rem;
-    font-weight: 600;
-}
-.totals-apply-link:hover {
-    background: rgba(53, 80, 111, 0.08);
-    color: #243b55;
-}
-.totals-response-pill {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 3px 8px;
-    font-size: 0.72rem;
-    font-weight: 600;
-}
-.totals-response-pill.done {
-    color: var(--accent-green-strong);
-    background: var(--accent-green-soft);
-    border: 1px solid var(--accent-green-border);
-}
-.totals-response-pill.none {
-    color: var(--accent-negative-strong);
-    background: var(--accent-negative-soft);
-    border: 1px solid var(--accent-negative-border);
 }
 .totals-warning {
     font-size: 0.82rem;
@@ -7036,11 +7000,6 @@ body.report-dashboard .dashboard-topbar-brand-name {
     font-weight: 700;
     letter-spacing: 0.01em;
     color: #f8fafc;
-}
-
-body.report-dashboard .dashboard-topbar-brand-subtitle {
-    font-size: 0.8rem;
-    color: rgba(226, 232, 240, 0.78);
 }
 
 body.report-dashboard .dashboard-topbar-meta {

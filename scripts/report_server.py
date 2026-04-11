@@ -2,6 +2,8 @@ import json
 import logging
 import os
 import sys
+import gzip
+import mimetypes
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -30,13 +32,68 @@ class ReportHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(REPORTS_DIR), **kwargs)
 
+    def _parsed_path(self):
+        return urlparse(self.path)
+
+    def _request_path(self):
+        return self._parsed_path().path or "/"
+
+    def _is_api_request(self):
+        return self._request_path().startswith("/api/")
+
+    def _is_cacheable_asset_request(self):
+        request_path = self._request_path()
+        if request_path.startswith("/static/") or request_path.startswith("/data/"):
+            return True
+        if request_path.endswith(".css") or request_path.endswith(".js") or request_path.endswith(".json"):
+            return True
+        return False
+
+    def _resolve_report_file(self):
+        request_path = self._request_path()
+        if request_path in ("", "/"):
+            request_path = "/report.html"
+        candidate = (REPORTS_DIR / request_path.lstrip("/")).resolve()
+        try:
+            candidate.relative_to(REPORTS_DIR)
+        except ValueError:
+            return None
+        if not candidate.is_file():
+            return None
+        return candidate
+
+    def _can_gzip_file(self, file_path: Path):
+        if not file_path:
+            return False
+        if "gzip" not in str(self.headers.get("Accept-Encoding", "")).lower():
+            return False
+        return file_path.suffix.lower() in {".html", ".css", ".js", ".json", ".txt", ".svg"}
+
+    def _serve_gzip_file(self, file_path: Path):
+        raw = file_path.read_bytes()
+        body = gzip.compress(raw, compresslevel=6)
+        content_type = mimetypes.guess_type(str(file_path))[0] or "application/octet-stream"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Last-Modified", self.date_time_string(file_path.stat().st_mtime))
+        self.end_headers()
+        self.wfile.write(body)
+
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-        self.send_header("Pragma", "no-cache")
-        self.send_header("Expires", "0")
+        self.send_header("Vary", "Accept-Encoding")
+        if self._is_api_request():
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+        elif self._is_cacheable_asset_request():
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
+        else:
+            self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
     def _send_json(self, status: int, payload: dict):
@@ -139,6 +196,10 @@ class ReportHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path in ("/", ""):
             self.path = "/report.html"
+        resolved_file = self._resolve_report_file()
+        if resolved_file and self._can_gzip_file(resolved_file):
+            self._serve_gzip_file(resolved_file)
+            return
         super().do_GET()
 
 

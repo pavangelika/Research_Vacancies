@@ -1586,10 +1586,10 @@ function hasOfferContent(item) {
 function findVacancySourceById(vacancyId) {
     var id = String(vacancyId || '').trim();
     if (!id) return null;
-    var roleContents = document.querySelectorAll('.role-content[data-vacancies]');
+    var roleContents = document.querySelectorAll('.role-content[data-vacancies-url], .role-content[data-vacancies]');
     for (var i = 0; i < roleContents.length; i++) {
         var roleEl = roleContents[i];
-        var vacancies = parseJsonDataset(roleEl, 'vacancies', []);
+        var vacancies = typeof getRoleVacancies === 'function' ? getRoleVacancies(roleEl) : parseJsonDataset(roleEl, 'vacancies', []);
         if (!Array.isArray(vacancies) || !vacancies.length) continue;
         for (var j = 0; j < vacancies.length; j++) {
             var v = vacancies[j];
@@ -2752,43 +2752,6 @@ function ensureTotalsTabs(scope) {
         ensureTotalsTab(roleContent);
     });
 }
-function ensureMarketTrendsTab(parentRole) {
-    if (!parentRole || parentRole.id === 'role-all') return;
-    var tabs = parentRole.querySelector('.tabs.analysis-tabs');
-    if (!tabs) return;
-    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
-    if (!roleSuffix) return;
-    var analysisId = 'market-trends-' + roleSuffix;
-
-    var tab = tabs.querySelector('.analysis-button[data-analysis-id="' + analysisId + '"]');
-    if (!tab) {
-        tab = document.createElement('button');
-        tab.className = 'tab-button analysis-button';
-        tab.setAttribute('data-analysis-id', analysisId);
-        tab.setAttribute('onclick', "switchAnalysis(event, '" + analysisId + "')");
-        tab.textContent = 'Тренды рынка';
-        var summaryBtn = tabs.querySelector('.summary-report-btn');
-        if (summaryBtn) tabs.insertBefore(tab, summaryBtn);
-        else tabs.appendChild(tab);
-    }
-
-    var block = parentRole.querySelector('.market-trends-content[data-analysis="' + analysisId + '"]');
-    if (!block) {
-        block = document.createElement('div');
-        block.className = 'market-trends-content';
-        block.setAttribute('data-analysis', analysisId);
-        block.style.display = 'none';
-        block.innerHTML = '<div class="skills-search-hint">Загрузка трендов...</div>';
-        parentRole.appendChild(block);
-    }
-}
-function ensureMarketTrendsTabs(scope) {
-    var root = scope || document;
-    root.querySelectorAll('.role-content').forEach(function(roleContent) {
-        ensureMarketTrendsTab(roleContent);
-    });
-}
-
 function ensureDetailAnalysisGroup(parentRole) {
     if (!parentRole) return;
     if (parentRole.id === 'role-all') return;
@@ -5827,6 +5790,7 @@ function resolveMarketTrendsWindow(selectedPeriods, vacancies) {
 }
 function renderMarketTrends(parentRole, mountNode) {
     if (!parentRole) return;
+    // Market trends are supported only as an embedded totals dashboard mode.
     var block = mountNode || parentRole.querySelector('.market-trends-content');
     if (!block) return;
     var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');

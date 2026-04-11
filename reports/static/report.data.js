@@ -217,7 +217,27 @@ function getRoleVacancies(roleContent) {
     if (!roleContent) return [];
     if (!roleContent._data) roleContent._data = {};
     if (roleContent._data.vacancies !== undefined) return roleContent._data.vacancies;
-    roleContent._data.vacancies = parseJsonDataset(roleContent, 'vacancies', []);
+    var embedded = parseJsonDataset(roleContent, 'vacancies', null);
+    if (embedded && embedded.length) {
+        roleContent._data.vacancies = embedded;
+        return roleContent._data.vacancies;
+    }
+    var vacanciesUrl = roleContent.dataset ? String(roleContent.dataset.vacanciesUrl || '').trim() : '';
+    if (vacanciesUrl) {
+        var cache = typeof ensureReportRuntimeCache === 'function' ? ensureReportRuntimeCache() : null;
+        if (cache && Object.prototype.hasOwnProperty.call(cache.vacancyPayloads, vacanciesUrl)) {
+            roleContent._data.vacancies = cache.vacancyPayloads[vacanciesUrl];
+            return roleContent._data.vacancies;
+        }
+        var payload = typeof loadJsonSync === 'function'
+            ? loadJsonSync(typeof buildReportAssetUrl === 'function' ? buildReportAssetUrl(vacanciesUrl) : vacanciesUrl, { items: [] })
+            : { items: [] };
+        var items = payload && Array.isArray(payload.items) ? payload.items : [];
+        if (cache) cache.vacancyPayloads[vacanciesUrl] = items;
+        roleContent._data.vacancies = items;
+        return roleContent._data.vacancies;
+    }
+    roleContent._data.vacancies = [];
     return roleContent._data.vacancies;
 }
 function getRoleWeekdayData(roleContent) {
