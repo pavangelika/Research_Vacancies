@@ -159,10 +159,8 @@
             {% endif %}
         </div>
 
-        <!-- Блок для анализа зарплат (с вертикальным переключателем, по умолчанию таблица) -->
+        <!-- Блок поиска вакансий по навыкам -->
         {% set salary_role = salary_roles | selectattr('id', 'equalto', role.id) | first %}
-        <!-- ???? ??? ?????? ???&#1055;&#1086;&#1080;&#1089;&#1082; &#1087;&#1086; &#1085;&#1072;&#1074;&#1099;&#1082;&#1072;&#1084; -->
-                                <!-- ???? ??? ?????? ???????? ?? ??????? -->
         <div class="skills-search-content" data-analysis="skills-search-{{ role_index }}" style="display: none;">
             <div class="skills-search-summary-line"></div>
             <div class="skills-search-buttons"></div>
@@ -171,6 +169,7 @@
             </div>
         </div>
 
+        <!-- Блок для анализа зарплат -->
         <div class="salary-content" data-analysis="salary-{{ role_index }}" style="display: none;" data-salary="[]"></div>
 
         {% set employer_analysis_role = employer_analysis_roles | selectattr('id', 'equalto', role.id) | first %}
