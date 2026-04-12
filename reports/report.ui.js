@@ -3370,6 +3370,20 @@ function bindGlobalFilterMenuScrollLock(menu) {
     menu.dataset.scrollLockBound = '1';
 }
 
+function getGlobalFilterMenuKey(menu) {
+    if (!menu) return '';
+    if (menu.dataset && menu.dataset.filterKey) return String(menu.dataset.filterKey);
+    var host = menu.__host || menu.parentElement;
+    if (host && host.dataset && host.dataset.filterKey) return String(host.dataset.filterKey);
+    var wrap = menu.closest ? menu.closest('.global-filter-dropdown[data-filter-key]') : null;
+    return wrap && wrap.dataset ? String(wrap.dataset.filterKey || '') : '';
+}
+
+function isPageScrollingGlobalFilterMenu(menu) {
+    var filterKey = getGlobalFilterMenuKey(menu);
+    return filterKey === 'skills-search-include' || filterKey === 'skills-search-exclude';
+}
+
 function resetGlobalFilterMenuPosition(menu) {
     if (!menu) return;
     [
@@ -3409,6 +3423,26 @@ function positionGlobalFilterMenu(trigger, menu) {
         host.style.position = 'relative';
         host.style.overflow = 'visible';
     }
+    if (isPageScrollingGlobalFilterMenu(menu)) {
+        menu.style.setProperty('position', 'static', 'important');
+        menu.style.setProperty('top', 'auto', 'important');
+        menu.style.setProperty('left', 'auto', 'important');
+        menu.style.setProperty('right', 'auto', 'important');
+        menu.style.setProperty('bottom', 'auto', 'important');
+        menu.style.setProperty('box-sizing', 'border-box', 'important');
+        menu.style.setProperty('width', '100%', 'important');
+        menu.style.setProperty('max-width', '100%', 'important');
+        menu.style.setProperty('max-height', 'none', 'important');
+        menu.style.setProperty('overflow', 'visible', 'important');
+        menu.style.setProperty('overflow-y', 'visible', 'important');
+        menu.style.setProperty('overscroll-behavior', 'auto', 'important');
+        menu.style.setProperty('-ms-scroll-chaining', 'chained', 'important');
+        menu.style.setProperty('margin', '6px 0 0 0', 'important');
+        menu.style.setProperty('transform', 'none', 'important');
+        menu.style.setProperty('inset', 'auto', 'important');
+        menu.style.setProperty('z-index', 'auto', 'important');
+        return;
+    }
     var rect = trigger.getBoundingClientRect();
     var width = Math.max(220, Math.round(trigger.offsetWidth || rect.width || 0));
     var viewportBottomSpace = window.innerHeight - Math.round(rect.bottom) - 12;
@@ -3420,15 +3454,17 @@ function positionGlobalFilterMenu(trigger, menu) {
     menu.style.setProperty('bottom', 'auto', 'important');
     menu.style.setProperty('box-sizing', 'border-box', 'important');
     menu.style.setProperty('width', Math.round(width) + 'px', 'important');
-    menu.style.setProperty('max-height', maxHeight + 'px', 'important');
-    menu.style.setProperty('overflow-y', 'auto', 'important');
-    menu.style.setProperty('overscroll-behavior', 'contain', 'important');
-    menu.style.setProperty('-ms-scroll-chaining', 'none', 'important');
+    if (!isPageScrollingGlobalFilterMenu(menu)) {
+        menu.style.setProperty('max-height', maxHeight + 'px', 'important');
+        menu.style.setProperty('overflow-y', 'auto', 'important');
+        menu.style.setProperty('overscroll-behavior', 'contain', 'important');
+        menu.style.setProperty('-ms-scroll-chaining', 'none', 'important');
+        bindGlobalFilterMenuScrollLock(menu);
+    }
     menu.style.setProperty('margin', '0', 'important');
     menu.style.setProperty('transform', 'none', 'important');
     menu.style.setProperty('inset', 'auto auto auto auto', 'important');
     menu.style.setProperty('z-index', '5000', 'important');
-    bindGlobalFilterMenuScrollLock(menu);
 }
 
 function ensureGlobalFilterSearchState() {
@@ -4136,10 +4172,12 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
     menu.style.width = isRolesFilter ? '240px' : '220px';
     menu.style.maxWidth = 'calc(100vw - 48px)';
-    menu.style.maxHeight = '260px';
-    menu.style.overflowY = 'auto';
-    menu.style.overscrollBehavior = 'contain';
-    bindGlobalFilterMenuScrollLock(menu);
+    if (!isPageScrollingGlobalFilterMenu(menu)) {
+        menu.style.maxHeight = '260px';
+        menu.style.overflowY = 'auto';
+        menu.style.overscrollBehavior = 'contain';
+        bindGlobalFilterMenuScrollLock(menu);
+    }
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';

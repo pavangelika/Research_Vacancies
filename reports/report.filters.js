@@ -1366,9 +1366,6 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
     menu.style.width = '280px';
     menu.style.maxWidth = 'calc(100vw - 48px)';
-    menu.style.maxHeight = '280px';
-    menu.style.overflowY = 'auto';
-    bindGlobalFilterMenuScrollLock(menu);
 
     var controls = document.createElement('div');
     controls.style.display = 'flex';

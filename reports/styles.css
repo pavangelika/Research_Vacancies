@@ -1025,16 +1025,16 @@
 }
 .skills-search-top-chipset-row {
     align-items: flex-start;
-    max-height: 340px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
     padding-right: 4px;
 }
 .skills-search-top-list-rows {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: 340px;
-    overflow-y: auto;
+    max-height: none;
+    overflow-y: visible;
     padding-right: 4px;
 }
 .skills-search-top-skill {
@@ -5303,6 +5303,23 @@ tbody tr:hover {
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] .global-filter-menu {
     width: 248px !important;
+}
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-menu,
+.shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-menu {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-y: visible !important;
+    overscroll-behavior: auto !important;
+    -ms-scroll-chaining: chained !important;
+    inset: auto !important;
+    z-index: auto !important;
 }
 
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .skills-search-favorites-panel-picker-wrap .skills-search-favorites-panel-action {
