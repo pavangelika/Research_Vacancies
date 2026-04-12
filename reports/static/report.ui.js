@@ -4638,7 +4638,7 @@ function isSharedFilterSectionFilled(sectionKey, activeRole, analysisType) {
             || hasExplicitGlobalFilterSelection('has_test');
     }
     if (key === 'skills') {
-        return hasExplicitGlobalSkillsSelection() || hasActiveSharedFilterPresetSelection(analysisType);
+        return hasExplicitGlobalSkillsSelection();
     }
     return false;
 }
@@ -8055,12 +8055,10 @@ function saveSharedFilterPreset(activeRole, analysisType, name) {
     });
     if (existing) {
         existing.state = snapshot;
-        bucket.activeId = existing.id;
     } else {
         var nextId = 'preset_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
         bucket.items = bucket.items || [];
         bucket.items.push({ id: nextId, name: trimmed, state: snapshot });
-        bucket.activeId = nextId;
     }
     state[key] = bucket;
     persistSharedFilterPresetsState();
