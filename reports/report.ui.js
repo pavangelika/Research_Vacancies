@@ -579,7 +579,7 @@ function applyIosChartDefaults(layout, traces) {
     layout.font.color = layout.font.color || '#334155';
     layout.paper_bgcolor = 'rgba(0,0,0,0)';
     layout.plot_bgcolor = 'rgba(0,0,0,0)';
-    layout.colorway = layout.colorway || [CHART_COLORS.light, CHART_COLORS.medium, CHART_COLORS.dark, '#22c55e', '#f59e0b'];
+    layout.colorway = layout.colorway || [CHART_COLORS.light, CHART_COLORS.orange, CHART_COLORS.medium, CHART_COLORS.dark, CHART_COLORS.green, CHART_COLORS.red];
     layout.hoverlabel = layout.hoverlabel || {};
     layout.hoverlabel.bgcolor = 'rgba(15, 23, 42, 0.96)';
     layout.hoverlabel.bordercolor = 'rgba(148, 163, 184, 0.24)';
@@ -3691,12 +3691,13 @@ function applyRoleFilterOptionVisualState(row, labelNode, bucket, optionValue) {
     var included = isGlobalFilterOptionIncluded('roles', bucket, optionValue);
     var excluded = isRoleFilterOptionExcluded(bucket, optionValue);
     var baseColor = getDashboardFilterBaseTextColor();
-    row.style.background = included ? '#eef2f6' : (excluded ? '#fee2e2' : 'transparent');
-    row.style.color = excluded ? '#991b1b' : baseColor;
-    row.style.border = excluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
+    row.style.background = excluded ? 'linear-gradient(135deg, #ff9a9a 0%, #FF6262 100%)' : 'transparent';
+    row.style.color = (included || excluded) ? '#ffffff' : baseColor;
+    row.style.border = '1px solid transparent';
+    row.style.boxShadow = excluded ? '0 10px 24px rgba(255, 98, 98, 0.18)' : 'none';
     if (labelNode) {
         labelNode.style.fontWeight = (included || excluded) ? '600' : '400';
-        labelNode.style.color = excluded ? '#991b1b' : baseColor;
+        labelNode.style.color = (included || excluded) ? '#ffffff' : baseColor;
     }
 }
 
@@ -3776,10 +3777,10 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
     chip.style.padding = '0.1875rem 0.5rem';
     chip.style.cursor = 'pointer';
     chip.style.userSelect = 'none';
-    chip.style.background = isExcluded ? '#fee2e2' : '#eef2f6';
-    chip.style.color = isExcluded ? '#991b1b' : 'inherit';
+    chip.style.background = isExcluded ? 'linear-gradient(135deg, #f38bff 0%, #D149EF 52%, #8b5cf6 100%)' : 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%)';
+    chip.style.color = '#ffffff';
     chip.style.transform = 'translateY(0)';
-    chip.style.boxShadow = 'none';
+    chip.style.boxShadow = isExcluded ? '0 8px 18px rgba(209, 73, 239, 0.24)' : '0 8px 18px rgba(0, 122, 216, 0.20)';
     chip.style.transition = 'transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease';
 
     var label = document.createElement('span');
@@ -4073,6 +4074,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
     var isRolesFilter = filterKey === 'roles' || filterKey === 'employer';
     var allowMulti = ['status', 'country', 'accreditation', 'cover_letter_required', 'has_test', 'interview', 'result', 'offer'].indexOf(filterKey) < 0;
+    var baseTextColor = getDashboardFilterBaseTextColor();
     if (!allowMulti && isGlobalFilterMultiEnabled(filterKey)) {
         setGlobalFilterMultiEnabled(filterKey, false);
     }
@@ -4248,7 +4250,11 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
             label.textContent = option.label;
             label.style.fontWeight = isIncludedNow ? '600' : '400';
             label.style.fontSize = '12px';
-            row.style.background = isIncludedNow ? '#eef2f6' : 'transparent';
+            row.style.background = 'transparent';
+            row.style.border = '1px solid transparent';
+            row.style.color = isIncludedNow ? '#ffffff' : baseTextColor;
+            row.style.boxShadow = 'none';
+            label.style.color = isIncludedNow ? '#ffffff' : baseTextColor;
             row.addEventListener('mouseenter', function() {
                 var isSelected = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 row.style.transform = 'translateX(4px) translateY(-1px)';
@@ -4261,7 +4267,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
                 var isSelected = isGlobalFilterOptionIncluded(filterKey, bucket, option.value);
                 row.style.transform = 'translateX(0) translateY(0)';
                 row.style.boxShadow = 'none';
-                row.style.background = isSelected ? '#eef2f6' : 'transparent';
+                row.style.background = 'transparent';
             });
             row.appendChild(label);
             menu.appendChild(row);
@@ -4271,8 +4277,12 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
                 var nodeLabel = node.querySelector('div');
                 var value = node.dataset ? node.dataset.optionValue : '';
                 var selected = isGlobalFilterOptionIncluded(filterKey, bucket, value);
-                node.style.background = selected ? '#eef2f6' : 'transparent';
+                node.style.background = 'transparent';
+                node.style.border = '1px solid transparent';
+                node.style.boxShadow = 'none';
+                node.style.color = selected ? '#ffffff' : baseTextColor;
                 if (nodeLabel) nodeLabel.style.fontWeight = selected ? '600' : '400';
+                if (nodeLabel) nodeLabel.style.color = selected ? '#ffffff' : baseTextColor;
             });
         }
         syncOptionRowsVisualState();
@@ -5028,11 +5038,11 @@ function totalsFormatSalaryPointValue(value, currency) {
     return String(Math.round(num * 100) / 100);
 }
 var TOTALS_OVERVIEW_METRICS = [
-    { key: 'min', label: 'Минимум', color: '#d65a5a' },
-    { key: 'avg', label: 'Среднее', color: '#d18b45' },
-    { key: 'median', label: 'Медиана', color: '#4b78c7' },
-    { key: 'mode', label: 'Мода', color: '#4f9d74' },
-    { key: 'max', label: 'Максимум', color: '#6c6fb3' }
+    { key: 'min', label: 'Минимум', color: '#FF6262' },
+    { key: 'avg', label: 'Среднее', color: '#FE9500' },
+    { key: 'median', label: 'Медиана', color: '#007AD8' },
+    { key: 'mode', label: 'Мода', color: '#00AD00' },
+    { key: 'max', label: 'Максимум', color: '#D149EF' }
 ];
 function totalsNormalizeMetricKey(value) {
     return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -6736,12 +6746,13 @@ function createSharedFilterGroup(title, nodes) {
     wrap.className = 'shared-filter-group';
     wrap.style.display = 'flex';
     wrap.style.flexDirection = 'column';
-    wrap.style.gap = '0';
+    wrap.style.gap = '6px';
     wrap.style.flex = '1 1 100%';
     wrap.style.width = '100%';
     wrap.style.maxWidth = '100%';
-    wrap.style.padding = '0';
+    wrap.style.padding = '4px 0 10px';
     wrap.style.marginTop = '0';
+    wrap.style.background = 'transparent';
     wrap.style.overflow = 'visible';
     wrap.style.boxSizing = 'border-box';
     if (sectionKey) wrap.dataset.sectionKey = sectionKey;
@@ -9171,7 +9182,7 @@ function renderEmployerAnalysisChart(block) {
 
     var palette = (typeof CHART_COLORS !== 'undefined')
         ? CHART_COLORS
-        : { light: '#B0BEC5', medium: '#90A4AE', dark: '#607D8B' };
+        : { light: '#00C3D3', medium: '#007AD8', dark: '#D149EF', orange: '#FE9500', green: '#00AD00', red: '#FF6262' };
     var colorByCategory = categories.map(function(c) {
         if (c.key.indexOf('_true') !== -1) return palette.light;
         if (c.key.indexOf('_false') !== -1) return palette.dark;
@@ -9943,7 +9954,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
                             '<div class="skills-all-html-row">' +
                                 '<div class="skills-all-html-label">' + escapeHtml(item.skill || '—') + '</div>' +
                                 '<div class="skills-all-html-track">' +
-                                    '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE') + ';"></div>' +
+                                    '<div class="skills-all-html-fill" style="width:' + width + '%;background:' + escapeHtml(typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#007AD8') + ';"></div>' +
                                 '</div>' +
                                 '<div class="skills-all-html-value">' + (item.mention_count || 0) + '</div>' +
                             '</div>';
@@ -10021,7 +10032,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         type: 'bar',
         orientation: 'h',
         marker: {
-            color: (typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#90A4AE'),
+            color: (typeof CHART_COLORS !== 'undefined' ? CHART_COLORS.medium : '#007AD8'),
             line: { width: 0 }
         },
         hovertemplate: '<b>%{y}</b><br>Упоминаний: %{x}<extra></extra>'

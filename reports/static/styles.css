@@ -43,12 +43,19 @@
     --accent-active-soft: rgba(111, 143, 178, 0.1);
     --accent-active-border: rgba(111, 143, 178, 0.18);
     --accent-active-text: #ffffff;
-    --filter-selected-bg: rgba(111, 143, 178, 0.16);
-    --filter-selected-border: rgba(111, 143, 178, 0.34);
-    --filter-selected-text: #44627f;
-    --filter-excluded-bg: rgba(191, 119, 132, 0.14);
-    --filter-excluded-border: rgba(191, 119, 132, 0.30);
-    --filter-excluded-text: #8f4f5d;
+    --filter-selected-bg: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%);
+    --filter-selected-border: transparent;
+    --filter-selected-text: #ffffff;
+    --filter-selected-shadow: 0 10px 24px rgba(0, 122, 216, 0.24);
+    --filter-excluded-bg: linear-gradient(135deg, #ff9a9a 0%, #FF6262 100%);
+    --filter-excluded-border: transparent;
+    --filter-excluded-text: #ffffff;
+    --palette-cyan: #00C3D3;
+    --palette-orange: #FE9500;
+    --palette-blue: #007AD8;
+    --palette-purple: #D149EF;
+    --palette-green: #00AD00;
+    --palette-red: #FF6262;
 }
 
 /* My responses + details modal (synced with main styles.css) */
@@ -686,7 +693,7 @@
 }
 .totals-top-filter-range {
     width: 100%;
-    accent-color: var(--accent-green);
+    accent-color: var(--palette-blue);
     appearance: none;
     -webkit-appearance: none;
     height: 20px;
@@ -698,8 +705,8 @@
     border-radius: 999px;
     background: linear-gradient(
         90deg,
-        var(--accent-green) 0%,
-        var(--accent-green) var(--range-progress),
+        var(--palette-blue) 0%,
+        var(--palette-blue) var(--range-progress),
         #d7dde4 var(--range-progress),
         #d7dde4 100%
     );
@@ -709,12 +716,12 @@
     width: 18px;
     height: 18px;
     margin-top: -6px;
-    border: 1px solid var(--accent-green-border);
+    border: 1px solid rgba(0, 122, 216, 0.24);
     border-radius: 50%;
     background: linear-gradient(180deg, #ffffff 0%, #f7faf8 100%);
     box-shadow:
         0 4px 10px rgba(15, 23, 42, 0.14),
-        0 0 0 4px var(--accent-green-soft);
+        0 0 0 4px rgba(0, 122, 216, 0.12);
 }
 .totals-top-filter-range::-moz-range-track {
     height: 6px;
@@ -725,17 +732,17 @@
 .totals-top-filter-range::-moz-range-progress {
     height: 6px;
     border-radius: 999px;
-    background: linear-gradient(180deg, var(--accent-green) 0%, var(--accent-green-strong) 100%);
+    background: linear-gradient(180deg, #00C3D3 0%, #007AD8 100%);
 }
 .totals-top-filter-range::-moz-range-thumb {
     width: 18px;
     height: 18px;
-    border: 1px solid var(--accent-green-border);
+    border: 1px solid rgba(0, 122, 216, 0.24);
     border-radius: 50%;
     background: linear-gradient(180deg, #ffffff 0%, #f7faf8 100%);
     box-shadow:
         0 4px 10px rgba(15, 23, 42, 0.14),
-        0 0 0 4px var(--accent-green-soft);
+        0 0 0 4px rgba(0, 122, 216, 0.12);
 }
 .totals-top-filter-range:focus {
     outline: none;
@@ -754,10 +761,10 @@
     outline: none;
 }
 .totals-top-filter-number:focus {
-    border-color: rgba(34, 197, 94, 0.45);
+    border-color: rgba(0, 122, 216, 0.45);
     box-shadow:
         inset 0 1px 2px rgba(15, 23, 42, 0.04),
-        0 0 0 4px var(--accent-green-soft);
+        0 0 0 4px rgba(0, 122, 216, 0.12);
 }
 .totals-top-filter-chip-row {
     display: flex;
@@ -798,7 +805,7 @@
     background: var(--filter-selected-bg);
     border-color: var(--filter-selected-border);
     color: var(--filter-selected-text);
-    box-shadow: none;
+    box-shadow: var(--filter-selected-shadow);
 }
 .skills-search-top-filter-control {
     width: 100%;
@@ -1064,9 +1071,10 @@
     transform: translateY(-1px);
 }
 .skills-search-top-skill.active {
-    background: rgba(240, 253, 244, 0.96);
-    border-color: rgba(34, 197, 94, 0.16);
-    color: #15803d;
+    background: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%);
+    border-color: transparent;
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(0, 122, 216, 0.20);
 }
 .skills-search-top-skill.excluded {
     background: rgba(254, 242, 242, 0.96);
@@ -1077,6 +1085,10 @@
     font-size: 0.75rem;
     opacity: 0.7;
     white-space: nowrap;
+}
+.skills-search-top-skill.active .skills-search-top-skill-count {
+    color: inherit;
+    opacity: 0.9;
 }
 .skills-search-top-skill-chip {
     display: inline-flex;
@@ -1093,9 +1105,10 @@
     opacity: 0.76;
 }
 .skills-search-top-skill-chip.excluded {
-    background: var(--filter-excluded-bg) !important;
-    border-color: var(--filter-excluded-border) !important;
-    color: var(--filter-excluded-text) !important;
+    background: linear-gradient(135deg, #ff9a9a 0%, #FF6262 100%) !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(255, 98, 98, 0.22) !important;
 }
 .skills-search-top-skill-chip.excluded .skills-search-top-skill-count {
     color: inherit;
@@ -1917,9 +1930,9 @@
     font-weight: 600;
 }
 .response-calendar-month-option.active {
-    background: rgba(239, 246, 255, 0.96);
-    border-color: rgba(59, 130, 246, 0.28);
-    color: #1d4ed8;
+    background: rgba(0, 122, 216, 0.12);
+    border-color: rgba(0, 122, 216, 0.32);
+    color: var(--palette-blue);
 }
 .response-calendar-month-picker-native {
     position: absolute;
@@ -1943,7 +1956,7 @@
 .response-calendar-action-btn:focus-visible,
 .response-calendar-day:focus-visible,
 .response-calendar-agenda-item:focus-visible {
-    outline: 2px solid rgba(37, 99, 235, 0.6);
+    outline: 2px solid rgba(0, 122, 216, 0.6);
     outline-offset: 2px;
 }
 .response-calendar-filters {
@@ -2021,32 +2034,32 @@
     border: 1px solid transparent;
 }
 .response-calendar-legend-chip.is-local {
-    background: rgba(37, 99, 235, 0.1);
-    color: #1d4ed8;
+    background: rgba(0, 195, 211, 0.12);
+    color: var(--palette-cyan);
 }
 .response-calendar-legend-chip.is-synced {
-    background: rgba(14, 165, 233, 0.12);
-    color: #0f766e;
+    background: rgba(0, 173, 0, 0.12);
+    color: var(--palette-green);
 }
 .response-calendar-legend-chip.is-google {
-    background: rgba(249, 115, 22, 0.12);
-    color: #c2410c;
+    background: rgba(254, 149, 0, 0.12);
+    color: var(--palette-orange);
 }
 .response-calendar-legend-chip.is-today {
-    background: rgba(219, 234, 254, 0.9);
-    color: #1d4ed8;
+    background: rgba(0, 122, 216, 0.12);
+    color: var(--palette-blue);
 }
 .response-calendar-legend-chip.is-selected {
-    background: rgba(224, 231, 255, 0.92);
-    color: #4338ca;
+    background: rgba(209, 73, 239, 0.12);
+    color: var(--palette-purple);
 }
 .response-calendar-legend-chip.is-overdue {
-    background: rgba(254, 243, 199, 0.9);
-    color: #b45309;
+    background: rgba(255, 98, 98, 0.12);
+    color: var(--palette-red);
 }
 .response-calendar-legend-chip.is-missing {
-    background: rgba(255, 237, 213, 0.92);
-    color: #c2410c;
+    background: rgba(254, 149, 0, 0.12);
+    color: var(--palette-orange);
 }
 .response-calendar-range-status {
     margin-bottom: 0.75rem;
@@ -2078,8 +2091,8 @@
     padding: 0.34rem 0.68rem;
     margin-bottom:0.3rem;
     border-radius: 999px;
-    background: linear-gradient(180deg, rgba(239, 246, 255, 0.98) 0%, rgba(219, 234, 254, 0.92) 100%);
-    color: #2563eb;
+    background: linear-gradient(180deg, rgba(0, 122, 216, 0.12) 0%, rgba(0, 195, 211, 0.12) 100%);
+    color: var(--palette-blue);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
 }
 .response-calendar-day {
@@ -2106,17 +2119,17 @@
     background: rgba(241, 245, 249, 0.72);
 }
 .response-calendar-day.has-events {
-    background: rgba(236, 253, 245, 0.95);
-    border-color: rgba(16, 185, 129, 0.28);
+    background: rgba(0, 173, 0, 0.10);
+    border-color: rgba(0, 173, 0, 0.28);
 }
 .response-calendar-day.has-events .response-calendar-day-count {
-    background: rgba(16, 185, 129, 0.14);
-    color: #047857;
+    background: rgba(0, 173, 0, 0.14);
+    color: var(--palette-green);
 }
 .response-calendar-day.is-selected {
-    background: rgba(239, 246, 255, 0.92);
-    border-color: rgba(59, 130, 246, 0.42);
-    box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.2);
+    background: rgba(209, 73, 239, 0.10);
+    border-color: rgba(209, 73, 239, 0.36);
+    box-shadow: inset 0 0 0 1px rgba(209, 73, 239, 0.18);
 }
 .response-calendar-day.is-today {
     background: rgba(248, 250, 252, 0.92);
@@ -2124,9 +2137,9 @@
     box-shadow: none;
 }
 .response-calendar-day.is-today.is-selected {
-    background: rgba(239, 246, 255, 0.92);
-    border-color: rgba(59, 130, 246, 0.42);
-    box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.2);
+    background: rgba(209, 73, 239, 0.10);
+    border-color: rgba(209, 73, 239, 0.36);
+    box-shadow: inset 0 0 0 1px rgba(209, 73, 239, 0.18);
 }
 .response-calendar-day-head {
     display: flex;
@@ -2147,14 +2160,14 @@
     color: var(--text-primary);
 }
 .response-calendar-day.is-today .response-calendar-day-number {
-    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+    background: linear-gradient(180deg, #00C3D3 0%, #007AD8 100%);
     color: #ffffff;
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.25),
-        0 8px 18px rgba(59, 130, 246, 0.2);
+        0 8px 18px rgba(0, 122, 216, 0.2);
 }
 .response-calendar-day.is-today.is-selected .response-calendar-day-number {
-    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(180deg, #D149EF 0%, #007AD8 100%);
 }
 .response-calendar-day.is-outside .response-calendar-day-number {
     color: rgba(100, 116, 139, 0.8);
@@ -4241,9 +4254,9 @@ tr:hover { background-color: #f0f4f9; }
     color: #334155;
 }
 .skills-search-logic-option.active {
-    background: rgba(255, 255, 255, 0.98);
-    color: #0f172a;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    background: var(--filter-selected-bg);
+    color: var(--filter-selected-text);
+    box-shadow: var(--filter-selected-shadow);
 }
 .skills-search-toggle:hover,
 .skills-search-select-all:hover,
@@ -4716,9 +4729,10 @@ tr:hover { background-color: #f0f4f9; }
     box-shadow: 0 6px 14px rgba(148, 163, 184, 0.12);
 }
 .skills-search-dropdown-item.active {
-    background: rgba(240, 253, 244, 0.96);
-    color: #15803d;
-    font-weight: 500;
+    background: transparent;
+    color: inherit;
+    font-weight: 600;
+    box-shadow: none;
 }
 .skills-search-favorite-item {
     display: flex;
@@ -5242,9 +5256,10 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .tab-button.active {
-    background-color: var(--filter-selected-bg);
+    background: var(--filter-selected-bg);
     border-color: var(--filter-selected-border);
     color: var(--filter-selected-text);
+    box-shadow: var(--filter-selected-shadow);
 }
 
 .shared-filter-panel {
@@ -6029,8 +6044,8 @@ body.mobile-filters-open .report-layout .role-selector > * {
 .shared-filter-panel .tab-button.active,
 #role-selector .tab-button.active {
     background: var(--filter-selected-bg) !important;
-    border-color: var(--filter-selected-border) !important;
-    box-shadow: none !important;
+    border: 0 !important;
+    box-shadow: var(--filter-selected-shadow) !important;
     color: var(--filter-selected-text) !important;
 }
 
@@ -6268,6 +6283,31 @@ body.report-dashboard #role-selector .shared-filter-group-title {
 
 body.report-dashboard #role-selector .shared-filter-group-body {
     padding: 0 !important;
+}
+
+body.report-dashboard #role-selector .skills-search-favorites-panel {
+    margin-top: 0 !important;
+}
+
+body.report-dashboard #role-selector .skills-search-favorites-panel-row {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+body.report-dashboard #role-selector .skills-search-favorites-panel-row > .shared-filter-field-label:first-child {
+    display: none !important;
+}
+
+body.report-dashboard #role-selector .skills-search-favorites-panel-picker-wrap,
+body.report-dashboard #role-selector .skills-search-favorites-panel-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
 }
 
 body.report-dashboard #role-selector .global-filter-trigger,
@@ -6685,11 +6725,15 @@ body.report-dashboard #role-selector .totals-top-filter-number {
 
 body.report-dashboard #role-selector .shared-filter-group {
     margin-top: 0 !important;
-    padding: 0 !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 4px 0 10px !important;
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
     overflow: visible !important;
+    box-sizing: border-box !important;
     transition: none !important;
     will-change: auto;
 }
@@ -6769,7 +6813,7 @@ body.report-dashboard #role-selector .summary-filter-trigger,
 body.report-dashboard #role-selector .totals-top-filter-chip {
     border-radius: 0 !important;
     background: #36474f !important;
-    border: 1px solid #455963 !important;
+    border: 1px solid transparent !important;
 }
 
 body.report-dashboard #role-selector .global-filter-trigger:hover,
@@ -6778,7 +6822,7 @@ body.report-dashboard #role-selector .shared-filter-proxy-button:hover,
 body.report-dashboard #role-selector .summary-filter-trigger:hover,
 body.report-dashboard #role-selector .totals-top-filter-chip:hover {
     background: #3f525b !important;
-    border-color: #546972 !important;
+    border-color: transparent !important;
     transform: translateY(-1px);
 }
 
@@ -6787,6 +6831,27 @@ body.report-dashboard #role-selector .skills-search-top-chipset-row .skills-sear
 body.report-dashboard #global-shared-filter-panel .totals-top-filter-chip-row .totals-top-filter-chip,
 body.report-dashboard #global-shared-filter-panel .skills-search-top-chipset-row .skills-search-top-skill-chip {
     border-radius: 999px !important;
+}
+
+body.report-dashboard #role-selector .totals-top-filter-chip.active,
+body.report-dashboard #role-selector .totals-top-filter-chip[aria-pressed="true"],
+body.report-dashboard #role-selector .role-filter-chip.active,
+body.report-dashboard #role-selector .skills-search-top-skill-chip.active,
+body.report-dashboard #global-shared-filter-panel .totals-top-filter-chip.active,
+body.report-dashboard #global-shared-filter-panel .totals-top-filter-chip[aria-pressed="true"],
+body.report-dashboard #global-shared-filter-panel .skills-search-top-skill-chip.active {
+    background: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+    border: 0 !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(0, 122, 216, 0.20) !important;
+}
+
+body.report-dashboard #role-selector .skills-search-top-skill-chip.excluded,
+body.report-dashboard #global-shared-filter-panel .skills-search-top-skill-chip.excluded {
+    background: linear-gradient(135deg, #f38bff 0%, #D149EF 52%, #8b5cf6 100%) !important;
+    border: 0 !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(209, 73, 239, 0.24) !important;
 }
 
 body.report-dashboard #role-selector .global-filter-menu {
@@ -6859,15 +6924,16 @@ body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-pa
 
 body.report-dashboard #global-shared-filter-panel[data-panel-open="0"] .shared-filter-panel-rail-button.active,
 body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-button.active {
-    background: #3f525b !important;
-    border-color: #546972 !important;
-    color: #bcc5c9 !important;
+    background: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+    border: 0 !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 24px rgba(0, 122, 216, 0.24) !important;
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button:hover,
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button:focus-visible {
     background: #3f525b !important;
-    border-color: #546972 !important;
+    border-color: transparent !important;
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon,
@@ -7011,10 +7077,10 @@ body.report-dashboard .summary-return-tabs .analysis-button.active,
 body.report-dashboard .summary-return-tabs .summary-return-tab.active,
 body.report-dashboard .analysis-tabs .analysis-text-tab.active,
 body.report-dashboard .analysis-tabs .analysis-button.active {
-    background: transparent !important;
-    border: 0 !important;
-    box-shadow: none !important;
-    color: #B0B9BD !important;
+    background: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+    border: 1px solid transparent !important;
+    box-shadow: 0 10px 24px rgba(0, 122, 216, 0.24) !important;
+    color: #ffffff !important;
 }
 
 body.report-dashboard .summary-return-tabs .analysis-text-tab.active .shared-filter-group-title-label,
@@ -7023,7 +7089,7 @@ body.report-dashboard .summary-return-tabs .summary-return-tab.active .shared-fi
 body.report-dashboard .analysis-tabs .analysis-text-tab.active .shared-filter-group-title-label,
 body.report-dashboard .analysis-tabs .analysis-button.active .shared-filter-group-title-label {
     font-weight: 700 !important;
-    color: #B0B9BD !important;
+    color: #ffffff !important;
 }
 
 body.report-dashboard .summary-return-tabs .analysis-text-tab:focus-visible,
@@ -7155,6 +7221,9 @@ body.report-dashboard .report-layout.report-layout-scroll-ready .role-content {
 
 body.report-dashboard #role-selector .shared-filter-group {
     margin-top: 0 !important;
+    gap: 4px !important;
+    padding-top: 2px !important;
+    padding-bottom: 6px !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group-title {
@@ -7497,9 +7566,10 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-butt
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
-    border-color: rgba(255, 255, 255, 0.14);
+    background: var(--filter-selected-bg);
+    border: 0;
     color: #ffffff !important;
+    box-shadow: var(--filter-selected-shadow) !important;
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon {
@@ -7625,10 +7695,10 @@ body.report-dashboard .monthly-skills-exp-tabs .tab-button.active,
 body.report-dashboard .salary-month-tabs .tab-button.active,
 body.report-dashboard .salary-exp-tabs .tab-button.active,
 body.report-dashboard .employer-period-chips .tab-button.active {
-    background: linear-gradient(180deg, #24313b 0%, #1f2830 100%) !important;
-    color: #f8fafc !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18) !important;
+    background: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+    color: #ffffff !important;
+    border: 0 !important;
+    box-shadow: 0 10px 24px rgba(0, 122, 216, 0.24) !important;
 }
 
 body.report-dashboard .analysis-flex {
@@ -7762,6 +7832,12 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
 }
 
 body.report-dashboard #role-selector .shared-filter-group-body {
+    gap: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 2px !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group {
     gap: 0 !important;
     padding-top: 0 !important;
     padding-bottom: 2px !important;

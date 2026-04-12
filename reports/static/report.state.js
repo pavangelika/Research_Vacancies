@@ -1,7 +1,10 @@
 const CHART_COLORS = {
-    light: '#38bdf8',
-    medium: '#8b5cf6',
-    dark: '#f43f5e'
+    light: '#00C3D3',
+    medium: '#007AD8',
+    dark: '#D149EF',
+    orange: '#FE9500',
+    green: '#00AD00',
+    red: '#FF6262'
 };
 
 let uiState = {

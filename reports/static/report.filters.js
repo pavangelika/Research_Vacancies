@@ -9,6 +9,10 @@ var SHARED_FILTER_PANEL_SECTION_META = [
     { key: 'vacancy', label: 'Вакансия', icon: 'work' },
     { key: 'skills', label: 'Навыки', icon: 'local_fire_department' }
 ];
+var FILTER_SELECTED_GRADIENT = 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%)';
+var FILTER_SELECTED_BORDER = '1px solid transparent';
+var FILTER_SELECTED_TEXT = '#ffffff';
+var FILTER_SELECTED_SHADOW = '0 10px 24px rgba(0, 122, 216, 0.20)';
 
 function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     var current = String(analysisType || '').trim().replace(/-all$/, '');
@@ -1014,7 +1018,7 @@ function createMyFiltersControl(activeRole, analysisType) {
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown skills-search-dropdown skills-search-favorites-panel';
     wrap.dataset.filterKey = 'shared-filter-presets';
-    wrap.style.marginTop = '4px';
+    wrap.style.marginTop = '0';
     wrap.style.flex = '1 1 auto';
     wrap.style.minWidth = '0';
     wrap.style.width = '100%';
@@ -1025,7 +1029,7 @@ function createMyFiltersControl(activeRole, analysisType) {
     row.style.display = 'flex';
     row.style.flexDirection = 'column';
     row.style.alignItems = 'stretch';
-    row.style.gap = '8px';
+    row.style.gap = '4px';
 
     var dropdownLabel = document.createElement('div');
     dropdownLabel.className = 'shared-filter-field-label';
@@ -1467,18 +1471,17 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
             var countNode = node.querySelector('.skills-search-filter-option-count');
             var isSelected = selectedKeys.has(key);
             node.style.background = isSelected
-                ? (isExcludeMode ? '#fee2e2' : '#eefbf3')
+                ? (isExcludeMode ? 'linear-gradient(135deg, #FF8A8A 0%, #FF6262 100%)' : 'transparent')
                 : 'transparent';
             node.style.color = isSelected
-                ? (isExcludeMode ? '#991b1b' : '#166534')
+                ? '#ffffff'
                 : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
-            node.style.border = isSelected
-                ? ('1px solid ' + (isExcludeMode ? 'rgba(239, 68, 68, 0.18)' : 'rgba(34, 197, 94, 0.18)'))
-                : '1px solid transparent';
+            node.style.border = '1px solid transparent';
+            node.style.boxShadow = isSelected && isExcludeMode ? '0 10px 24px rgba(255, 98, 98, 0.18)' : 'none';
             if (labelNode) {
                 labelNode.style.fontWeight = isSelected ? '600' : '400';
                 labelNode.style.color = isSelected
-                    ? (isExcludeMode ? '#991b1b' : '#166534')
+                    ? '#ffffff'
                     : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
             }
             if (countNode) countNode.style.opacity = isSelected ? '1' : '0.72';
@@ -2016,12 +2019,13 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
             var value = String((node.dataset && node.dataset.optionValue) || '');
             var labelNode = node.querySelector('div');
             var isExcluded = selected.indexOf(value) >= 0;
-            node.style.background = isExcluded ? '#fee2e2' : 'transparent';
-            node.style.color = isExcluded ? '#991b1b' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
-            node.style.border = isExcluded ? '1px solid rgba(239, 68, 68, 0.18)' : '1px solid transparent';
+            node.style.background = isExcluded ? 'linear-gradient(135deg, #FF8A8A 0%, #FF6262 100%)' : 'transparent';
+            node.style.color = isExcluded ? '#ffffff' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
+            node.style.border = '1px solid transparent';
+            node.style.boxShadow = isExcluded ? '0 10px 24px rgba(255, 98, 98, 0.18)' : 'none';
             if (labelNode) {
                 labelNode.style.fontWeight = isExcluded ? '600' : '400';
-                labelNode.style.color = isExcluded ? '#991b1b' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
+                labelNode.style.color = isExcluded ? '#ffffff' : (document.body && document.body.classList.contains('report-dashboard') ? '#bcc5c9' : '#0f172a');
             }
         });
         reorderRoleRows();
@@ -2348,8 +2352,11 @@ function applyGlobalFilterIconButtonStyle(button, isActive) {
     button.style.justifyContent = 'center';
     button.style.gap = '0';
     button.style.margin = '0';
-    button.style.border = '1px solid ' + (isActive ? 'rgba(59, 130, 246, 0.26)' : 'rgba(148, 163, 184, 0.22)');
-    button.style.background = isActive ? 'rgba(239, 246, 255, 0.92)' : 'rgba(248, 250, 252, 0.92)';
-    button.style.color = isActive ? '#2563eb' : '#475569';
-    button.style.boxShadow = 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
+    button.style.fontSize = '16px';
+    button.style.lineHeight = '1';
+    button.style.fontWeight = isActive ? '700' : '500';
+    button.style.border = '0';
+    button.style.background = isActive ? FILTER_SELECTED_GRADIENT : 'rgba(248, 250, 252, 0.92)';
+    button.style.color = isActive ? '#ffffff' : '#475569';
+    button.style.boxShadow = isActive ? '0 8px 18px rgba(0, 122, 216, 0.20)' : 'inset 0 1px 0 rgba(255, 255, 255, 0.8)';
 }
