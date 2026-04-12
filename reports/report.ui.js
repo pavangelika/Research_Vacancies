@@ -6842,17 +6842,34 @@ function setSharedFilterPanelSectionOpen(sectionKey, open) {
     if (typeof ensureSharedFilterPanelState === 'function') ensureSharedFilterPanelState();
     if (!uiState.shared_filter_panel_state) uiState.shared_filter_panel_state = { open: true, sections: {} };
     if (!uiState.shared_filter_panel_state.sections) uiState.shared_filter_panel_state.sections = {};
-    uiState.shared_filter_panel_state.sections[key] = !!open;
-    if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
+    var nextOpen = !!open;
     var panel = document.getElementById('global-shared-filter-panel');
+    if (nextOpen && panel) {
+        panel.querySelectorAll('.shared-filter-group[data-section-key]').forEach(function(group) {
+            var groupKey = String(group.dataset.sectionKey || '').trim();
+            if (!groupKey) return;
+            uiState.shared_filter_panel_state.sections[groupKey] = groupKey === key;
+        });
+    } else {
+        uiState.shared_filter_panel_state.sections[key] = nextOpen;
+    }
+    uiState.shared_filter_panel_state.activeSection = key;
+    if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
     if (!panel) return;
-    var group = panel.querySelector('.shared-filter-group[data-section-key="' + key + '"]');
-    if (!group) return;
-    group.dataset.sectionOpen = open ? '1' : '0';
-    var body = group.querySelector('.shared-filter-group-body');
-    var heading = group.querySelector('.shared-filter-group-title');
-    if (body) body.style.display = open ? 'flex' : 'none';
-    if (heading) heading.setAttribute('aria-expanded', open ? 'true' : 'false');
+    panel.dataset.activeSection = key;
+    panel.querySelectorAll('.shared-filter-group[data-section-key]').forEach(function(group) {
+        var groupKey = String(group.dataset.sectionKey || '').trim();
+        if (!groupKey) return;
+        var isOpen = nextOpen ? groupKey === key : (groupKey === key ? false : uiState.shared_filter_panel_state.sections[groupKey] === true);
+        group.dataset.sectionOpen = isOpen ? '1' : '0';
+        var body = group.querySelector('.shared-filter-group-body');
+        var heading = group.querySelector('.shared-filter-group-title');
+        if (body) body.style.display = isOpen ? 'flex' : 'none';
+        if (heading) heading.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+    if (typeof syncSharedFilterPanelCollapsedUi === 'function') {
+        syncSharedFilterPanelCollapsedUi(panel);
+    }
 }
 
 function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
