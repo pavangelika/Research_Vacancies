@@ -1992,6 +1992,12 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     search.style.marginRight = '2px';
     search.style.padding = '7px 10px';
     search.style.fontSize = '12px';
+    search.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    search.addEventListener('keydown', function(e) {
+        e.stopPropagation();
+    });
     search.value = typeof getGlobalFilterSearchValue === 'function'
         ? getGlobalFilterSearchValue('market-trends-excluded-roles', 'market_trends_excluded_roles_query')
         : String(uiState.market_trends_excluded_roles_query || '');
@@ -2013,7 +2019,11 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         var q = String(getSearchQuery() || '').trim().toLowerCase();
         Array.from(menu.querySelectorAll('.global-filter-option-row[data-option-value]')).forEach(function(node) {
             var text = String(node.textContent || '').trim().toLowerCase();
-            node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+            if (!q || text.indexOf(q) >= 0) {
+                node.style.removeProperty('display');
+            } else {
+                node.style.setProperty('display', 'none', 'important');
+            }
         });
     }
 

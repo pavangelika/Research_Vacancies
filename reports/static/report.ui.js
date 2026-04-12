@@ -3469,7 +3469,12 @@ function applyGlobalFilterSearch(menu, query, rowSelector) {
     var normalizedQuery = String(query || '').trim().toLowerCase();
     Array.from(menu.querySelectorAll(rowSelector || '.global-filter-option-row')).forEach(function(node) {
         var searchText = String((node.dataset && node.dataset.searchText) || node.textContent || '').trim().toLowerCase();
-        node.style.display = !normalizedQuery || searchText.indexOf(normalizedQuery) >= 0 ? '' : 'none';
+        var isVisible = !normalizedQuery || searchText.indexOf(normalizedQuery) >= 0;
+        if (isVisible) {
+            node.style.removeProperty('display');
+        } else {
+            node.style.setProperty('display', 'none', 'important');
+        }
     });
 }
 
@@ -4043,7 +4048,11 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         Array.from(menu.children).forEach(function(node) {
             if (node === controls || node === search) return;
             var text = (node.textContent || '').trim().toLowerCase();
-            node.style.display = !q || text.indexOf(q) >= 0 ? '' : 'none';
+            if (!q || text.indexOf(q) >= 0) {
+                node.style.removeProperty('display');
+            } else {
+                node.style.setProperty('display', 'none', 'important');
+            }
         });
     });
 
@@ -4215,6 +4224,12 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         search.style.marginRight = '2px';
         search.style.padding = '7px 10px';
         search.style.fontSize = '12px';
+        search.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+        search.addEventListener('keydown', function(e) {
+            e.stopPropagation();
+        });
         search.value = getGlobalFilterSearchValue(filterKey);
         menu.appendChild(search);
     }

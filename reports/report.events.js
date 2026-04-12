@@ -756,7 +756,6 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!uiState.global_filters.roles) uiState.global_filters.roles = { include: [], exclude: [] };
         var selectedList = Array.from(selected);
         uiState.global_filters.roles.include = selectedList;
-        uiState.global_filters.roles.exclude = [];
     }
     function commitSelection(nextSelected, nextOrder) {
         selected = new Set(nextSelected);
