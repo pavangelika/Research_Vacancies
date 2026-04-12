@@ -7014,6 +7014,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
     ensureDefaultPeriodFilterSelection(activeRole, currentForFilters);
+    syncActiveSharedFilterPresetSelection(activeRole, currentForFilters);
     var rolesControl = createUnifiedRolesControl(activeRole, currentForFilters);
     var trendsExcludedRolesControl = (typeof createMarketTrendsExcludedRolesControl === 'function')
         ? createMarketTrendsExcludedRolesControl(activeRole, currentForFilters, true)
@@ -7993,6 +7994,37 @@ function getSharedFilterSnapshot(activeRole, analysisType) {
     return snapshot;
 }
 
+function syncActiveSharedFilterPresetSelection(activeRole, analysisType) {
+    var key = getSharedFilterPresetAnalysisKey(analysisType);
+    var state = ensureSharedFilterPresetsState();
+    var bucket = state[key] || { activeId: '', items: [] };
+    var activeId = String(bucket.activeId || '');
+    if (!activeId) return false;
+    var activeItem = (bucket.items || []).find(function(item) {
+        return item && item.id === activeId;
+    }) || null;
+    if (!activeItem) {
+        bucket.activeId = '';
+        state[key] = bucket;
+        persistSharedFilterPresetsState();
+        return true;
+    }
+    var currentRaw = '';
+    var presetRaw = '';
+    try {
+        currentRaw = JSON.stringify(getSharedFilterSnapshot(activeRole, analysisType) || {});
+        presetRaw = JSON.stringify(activeItem.state || {});
+    } catch (_e) {
+        currentRaw = '';
+        presetRaw = '';
+    }
+    if (currentRaw === presetRaw) return false;
+    bucket.activeId = '';
+    state[key] = bucket;
+    persistSharedFilterPresetsState();
+    return true;
+}
+
 function applySharedFilterSnapshot(snapshot, activeRole, analysisType) {
     if (!snapshot || typeof snapshot !== 'object') return false;
     if (snapshot.globalFilters && typeof snapshot.globalFilters === 'object') {
@@ -8277,8 +8309,36 @@ function removeCurrentSkillsSearchFavorite(block, favoriteId) {
     renderSkillsSearchFavoritesDropdown(block);
     return true;
 }
+function syncSkillsSearchFavoriteSelection(block, snapshot) {
+    var state = ensureSkillsSearchFavoritesState();
+    var activeId = String(state.activeId || '');
+    if (!activeId) return false;
+    var activeFavorite = (state.items || []).find(function(item) { return item.id === activeId; });
+    if (!activeFavorite) {
+        state.activeId = '';
+        persistSkillsSearchFavoritesState();
+        if (block) renderSkillsSearchFavoritesDropdown(block);
+        return true;
+    }
+    var currentRaw = '';
+    var favoriteRaw = '';
+    try {
+        currentRaw = JSON.stringify(snapshot || {});
+        favoriteRaw = JSON.stringify(activeFavorite.state || {});
+    } catch (_e) {
+        currentRaw = '';
+        favoriteRaw = '';
+    }
+    if (currentRaw === favoriteRaw) return false;
+    state.activeId = '';
+    persistSkillsSearchFavoritesState();
+    if (block) renderSkillsSearchFavoritesDropdown(block);
+    return true;
+}
 function saveSkillsSearchState(block) {
-    uiState.skills_search_global = getSkillsSearchStateSnapshot(block);
+    var snapshot = getSkillsSearchStateSnapshot(block);
+    uiState.skills_search_global = snapshot;
+    syncSkillsSearchFavoriteSelection(block, snapshot);
 }
 function applySkillsSearchState(block, state) {
     if (!state) return;
