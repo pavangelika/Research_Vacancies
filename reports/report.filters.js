@@ -392,11 +392,8 @@ function createSummaryAnalysisControl(activeRole) {
     wrap.style.width = '220px';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-field-label';
     caption.textContent = 'Раздел';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var activeBtn = buttons.find(function(btn) { return btn.classList.contains('active'); }) || buttons[0];
@@ -1322,11 +1319,8 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     wrap.style.width = '280px';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-field-label';
     caption.textContent = isExcludeMode ? 'Исключить навыки' : 'Навыки';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var trigger = document.createElement('button');
@@ -1837,11 +1831,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     wrap.style.width = '280px';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-field-label';
     caption.textContent = 'Исключить роли';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var getExcludedRoles = function() {

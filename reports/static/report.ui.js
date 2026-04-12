@@ -3834,11 +3834,8 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     wrap.style.width = '280px';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-field-label';
     caption.textContent = 'Роли';
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var trigger = document.createElement('button');
@@ -4087,11 +4084,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     wrap.style.width = isRolesFilter ? '280px' : '220px';
 
     var caption = document.createElement('div');
+    caption.className = 'shared-filter-field-label';
     caption.textContent = title;
-    caption.style.fontSize = '10px';
-    caption.style.fontWeight = '600';
-    caption.style.marginBottom = '4px';
-    caption.style.color = '#94a3b8';
     wrap.appendChild(caption);
 
     var trigger = document.createElement('button');
