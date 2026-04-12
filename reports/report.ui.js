@@ -75,21 +75,30 @@ function createSharedFilterMaterialIcon(iconName, className) {
     var name = String(iconName || '').trim();
     var svgName = name.replace(/_/g, '-');
     var svgUrl = 'https://api.iconify.design/material-symbols:' + encodeURIComponent(svgName) + '.svg';
+    var glyph = document.createElement('span');
+    glyph.className = 'shared-filter-material-icon-glyph';
     icon.dataset.icon = name;
-    icon.style.display = 'inline-block';
+    icon.style.display = 'inline-flex';
     icon.style.flex = '0 0 auto';
+    icon.style.alignItems = 'center';
+    icon.style.justifyContent = 'center';
     icon.style.width = '24px';
     icon.style.height = '24px';
-    icon.style.backgroundColor = 'currentColor';
-    icon.style.webkitMaskImage = 'url("' + svgUrl + '")';
-    icon.style.maskImage = 'url("' + svgUrl + '")';
-    icon.style.webkitMaskRepeat = 'no-repeat';
-    icon.style.maskRepeat = 'no-repeat';
-    icon.style.webkitMaskPosition = 'center';
-    icon.style.maskPosition = 'center';
-    icon.style.webkitMaskSize = '100% 100%';
-    icon.style.maskSize = '100% 100%';
+    glyph.style.display = 'inline-block';
+    glyph.style.color = 'inherit';
+    glyph.style.width = '100%';
+    glyph.style.height = '100%';
+    glyph.style.backgroundColor = 'currentColor';
+    glyph.style.webkitMaskImage = 'url("' + svgUrl + '")';
+    glyph.style.maskImage = 'url("' + svgUrl + '")';
+    glyph.style.webkitMaskRepeat = 'no-repeat';
+    glyph.style.maskRepeat = 'no-repeat';
+    glyph.style.webkitMaskPosition = 'center';
+    glyph.style.maskPosition = 'center';
+    glyph.style.webkitMaskSize = '100% 100%';
+    glyph.style.maskSize = '100% 100%';
     icon.textContent = '';
+    icon.appendChild(glyph);
     return icon;
 }
 
@@ -3577,6 +3586,7 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
     if (!activeRole) return;
 
     var current = analysisType || activeRole.dataset.activeAnalysis || '';
+    panel && (panel.dataset.activeAnalysis = current);
     var isAllRolesView = activeRole.id === 'role-all';
     if (isAllRolesView) syncAllRolesPeriodStateFromGlobalFilter(activeRole, current);
     if (!panel) {
@@ -3618,6 +3628,9 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
             }
             if (rolesArrow) rolesArrow.textContent = '\u25B4';
         }
+    }
+    if (typeof syncSharedFilterPanelCollapsedUi === 'function') {
+        syncSharedFilterPanelCollapsedUi(panel);
     }
     applyGlobalFiltersToActiveAnalysis(activeRole, current);
 }
@@ -3830,8 +3843,8 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     wrap.dataset.filterKey = 'roles';
     wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '280px';
-    wrap.style.width = '280px';
+    wrap.style.minWidth = SHARED_FILTER_WIDE_FIELD_WIDTH;
+    wrap.style.width = SHARED_FILTER_WIDE_FIELD_WIDTH;
 
     var caption = document.createElement('div');
     caption.className = 'shared-filter-field-label';
@@ -3878,7 +3891,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '240px';
+    menu.style.width = SHARED_FILTER_WIDE_MENU_WIDTH;
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '260px';
     menu.style.overflowY = 'auto';
@@ -4080,8 +4093,8 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     wrap.dataset.filterKey = filterKey;
     wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = isRolesFilter ? '280px' : '220px';
-    wrap.style.width = isRolesFilter ? '280px' : '220px';
+    wrap.style.minWidth = isRolesFilter ? SHARED_FILTER_WIDE_FIELD_WIDTH : SHARED_FILTER_FIELD_WIDTH;
+    wrap.style.width = isRolesFilter ? SHARED_FILTER_WIDE_FIELD_WIDTH : SHARED_FILTER_FIELD_WIDTH;
 
     var caption = document.createElement('div');
     caption.className = 'shared-filter-field-label';
@@ -4130,7 +4143,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = isRolesFilter ? '240px' : '220px';
+    menu.style.width = isRolesFilter ? SHARED_FILTER_WIDE_MENU_WIDTH : SHARED_FILTER_FIELD_MENU_WIDTH;
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '260px';
     menu.style.overflowY = 'auto';
@@ -4526,6 +4539,93 @@ function getGlobalSkillsFilterSelections() {
 function hasExplicitGlobalSkillsSelection() {
     var selections = getGlobalSkillsFilterSelections();
     return !!(selections.includeSkills.length || selections.excludeSkills.length);
+}
+
+var SHARED_FILTER_FIELD_WIDTH = 'calc(220px * 0.98)';
+var SHARED_FILTER_FIELD_MENU_WIDTH = 'calc(220px * 0.98)';
+var SHARED_FILTER_WIDE_FIELD_WIDTH = 'calc(280px * 0.98)';
+var SHARED_FILTER_WIDE_MENU_WIDTH = 'calc(240px * 0.98)';
+
+function getDefaultGlobalPeriodOptionValue(activeRole, analysisType) {
+    var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
+    if (!Array.isArray(options) || !options.length) return '';
+    var defaultOption = options.find(function(option) {
+        return normalizeGlobalPeriodValue(option && option.value) === 'last_14';
+    });
+    if (!defaultOption) {
+        defaultOption = options.find(function(option) {
+            return normalizeGlobalPeriodValue(option && option.value) === 'summary';
+        });
+    }
+    if (!defaultOption) {
+        defaultOption = options.find(function(option) {
+            return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
+        });
+    }
+    return defaultOption ? String(defaultOption.value || '').trim() : '';
+}
+
+function hasMeaningfulGlobalPeriodSelection(activeRole, analysisType) {
+    var bucket = ensureGlobalFilterBucket('periods');
+    var include = Array.isArray(bucket.include) ? bucket.include.filter(Boolean) : [];
+    var exclude = Array.isArray(bucket.exclude) ? bucket.exclude.filter(Boolean) : [];
+    if (exclude.length) return true;
+    if (!include.length) return false;
+    if (include.length > 1) return true;
+    var defaultValue = getDefaultGlobalPeriodOptionValue(activeRole, analysisType);
+    if (!defaultValue) return true;
+    return !isSameGlobalFilterValue('periods', include[0], defaultValue);
+}
+
+function hasActiveSharedFilterPresetSelection(analysisType) {
+    if (typeof getSharedFilterPresetState !== 'function') return false;
+    var state = getSharedFilterPresetState(analysisType);
+    if (!state || !state.activeId) return false;
+    return (state.items || []).some(function(item) {
+        return item && item.id === state.activeId;
+    });
+}
+
+function hasMeaningfulSalaryMetricSelection() {
+    var metric = String(uiState.market_trends_salary_metric || 'avg').toLowerCase();
+    if (['min', 'max', 'avg', 'median', 'mode'].indexOf(metric) < 0) metric = 'avg';
+    return metric !== 'avg';
+}
+
+function isSharedFilterSectionFilled(sectionKey, activeRole, analysisType) {
+    var key = String(sectionKey || '').trim();
+    if (!key) return false;
+    if (key === 'my-filters') return hasActiveSharedFilterPresetSelection(analysisType);
+    if (key === 'roles') {
+        return hasExplicitGlobalFilterSelection('roles')
+            || hasMeaningfulGlobalPeriodSelection(activeRole, analysisType)
+            || hasExplicitGlobalFilterSelection('experiences')
+            || hasExplicitGlobalFilterSelection('status')
+            || !!(Array.isArray(uiState.market_trends_excluded_roles) && uiState.market_trends_excluded_roles.length);
+    }
+    if (key === 'salary') {
+        return hasExplicitGlobalFilterSelection('currency')
+            || hasExplicitGlobalFilterSelection('country')
+            || hasMeaningfulSalaryMetricSelection();
+    }
+    if (key === 'responses') {
+        return hasExplicitGlobalFilterSelection('interview')
+            || hasExplicitGlobalFilterSelection('result')
+            || hasExplicitGlobalFilterSelection('offer');
+    }
+    if (key === 'top') {
+        return normalizeTotalsTopLimit(uiState.totals_top_limit || 15) > 15;
+    }
+    if (key === 'vacancy') {
+        return hasExplicitGlobalFilterSelection('employer')
+            || hasExplicitGlobalFilterSelection('accreditation')
+            || hasExplicitGlobalFilterSelection('cover_letter_required')
+            || hasExplicitGlobalFilterSelection('has_test');
+    }
+    if (key === 'skills') {
+        return hasExplicitGlobalSkillsSelection() || hasActiveSharedFilterPresetSelection(analysisType);
+    }
+    return false;
 }
 
 function filterVacanciesByCurrencySelection(vacancies, selectedCurrencies) {
@@ -6735,6 +6835,11 @@ function createSharedFilterGroup(title, nodes) {
     var isCollapsible = !!sectionKey;
     var isOpen = isCollapsible ? (state.sections && state.sections[sectionKey] !== false) : true;
     var sectionIcon = getSharedFilterGroupIcon(sectionKey);
+    var activeRole = getActiveRoleContent();
+    var activeAnalysis = (options && options.analysisType) || (activeRole && activeRole.dataset ? activeRole.dataset.activeAnalysis || '' : '');
+    var isFilled = sectionKey && typeof isSharedFilterSectionFilled === 'function'
+        ? isSharedFilterSectionFilled(sectionKey, activeRole, activeAnalysis)
+        : false;
 
     var wrap = document.createElement('section');
     wrap.className = 'shared-filter-group';
@@ -6751,6 +6856,7 @@ function createSharedFilterGroup(title, nodes) {
     wrap.style.boxSizing = 'border-box';
     if (sectionKey) wrap.dataset.sectionKey = sectionKey;
     if (isCollapsible) wrap.dataset.collapsible = '1';
+    if (sectionKey) wrap.dataset.sectionFilled = isFilled ? '1' : '0';
 
     var titleText = String(title || '').trim();
     if (titleText) {
@@ -6770,6 +6876,7 @@ function createSharedFilterGroup(title, nodes) {
         heading.style.justifyContent = 'flex-start';
         heading.style.gap = '8px';
         heading.style.cursor = isCollapsible ? 'pointer' : 'default';
+        if (sectionKey) heading.dataset.sectionFilled = isFilled ? '1' : '0';
         if (sectionIcon) {
             heading.appendChild(createSharedFilterMaterialIcon(sectionIcon, 'shared-filter-group-title-icon'));
         }
@@ -6847,10 +6954,8 @@ function setSharedFilterPanelSectionOpen(sectionKey, open) {
     } else {
         uiState.shared_filter_panel_state.sections[key] = nextOpen;
     }
-    uiState.shared_filter_panel_state.activeSection = key;
     if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
     if (!panel) return;
-    panel.dataset.activeSection = key;
     panel.querySelectorAll('.shared-filter-group[data-section-key]').forEach(function(group) {
         var groupKey = String(group.dataset.sectionKey || '').trim();
         if (!groupKey) return;
@@ -6888,6 +6993,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         syncDashboardTopbarMeta(activeRole, current);
     }
     panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
+    panel.dataset.activeAnalysis = current;
     panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(current);
     body.style.display = panelState.open === false ? 'none' : 'flex';
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
@@ -6930,7 +7036,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
 
     var favoritesGroup = createSharedFilterGroup('Избранное', [
         favoritesControl
-    ], { sectionKey: 'my-filters' });
+    ], { sectionKey: 'my-filters', analysisType: currentForFilters });
     if (favoritesGroup) body.appendChild(favoritesGroup);
 
     var roleGroup = createSharedFilterGroup('Роль', [
@@ -6939,24 +7045,24 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         periodsControl,
         experiencesControl,
         statusControl
-    ], { sectionKey: 'roles' });
+    ], { sectionKey: 'roles', analysisType: currentForFilters });
     if (roleGroup) body.appendChild(roleGroup);
 
     var salaryGroup = createSharedFilterGroup('Зарплата', [
         currencyControl,
         countryControl,
         salaryMetricControl
-    ], { sectionKey: 'salary' });
+    ], { sectionKey: 'salary', analysisType: currentForFilters });
     if (salaryGroup) body.appendChild(salaryGroup);
 
     var responsesGroup = createSharedFilterGroup('Отклики', [
         interviewControl,
         resultControl,
         offerControl
-    ], { sectionKey: 'responses' });
+    ], { sectionKey: 'responses', analysisType: currentForFilters });
     if (responsesGroup) body.appendChild(responsesGroup);
 
-    var topGroup = createSharedFilterGroup('Топ', [topControl], { sectionKey: 'top' });
+    var topGroup = createSharedFilterGroup('Топ', [topControl], { sectionKey: 'top', analysisType: currentForFilters });
     if (topGroup) body.appendChild(topGroup);
 
     var vacancyGroup = createSharedFilterGroup('Вакансия', [
@@ -6964,13 +7070,13 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         accreditationControl,
         coverLetterControl,
         hasTestControl
-    ], { sectionKey: 'vacancy' });
+    ], { sectionKey: 'vacancy', analysisType: currentForFilters });
     if (vacancyGroup) body.appendChild(vacancyGroup);
 
     var skillsGroup = createSharedFilterGroup('Навыки', [
         skillsLogicControl,
         skillsFilterControl
-    ], { sectionKey: 'skills' });
+    ], { sectionKey: 'skills', analysisType: currentForFilters });
     if (skillsGroup) body.appendChild(skillsGroup);
     panel.style.display = body.children.length ? 'flex' : 'none';
     if (typeof syncSharedFilterPanelCollapsedUi === 'function') {

@@ -13,6 +13,11 @@ var FILTER_SELECTED_GRADIENT = 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%,
 var FILTER_SELECTED_BORDER = '1px solid transparent';
 var FILTER_SELECTED_TEXT = '#ffffff';
 var FILTER_SELECTED_SHADOW = '0 10px 24px rgba(0, 122, 216, 0.20)';
+var SHARED_FILTER_COMPACT_WIDTH = typeof SHARED_FILTER_FIELD_WIDTH === 'string' ? SHARED_FILTER_FIELD_WIDTH : 'calc(220px * 0.98)';
+var SHARED_FILTER_COMPACT_MENU_WIDTH = typeof SHARED_FILTER_FIELD_MENU_WIDTH === 'string' ? SHARED_FILTER_FIELD_MENU_WIDTH : 'calc(220px * 0.98)';
+var SHARED_FILTER_EXPANDED_WIDTH = typeof SHARED_FILTER_WIDE_FIELD_WIDTH === 'string' ? SHARED_FILTER_WIDE_FIELD_WIDTH : 'calc(280px * 0.98)';
+var SHARED_FILTER_EXPANDED_MENU_WIDTH = typeof SHARED_FILTER_WIDE_MENU_WIDTH === 'string' ? SHARED_FILTER_WIDE_MENU_WIDTH : 'calc(240px * 0.98)';
+var SHARED_FILTER_SKILLS_MENU_WIDTH = 'calc(280px * 0.98)';
 
 function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     var current = String(analysisType || '').trim().replace(/-all$/, '');
@@ -112,6 +117,7 @@ function syncSharedFilterPanelCollapsedUi(panel) {
     }
 
     var activeKey = String(panel.dataset.activeSection || getSharedFilterPanelSectionKeyForAnalysis(panel.dataset.activeAnalysis || '') || '').trim() || 'roles';
+    if (typeof syncSharedFilterPanelFilledUi === 'function') syncSharedFilterPanelFilledUi(panel);
     if (rail) {
         rail.querySelectorAll('.shared-filter-panel-rail-button[data-section-key]').forEach(function(btn) {
             var btnKey = String(btn.dataset.sectionKey || '').trim();
@@ -120,6 +126,17 @@ function syncSharedFilterPanelCollapsedUi(panel) {
             btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
         });
     }
+    panel.querySelectorAll('.shared-filter-group[data-section-key]').forEach(function(group) {
+        var groupKey = String(group.dataset.sectionKey || '').trim();
+        var isActive = groupKey === activeKey;
+        group.dataset.sectionActive = isActive ? '1' : '0';
+        group.classList.toggle('active', isActive);
+        var heading = group.querySelector('.shared-filter-group-title');
+        if (heading) {
+            heading.dataset.sectionActive = isActive ? '1' : '0';
+            heading.classList.toggle('active', isActive);
+        }
+    });
 
     var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
     if (railToggle) {
@@ -127,6 +144,28 @@ function syncSharedFilterPanelCollapsedUi(panel) {
         railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
         railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
     }
+}
+
+function syncSharedFilterPanelFilledUi(panel) {
+    if (!panel || typeof isSharedFilterSectionFilled !== 'function') return;
+    var activeRole = typeof getActiveRoleContent === 'function' ? getActiveRoleContent() : null;
+    var analysisType = String(panel.dataset.activeAnalysis || (activeRole && activeRole.dataset ? activeRole.dataset.activeAnalysis || '' : '') || '').trim();
+    panel.querySelectorAll('.shared-filter-group[data-section-key]').forEach(function(group) {
+        var sectionKey = String(group.dataset.sectionKey || '').trim();
+        var isFilled = !!(sectionKey && isSharedFilterSectionFilled(sectionKey, activeRole, analysisType));
+        group.dataset.sectionFilled = isFilled ? '1' : '0';
+        var heading = group.querySelector('.shared-filter-group-title');
+        if (heading) {
+            heading.dataset.sectionFilled = isFilled ? '1' : '0';
+            heading.classList.toggle('filled', isFilled);
+        }
+    });
+    panel.querySelectorAll('.shared-filter-panel-rail-button[data-section-key]').forEach(function(btn) {
+        var sectionKey = String(btn.dataset.sectionKey || '').trim();
+        var isFilled = !!(sectionKey && isSharedFilterSectionFilled(sectionKey, activeRole, analysisType));
+        btn.dataset.sectionFilled = isFilled ? '1' : '0';
+        btn.classList.toggle('filled', isFilled);
+    });
 }
 function ensureSharedFilterPanel() {
     var host = document.getElementById('role-selector');
@@ -183,15 +222,6 @@ function ensureSharedFilterPanel() {
         toggle.setAttribute('aria-expanded', panelState.open === false ? 'false' : 'true');
         toggle.setAttribute('aria-label', panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров');
         toggle.title = panelState.open === false ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
-        toggle.style.flex = '0 0 auto';
-        toggle.style.border = '0';
-        toggle.style.borderRadius = '0';
-        toggle.style.background = 'rgba(255, 255, 255, 0.08)';
-        toggle.style.color = '#f8fafc';
-        toggle.style.padding = '5px 10px';
-        toggle.style.fontSize = '12px';
-        toggle.style.fontWeight = '600';
-        toggle.style.cursor = 'pointer';
         toggle.addEventListener('click', function() {
             if (typeof setSharedFilterPanelOpen === 'function') {
                 var nextOpen = !(panel.dataset.panelOpen === '1');
@@ -246,6 +276,11 @@ function ensureSharedFilterPanel() {
             text.textContent = section.label;
             btn.appendChild(text);
             btn.addEventListener('click', function() {
+                if (typeof ensureSharedFilterPanelState === 'function') ensureSharedFilterPanelState();
+                if (uiState.shared_filter_panel_state) {
+                    uiState.shared_filter_panel_state.activeSection = section.key;
+                    if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
+                }
                 panel.dataset.activeSection = section.key;
                 setSharedFilterPanelCollapsed(false);
                 if (typeof setSharedFilterPanelSectionOpen === 'function') {
@@ -388,8 +423,8 @@ function createSummaryAnalysisControl(activeRole) {
     wrap.className = 'global-filter-dropdown summary-filter-dropdown';
     wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '220px';
-    wrap.style.width = '220px';
+    wrap.style.minWidth = SHARED_FILTER_COMPACT_WIDTH;
+    wrap.style.width = SHARED_FILTER_COMPACT_WIDTH;
 
     var caption = document.createElement('div');
     caption.className = 'shared-filter-field-label';
@@ -438,7 +473,7 @@ function createSummaryAnalysisControl(activeRole) {
     menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '220px';
+    menu.style.width = SHARED_FILTER_COMPACT_MENU_WIDTH;
     menu.style.maxWidth = 'calc(100vw - 48px)';
 
     buttons.forEach(function(sourceBtn, idx) {
@@ -862,7 +897,7 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
     menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '280px';
+    menu.style.width = SHARED_FILTER_SKILLS_MENU_WIDTH;
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '280px';
     menu.style.overflowY = 'auto';
@@ -1315,8 +1350,8 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     wrap.dataset.filterKey = isExcludeMode ? 'skills-search-exclude' : 'skills-search-include';
     wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '280px';
-    wrap.style.width = '280px';
+    wrap.style.minWidth = SHARED_FILTER_EXPANDED_WIDTH;
+    wrap.style.width = SHARED_FILTER_EXPANDED_WIDTH;
 
     var caption = document.createElement('div');
     caption.className = 'shared-filter-field-label';
@@ -1362,7 +1397,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '280px';
+    menu.style.width = SHARED_FILTER_SKILLS_MENU_WIDTH;
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '280px';
     menu.style.overflowY = 'auto';
@@ -1635,6 +1670,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
             if (uiState.totals_top_limit === next) return;
             uiState.totals_top_limit = next;
             if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(activeRole, activeRole && activeRole.dataset ? activeRole.dataset.activeAnalysis || '' : '');
         }
 
         range.addEventListener('input', function() {
@@ -1799,6 +1835,7 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
             });
             if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(activeRole, analysisType, true);
         });
         metricButtons.push(button);
         metricTabs.appendChild(button);
@@ -1830,8 +1867,8 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     wrap.dataset.filterKey = 'market-trends-excluded-roles';
     wrap.style.marginTop = '4px';
     wrap.style.flex = '0 0 auto';
-    wrap.style.minWidth = '280px';
-    wrap.style.width = '280px';
+    wrap.style.minWidth = SHARED_FILTER_EXPANDED_WIDTH;
+    wrap.style.width = SHARED_FILTER_EXPANDED_WIDTH;
 
     var caption = document.createElement('div');
     caption.className = 'shared-filter-field-label';
@@ -1904,7 +1941,7 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
     menu.style.borderRadius = '12px';
     menu.style.background = 'var(--card-background, #fff)';
     menu.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.08)';
-    menu.style.width = '280px';
+    menu.style.width = SHARED_FILTER_SKILLS_MENU_WIDTH;
     menu.style.maxWidth = 'calc(100vw - 48px)';
     menu.style.maxHeight = '280px';
     menu.style.overflowY = 'auto';

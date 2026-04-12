@@ -5293,9 +5293,9 @@ tbody tr:hover {
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]),
 .shared-filter-panel .global-filter-dropdown[data-filter-key="shared-filter-presets"] {
-    min-width: 192px !important;
-    width: 192px !important;
-    max-width: 192px !important;
+    min-width: calc(192px * 0.98) !important;
+    width: calc(192px * 0.98) !important;
+    max-width: calc(192px * 0.98) !important;
 }
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"],
 .shared-filter-panel .global-filter-dropdown[data-filter-key="shared-filter-presets"],
@@ -5317,7 +5317,7 @@ tbody tr:hover {
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="market-trends-excluded-roles"] .global-filter-menu {
-    width: 248px !important;
+    width: calc(248px * 0.98) !important;
 }
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-include"] .global-filter-menu,
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-exclude"] .global-filter-menu {
@@ -5386,7 +5386,7 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-menu {
-    width: 192px !important;
+    width: calc(192px * 0.98) !important;
     padding: 8px 10px !important;
 }
 
@@ -6217,9 +6217,9 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-title {
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-toggle {
-    border: 0 !important;
-    border-radius: 0 !important;
-    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
     color: #f8fafc !important;
 }
 
@@ -6265,7 +6265,6 @@ body.report-dashboard #role-selector .totals-top-filter-number,
 body.report-dashboard #role-selector .summary-filter-item,
 body.report-dashboard #role-selector .tab-button,
 body.report-dashboard #role-selector .view-mode-btn,
-body.report-dashboard #role-selector .shared-filter-panel-toggle,
 body.report-dashboard #role-selector .shared-filter-group-toggle {
     border-radius: 0 !important;
 }
@@ -6454,12 +6453,12 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-toggle {
     align-self: flex-end;
     width: var(--filters-panel-toggle-size);
     height: var(--filters-panel-toggle-size);
-    border-radius: 0;
+    border-radius: 12px;
     appearance: none;
     -webkit-appearance: none;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(15, 23, 42, 0.78);
-    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #f8fafc;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -6522,6 +6521,7 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-butt
     padding: var(--filters-panel-pad-y) calc(var(--filters-panel-pad-x) * 0.7);
     box-shadow: none;
     cursor: pointer;
+    box-sizing: border-box;
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button:hover,
@@ -6586,12 +6586,19 @@ body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-pa
     gap: var(--filters-panel-gap);
 }
 body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-toggle {
-    width: 100%;
+    width: var(--filters-panel-toggle-size);
+    min-width: var(--filters-panel-toggle-size);
     min-height: var(--filters-panel-toggle-size);
+    align-self: center;
 }
 body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-button {
-    min-height: var(--filters-panel-control-min-h-compact);
-    padding: var(--filters-panel-pad-y);
+    width: var(--filters-panel-toggle-size);
+    min-width: var(--filters-panel-toggle-size);
+    height: var(--filters-panel-toggle-size);
+    min-height: var(--filters-panel-toggle-size);
+    padding: 0;
+    border-radius: 12px;
+    align-self: center;
     justify-content: center;
 }
 body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-text {
@@ -6921,6 +6928,16 @@ body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-pa
 
 body.report-dashboard #global-shared-filter-panel[data-panel-open="0"] .shared-filter-panel-rail-button.active,
 body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-button.active {
+    background: #36474f !important;
+    border: 1px solid #455963 !important;
+    color: #bcc5c9 !important;
+    box-shadow: none !important;
+}
+
+body.report-dashboard #global-shared-filter-panel[data-panel-open="0"] .shared-filter-panel-rail-button.filled,
+body.report-dashboard #global-shared-filter-panel[data-panel-open="0"] .shared-filter-panel-rail-button[data-section-filled="1"],
+body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-button.filled,
+body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-panel-rail-button[data-section-filled="1"] {
     background: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
     border: 0 !important;
     color: #ffffff !important;
@@ -6938,6 +6955,15 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-text
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-toggle,
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-toggle {
     color: #bcc5c9 !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active .shared-filter-panel-rail-icon,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active .shared-filter-panel-rail-text,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.filled .shared-filter-panel-rail-icon,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.filled .shared-filter-panel-rail-text,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] .shared-filter-panel-rail-icon,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] .shared-filter-panel-rail-text {
+    color: inherit !important;
 }
 
 body.report-dashboard #global-shared-filter-panel .material-symbols-outlined,
@@ -7231,11 +7257,83 @@ body.report-dashboard #role-selector .shared-filter-group-title {
 
 body.report-dashboard #role-selector .shared-filter-group-title-icon {
     flex: 0 0 auto;
-    width: 18px;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     font-size: 0.94rem;
     line-height: 1;
     opacity: 0.92;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    color: #bcc5c9 !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
+    color: inherit !important;
+    background-color: currentColor !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-filled="1"],
+body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-active="1"],
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.active {
+    color: #ffffff !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-filled="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled .shared-filter-group-title-icon {
+    color: #ffffff !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-filled="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
+    color: #ffffff !important;
+    background-color: transparent !important;
+    background-image: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-active="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.active .shared-filter-group-title-icon {
+    color: #bcc5c9 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-active="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.active .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
+    background-color: #bcc5c9 !important;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"][data-section-active="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled.active .shared-filter-group-title-icon {
+    color: #ffffff !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"][data-section-active="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled.active .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
+    color: #ffffff !important;
+    background-color: transparent !important;
+    background-image: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group-body {
@@ -7555,6 +7653,27 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-togg
     color: #f8fafc !important;
     border-radius: 12px;
     box-shadow: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--filters-panel-toggle-size);
+    height: var(--filters-panel-toggle-size);
+    padding: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    line-height: 1;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-toggle {
+    flex: 0 0 auto;
+    width: var(--filters-panel-toggle-size);
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-toggle {
+    width: var(--filters-panel-toggle-size);
+    min-width: var(--filters-panel-toggle-size);
+    align-self: center;
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail {
@@ -7588,7 +7707,8 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-butt
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active {
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.filled,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] {
     background: var(--filter-selected-bg);
     border: 0;
     color: #ffffff !important;
