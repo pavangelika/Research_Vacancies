@@ -6732,7 +6732,6 @@ body.report-dashboard #role-selector .shared-filter-group {
     gap: var(--filters-panel-group-gap) !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding: calc(var(--filters-panel-group-gap) * 0.65) 0 calc(var(--filters-panel-group-gap) * 1.6) !important;
     border: 0 !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -6752,7 +6751,7 @@ body.report-dashboard #role-selector .shared-filter-group:focus-within {
 body.report-dashboard #role-selector .shared-filter-group-title {
     position: relative;
     min-height: 0 !important;
-    padding: calc(var(--filters-panel-group-gap) * 0.65) 0 calc(var(--filters-panel-group-gap) * 0.5) !important;
+    padding: calc(var(--filters-panel-group-gap) * 0.65) 6px calc(var(--filters-panel-group-gap) * 0.5) !important;
     border: 0 !important;
     background: transparent !important;
     display: flex;
@@ -6789,7 +6788,6 @@ body.report-dashboard #role-selector .shared-filter-group[data-section-open="1"]
 
 body.report-dashboard #role-selector .shared-filter-group-body {
     gap: var(--filters-panel-group-gap) !important;
-    padding: calc(var(--filters-panel-group-gap) * 0.65) 0 calc(var(--filters-panel-group-gap) * 1.6) !important;
     background: transparent !important;
     overflow: visible !important;
 }
@@ -7734,10 +7732,7 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
     min-height: 0 !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
-    padding:
-        calc(var(--filters-panel-pad-y) * 1.25)
-        var(--filters-panel-pad-x)
-        calc(var(--filters-panel-pad-y) * 1.75) !important;
+    padding:0.4rem !important;
     gap: calc(var(--filters-panel-gap) * 1.25) !important;
 }
 

@@ -6864,7 +6864,7 @@ function createSharedFilterGroup(title, nodes) {
     wrap.style.flex = '1 1 100%';
     wrap.style.width = '100%';
     wrap.style.maxWidth = '100%';
-    wrap.style.padding = '4px 0 10px';
+    wrap.style.padding = '4px 10px 10px';
     wrap.style.marginTop = '0';
     wrap.style.background = 'transparent';
     wrap.style.overflow = 'visible';
@@ -6887,7 +6887,7 @@ function createSharedFilterGroup(title, nodes) {
         heading.style.display = 'flex';
         heading.style.alignItems = 'center';
         heading.style.minHeight = '0';
-        heading.style.padding = '4px 0 3px';
+        heading.style.padding = '4px 10px 3px';
         heading.style.justifyContent = 'flex-start';
         heading.style.gap = '8px';
         heading.style.cursor = isCollapsible ? 'pointer' : 'default';
@@ -6926,7 +6926,7 @@ function createSharedFilterGroup(title, nodes) {
     body.style.width = '100%';
     body.style.maxWidth = '100%';
     body.style.boxSizing = 'border-box';
-    body.style.padding = '4px 0 10px';
+    body.style.padding = '4px 10px 10px';
     body.style.overflow = 'visible';
     wrap.dataset.sectionOpen = isOpen ? '1' : '0';
 

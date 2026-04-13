@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(C:\\Users\\pavan\\PycharmProjects\\Research_Vacencies/**)"
+    ]
+  },
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"]
+    }
+  }
+}
