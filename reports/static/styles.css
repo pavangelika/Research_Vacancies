@@ -5309,7 +5309,7 @@ tbody tr:hover {
 
 .shared-filter-panel .global-filter-dropdown:not([data-filter-key="roles"]) .global-filter-trigger {
     min-height: 30px !important;
-    padding: 8px 12px !important;
+    padding: 8px var(--filters-panel-pad-x) !important;
     font-size: 0.8rem !important;
 }
 .shared-filter-panel .global-filter-dropdown[data-filter-key="skills-search-favorites"] .global-filter-menu,
@@ -5452,8 +5452,8 @@ tbody tr:hover {
 .shared-filter-panel .skills-search-top-search,
 .shared-filter-panel .skills-search-favorites-panel-input,
 .shared-filter-panel .totals-top-filter-number {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    padding-left: var(--filters-panel-pad-x) !important;
+    padding-right: var(--filters-panel-pad-x) !important;
 }
 
 .shared-filter-field-label {
@@ -5483,7 +5483,7 @@ tbody tr:hover {
 }
 
 .shared-filter-panel .totals-top-filter-number {
-    padding: 7px 9px !important;
+    padding: 7px var(--filters-panel-pad-x) !important;
     border-radius: 12px !important;
     font-size: 0.8rem !important;
 }
@@ -6796,6 +6796,10 @@ body.report-dashboard #role-selector .shared-filter-group[data-section-open="0"]
     display: none !important;
 }
 
+body.report-dashboard #role-selector .shared-filter-group[data-section-open="1"] .shared-filter-group-body {
+    display: flex !important;
+}
+
 body.report-dashboard #role-selector .global-filter-trigger,
 body.report-dashboard #role-selector .global-filter-menu,
 body.report-dashboard #role-selector .global-filter-option-row,
@@ -6870,8 +6874,8 @@ body.report-dashboard #role-selector .skills-search-favorites-panel-input {
     border-radius: 8px;
     min-height: clamp(2.25rem, 2.1rem + 0.25vw, 2.375rem) !important;
     height: clamp(2.25rem, 2.1rem + 0.25vw, 2.375rem) !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    padding-left: var(--filters-panel-pad-x) !important;
+    padding-right: var(--filters-panel-pad-x) !important;
     outline: none;
     transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
