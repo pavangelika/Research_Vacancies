@@ -1,9 +1,18 @@
 const CHART_COLORS = {
+    selectedStart: '#00C3D3',
+    selectedMid: '#007AD8',
+    selectedEnd: '#D149EF',
+    excludedStart: '#FF8A8A',
+    excludedEnd: '#FF6262',
+    selectedGradient: 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%)',
+    excludedGradient: 'linear-gradient(135deg, #FF8A8A 0%, #FF6262 100%)',
     light: '#00C3D3',
     medium: '#007AD8',
     dark: '#D149EF',
-    orange: '#FE9500',
-    green: '#00AD00',
+    negativeSoft: '#FF8A8A',
+    negative: '#FF6262',
+    orange: '#D149EF',
+    green: '#FF8A8A',
     red: '#FF6262'
 };
 

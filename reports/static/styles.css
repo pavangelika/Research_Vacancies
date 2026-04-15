@@ -1,61 +1,75 @@
-/* Светлая компактная тема на основе Blue Gray */
+/* Цветовая палитра проекта */
 :root {
     --bg-body: #f7f9fb;
     --surface: #ffffff;
     --surface-variant: #f3f6f9;
     --border-light: #e4e9ef;
-    --text-primary: #1c1c1e;
+    --text-primary: #3b4754;
     --text-secondary: #6c7680;
-    --primary: #6f8fb2;
-    --primary-light: #89aacd;
-    --primary-dark: #577596;
-    --tab-inactive: #7f97b1;
-    --tab-active-bg: #6f8fb2;
-    --tab-active-text: #ffffff;
-    --tab-hover-bg: #edf4fb;
-    --shadow-light: 0 1px 3px rgba(28, 28, 30, 0.04);
-    --shadow-medium: 0 4px 10px rgba(28, 28, 30, 0.06);
-    --shadow-card: 0 8px 24px rgba(28, 28, 30, 0.06);
-    --border-radius-card: 12px;
-    --border-radius-tab: 20px;
-    --spacing: 16px;
-    --analysis-layout-max-width: 100%;
-    --analysis-column-min-width: 0;
-    --analysis-gap: clamp(0.75rem, 1.2vw, 1rem);
-    --chart-stack-gap: var(--analysis-gap);
-    --chart-shell-top-gap: 8px;
-    --chart-title-bottom-gap: 12px;
-    --chart-subtitle-overlap: -4px;
-    --chart-subtitle-bottom-gap: 14px;
-    --chart-controls-gap: 12px;
-    --analysis-half-gap: calc(var(--analysis-gap) / 2);
-    --analysis-graph-ratio: 16 / 10;
-    --accent-green: #34c759;
-    --accent-green-strong: #1f7a36;
-    --accent-green-soft: rgba(52, 199, 89, 0.1);
-    --accent-green-border: rgba(52, 199, 89, 0.18);
-    --accent-negative: #d69a2d;
-    --accent-negative-strong: #8a5d12;
-    --accent-negative-soft: rgba(214, 154, 45, 0.1);
-    --accent-negative-border: rgba(214, 154, 45, 0.18);
-    --accent-active: #6f8fb2;
-    --accent-active-strong: #577596;
-    --accent-active-soft: rgba(111, 143, 178, 0.1);
-    --accent-active-border: rgba(111, 143, 178, 0.18);
-    --accent-active-text: #ffffff;
-    --filter-selected-bg: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%);
-    --filter-selected-border: transparent;
-    --filter-selected-text: #ffffff;
-    --filter-selected-shadow: 0 10px 24px rgba(0, 122, 216, 0.24);
-    --filter-excluded-bg: linear-gradient(135deg, #ff9a9a 0%, #FF6262 100%);
-    --filter-excluded-border: transparent;
-    --filter-excluded-text: #ffffff;
+
+    /* Основная палитра */
     --palette-cyan: #00C3D3;
     --palette-orange: #FE9500;
     --palette-blue: #007AD8;
     --palette-purple: #D149EF;
     --palette-green: #00AD00;
     --palette-red: #FF6262;
+
+    /* Устаревшие переменные для обратной совместимости */
+    --primary: #007AD8;
+    --primary-light: #00C3D3;
+    --primary-dark: #005a9e;
+    --tab-inactive: #6c7680;
+    --tab-active-bg: #007AD8;
+    --tab-active-text: #ffffff;
+    --tab-hover-bg: #edf4fb;
+
+    /* Акцентные цвета */
+    --accent-green: #00AD00;
+    --accent-green-strong: #008800;
+    --accent-green-soft: rgba(0, 173, 0, 0.1);
+    --accent-green-border: rgba(0, 173, 0, 0.18);
+    --accent-negative: #FE9500;
+    --accent-negative-strong: #cc7700;
+    --accent-negative-soft: rgba(254, 149, 0, 0.1);
+    --accent-negative-border: rgba(254, 149, 0, 0.18);
+    --accent-active: #007AD8;
+    --accent-active-strong: #005a9e;
+    --accent-active-soft: rgba(0, 122, 216, 0.1);
+    --accent-active-border: rgba(0, 122, 216, 0.18);
+    --accent-active-text: #ffffff;
+
+    /* Фильтры */
+    --filter-selected-bg: linear-gradient(135deg, var(--palette-cyan) 0%, var(--palette-blue) 55%, var(--palette-purple) 100%);
+    --filter-selected-border: transparent;
+    --filter-selected-text: #ffffff;
+    --filter-selected-shadow: 0 10px 24px rgba(0, 122, 216, 0.24);
+    --filter-excluded-bg: linear-gradient(135deg, #ff9a9a 0%, var(--palette-red) 100%);
+    --filter-excluded-border: transparent;
+    --filter-excluded-text: #ffffff;
+
+    /* Тени и размеры */
+    --shadow-light: 0 1px 3px rgba(28, 28, 30, 0.04);
+    --shadow-medium: 0 4px 10px rgba(28, 28, 30, 0.06);
+    --shadow-card: 0 8px 24px rgba(28, 28, 30, 0.06);
+    --border-radius-card: 12px;
+    --border-radius-tab: 20px;
+    --spacing: 16px;
+
+    /* Диаграммы */
+    --chart-stack-gap: clamp(0.75rem, 1.2vw, 1rem);
+    --chart-shell-top-gap: 8px;
+    --chart-title-bottom-gap: 12px;
+    --chart-subtitle-overlap: -4px;
+    --chart-subtitle-bottom-gap: 14px;
+    --chart-controls-gap: 12px;
+
+    /* Анализ */
+    --analysis-layout-max-width: 100%;
+    --analysis-column-min-width: 0;
+    --analysis-gap: clamp(0.75rem, 1.2vw, 1rem);
+    --analysis-half-gap: calc(var(--analysis-gap) / 2);
+    --analysis-graph-ratio: 16 / 10;
 }
 
 /* My responses + details modal (synced with main styles.css) */
@@ -4907,17 +4921,17 @@ tr:hover { background-color: #f0f4f9; }
     --surface: rgba(255, 255, 255, 0.9);
     --surface-variant: #f3f6f9;
     --border-light: rgba(106, 127, 149, 0.12);
-    --text-primary: #1c1c1e;
+    --text-primary: #3b4754;
     --text-secondary: #6c7680;
-    --primary: #6f8fb2;
-    --primary-light: #89aacd;
-    --primary-dark: #577596;
+    --primary: #007AD8;
+    --primary-light: #00C3D3;
+    --primary-dark: #005a9e;
     --tab-inactive: #8099b5;
-    --tab-active-bg: #6f8fb2;
+    --tab-active-bg: #007AD8;
     --tab-hover-bg: #edf4fb;
-    --accent-active-strong: #577596;
-    --accent-active-soft: rgba(111, 143, 178, 0.1);
-    --accent-active-border: rgba(111, 143, 178, 0.18);
+    --accent-active-strong: #005a9e;
+    --accent-active-soft: rgba(0, 122, 216, 0.1);
+    --accent-active-border: rgba(0, 122, 216, 0.18);
     --shadow-light: 0 10px 24px rgba(28, 28, 30, 0.06);
     --shadow-medium: 0 16px 36px rgba(28, 28, 30, 0.08);
     --shadow-card: 0 24px 60px rgba(28, 28, 30, 0.08);
@@ -5098,18 +5112,18 @@ tbody tr:hover {
     --surface: #ffffff;
     --surface-variant: #f3f6f9;
     --border-light: #e4e9ef;
-    --text-primary: #1c1c1e;
+    --text-primary: #3b4754;
     --text-secondary: #6c7680;
-    --primary: #6f8fb2;
-    --primary-light: #89aacd;
-    --primary-dark: #577596;
+    --primary: #007AD8;
+    --primary-light: #00C3D3;
+    --primary-dark: #005a9e;
     --tab-inactive: #7f97b1;
-    --tab-active-bg: #6f8fb2;
+    --tab-active-bg: #007AD8;
     --tab-active-text: #ffffff;
     --tab-hover-bg: #edf4fb;
-    --accent-active-strong: #577596;
-    --accent-active-soft: rgba(111, 143, 178, 0.1);
-    --accent-active-border: rgba(111, 143, 178, 0.18);
+    --accent-active-strong: #005a9e;
+    --accent-active-soft: rgba(0, 122, 216, 0.1);
+    --accent-active-border: rgba(0, 122, 216, 0.18);
     --shadow-light: 0 1px 4px rgba(28, 28, 30, 0.05);
     --shadow-medium: 0 4px 12px rgba(28, 28, 30, 0.08);
     --shadow-card: 0 10px 28px rgba(28, 28, 30, 0.08);
@@ -8065,3 +8079,404 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         font-size: var(--filters-panel-title-size) !important;
     }
 }
+
+/* ===== Dashboard Overview - Новые стили ===== */
+
+/* Контейнер дашборда: левая колонка (вакансии + воронка), правая (зарплаты) */
+.dashboard-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
+    padding: 24px;
+}
+
+@media (max-width: 900px) {
+    .dashboard-overview {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Левая колонка: вертикальный стек вакансий + воронки */
+.dashboard-left {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
+}
+
+/* Карточка дашборда */
+.dashboard-card {
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-card);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.dashboard-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Круговая диаграмма */
+.donut-chart-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.donut-chart {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    flex-shrink: 0;
+}
+
+.donut-chart svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.donut-chart circle {
+    fill: none;
+    stroke-width: 32;
+    cx: 100;
+    cy: 100;
+    r: 80;
+}
+
+.donut-center-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.donut-center-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+}
+
+.donut-center-text {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+.donut-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--surface-variant);
+    min-width: 160px;
+}
+
+.donut-legend-kpi {
+    background: var(--surface-variant);
+    border: none;
+}
+
+.donut-legend-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.donut-legend-color-active {
+    background: var(--filter-selected-bg);
+}
+
+.donut-legend-color-archived {
+    background: linear-gradient(135deg, #f38bff 0%, #8b5cf6 100%);
+}
+
+.donut-legend-color-kpi {
+    background: rgba(148, 163, 184, 0.38);
+}
+
+.donut-legend-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.donut-legend-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-left: auto;
+}
+
+/* Воронка */
+.funnel-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.funnel-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 16px;
+    border-radius: 8px;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    position: relative;
+    background: var(--filter-selected-bg);
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.funnel-stage:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    filter: brightness(1.1);
+}
+
+.funnel-stage:active {
+    transform: scale(0.98);
+}
+
+.funnel-stage-label {
+    flex: 1;
+    text-align: left;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.funnel-stage-value {
+    font-weight: 800;
+    font-size: 1.1rem;
+}
+
+.funnel-stage-percent {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    margin-left: 8px;
+}
+
+/* Цвета стадий воронки */
+.funnel-stage-0,
+.funnel-stage-1,
+.funnel-stage-2,
+.funnel-stage-3 {
+    background: var(--filter-selected-bg);
+}
+
+/* ===== Диаграмма зарплат (прогресс-бар с точками) ===== */
+.salary-chart-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.salary-chart-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.salary-chart-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 28px;
+    overflow: hidden;
+}
+
+.salary-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-left: 52px;
+    margin-bottom: 10px;
+}
+
+.salary-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-width: 0;
+}
+
+.salary-chart-legend-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.salary-chart-legend-text {
+    display: inline-block;
+    font-weight: 700;
+}
+
+/* Легенда с названиями метрик над графиком */
+.salary-chart-currency-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 44px;
+    text-align: center;
+    flex-shrink: 0;
+    background: var(--surface-variant);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.salary-chart-range {
+    position: relative;
+    height: 82px;
+    margin-left: 52px;
+    overflow: visible;
+    min-width: 0;
+}
+
+.salary-chart-track {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 8px;
+    transform: translateY(-50%);
+    border-radius: 4px;
+    background: var(--surface-variant);
+    border: 1px solid var(--border-light);
+}
+
+.salary-chart-fill {
+    position: absolute;
+    top: 50%;
+    height: 8px;
+    transform: translateY(-50%);
+    border-radius: 4px;
+    opacity: 0.42;
+}
+
+.salary-chart-point-group {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    min-width: 24px;
+}
+
+.salary-chart-point-group.is-clustered {
+    min-width: 24px;
+}
+
+.salary-chart-point-group.edge-left {
+    transform: translate(0, -50%);
+}
+
+.salary-chart-point-group.edge-right {
+    transform: translate(-100%, -50%);
+}
+
+.salary-chart-point-markers {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 14px;
+}
+
+.salary-chart-point {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 2;
+}
+
+.salary-chart-point-value {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 10px);
+    transform: translateX(-50%);
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.1;
+    color: #4b5563;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.salary-chart-point-group.edge-left .salary-chart-point-value {
+    left: 0;
+    transform: none;
+    text-align: left;
+}
+
+.salary-chart-point-group.edge-right .salary-chart-point-value {
+    left: auto;
+    right: 0;
+    transform: none;
+    text-align: right;
+}
+
+/* Адаптивность */
+@media (max-width: 600px) {
+    .donut-chart {
+        width: 160px;
+        height: 160px;
+    }
+    .donut-chart circle {
+        cx: 80;
+        cy: 80;
+        r: 64;
+        stroke-width: 26;
+    }
+    .donut-center-value {
+        font-size: 1.4rem;
+    }
+    .funnel-stage {
+        padding: 12px;
+        font-size: 0.8rem;
+    }
+    .funnel-stage-value {
+        font-size: 1rem;
+    }
+}
+

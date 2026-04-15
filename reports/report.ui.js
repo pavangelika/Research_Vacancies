@@ -588,7 +588,14 @@ function applyIosChartDefaults(layout, traces) {
     layout.font.color = layout.font.color || '#334155';
     layout.paper_bgcolor = 'rgba(0,0,0,0)';
     layout.plot_bgcolor = 'rgba(0,0,0,0)';
-    layout.colorway = layout.colorway || [CHART_COLORS.light, CHART_COLORS.orange, CHART_COLORS.medium, CHART_COLORS.dark, CHART_COLORS.green, CHART_COLORS.red];
+    layout.colorway = layout.colorway || [
+        CHART_COLORS.selectedStart,
+        CHART_COLORS.selectedMid,
+        CHART_COLORS.selectedEnd,
+        CHART_COLORS.excludedStart,
+        CHART_COLORS.excludedEnd,
+        CHART_COLORS.selectedMid
+    ];
     layout.hoverlabel = layout.hoverlabel || {};
     layout.hoverlabel.bgcolor = 'rgba(15, 23, 42, 0.96)';
     layout.hoverlabel.bordercolor = 'rgba(148, 163, 184, 0.24)';
@@ -832,7 +839,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
         var signature = filteredEntries.map(function(e) { return e.experience + ':' + e.active + ':' + e.archived; }).join('|');
         plotIfChangedById(graphId, signature, [
             { x: activeData, y: experiences, name: 'Активные', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.light } },
-            { x: archivedData, y: experiences, name: 'Архивные', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.dark } }
+            { x: archivedData, y: experiences, name: 'Архивные', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.negative } }
         ], {
             barmode: 'group',
             title: 'Количество вакансий по опыту',
@@ -852,7 +859,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
         var signature = weekdaysData.map(function(d) { return d.weekday + ':' + d.publications + ':' + d.archives; }).join('|');
         plotIfChangedById('weekday-graph-' + roleId, signature, [
             { x: pubs, y: days, name: 'Публикации', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.light } },
-            { x: archs, y: days, name: 'Архивации', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.dark } }
+            { x: archs, y: days, name: 'Архивации', type: 'bar', orientation: 'h', marker: { color: CHART_COLORS.negative } }
         ], {
             barmode: 'group',
             title: 'Распределение по дням недели',
@@ -877,6 +884,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
             currencies.map(function(c) { return '<div class="salary-graph-item"><div class="plotly-graph" id="' + graphId + '-' + c.replace('%', 'p') + '"></div></div>'; }).join('') +
         '</div>';
         var statuses = ['Открытая', 'Архивная'];
+        var salaryStatusColors = [CHART_COLORS.selectedStart, CHART_COLORS.excludedEnd];
         currencies.forEach(function(curr) {
             var graphElId = graphId + '-' + curr.replace('%', 'p');
             var values = statuses.map(function(status) {
@@ -889,7 +897,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
                 name: curr,
                 type: 'bar',
                 orientation: 'h',
-                marker: { color: [CHART_COLORS.light, CHART_COLORS.dark] }
+                marker: { color: salaryStatusColors }
             }], {
                 title: 'Средняя зарплата · ' + curr,
                 xaxis: { title: 'Средняя зарплата', automargin: true },
@@ -912,7 +920,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
         var signatureAge = (rows || []).map(function(r) { return (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_age !== null && r.avg_age !== undefined ? r.avg_age : ''); }).join('|');
         plotIfChangedById(graphIdMain, signatureMain, [
             { x: labels, y: activeVals, customdata: fullLabels, type: 'scatter', mode: 'lines+markers', name: 'Открытые', line: { color: CHART_COLORS.light }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>' },
-            { x: labels, y: archivedVals, customdata: fullLabels, type: 'scatter', mode: 'lines+markers', name: 'Архивные', line: { color: CHART_COLORS.dark }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>' }
+            { x: labels, y: archivedVals, customdata: fullLabels, type: 'scatter', mode: 'lines+markers', name: 'Архивные', line: { color: CHART_COLORS.negative }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{y}<extra></extra>' }
         ], {
             title: 'Открытые и архивные вакансии по ролям',
             xaxis: { tickangle: -35, title: '' },
@@ -952,7 +960,7 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
         var signature = (rows || []).map(function(r) { return (r.name || '') + ':' + (r.id || '') + ':' + (r.avg_pub || 0) + ':' + (r.avg_arch || 0); }).join('|');
         plotIfChangedById(graphId, signature, [
             { x: pubVals, y: labels, customdata: fullLabels, type: 'bar', orientation: 'h', name: 'Публикации/день', marker: { color: CHART_COLORS.light }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>' },
-            { x: archVals, y: labels, customdata: fullLabels, type: 'bar', orientation: 'h', name: 'Архивы/день', marker: { color: CHART_COLORS.dark }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>' }
+            { x: archVals, y: labels, customdata: fullLabels, type: 'bar', orientation: 'h', name: 'Архивы/день', marker: { color: CHART_COLORS.negative }, hovertemplate: '%{customdata}<br>%{fullData.name}: %{x}<extra></extra>' }
         ], {
             barmode: 'group',
             title: 'Публикации и архивы по ролям',
@@ -997,11 +1005,11 @@ if (typeof window !== 'undefined' && typeof plotIfChangedById === 'function') {
         var labels = list.map(function(r) { return buildRoleAxisTick(r.id); });
         var fullLabels = list.map(buildRoleFullLabel);
         var metricDefs = [
-            { key: 'avg_salary', label: 'Средняя', color: CHART_COLORS.dark },
-            { key: 'median_salary', label: 'Медианная', color: CHART_COLORS.medium },
-            { key: 'mode_salary', label: 'Мода', color: CHART_COLORS.light },
-            { key: 'min_salary', label: 'Минимальная', color: CHART_COLORS.light },
-            { key: 'max_salary', label: 'Максимальная', color: CHART_COLORS.dark }
+            { key: 'avg_salary', label: 'Средняя', color: '#7B61E8' },
+            { key: 'median_salary', label: 'Медианная', color: CHART_COLORS.selectedMid },
+            { key: 'mode_salary', label: 'Мода', color: '#00AADF' },
+            { key: 'min_salary', label: 'Минимальная', color: CHART_COLORS.selectedStart },
+            { key: 'max_salary', label: 'Максимальная', color: CHART_COLORS.selectedEnd }
         ];
         var activeMetric = metricDefs.find(function(item) { return item.key === metricKey; }) || metricDefs[0];
         var signature = list.map(function(r) {
@@ -5250,6 +5258,21 @@ function totalsSortSkillsRows(rows, sortOrder) {
             || String(a.skill).localeCompare(String(b.skill), 'ru');
     });
 }
+// ===== Глобальный обработчик кликов по воронке =====
+function handleFunnelClick(filterKey, filterValue, roleSuffix) {
+    if (filterKey && filterValue) {
+        updateGlobalFilterSelection(filterKey, filterValue, 'include', true);
+    }
+    var targetRole = document.getElementById('role-' + roleSuffix);
+    if (!targetRole || targetRole.id === 'role-all') {
+        targetRole = document.querySelector('.role-content:not(#role-all):not(#role-combined)');
+    }
+    if (!targetRole) return;
+    ensureMyResponsesTab(targetRole);
+    var myResponsesBtn = targetRole.querySelector('.analysis-button[data-analysis-id^="my-responses-"]');
+    if (myResponsesBtn) myResponsesBtn.click();
+}
+
 function totalsComputeSalaryByCurrency(vacancies) {
     var buckets = {
         RUR: { currency: 'RUR', total: 0, withSalary: 0, values: [] },
@@ -5775,7 +5798,7 @@ function buildTotalsWeekdayChart(graphId, weekdays, contextText) {
     var arch = list.map(function(item) { return Number(item.archives || 0); });
     Plotly.newPlot(el, [
         { x: labels, y: pubs, type: 'bar', name: 'Публикации', marker: { color: CHART_COLORS.light } },
-        { x: labels, y: arch, type: 'bar', name: 'Архивы', marker: { color: CHART_COLORS.dark } }
+        { x: labels, y: arch, type: 'bar', name: 'Архивы', marker: { color: CHART_COLORS.negative } }
     ], {
         barmode: 'group',
         margin: { t: 22, r: 22, b: 84, l: 60 },
@@ -6411,7 +6434,7 @@ function renderMarketTrends(parentRole, mountNode) {
             type: 'bar',
             marker: {
                 color: demandTop.map(function(r) {
-                    var fallback = r.demandDelta >= 0 ? CHART_COLORS.light : CHART_COLORS.dark;
+                    var fallback = r.demandDelta >= 0 ? CHART_COLORS.light : CHART_COLORS.negative;
                     return hasExplicitExperienceFilter ? fallback : getMarketTrendsExperienceGradientColor(r, fallback);
                 })
             },
@@ -6428,7 +6451,7 @@ function renderMarketTrends(parentRole, mountNode) {
             type: 'bar',
             marker: {
                 color: salaryTop.map(function(r) {
-                    var fallback = getSalaryDelta(r) >= 0 ? CHART_COLORS.light : CHART_COLORS.dark;
+                    var fallback = getSalaryDelta(r) >= 0 ? CHART_COLORS.light : CHART_COLORS.negative;
                     return hasExplicitExperienceFilter ? fallback : getMarketTrendsExperienceGradientColor(r, fallback);
                 })
             },
@@ -6521,16 +6544,6 @@ function renderGlobalTotalsFiltered(parentRole) {
     var responseOffer = responseRows.filter(function(v) {
         return hasOfferContent(v);
     }).length;
-    var responseToInterviewPct = responseRows.length ? (responseInterview * 100 / responseRows.length) : 0;
-    var interviewToOfferPct = responseInterview ? (responseOffer * 100 / responseInterview) : 0;
-    var responseToOfferPct = responseRows.length ? (responseOffer * 100 / responseRows.length) : 0;
-
-    var salaryGraphIds = {
-        RUR: 'totals-salary-graph-rur-' + roleSuffix,
-        USD: 'totals-salary-graph-usd-' + roleSuffix,
-        EUR: 'totals-salary-graph-eur-' + roleSuffix
-    };
-    var overviewLegendHtml = totalsBuildOverviewLegendHtml(periodLabel, expLabel);
 
     function buildSwitchRow(stateKey, values, currentValue, extraClass) {
         var switchClass = 'tabs month-tabs totals-switch' + (extraClass ? ' ' + extraClass : '');
@@ -6631,48 +6644,249 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<td>' + totalsFormatNumber(row.max) + '</td>' +
         '</tr>';
     }
-    function buildResponseKpiButton(label, value, filterKey, filterValue) {
-        var attrs = ' type="button" class="totals-kpi totals-kpi-button" data-response-kpi="1"';
-        if (filterKey) attrs += ' data-response-filter="' + escapeHtml(filterKey) + '"';
-        if (filterValue) attrs += ' data-response-value="' + escapeHtml(filterValue) + '"';
-        return '<button' + attrs + '><div class="label">' + escapeHtml(label) + '</div><div class="value">' + value + '</div></button>';
+
+    // ===== Круговая диаграмма (donut) для вакансий =====
+    function buildDonutChartHtml(total, active, archived) {
+        var circumference = 2 * Math.PI * 80; // r=80
+        var activePct = total > 0 ? active / total : 0;
+        var archivedPct = total > 0 ? archived / total : 0;
+        var activeLen = activePct * circumference;
+        var archivedLen = archivedPct * circumference;
+        var restLen = circumference - activeLen - archivedLen;
+        var offset1 = 0;
+        var offset2 = activeLen;
+        var offset3 = activeLen + archivedLen;
+        var donutKey = String(roleSuffix || 'default');
+        var activeGradientId = 'donut-active-gradient-' + donutKey;
+        var archivedGradientId = 'donut-archived-gradient-' + donutKey;
+
+        return '<div class="donut-chart-container">' +
+            '<div class="donut-chart">' +
+                '<svg viewBox="0 0 200 200">' +
+                    '<defs>' +
+                        '<linearGradient id="' + activeGradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+                            '<stop offset="0%" stop-color="' + CHART_COLORS.selectedStart + '"></stop>' +
+                            '<stop offset="55%" stop-color="' + CHART_COLORS.selectedMid + '"></stop>' +
+                            '<stop offset="100%" stop-color="' + CHART_COLORS.selectedEnd + '"></stop>' +
+                        '</linearGradient>' +
+                        '<linearGradient id="' + archivedGradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+                            '<stop offset="0%" stop-color="' + DONUT_ARCHIVED_GRADIENT_START + '"></stop>' +
+                            '<stop offset="100%" stop-color="' + DONUT_ARCHIVED_GRADIENT_END + '"></stop>' +
+                        '</linearGradient>' +
+                    '</defs>' +
+                    '<circle stroke="rgba(148, 163, 184, 0.18)" stroke-dasharray="' + circumference + ' 0" stroke-dashoffset="0"></circle>' +
+                    '<circle stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '"></circle>' +
+                    '<circle stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '"></circle>' +
+                '</svg>' +
+                '<div class="donut-center-label">' +
+                    '<div class="donut-center-value">' + total + '</div>' +
+                    '<div class="donut-center-text">всего</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="donut-legend">' +
+                '<div class="donut-legend-item">' +
+                    '<span class="donut-legend-color donut-legend-color-active"></span>' +
+                    '<span class="donut-legend-label">Активные</span>' +
+                    '<span class="donut-legend-value">' + active + '</span>' +
+                '</div>' +
+                '<div class="donut-legend-item">' +
+                    '<span class="donut-legend-color donut-legend-color-archived"></span>' +
+                    '<span class="donut-legend-label">Архивные</span>' +
+                    '<span class="donut-legend-value">' + archived + '</span>' +
+                '</div>' +
+                '<div class="donut-legend-item donut-legend-kpi">' +
+                    '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
+                    '<span class="donut-legend-label">Ср. время жизни</span>' +
+                    '<span class="donut-legend-value">' + (total > 0 ? totalsFormatNumber(avgAge) + ' дн.' : '—') + '</span>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    // ===== Воронка для откликов =====
+    function buildFunnelChartHtml(responseCount, interviewCount, resultCount, offerCount) {
+        var stages = [
+            { label: 'Отклики', value: responseCount, filterKey: null, filterValue: null },
+            { label: 'Собес назначен', value: interviewCount, filterKey: 'interview', filterValue: 'yes' },
+            { label: 'Результат указан', value: resultCount, filterKey: 'result', filterValue: 'yes' },
+            { label: 'Оффер', value: offerCount, filterKey: 'offer', filterValue: 'yes' }
+        ];
+
+        var maxValue = responseCount || 1;
+        var funnelHtml = stages.map(function(stage, index) {
+            var widthPct = Math.max(40, (stage.value / maxValue) * 100);
+            var percentText = responseCount > 0 ? Math.round(stage.value * 100 / responseCount) : 0;
+            var clickHandler = (stage.filterKey && stage.filterValue)
+                ? ' onclick="handleFunnelClick(\'' + escapeHtml(stage.filterKey) + '\', \'' + escapeHtml(stage.filterValue) + '\', ' + roleSuffix + ')"'
+                : '';
+            return '<div class="funnel-stage funnel-stage-' + index + '" style="width:' + widthPct + '%;margin:0 auto;"' + clickHandler + '>' +
+                '<span class="funnel-stage-label">' + escapeHtml(stage.label) + '</span>' +
+                '<span class="funnel-stage-value">' + stage.value + '</span>' +
+                '<span class="funnel-stage-percent">' + percentText + '%</span>' +
+            '</div>';
+        }).join('');
+
+        return '<div class="funnel-chart">' + funnelHtml + '</div>';
+    }
+
+    // ===== Диаграмма зарплат (прогресс-бар с точками) =====
+    var SALARY_GRADIENT_COLORS = ['#00C3D3', '#00AADF', '#007AD8', '#7B61E8', '#D149EF'];
+    var SALARY_METRIC_LABELS = {
+        'min': 'Мин',
+        'avg': 'Среднее',
+        'median': 'Медиана',
+        'mode': 'Мода',
+        'max': 'Макс'
+    };
+    var SALARY_LEGEND_ORDER = ['min', 'mode', 'median', 'avg', 'max'];
+    var DONUT_ARCHIVED_GRADIENT_START = '#f38bff';
+    var DONUT_ARCHIVED_GRADIENT_END = '#8b5cf6';
+    function buildSalaryMetricNamesHtml(items) {
+        return items.map(function(item) {
+            return SALARY_METRIC_LABELS[item.key];
+        }).join(', ');
+    }
+    function buildSalaryLegendEntryHtml(items, color) {
+        var text = buildSalaryMetricNamesHtml(items);
+        return '<span class="salary-chart-legend-text" style="color:' + color + ';">' + text + '</span>';
+    }
+    function buildSalaryDisplayPositions(groups, min, max, isSingle) {
+        if (!groups.length) return [];
+        if (groups.length === 1 || isSingle) return [50];
+        if (groups.length === 2) return [0, 100];
+        var minGap = groups.length >= 5 ? 16 : (groups.length === 4 ? 18 : 22);
+        var actual = groups.map(function(g) {
+            if (g.value <= min) return 0;
+            if (g.value >= max) return 100;
+            return ((g.value - min) / Math.max(1, max - min)) * 100;
+        });
+        var slots = groups.map(function(_, idx) {
+            return (idx / (groups.length - 1)) * 100;
+        });
+        var result = [0];
+        for (var i = 1; i < groups.length - 1; i++) {
+            var desired = (actual[i] * 0.35) + (slots[i] * 0.65);
+            var minAllowed = result[i - 1] + minGap;
+            var maxAllowed = 100 - (minGap * (groups.length - 1 - i));
+            result[i] = Math.max(minAllowed, Math.min(maxAllowed, desired));
+        }
+        result.push(100);
+        return result;
+    }
+    function buildSalaryChartHtml(salaryRows) {
+        var currencies = ['RUR', 'USD', 'EUR'];
+        var rows = currencies.map(function(curr) {
+            return salaryRows.find(function(item) { return item.currency === curr; }) || null;
+        });
+
+        var html = '';
+        rows.forEach(function(row, idx) {
+            var curr = currencies[idx];
+            if (!row || row.min === null || row.max === null) {
+                html += '<div class="salary-chart-row"><div class="salary-chart-label">' +
+                    '<span class="salary-chart-currency-badge">' + curr + '</span>' +
+                    '<span style="color:var(--text-secondary);font-size:0.82rem;">Нет данных</span>' +
+                    '</div></div>';
+                return;
+            }
+
+            var min = Number(row.min) || 0;
+            var avg = Number(row.avg) || 0;
+            var median = Number(row.median) || 0;
+            var mode = Number(row.mode) || 0;
+            var max = Number(row.max) || 0;
+            var range = max - min;
+            var isSingle = (range === 0);
+            if (isSingle) range = 1;
+
+            var points = [
+                { key: 'min', value: min },
+                { key: 'mode', value: mode },
+                { key: 'median', value: median },
+                { key: 'avg', value: avg },
+                { key: 'max', value: max }
+            ];
+            points.sort(function(a, b) { return a.value - b.value; });
+
+            var groups = [];
+            points.forEach(function(p) {
+                var last = groups.length ? groups[groups.length - 1] : null;
+                if (last && last.value === p.value) {
+                    last.items.push(p);
+                } else {
+                    groups.push({ value: p.value, items: [p] });
+                }
+            });
+            groups.forEach(function(group, groupIdx) {
+                var colorIdx = groups.length === 1 ? 2 : Math.round((groupIdx / Math.max(groups.length - 1, 1)) * (SALARY_GRADIENT_COLORS.length - 1));
+                group.color = SALARY_GRADIENT_COLORS[colorIdx];
+            });
+
+            var legendHtml = '<div class="salary-chart-legend">';
+            groups.forEach(function(g) {
+                legendHtml += '<div class="salary-chart-legend-item">' + buildSalaryLegendEntryHtml(g.items, g.color) + '</div>';
+            });
+            legendHtml += '</div>';
+
+            var displayPositions = buildSalaryDisplayPositions(groups, min, max, isSingle);
+            var pointsHtml = '';
+            groups.forEach(function(g, groupIdx) {
+                var pct = displayPositions[groupIdx];
+                var pointClass = 'salary-chart-point-group';
+                if (g.items.length > 1) pointClass += ' is-clustered';
+                if (pct <= 8) pointClass += ' edge-left';
+                else if (pct >= 92) pointClass += ' edge-right';
+                var pointFill = g.color;
+                pointsHtml += '<div class="' + pointClass + '" style="left:' + pct + '%;">' +
+                    '<div class="salary-chart-point-markers"><span class="salary-chart-point" style="background:' + pointFill + ';"></span></div>' +
+                    '<div class="salary-chart-point-value" style="color:' + pointFill + ';">' + formatSalaryValue(g.value, curr) + '</div>' +
+                '</div>';
+            });
+
+            var fillStyle = 'background:' + CHART_COLORS.selectedGradient + ';';
+
+            html += '<div class="salary-chart-row">' +
+                '<div class="salary-chart-header">' +
+                    legendHtml +
+                    '<span class="salary-chart-currency-badge">' + curr + '</span>' +
+                '</div>' +
+                '<div class="salary-chart-range">' +
+                    '<div class="salary-chart-track"></div>' +
+                    '<div class="salary-chart-fill" style="' + fillStyle + '"></div>' +
+                    pointsHtml +
+                '</div>' +
+            '</div>';
+        });
+
+        return '<div class="salary-chart-container">' + html + '</div>';
+    }
+
+    function formatSalaryValue(val, currency) {
+        if (val === null || val === undefined || !isFinite(val)) return '—';
+        var num = Math.round(val);
+        if (currency === 'RUR') {
+            if (num >= 1000000) return (num / 1000000).toFixed(1).replace('.0', '') + ' млн';
+            if (num >= 1000) return Math.round(num / 1000) + 'к';
+            return String(num);
+        }
+        return String(num);
     }
 
     var overviewHtml =
-        '<div class="totals-layout totals-overview-layout">' +
-            '<div class="totals-overview-columns">' +
-                '<div class="totals-overview-column totals-overview-column-kpi">' +
-                    '<div class="totals-kpis totals-kpis-column">' +
-                        buildResponseKpiButton('Откликов', String(responseRows.length)) +
-                        buildResponseKpiButton('Собес назначен', String(responseInterview), 'interview', 'yes') +
-                        buildResponseKpiButton('Результат указан', String(responseResult), 'result', 'yes') +
-                        buildResponseKpiButton('Оффер', String(responseOffer), 'offer', 'yes') +
-                        '<div class="totals-kpi"><div class="label">Отклик→Собес</div><div class="value">' + totalsFormatNumber(responseToInterviewPct) + '%</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Собес→Оффер</div><div class="value">' + totalsFormatNumber(interviewToOfferPct) + '%</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Отклик→Оффер</div><div class="value">' + totalsFormatNumber(responseToOfferPct) + '%</div></div>' +
-                    '</div>' +
+        '<div class="dashboard-overview">' +
+            '<div class="dashboard-left">' +
+                '<div class="dashboard-card">' +
+                    '<h3 class="dashboard-card-title">Вакансии</h3>' +
+                    buildDonutChartHtml(totalCount, activeCount, archivedCount) +
                 '</div>' +
-                '<div class="totals-overview-column totals-overview-column-kpi">' +
-                    '<div class="totals-kpis totals-kpis-column">' +
-                        '<div class="totals-kpi"><div class="label">Всего вакансий</div><div class="value">' + totalCount + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Активные</div><div class="value">' + activeCount + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Архивные</div><div class="value">' + archivedCount + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">Ср. возраст (дни)</div><div class="value">' + totalsFormatNumber(avgAge) + '</div></div>' +
-                        '<div class="totals-kpi"><div class="label">С указанной ЗП</div><div class="value">' + withSalaryCount + ' <span>' + (totalCount ? totalsFormatNumber(withSalaryCount * 100 / totalCount) : 0) + '%</span></div></div>' +
-                    '</div>' +
+                '<div class="dashboard-card">' +
+                    '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
+                    buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
                 '</div>' +
-                '<div class="totals-overview-column totals-overview-column-chart">' +
-                    '<section class="totals-card totals-overview-chart-card">' +
-                        '<div class="totals-overview-chart-panels">' +
-                            ['RUR', 'USD', 'EUR'].map(function(curr) {
-                                return '<div class="totals-salary-range-panel">' +
-                                    '<div class="plotly-graph totals-salary-range-host" id="' + salaryGraphIds[curr] + '"></div>' +
-                                '</div>';
-                            }).join('') +
-                        '</div>' +
-                        overviewLegendHtml +
-                    '</section>' +
-                '</div>' +
+            '</div>' +
+            '<div class="dashboard-card">' +
+                '<h3 class="dashboard-card-title">Зарплаты</h3>' +
+                buildSalaryChartHtml(salaryRows) +
             '</div>' +
         '</div>';
     var topTitlePrefix = 'Топ-' + topLimit;
@@ -6742,34 +6956,6 @@ function renderGlobalTotalsFiltered(parentRole) {
             : (dashboardMode === 'top' ? topHtml : overviewHtml)
     );
 
-    block.querySelectorAll('.totals-kpi-button[data-response-kpi="1"]').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var filterKey = String(btn.dataset.responseFilter || '').trim();
-            var filterValue = String(btn.dataset.responseValue || '').trim();
-            if (filterKey && filterValue) {
-                updateGlobalFilterSelection(filterKey, filterValue, 'include', true);
-            }
-            var targetRole = parentRole;
-            if (!targetRole || targetRole.id === 'role-all') {
-                var ctx = uiState.roleSelectionContext;
-                if (ctx && typeof ctx.getOrder === 'function') {
-                    var order = ctx.getOrder();
-                    var firstIdx = order.length ? order[0] : null;
-                    if (firstIdx !== null && firstIdx !== undefined) {
-                        targetRole = document.getElementById('role-' + firstIdx);
-                    }
-                }
-                if (!targetRole) {
-                    targetRole = document.querySelector('.role-content:not(#role-all):not(#role-combined)');
-                }
-            }
-            if (!targetRole || targetRole.id === 'role-all') return;
-            ensureMyResponsesTab(targetRole);
-            var myResponsesBtn = targetRole.querySelector('.analysis-button[data-analysis-id^="my-responses-"]');
-            if (myResponsesBtn) myResponsesBtn.click();
-        });
-    });
-
     block.querySelectorAll('.totals-switch-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var key = String(btn.dataset.switch || '').trim();
@@ -6799,25 +6985,6 @@ function renderGlobalTotalsFiltered(parentRole) {
     }
 
     if (dashboardMode !== 'overview') return;
-
-    ['RUR', 'USD', 'EUR'].forEach(function(curr) {
-        var row = salaryRows.find(function(item) { return item.currency === curr; }) || null;
-        buildTotalsSimpleBarChart(
-            salaryGraphIds[curr],
-            ['Минимум', 'Среднее', 'Медиана', 'Мода', 'Максимум'],
-            [
-                row ? row.min : null,
-                row ? row.avg : null,
-                row ? row.median : null,
-                row ? row.mode : null,
-                row ? row.max : null
-            ],
-            '',
-            '',
-            curr
-        );
-    });
-
 }
 
 function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
@@ -11222,6 +11389,7 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
             rowsByStatus[String(entry.status || '')] = entry;
         });
 
+        var statusColors = [CHART_COLORS.selectedStart, CHART_COLORS.excludedEnd];
         var traces = statuses.map(function(status, statusIdx) {
             var row = rowsByStatus[status] || null;
             return {
@@ -11233,7 +11401,7 @@ function renderSalaryChartsFromEntries(containerId, entries, contextLabel) {
                 name: status || ('Status ' + (statusIdx + 1)),
                 type: 'bar',
                 orientation: 'h',
-                marker: { color: statusIdx === 0 ? CHART_COLORS.light : CHART_COLORS.dark }
+                marker: { color: statusColors[statusIdx] || statusColors[0] }
             };
         });
 
