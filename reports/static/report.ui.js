@@ -6519,6 +6519,8 @@ function renderGlobalTotalsFiltered(parentRole) {
         return val !== null && val !== undefined && isFinite(val);
     }).length;
     var avgAge = computeAvgLifetimeDays(vacancyKpiVacancies || []);
+    var donutInteractive = !hasExplicitGlobalFilterSelection('experiences');
+    var donutExperienceBreakdown = buildTotalsExperienceBreakdown(vacancyKpiVacancies || []);
 
     var skillsRows = totalsSortSkillsRows(totalsComputeSkillsCost(vacancies || [], topCurrency), skillsOrder);
     var companyRows = totalsComputeCompanySalaryLeaders(vacancies || [], topCurrency, companyOrder);
@@ -6645,22 +6647,122 @@ function renderGlobalTotalsFiltered(parentRole) {
         '</tr>';
     }
 
+    function buildTotalsExperienceBreakdown(vacancyList) {
+        var order = typeof getExperienceOrder === 'function'
+            ? getExperienceOrder()
+            : {
+                'Нет опыта': 0,
+                'От 1 года до 3 лет': 1,
+                'От 3 до 6 лет': 2,
+                'Более 6 лет': 3
+            };
+        var labels = {
+            active: 'Открытые',
+            archived: 'Архивные'
+        };
+        var buckets = {
+            active: { total: 0, items: {} },
+            archived: { total: 0, items: {} }
+        };
+
+        (vacancyList || []).forEach(function(vacancy) {
+            var status = isArchivedResponseVacancy(vacancy) ? 'archived' : 'active';
+            var experience = normalizeExperience(vacancy && (vacancy._experience || vacancy.experience || '')) || 'Не указан';
+            var statusBucket = buckets[status];
+            if (!statusBucket) return;
+            statusBucket.total += 1;
+            statusBucket.items[experience] = (statusBucket.items[experience] || 0) + 1;
+        });
+
+        function sortExperiences(left, right) {
+            var leftOrder = Object.prototype.hasOwnProperty.call(order, left) ? Number(order[left]) : 999;
+            var rightOrder = Object.prototype.hasOwnProperty.call(order, right) ? Number(order[right]) : 999;
+            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+            if (left === 'Не указан' && right !== 'Не указан') return 1;
+            if (right === 'Не указан' && left !== 'Не указан') return -1;
+            return String(left).localeCompare(String(right));
+        }
+
+        var result = {};
+        ['active', 'archived'].forEach(function(status) {
+            var statusBucket = buckets[status];
+            var total = statusBucket.total || 0;
+            var items = Object.keys(statusBucket.items || {}).map(function(experience) {
+                var count = statusBucket.items[experience] || 0;
+                return {
+                    experience: experience,
+                    count: count,
+                    share: total ? ((count * 100) / total) : 0
+                };
+            }).sort(function(a, b) {
+                return sortExperiences(a.experience, b.experience);
+            });
+            result[status] = {
+                status: status,
+                label: labels[status] || status,
+                total: total,
+                items: items
+            };
+        });
+        return result;
+    }
+
+    function buildTotalsExperienceDrilldownHtml(statusData) {
+        var data = statusData || { label: '', total: 0, items: [] };
+        var statusLabel = String(data.label || '').trim() || 'Вакансии';
+        var rows = Array.isArray(data.items) ? data.items : [];
+        if (!rows.length || !data.total) {
+            return '<div class="donut-drilldown-header">' +
+                    '<div class="donut-drilldown-title">Распределение по опыту · ' + escapeHtml(statusLabel) + '</div>' +
+                '</div>' +
+                '<div class="donut-drilldown-empty">Нет вакансий для выбранного статуса</div>';
+        }
+        return '<div class="donut-drilldown-header">' +
+                '<div class="donut-drilldown-title">Распределение по опыту · ' + escapeHtml(statusLabel) + '</div>' +
+                '<div class="donut-drilldown-subtitle">' + escapeHtml(formatVacancyCount(data.total)) + '</div>' +
+            '</div>' +
+            '<div class="donut-drilldown-list">' +
+                rows.map(function(item) {
+                    var width = Math.max(4, Math.min(100, item.share || 0));
+                    return '<div class="donut-drilldown-row">' +
+                        '<div class="donut-drilldown-row-head">' +
+                            '<span class="donut-drilldown-exp">' + escapeHtml(item.experience) + '</span>' +
+                            '<span class="donut-drilldown-meta">' + (item.count || 0) + ' · ' + totalsFormatNumber(item.share || 0) + '%</span>' +
+                        '</div>' +
+                        '<div class="donut-drilldown-track">' +
+                            '<div class="donut-drilldown-fill" style="width:' + width + '%;"></div>' +
+                        '</div>' +
+                    '</div>';
+                }).join('') +
+            '</div>';
+    }
+
     // ===== Круговая диаграмма (donut) для вакансий =====
-    function buildDonutChartHtml(total, active, archived) {
+    function buildDonutChartHtml(total, active, archived, avgAgeValue, breakdownData, interactiveEnabled) {
         var circumference = 2 * Math.PI * 80; // r=80
         var activePct = total > 0 ? active / total : 0;
         var archivedPct = total > 0 ? archived / total : 0;
         var activeLen = activePct * circumference;
         var archivedLen = archivedPct * circumference;
-        var restLen = circumference - activeLen - archivedLen;
         var offset1 = 0;
         var offset2 = activeLen;
-        var offset3 = activeLen + archivedLen;
         var donutKey = String(roleSuffix || 'default');
         var activeGradientId = 'donut-active-gradient-' + donutKey;
         var archivedGradientId = 'donut-archived-gradient-' + donutKey;
+        var breakdownEncoded = encodeURIComponent(JSON.stringify(breakdownData || {}));
+        var interactiveAttr = interactiveEnabled ? ' data-interactive="1"' : ' data-interactive="0"';
+        var activeSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-active' + (interactiveEnabled ? ' is-clickable' : '');
+        var archivedSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-archived' + (interactiveEnabled ? ' is-clickable' : '');
+        var activeLegendTag = interactiveEnabled ? 'button' : 'div';
+        var archivedLegendTag = interactiveEnabled ? 'button' : 'div';
+        var activeLegendAttrs = interactiveEnabled
+            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false"'
+            : ' class="donut-legend-item"';
+        var archivedLegendAttrs = interactiveEnabled
+            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false"'
+            : ' class="donut-legend-item"';
 
-        return '<div class="donut-chart-container">' +
+        return '<div class="donut-chart-container"' + interactiveAttr + ' data-breakdown="' + breakdownEncoded + '">' +
             '<div class="donut-chart">' +
                 '<svg viewBox="0 0 200 200">' +
                     '<defs>' +
@@ -6675,8 +6777,8 @@ function renderGlobalTotalsFiltered(parentRole) {
                         '</linearGradient>' +
                     '</defs>' +
                     '<circle stroke="rgba(148, 163, 184, 0.18)" stroke-dasharray="' + circumference + ' 0" stroke-dashoffset="0"></circle>' +
-                    '<circle stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '"></circle>' +
-                    '<circle stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '"></circle>' +
+                    '<circle class="' + activeSegmentClass + '" data-status="active" stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для открытых вакансий"></circle>' +
+                    '<circle class="' + archivedSegmentClass + '" data-status="archived" stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для архивных вакансий"></circle>' +
                 '</svg>' +
                 '<div class="donut-center-label">' +
                     '<div class="donut-center-value">' + total + '</div>' +
@@ -6684,22 +6786,23 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '</div>' +
             '</div>' +
             '<div class="donut-legend">' +
-                '<div class="donut-legend-item">' +
+                '<' + activeLegendTag + activeLegendAttrs + '>' +
                     '<span class="donut-legend-color donut-legend-color-active"></span>' +
                     '<span class="donut-legend-label">Активные</span>' +
                     '<span class="donut-legend-value">' + active + '</span>' +
-                '</div>' +
-                '<div class="donut-legend-item">' +
+                '</' + activeLegendTag + '>' +
+                '<' + archivedLegendTag + archivedLegendAttrs + '>' +
                     '<span class="donut-legend-color donut-legend-color-archived"></span>' +
                     '<span class="donut-legend-label">Архивные</span>' +
                     '<span class="donut-legend-value">' + archived + '</span>' +
-                '</div>' +
+                '</' + archivedLegendTag + '>' +
                 '<div class="donut-legend-item donut-legend-kpi">' +
                     '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
                     '<span class="donut-legend-label">Ср. время жизни</span>' +
-                    '<span class="donut-legend-value">' + (total > 0 ? totalsFormatNumber(avgAge) + ' дн.' : '—') + '</span>' +
+                    '<span class="donut-legend-value">' + (total > 0 ? totalsFormatNumber(avgAgeValue) + ' дн.' : '—') + '</span>' +
                 '</div>' +
             '</div>' +
+            '<div class="donut-drilldown" hidden></div>' +
         '</div>';
     }
 
@@ -6877,7 +6980,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             '<div class="dashboard-left">' +
                 '<div class="dashboard-card">' +
                     '<h3 class="dashboard-card-title">Вакансии</h3>' +
-                    buildDonutChartHtml(totalCount, activeCount, archivedCount) +
+                    buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
                 '</div>' +
                 '<div class="dashboard-card">' +
                     '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
@@ -6985,6 +7088,50 @@ function renderGlobalTotalsFiltered(parentRole) {
     }
 
     if (dashboardMode !== 'overview') return;
+
+    var donutContainer = block.querySelector('.donut-chart-container[data-interactive="1"]');
+    if (!donutContainer) return;
+    var donutBreakdown = parseJsonDataset(donutContainer, 'breakdown', {});
+    var drilldownHost = donutContainer.querySelector('.donut-drilldown');
+    var actions = Array.from(donutContainer.querySelectorAll('[data-status]'));
+
+    function syncDonutSelection(status) {
+        actions.forEach(function(node) {
+            var isSelected = !!status && String(node.dataset.status || '') === status;
+            node.classList.toggle('is-selected', isSelected);
+            if (node.classList.contains('donut-legend-action')) {
+                node.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            }
+        });
+    }
+
+    function toggleDonutDrilldown(status) {
+        var normalizedStatus = String(status || '').trim();
+        if (!normalizedStatus || !drilldownHost) return;
+        var nextStatus = donutContainer.dataset.activeStatus === normalizedStatus ? '' : normalizedStatus;
+        donutContainer.dataset.activeStatus = nextStatus;
+        syncDonutSelection(nextStatus);
+        if (!nextStatus) {
+            drilldownHost.hidden = true;
+            drilldownHost.innerHTML = '';
+            return;
+        }
+        drilldownHost.hidden = false;
+        drilldownHost.innerHTML = buildTotalsExperienceDrilldownHtml(donutBreakdown[nextStatus]);
+    }
+
+    actions.forEach(function(node) {
+        node.addEventListener('click', function() {
+            toggleDonutDrilldown(String(node.dataset.status || '').trim());
+        });
+        if (node.classList.contains('donut-chart-segment')) {
+            node.addEventListener('keydown', function(event) {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                toggleDonutDrilldown(String(node.dataset.status || '').trim());
+            });
+        }
+    });
 }
 
 function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
