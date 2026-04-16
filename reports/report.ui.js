@@ -4620,8 +4620,8 @@ function totalsComputePeriodVacancyStats(vacancies, periodWindow) {
     var lifetimeSum = 0;
     var lifetimeCount = 0;
     var breakdown = {
-        active: { total: 0, items: {}, periodMetrics: {} },
-        archived: { total: 0, items: {}, periodMetrics: {} }
+        active: { total: 0, items: {}, periodMetrics: {}, subsets: { newPublished: { total: 0, items: {} } } },
+        archived: { total: 0, items: {}, periodMetrics: {}, subsets: { publishedAndArchived: { total: 0, items: {} } } }
     };
     list.forEach(function(vacancy) {
         var entry = totalsClassifyVacancyForPeriod(vacancy, periodWindow);
@@ -4631,12 +4631,20 @@ function totalsComputePeriodVacancyStats(vacancies, periodWindow) {
             active += 1;
             breakdown.active.total += 1;
             breakdown.active.items[entry.experience] = (breakdown.active.items[entry.experience] || 0) + 1;
-            if (entry.newPublished) activeNewPublished += 1;
+            if (entry.newPublished) {
+                activeNewPublished += 1;
+                breakdown.active.subsets.newPublished.total += 1;
+                breakdown.active.subsets.newPublished.items[entry.experience] = (breakdown.active.subsets.newPublished.items[entry.experience] || 0) + 1;
+            }
         }
         if (entry.archived) {
             archived += 1;
             breakdown.archived.total += 1;
             breakdown.archived.items[entry.experience] = (breakdown.archived.items[entry.experience] || 0) + 1;
+            if (entry.publishedAndArchived) {
+                breakdown.archived.subsets.publishedAndArchived.total += 1;
+                breakdown.archived.subsets.publishedAndArchived.items[entry.experience] = (breakdown.archived.subsets.publishedAndArchived.items[entry.experience] || 0) + 1;
+            }
         }
         if (entry.newPublished) newPublished += 1;
         if (entry.publishedAndArchived) publishedAndArchived += 1;
@@ -5903,7 +5911,11 @@ function buildTotalsTrendLineChart(graphId, labels, traces, titleText, contextTe
         showlegend: true,
         height: 360
     }, { responsive: true, displayModeBar: false });
-    applyChartTitleContext(graphId, titleText || '', contextText || '');
+    if (titleText || contextText) {
+        applyChartTitleContext(graphId, titleText || '', contextText || '');
+    } else if (typeof setUnifiedChartHeader === 'function') {
+        setUnifiedChartHeader(graphId, '', '');
+    }
 }
 function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextText) {
     var el = document.getElementById(graphId);
@@ -6961,13 +6973,9 @@ function renderGlobalTotalsFiltered(parentRole) {
             if (right === 'Не указан' && left !== 'Не указан') return -1;
             return String(left).localeCompare(String(right));
         }
-
-        var result = {};
-        ['active', 'archived'].forEach(function(status) {
-            var statusBucket = buckets[status] || { total: 0, items: {}, periodMetrics: {} };
-            var total = statusBucket.total || 0;
-            var items = Object.keys(statusBucket.items || {}).map(function(experience) {
-                var count = statusBucket.items[experience] || 0;
+        function buildItems(itemsMap, total) {
+            return Object.keys(itemsMap || {}).map(function(experience) {
+                var count = itemsMap[experience] || 0;
                 return {
                     experience: experience,
                     count: count,
@@ -6976,22 +6984,38 @@ function renderGlobalTotalsFiltered(parentRole) {
             }).sort(function(a, b) {
                 return sortExperiences(a.experience, b.experience);
             });
+        }
+
+        var result = {};
+        ['active', 'archived'].forEach(function(status) {
+            var statusBucket = buckets[status] || { total: 0, items: {}, periodMetrics: {}, subsets: {} };
+            var total = statusBucket.total || 0;
+            var subsets = {};
+            Object.keys(statusBucket.subsets || {}).forEach(function(subsetKey) {
+                var subsetBucket = statusBucket.subsets[subsetKey] || { total: 0, items: {} };
+                subsets[subsetKey] = {
+                    total: subsetBucket.total || 0,
+                    items: buildItems(subsetBucket.items || {}, subsetBucket.total || 0)
+                };
+            });
             result[status] = {
                 status: status,
                 label: labels[status] || status,
                 total: total,
-                items: items,
-                periodMetrics: Object.assign({}, statusBucket.periodMetrics || {})
+                items: buildItems(statusBucket.items || {}, total),
+                periodMetrics: Object.assign({}, statusBucket.periodMetrics || {}),
+                subsets: subsets
             };
         });
         return result;
     }
 
     function buildTotalsExperienceDrilldownHtml(statusData) {
-        var data = statusData || { label: '', total: 0, items: [], periodMetrics: {} };
+        var data = statusData || { label: '', total: 0, items: [], periodMetrics: {}, subsets: {} };
         var statusLabel = String(data.label || '').trim() || 'Вакансии';
         var rows = Array.isArray(data.items) ? data.items : [];
         var metrics = data.periodMetrics || {};
+        var subsets = data.subsets || {};
         function metricRow(label, value, extra) {
             return '<div class="donut-period-metric">' +
                 '<span class="donut-period-metric-label">' + escapeHtml(label) + '</span>' +
@@ -6999,17 +7023,44 @@ function renderGlobalTotalsFiltered(parentRole) {
                 (extra ? '<span class="donut-period-metric-extra">' + escapeHtml(extra) + '</span>' : '') +
             '</div>';
         }
+        function renderDistributionSection(title, total, items) {
+            var list = Array.isArray(items) ? items : [];
+            if (!total || !list.length) {
+                return '<section class="donut-drilldown-section">' +
+                    '<div class="donut-drilldown-empty">Нет вакансий для выбранного среза</div>' +
+                '</section>';
+            }
+            return '<section class="donut-drilldown-section">' +
+                '<div class="donut-drilldown-list">' +
+                    list.map(function(item) {
+                        var width = Math.max(4, Math.min(100, item.share || 0));
+                        return '<div class="donut-drilldown-row">' +
+                            '<div class="donut-drilldown-row-head">' +
+                                '<span class="donut-drilldown-exp">' + escapeHtml(item.experience) + '</span>' +
+                                '<span class="donut-drilldown-meta">' + (item.count || 0) + ' · ' + totalsFormatNumber(item.share || 0) + '%</span>' +
+                            '</div>' +
+                            '<div class="donut-drilldown-track">' +
+                                '<div class="donut-drilldown-fill" style="width:' + width + '%;"></div>' +
+                            '</div>' +
+                        '</div>';
+                    }).join('') +
+                '</div>' +
+            '</section>';
+        }
         var metricsHtml = '';
+        var secondarySectionHtml = '';
         if (data.status === 'active') {
             metricsHtml = '<div class="donut-period-metrics">' +
                 metricRow('Активные на конец периода', data.total || 0) +
                 metricRow('Новые за период', metrics.newPublished || 0, totalsFormatNumber(metrics.shareNewPublished || 0) + '% от активных') +
             '</div>';
+            secondarySectionHtml = renderDistributionSection('Новые за период', (subsets.newPublished && subsets.newPublished.total) || 0, (subsets.newPublished && subsets.newPublished.items) || []);
         } else if (data.status === 'archived') {
             metricsHtml = '<div class="donut-period-metrics">' +
                 metricRow('Архивные за период', data.total || 0) +
                 metricRow('Опубл. и архив. за период', metrics.publishedAndArchived || 0, totalsFormatNumber(metrics.sharePublishedAndArchived || 0) + '% от архивных') +
             '</div>';
+            secondarySectionHtml = renderDistributionSection('Опубл. и архив. за период', (subsets.publishedAndArchived && subsets.publishedAndArchived.total) || 0, (subsets.publishedAndArchived && subsets.publishedAndArchived.items) || []);
         }
         if (!rows.length || !data.total) {
             return '<div class="donut-drilldown-header">' +
@@ -7023,22 +7074,9 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '<div class="donut-drilldown-subtitle">' + escapeHtml(formatVacancyCount(data.total)) + '</div>' +
             '</div>' +
             metricsHtml +
-            '<div class="donut-drilldown-header donut-drilldown-header-secondary">' +
-                '<div class="donut-drilldown-title">Распределение по опыту</div>' +
-            '</div>' +
-            '<div class="donut-drilldown-list">' +
-                rows.map(function(item) {
-                    var width = Math.max(4, Math.min(100, item.share || 0));
-                    return '<div class="donut-drilldown-row">' +
-                        '<div class="donut-drilldown-row-head">' +
-                            '<span class="donut-drilldown-exp">' + escapeHtml(item.experience) + '</span>' +
-                            '<span class="donut-drilldown-meta">' + (item.count || 0) + ' · ' + totalsFormatNumber(item.share || 0) + '%</span>' +
-                        '</div>' +
-                        '<div class="donut-drilldown-track">' +
-                            '<div class="donut-drilldown-fill" style="width:' + width + '%;"></div>' +
-                        '</div>' +
-                    '</div>';
-                }).join('') +
+            '<div class="donut-drilldown-grid">' +
+                renderDistributionSection('Распределение по опыту', data.total || 0, rows) +
+                secondarySectionHtml +
             '</div>';
     }
 
@@ -7051,6 +7089,8 @@ function renderGlobalTotalsFiltered(parentRole) {
         var archivedLen = archivedPct * circumference;
         var offset1 = 0;
         var offset2 = activeLen;
+        var activeMetrics = (breakdownData && breakdownData.active && breakdownData.active.periodMetrics) || {};
+        var archivedMetrics = (breakdownData && breakdownData.archived && breakdownData.archived.periodMetrics) || {};
         var donutKey = String(roleSuffix || 'default');
         var activeGradientId = 'donut-active-gradient-' + donutKey;
         var archivedGradientId = 'donut-archived-gradient-' + donutKey;
@@ -7096,11 +7136,21 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '<span class="donut-legend-label">Активные</span>' +
                     '<span class="donut-legend-value">' + active + '</span>' +
                 '</' + activeLegendTag + '>' +
+                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false">' +
+                    '<span class="donut-legend-color donut-legend-color-new"></span>' +
+                    '<span class="donut-legend-label">Новые за период</span>' +
+                    '<span class="donut-legend-value">' + (activeMetrics.newPublished || 0) + '</span>' +
+                '</button>' +
                 '<' + archivedLegendTag + archivedLegendAttrs + '>' +
                     '<span class="donut-legend-color donut-legend-color-archived"></span>' +
                     '<span class="donut-legend-label">Архивные</span>' +
                     '<span class="donut-legend-value">' + archived + '</span>' +
                 '</' + archivedLegendTag + '>' +
+                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false">' +
+                    '<span class="donut-legend-color donut-legend-color-published-archived"></span>' +
+                    '<span class="donut-legend-label">Опубл. и архив. за период</span>' +
+                    '<span class="donut-legend-value">' + (archivedMetrics.publishedAndArchived || 0) + '</span>' +
+                '</button>' +
                 '<div class="donut-legend-item donut-legend-kpi">' +
                     '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
                     '<span class="donut-legend-label">Ср. время жизни</span>' +
@@ -7139,7 +7189,6 @@ function renderGlobalTotalsFiltered(parentRole) {
 
     function buildBurnupChartHtml(graphId) {
         return '<div class="totals-burnup-card">' +
-            '<div class="totals-burnup-meta">Новые, архивированные и активный остаток</div>' +
             '<div class="plotly-graph totals-burnup-graph" id="' + escapeHtml(graphId) + '"></div>' +
         '</div>';
     }
@@ -7289,19 +7338,17 @@ function renderGlobalTotalsFiltered(parentRole) {
 
     var overviewHtml =
         '<div class="dashboard-overview">' +
-            '<div class="dashboard-left">' +
-                '<div class="dashboard-card">' +
-                    '<h3 class="dashboard-card-title">Вакансии</h3>' +
-                    buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
-                '</div>' +
-                '<div class="dashboard-card">' +
-                    '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
-                    buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
-                '</div>' +
-                '<div class="dashboard-card">' +
-                    '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
-                    buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
-                '</div>' +
+            '<div class="dashboard-card">' +
+                '<h3 class="dashboard-card-title">Вакансии</h3>' +
+                buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
+            '</div>' +
+            '<div class="dashboard-card">' +
+                '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
+                buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
+            '</div>' +
+            '<div class="dashboard-card">' +
+                '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
+                buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
             '</div>' +
             '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Зарплаты</h3>' +
@@ -7439,7 +7486,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             mode: 'lines+markers',
             line: { color: CHART_COLORS.selectedMid, width: 3 }
         }
-    ], 'Сгорание вакансий', contextText, 'Количество', false);
+    ], '', '', 'Количество', false);
 
     var donutContainer = block.querySelector('.donut-chart-container[data-interactive="1"]');
     if (!donutContainer) return;
