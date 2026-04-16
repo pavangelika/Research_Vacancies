@@ -4430,6 +4430,286 @@ function parsePublishedAtDate(value) {
     return isNaN(parsed) ? null : parsed;
 }
 
+function totalsFormatDayMonthLabel(date) {
+    if (!(date instanceof Date) || !isFinite(date.getTime())) return '';
+    return String(date.getDate()).padStart(2, '0') + '.' + String(date.getMonth() + 1).padStart(2, '0');
+}
+
+function totalsStartOfDay(date) {
+    if (!(date instanceof Date) || !isFinite(date.getTime())) return null;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+}
+
+function totalsEndOfDay(date) {
+    if (!(date instanceof Date) || !isFinite(date.getTime())) return null;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+}
+
+function totalsAddDays(date, days) {
+    if (!(date instanceof Date) || !isFinite(date.getTime())) return null;
+    var next = new Date(date.getTime());
+    next.setDate(next.getDate() + Number(days || 0));
+    return next;
+}
+
+function totalsMonthNameToIndex(value) {
+    var text = String(value || '').trim().toLowerCase();
+    var months = {
+        'январь': 0,
+        'февраль': 1,
+        'март': 2,
+        'апрель': 3,
+        'май': 4,
+        'июнь': 5,
+        'июль': 6,
+        'август': 7,
+        'сентябрь': 8,
+        'октябрь': 9,
+        'ноябрь': 10,
+        'декабрь': 11
+    };
+    return Object.prototype.hasOwnProperty.call(months, text) ? months[text] : -1;
+}
+
+function totalsParsePeriodWindow(value, referenceDate) {
+    var text = String(value || '').trim();
+    if (!text) return null;
+    var monthKey = text.match(/^(\d{4})-(\d{2})$/);
+    if (monthKey) {
+        var year = Number(monthKey[1]);
+        var monthIndex = Number(monthKey[2]) - 1;
+        if (monthIndex >= 0 && monthIndex <= 11) {
+            return {
+                label: text,
+                start: new Date(year, monthIndex, 1, 0, 0, 0, 0),
+                end: new Date(year, monthIndex + 1, 0, 23, 59, 59, 999)
+            };
+        }
+    }
+    var ruMonth = text.match(/^([А-Яа-яЁё]+)\s+(\d{4})$/);
+    if (ruMonth) {
+        var ruMonthIndex = totalsMonthNameToIndex(ruMonth[1]);
+        var ruYear = Number(ruMonth[2]);
+        if (ruMonthIndex >= 0) {
+            return {
+                label: text,
+                start: new Date(ruYear, ruMonthIndex, 1, 0, 0, 0, 0),
+                end: new Date(ruYear, ruMonthIndex + 1, 0, 23, 59, 59, 999)
+            };
+        }
+    }
+    if (typeof parsePeriodFilterValue === 'function') {
+        var parsed = parsePeriodFilterValue(value);
+        if (parsed && parsed.start && parsed.end) {
+            return {
+                label: text,
+                start: totalsStartOfDay(new Date(parsed.start)),
+                end: totalsEndOfDay(new Date(parsed.end))
+            };
+        }
+    }
+    var ref = referenceDate instanceof Date && isFinite(referenceDate.getTime()) ? new Date(referenceDate.getTime()) : new Date();
+    ref = totalsEndOfDay(ref);
+    if (text === 'Сегодня' || /^today$/i.test(text)) {
+        return { label: text, start: totalsStartOfDay(ref), end: totalsEndOfDay(ref) };
+    }
+    var quick = text.match(/^За\s+(\d+)\s+д/i) || text.match(/^last_(\d+)$/i) || text.match(/^(\d+)d$/i);
+    if (quick) {
+        var days = Math.max(0, Number(quick[1]) || 0);
+        return {
+            label: text,
+            start: totalsStartOfDay(totalsAddDays(ref, -days)),
+            end: totalsEndOfDay(ref)
+        };
+    }
+    return null;
+}
+
+function normalizeTotalsPeriodWindows(selectedPeriods, vacancies) {
+    var labels = Array.isArray(selectedPeriods) ? selectedPeriods.filter(Boolean) : [];
+    var effectiveLabels = labels.filter(function(label) {
+        var text = String(label || '').trim();
+        return text && text !== 'За период' && text !== 'Весь период' && text !== 'За все время' && !isSummaryMonth(text);
+    });
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var refDate = null;
+    list.forEach(function(vacancy) {
+        var candidate = parsePublishedAtDate(vacancy && (vacancy.archived_at || vacancy.published_at));
+        if (!candidate) return;
+        if (!refDate || candidate > refDate) refDate = candidate;
+    });
+    if (!refDate) refDate = new Date();
+    var windows = effectiveLabels.map(function(label) {
+        return totalsParsePeriodWindow(label, refDate);
+    }).filter(Boolean).sort(function(a, b) {
+        return a.start - b.start;
+    });
+    if (windows.length) return windows;
+
+    var minDate = null;
+    var maxDate = null;
+    list.forEach(function(vacancy) {
+        var published = parsePublishedAtDate(vacancy && vacancy.published_at);
+        var archived = parsePublishedAtDate(vacancy && vacancy.archived_at);
+        if (published && (!minDate || published < minDate)) minDate = published;
+        if (published && (!maxDate || published > maxDate)) maxDate = published;
+        if (archived && (!maxDate || archived > maxDate)) maxDate = archived;
+    });
+    if (!minDate) minDate = totalsStartOfDay(refDate);
+    if (!maxDate) maxDate = totalsEndOfDay(refDate);
+    return [{
+        label: effectiveLabels[0] || 'За период',
+        start: totalsStartOfDay(minDate),
+        end: totalsEndOfDay(maxDate)
+    }];
+}
+
+function totalsClassifyVacancyForPeriod(vacancy, periodWindow) {
+    var period = periodWindow || {};
+    var start = period.start instanceof Date ? period.start : null;
+    var end = period.end instanceof Date ? period.end : null;
+    if (!start || !end || !vacancy) {
+        return {
+            included: false,
+            active: false,
+            archived: false,
+            newPublished: false,
+            publishedAndArchived: false,
+            aliveAtEnd: false,
+            lifetimeDays: null,
+            experience: normalizeExperience(vacancy && (vacancy._experience || vacancy.experience || '')) || 'Не указан'
+        };
+    }
+    var published = parsePublishedAtDate(vacancy.published_at);
+    var archivedAt = parsePublishedAtDate(vacancy.archived_at);
+    var isArchived = !!(vacancy.archived === true || vacancy.archived === 1 || vacancy.archived === '1' || vacancy.archived === 'true' || archivedAt);
+    var newPublished = !!(published && published >= start && published <= end);
+    var archivedInPeriod = !!(archivedAt && archivedAt >= start && archivedAt <= end);
+    var aliveAtEnd = !!(published && published <= end && (!isArchived || !archivedAt || archivedAt > end));
+    var included = newPublished || archivedInPeriod || aliveAtEnd;
+    var publishedAndArchived = !!(newPublished && archivedInPeriod);
+    var effectiveLifetimeEnd = archivedAt;
+    if (!effectiveLifetimeEnd) {
+        var now = new Date();
+        effectiveLifetimeEnd = end < now ? end : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    }
+    var lifetimeDays = null;
+    if (published && newPublished && effectiveLifetimeEnd) {
+        lifetimeDays = Math.max(0, Math.floor((effectiveLifetimeEnd.getTime() - published.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+    return {
+        included: included,
+        active: aliveAtEnd,
+        archived: archivedInPeriod,
+        newPublished: newPublished,
+        publishedAndArchived: publishedAndArchived,
+        aliveAtEnd: aliveAtEnd,
+        lifetimeDays: lifetimeDays,
+        experience: normalizeExperience(vacancy && (vacancy._experience || vacancy.experience || '')) || 'Не указан'
+    };
+}
+
+function totalsComputePeriodVacancyStats(vacancies, periodWindow) {
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var total = 0;
+    var active = 0;
+    var archived = 0;
+    var newPublished = 0;
+    var publishedAndArchived = 0;
+    var activeNewPublished = 0;
+    var lifetimeSum = 0;
+    var lifetimeCount = 0;
+    var breakdown = {
+        active: { total: 0, items: {}, periodMetrics: {} },
+        archived: { total: 0, items: {}, periodMetrics: {} }
+    };
+    list.forEach(function(vacancy) {
+        var entry = totalsClassifyVacancyForPeriod(vacancy, periodWindow);
+        if (!entry.included) return;
+        total += 1;
+        if (entry.active) {
+            active += 1;
+            breakdown.active.total += 1;
+            breakdown.active.items[entry.experience] = (breakdown.active.items[entry.experience] || 0) + 1;
+            if (entry.newPublished) activeNewPublished += 1;
+        }
+        if (entry.archived) {
+            archived += 1;
+            breakdown.archived.total += 1;
+            breakdown.archived.items[entry.experience] = (breakdown.archived.items[entry.experience] || 0) + 1;
+        }
+        if (entry.newPublished) newPublished += 1;
+        if (entry.publishedAndArchived) publishedAndArchived += 1;
+        if (entry.newPublished && entry.lifetimeDays !== null && isFinite(entry.lifetimeDays)) {
+            lifetimeSum += Number(entry.lifetimeDays);
+            lifetimeCount += 1;
+        }
+    });
+    breakdown.active.periodMetrics = {
+        total: active,
+        newPublished: activeNewPublished,
+        shareNewPublished: active ? (activeNewPublished * 100 / active) : 0
+    };
+    breakdown.archived.periodMetrics = {
+        total: archived,
+        publishedAndArchived: publishedAndArchived,
+        sharePublishedAndArchived: archived ? (publishedAndArchived * 100 / archived) : 0
+    };
+    return {
+        label: String(periodWindow && periodWindow.label || '').trim(),
+        start: periodWindow && periodWindow.start,
+        end: periodWindow && periodWindow.end,
+        total: total,
+        active: active,
+        archived: archived,
+        newPublished: newPublished,
+        publishedAndArchived: publishedAndArchived,
+        activeNewPublished: activeNewPublished,
+        avgLifetimeDays: lifetimeCount ? Math.round((lifetimeSum / lifetimeCount) * 10) / 10 : null,
+        breakdown: breakdown
+    };
+}
+
+function totalsBuildBurnupSeries(vacancies, periodWindows) {
+    var windows = Array.isArray(periodWindows) ? periodWindows.filter(Boolean) : [];
+    if (!windows.length) return { labels: [], newPublished: [], archived: [], publishedAndArchived: [], active: [] };
+    var first = windows[0];
+    var last = windows[windows.length - 1];
+    var spanDays = first && last ? Math.round((last.end - first.start) / (1000 * 60 * 60 * 24)) : 0;
+    var useDaily = windows.length === 1 && spanDays <= 31;
+    var expanded = [];
+    if (useDaily) {
+        var cursor = totalsStartOfDay(first.start);
+        var end = totalsStartOfDay(last.end);
+        while (cursor && end && cursor <= end) {
+            expanded.push({
+                label: totalsFormatDayMonthLabel(cursor),
+                start: totalsStartOfDay(cursor),
+                end: totalsEndOfDay(cursor)
+            });
+            cursor = totalsAddDays(cursor, 1);
+        }
+    } else {
+        expanded = windows.map(function(window) {
+            return {
+                label: window.label || totalsFormatDayMonthLabel(window.start),
+                start: window.start,
+                end: window.end
+            };
+        });
+    }
+    var stats = expanded.map(function(window) {
+        return totalsComputePeriodVacancyStats(vacancies, window);
+    });
+    return {
+        labels: stats.map(function(item) { return item.label; }),
+        newPublished: stats.map(function(item) { return item.newPublished; }),
+        archived: stats.map(function(item) { return item.archived; }),
+        publishedAndArchived: stats.map(function(item) { return item.publishedAndArchived; }),
+        active: stats.map(function(item) { return item.active; })
+    };
+}
+
 function getLatestPublishedAtDate(vacancies) {
     var list = Array.isArray(vacancies) ? vacancies : [];
     var maxDate = null;
@@ -6480,7 +6760,10 @@ function renderGlobalTotalsFiltered(parentRole) {
     var contextText = buildChartContextLabel(periodLabel, expLabel);
 
     var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals');
-    var vacancyKpiVacancies = dedupeVacanciesById((vacancies || []).slice());
+    var vacancyKpiVacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals', {
+        skipPeriods: true
+    });
+    vacancyKpiVacancies = dedupeVacanciesById(vacancyKpiVacancies || []);
     vacancies = dedupeVacanciesById(vacancies || []);
 
     var salaryRows = totalsComputeSalaryByCurrency(vacancies);
@@ -6509,18 +6792,26 @@ function renderGlobalTotalsFiltered(parentRole) {
     var closingWindow = normalizeTotalsClosingWindow(uiState.totals_closing_window);
     uiState.totals_closing_window = closingWindow;
 
-    var totalCount = vacancyKpiVacancies.length;
-    var archivedCount = vacancyKpiVacancies.filter(function(v) {
-        return !!(v && (v.archived === true || v.archived === 1 || v.archived === '1' || v.archived === 'true' || v.archived_at));
-    }).length;
-    var activeCount = Math.max(0, totalCount - archivedCount);
-    var withSalaryCount = vacancyKpiVacancies.filter(function(v) {
-        var val = computeSalaryValue(v || {}, normalizeTotalsCurrency(v && v.currency));
-        return val !== null && val !== undefined && isFinite(val);
-    }).length;
-    var avgAge = computeAvgLifetimeDays(vacancyKpiVacancies || []);
-    var donutInteractive = !hasExplicitGlobalFilterSelection('experiences');
-    var donutExperienceBreakdown = buildTotalsExperienceBreakdown(vacancyKpiVacancies || []);
+    var periodWindows = normalizeTotalsPeriodWindows(selectedPeriods, vacancyKpiVacancies || []);
+    var summaryWindow = periodWindows.length === 1
+        ? periodWindows[0]
+        : {
+            label: periodLabel || 'За период',
+            start: periodWindows.reduce(function(minValue, item) {
+                return !minValue || item.start < minValue ? item.start : minValue;
+            }, null),
+            end: periodWindows.reduce(function(maxValue, item) {
+                return !maxValue || item.end > maxValue ? item.end : maxValue;
+            }, null)
+        };
+    var periodStats = totalsComputePeriodVacancyStats(vacancyKpiVacancies || [], summaryWindow);
+    var burnupSeries = totalsBuildBurnupSeries(vacancyKpiVacancies || [], periodWindows);
+    var totalCount = periodStats.total || 0;
+    var archivedCount = periodStats.archived || 0;
+    var activeCount = periodStats.active || 0;
+    var avgAge = periodStats.avgLifetimeDays;
+    var donutInteractive = true;
+    var donutExperienceBreakdown = buildTotalsExperienceBreakdown(periodStats.breakdown || {});
 
     var skillsRows = totalsSortSkillsRows(totalsComputeSkillsCost(vacancies || [], topCurrency), skillsOrder);
     var companyRows = totalsComputeCompanySalaryLeaders(vacancies || [], topCurrency, companyOrder);
@@ -6647,7 +6938,7 @@ function renderGlobalTotalsFiltered(parentRole) {
         '</tr>';
     }
 
-    function buildTotalsExperienceBreakdown(vacancyList) {
+    function buildTotalsExperienceBreakdown(periodBreakdown) {
         var order = typeof getExperienceOrder === 'function'
             ? getExperienceOrder()
             : {
@@ -6660,19 +6951,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             active: 'Открытые',
             archived: 'Архивные'
         };
-        var buckets = {
-            active: { total: 0, items: {} },
-            archived: { total: 0, items: {} }
-        };
-
-        (vacancyList || []).forEach(function(vacancy) {
-            var status = isArchivedResponseVacancy(vacancy) ? 'archived' : 'active';
-            var experience = normalizeExperience(vacancy && (vacancy._experience || vacancy.experience || '')) || 'Не указан';
-            var statusBucket = buckets[status];
-            if (!statusBucket) return;
-            statusBucket.total += 1;
-            statusBucket.items[experience] = (statusBucket.items[experience] || 0) + 1;
-        });
+        var buckets = periodBreakdown || {};
 
         function sortExperiences(left, right) {
             var leftOrder = Object.prototype.hasOwnProperty.call(order, left) ? Number(order[left]) : 999;
@@ -6685,7 +6964,7 @@ function renderGlobalTotalsFiltered(parentRole) {
 
         var result = {};
         ['active', 'archived'].forEach(function(status) {
-            var statusBucket = buckets[status];
+            var statusBucket = buckets[status] || { total: 0, items: {}, periodMetrics: {} };
             var total = statusBucket.total || 0;
             var items = Object.keys(statusBucket.items || {}).map(function(experience) {
                 var count = statusBucket.items[experience] || 0;
@@ -6701,25 +6980,51 @@ function renderGlobalTotalsFiltered(parentRole) {
                 status: status,
                 label: labels[status] || status,
                 total: total,
-                items: items
+                items: items,
+                periodMetrics: Object.assign({}, statusBucket.periodMetrics || {})
             };
         });
         return result;
     }
 
     function buildTotalsExperienceDrilldownHtml(statusData) {
-        var data = statusData || { label: '', total: 0, items: [] };
+        var data = statusData || { label: '', total: 0, items: [], periodMetrics: {} };
         var statusLabel = String(data.label || '').trim() || 'Вакансии';
         var rows = Array.isArray(data.items) ? data.items : [];
+        var metrics = data.periodMetrics || {};
+        function metricRow(label, value, extra) {
+            return '<div class="donut-period-metric">' +
+                '<span class="donut-period-metric-label">' + escapeHtml(label) + '</span>' +
+                '<strong class="donut-period-metric-value">' + escapeHtml(String(value)) + '</strong>' +
+                (extra ? '<span class="donut-period-metric-extra">' + escapeHtml(extra) + '</span>' : '') +
+            '</div>';
+        }
+        var metricsHtml = '';
+        if (data.status === 'active') {
+            metricsHtml = '<div class="donut-period-metrics">' +
+                metricRow('Активные на конец периода', data.total || 0) +
+                metricRow('Новые за период', metrics.newPublished || 0, totalsFormatNumber(metrics.shareNewPublished || 0) + '% от активных') +
+            '</div>';
+        } else if (data.status === 'archived') {
+            metricsHtml = '<div class="donut-period-metrics">' +
+                metricRow('Архивные за период', data.total || 0) +
+                metricRow('Опубл. и архив. за период', metrics.publishedAndArchived || 0, totalsFormatNumber(metrics.sharePublishedAndArchived || 0) + '% от архивных') +
+            '</div>';
+        }
         if (!rows.length || !data.total) {
             return '<div class="donut-drilldown-header">' +
-                    '<div class="donut-drilldown-title">Распределение по опыту · ' + escapeHtml(statusLabel) + '</div>' +
+                    '<div class="donut-drilldown-title">Детализация · ' + escapeHtml(statusLabel) + '</div>' +
                 '</div>' +
+                metricsHtml +
                 '<div class="donut-drilldown-empty">Нет вакансий для выбранного статуса</div>';
         }
         return '<div class="donut-drilldown-header">' +
-                '<div class="donut-drilldown-title">Распределение по опыту · ' + escapeHtml(statusLabel) + '</div>' +
+                '<div class="donut-drilldown-title">Детализация · ' + escapeHtml(statusLabel) + '</div>' +
                 '<div class="donut-drilldown-subtitle">' + escapeHtml(formatVacancyCount(data.total)) + '</div>' +
+            '</div>' +
+            metricsHtml +
+            '<div class="donut-drilldown-header donut-drilldown-header-secondary">' +
+                '<div class="donut-drilldown-title">Распределение по опыту</div>' +
             '</div>' +
             '<div class="donut-drilldown-list">' +
                 rows.map(function(item) {
@@ -6830,6 +7135,13 @@ function renderGlobalTotalsFiltered(parentRole) {
         }).join('');
 
         return '<div class="funnel-chart">' + funnelHtml + '</div>';
+    }
+
+    function buildBurnupChartHtml(graphId) {
+        return '<div class="totals-burnup-card">' +
+            '<div class="totals-burnup-meta">Новые, архивированные и активный остаток</div>' +
+            '<div class="plotly-graph totals-burnup-graph" id="' + escapeHtml(graphId) + '"></div>' +
+        '</div>';
     }
 
     // ===== Диаграмма зарплат (прогресс-бар с точками) =====
@@ -6983,6 +7295,10 @@ function renderGlobalTotalsFiltered(parentRole) {
                     buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
                 '</div>' +
                 '<div class="dashboard-card">' +
+                    '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
+                    buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
+                '</div>' +
+                '<div class="dashboard-card">' +
                     '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
                     buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
                 '</div>' +
@@ -7088,6 +7404,42 @@ function renderGlobalTotalsFiltered(parentRole) {
     }
 
     if (dashboardMode !== 'overview') return;
+
+    var burnupGraphId = 'totals-burnup-graph-' + roleSuffix;
+    buildTotalsTrendLineChart(burnupGraphId, burnupSeries.labels || [], [
+        {
+            x: burnupSeries.labels || [],
+            y: burnupSeries.newPublished || [],
+            name: 'Новые',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: CHART_COLORS.selectedStart, width: 3 }
+        },
+        {
+            x: burnupSeries.labels || [],
+            y: burnupSeries.archived || [],
+            name: 'Архивные',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: CHART_COLORS.negative, width: 3 }
+        },
+        {
+            x: burnupSeries.labels || [],
+            y: burnupSeries.publishedAndArchived || [],
+            name: 'Опубл. и архив.',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: '#7B61E8', width: 2, dash: 'dot' }
+        },
+        {
+            x: burnupSeries.labels || [],
+            y: burnupSeries.active || [],
+            name: 'Активные',
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: { color: CHART_COLORS.selectedMid, width: 3 }
+        }
+    ], 'Сгорание вакансий', contextText, 'Количество', false);
 
     var donutContainer = block.querySelector('.donut-chart-container[data-interactive="1"]');
     if (!donutContainer) return;

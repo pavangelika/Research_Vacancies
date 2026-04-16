@@ -1051,8 +1051,7 @@ def fetch_salary_data(mapping):
         FROM get_vacancies v
         LEFT JOIN public.employers e ON e.name = v.employer
         WHERE v.published_at IS NOT NULL
-          AND v.professional_role IS NOT NULL
-          AND v.experience IS NOT NULL;
+          AND v.professional_role IS NOT NULL;
     """
     cur.execute(query_vacancies)
     vacancy_rows = cur.fetchall()
