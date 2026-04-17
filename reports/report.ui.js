@@ -134,17 +134,6 @@ var DASHBOARD_TOP_NAV_SECTIONS = [
         ]
     },
     {
-        key: 'detail',
-        label: 'Детальный анализ',
-        items: [
-            { key: 'activity', label: 'Динамика вакансий' },
-            { key: 'weekday', label: 'Дни активности' },
-            { key: 'skills-monthly', label: 'Топ-навыки' },
-            { key: 'salary', label: 'Вилка зарплат' },
-            { key: 'employer-analysis', label: 'Анализ компаний' }
-        ]
-    },
-    {
         key: 'summary',
         label: 'Сравнительный анализ',
         items: [
@@ -177,7 +166,6 @@ function normalizeTopNavigationSection(analysisType, activeRole) {
     if (current === 'responses-calendar') return 'responses-calendar';
     if (uiState.all_roles_active || (activeRole && activeRole.id === 'role-all')) return 'summary';
     if (current === 'totals') return 'dashboard';
-    if (current === 'activity' || current === 'weekday' || current === 'skills-monthly' || current === 'salary' || current === 'employer-analysis') return 'detail';
     return 'dashboard';
 }
 
@@ -190,11 +178,6 @@ function normalizeTopNavigationItem(sectionKey, activeRole, analysisType) {
     if (section.key === 'dashboard') {
         var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
         return getTopNavigationSection(section.key).items.some(function(item) { return item.key === dashboardMode; }) ? dashboardMode : 'overview';
-    }
-    if (section.key === 'detail') {
-        if (section.items.some(function(item) { return item.key === current; })) return current;
-        var lastDetail = activeRole && activeRole.dataset ? String(activeRole.dataset.lastDetailAnalysisType || '').trim() : '';
-        return section.items.some(function(item) { return item.key === lastDetail; }) ? lastDetail : 'activity';
     }
     if (section.key === 'summary') {
         if (section.items.some(function(item) { return item.key === current; })) return current;
@@ -315,9 +298,6 @@ function handleTopNavigationClick(sectionKey, itemKey) {
             return;
         }
         var targetAnalysis = section;
-        if (section === 'detail') {
-            targetAnalysis = targetItem || normalizeTopNavigationItem('detail', role, uiState.global_analysis_type || 'activity');
-        }
         if (!clickAnalysisButtonByType(role, targetAnalysis)) {
             if (targetAnalysis === 'totals' && typeof renderGlobalTotalsFiltered === 'function') {
                 renderGlobalTotalsFiltered(role);
@@ -2829,75 +2809,6 @@ function ensureMarketTrendsTabs(scope) {
     });
 }
 
-function ensureDetailAnalysisGroup(parentRole) {
-    if (!parentRole) return;
-    if (parentRole.id === 'role-all') return;
-    var topTabs = parentRole.querySelector('.tabs.analysis-tabs');
-    if (!topTabs) return;
-    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
-    if (!roleSuffix) return;
-    var detailMainId = 'detail-' + roleSuffix;
-
-    var detailMainBtn = topTabs.querySelector('.analysis-button[data-analysis-id="' + detailMainId + '"]');
-    if (!detailMainBtn) {
-        detailMainBtn = document.createElement('button');
-        detailMainBtn.className = 'tab-button analysis-button detail-main-button';
-        detailMainBtn.setAttribute('data-analysis-id', detailMainId);
-        detailMainBtn.textContent = 'Детальный анализ';
-        detailMainBtn.setAttribute('onclick', "openDetailAnalysis(event)");
-        topTabs.insertBefore(detailMainBtn, topTabs.firstChild || null);
-    }
-
-    var detailTabs = parentRole.querySelector('.tabs.detail-analysis-tabs');
-    if (!detailTabs) {
-        detailTabs = document.createElement('div');
-        detailTabs.className = 'tabs detail-analysis-tabs';
-        detailTabs.style.display = 'none';
-        detailTabs.style.justifyContent = 'center';
-        detailTabs.style.marginTop = '8px';
-        if (topTabs.nextSibling) parentRole.insertBefore(detailTabs, topTabs.nextSibling);
-        else parentRole.appendChild(detailTabs);
-    }
-
-    var order = ['activity', 'weekday', 'skills-monthly', 'salary', 'employer-analysis'];
-    var moved = [];
-    order.forEach(function(prefix) {
-        var selector = '.analysis-button[data-analysis-id^="' + prefix + '-"]';
-        var btn = topTabs.querySelector(selector) || detailTabs.querySelector(selector);
-        if (!btn || btn === detailMainBtn) return;
-        btn.classList.add('detail-analysis-button');
-        moved.push(btn);
-    });
-    moved.forEach(function(btn) { detailTabs.appendChild(btn); });
-}
-
-function ensureDetailAnalysisGroups(scope) {
-    var root = scope || document;
-    root.querySelectorAll('.role-content').forEach(function(roleContent) {
-        ensureDetailAnalysisGroup(roleContent);
-    });
-}
-
-function openDetailAnalysis(evt) {
-    var parentRole = evt.currentTarget.closest('.role-content');
-    if (!parentRole) return;
-    ensureDetailAnalysisGroup(parentRole);
-
-    var topButtons = parentRole.querySelectorAll('.tabs.analysis-tabs > .analysis-button');
-    topButtons.forEach(function(btn) { btn.classList.remove('active'); });
-    evt.currentTarget.classList.add('active');
-
-    var detailTabs = parentRole.querySelector('.tabs.detail-analysis-tabs');
-    if (detailTabs) detailTabs.style.display = 'flex';
-
-    var preferred = parentRole.dataset.lastDetailAnalysisType || (uiState.global_analysis_type || '');
-    if (!/^(activity|weekday|skills-monthly|salary|employer-analysis)$/.test(preferred)) preferred = 'activity';
-
-    var target = detailTabs ? detailTabs.querySelector('.analysis-button[data-analysis-id^="' + preferred + '-"]') : null;
-    if (!target && detailTabs) target = detailTabs.querySelector('.analysis-button[data-analysis-id]');
-    if (target) target.click();
-}
-
 function reorderPrimaryAnalysisTabs(parentRole) {
     if (!parentRole) return;
     if (parentRole.id === 'role-all') return;
@@ -2910,7 +2821,6 @@ function reorderPrimaryAnalysisTabs(parentRole) {
         ordered.push(node);
     }
     push(tabs.querySelector('.analysis-button[data-analysis-id^="totals-"]'));
-    push(tabs.querySelector('.analysis-button[data-analysis-id^="detail-"]'));
     push(tabs.querySelector('.summary-report-btn'));
     push(tabs.querySelector('.analysis-button[data-analysis-id^="skills-search-"]'));
     push(tabs.querySelector('.analysis-button[data-analysis-id^="my-responses-"]'));
@@ -2940,53 +2850,30 @@ function applyAnalysisTabNaming(root) {
     if (typeof ensureMyResponsesTabs === 'function') ensureMyResponsesTabs(scope);
     if (typeof ensureResponseCalendarTabs === 'function') ensureResponseCalendarTabs(scope);
     if (typeof ensureTotalsTabs === 'function') ensureTotalsTabs(scope);
-    if (typeof ensureDetailAnalysisGroups === 'function') ensureDetailAnalysisGroups(scope);
     if (typeof reorderPrimaryAnalysisTabsAll === 'function') reorderPrimaryAnalysisTabsAll(scope);
-    var mapDefault = {
-        detail: 'Детальный анализ',
-        activity: 'Динамика вакансий',
-        weekday: 'Дни активности',
-        salary: 'Вилка зарплат',
-        employer: 'Анализ компаний'
-    };
     var mapSummary = {
         activity: 'Динамика по ролям',
         weekday: 'Лидер публикаций',
         skills: 'Стоимость навыков',
-        salary: 'Вилка по ролям',
-        employer: 'Анализ компаний'
+        salary: 'Вилка по ролям'
     };
     scope.querySelectorAll('.analysis-button[data-analysis-id]').forEach(function(btn) {
         if (btn.dataset && btn.dataset.preserveLabel === '1') return;
         var id = String(btn.dataset.analysisId || '');
         var tabsHost = btn.closest('.tabs');
         var hasSummaryTab = !!(tabsHost && tabsHost.querySelector('.summary-report-btn'));
-        if (hasSummaryTab) {
-            if (id.indexOf('detail-') === 0) btn.textContent = mapDefault.detail;
-            else if (id.indexOf('activity-') === 0) btn.textContent = mapDefault.activity;
-            else if (id.indexOf('weekday-') === 0) btn.textContent = mapDefault.weekday;
-            else if (id.indexOf('salary-') === 0) btn.textContent = mapDefault.salary;
-            else if (id.indexOf('employer-analysis-') === 0) btn.textContent = mapDefault.employer;
-            return;
-        }
+        if (hasSummaryTab) return;
         var isSummary = /-all$/.test(id);
-        if (id.indexOf('detail-') === 0) btn.textContent = mapDefault.detail;
-        else if (id.indexOf('activity-') === 0) btn.textContent = isSummary ? mapSummary.activity : mapDefault.activity;
-        else if (id.indexOf('weekday-') === 0) btn.textContent = isSummary ? mapSummary.weekday : mapDefault.weekday;
+        if (id.indexOf('activity-') === 0 && isSummary) btn.textContent = mapSummary.activity;
+        else if (id.indexOf('weekday-') === 0 && isSummary) btn.textContent = mapSummary.weekday;
         else if (id.indexOf('skills-monthly-') === 0 && isSummary) btn.textContent = mapSummary.skills;
-        else if (id.indexOf('salary-') === 0) btn.textContent = isSummary ? mapSummary.salary : mapDefault.salary;
-        else if (id.indexOf('employer-analysis-') === 0) btn.textContent = isSummary ? mapSummary.employer : mapDefault.employer;
+        else if (id.indexOf('salary-') === 0 && isSummary) btn.textContent = mapSummary.salary;
     });
     scope.querySelectorAll('.summary-return-tab[onclick]').forEach(function(btn) {
         if (btn.dataset && btn.dataset.preserveLabel === '1') return;
         var onClick = String(btn.getAttribute('onclick') || '');
-        if (onClick.indexOf("switchFromSummaryToAnalysis('detail')") >= 0) btn.textContent = mapDefault.detail;
-        else if (onClick.indexOf("switchFromSummaryToAnalysis('activity')") >= 0) btn.textContent = mapDefault.activity;
-        else if (onClick.indexOf("switchFromSummaryToAnalysis('weekday')") >= 0) btn.textContent = mapDefault.weekday;
-        else if (onClick.indexOf("switchFromSummaryToAnalysis('skills-search')") >= 0) btn.textContent = 'Поиск вакансий';
-        else if (onClick.indexOf("switchFromSummaryToAnalysis('salary')") >= 0) btn.textContent = mapDefault.salary;
+        if (onClick.indexOf("switchFromSummaryToAnalysis('skills-search')") >= 0) btn.textContent = 'Поиск вакансий';
         else if (onClick.indexOf("switchFromSummaryToAnalysis('responses-calendar')") >= 0) btn.textContent = 'Календарь';
-        else if (onClick.indexOf("switchFromSummaryToAnalysis('employer-analysis')") >= 0) btn.textContent = mapDefault.employer;
     });
 }
 
