@@ -33,6 +33,8 @@ let uiState = {
     totals_dashboard_mode: 'overview',
     totals_top_limit: 15,
     totals_top_currency: 'RUR',
+    totals_employer_currency: 'RUR',
+    totals_employer_salary_metric: 'avg',
     totals_vacancy_order: 'high',
     totals_skills_order: 'most',
     totals_company_order: 'high',

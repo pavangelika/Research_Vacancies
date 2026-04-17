@@ -205,11 +205,7 @@ function buildCombinedEmployerRawRowsHtml(rows) {
         items = sortEmployerAnalysisData(items);
     }
     if (!items.length) {
-        return '<tr><td colspan="8">Нет данных по работодателям</td></tr>';
-    }
-
-    function asNumber(value) {
-        return (value !== null && value !== undefined && isFinite(value)) ? value : '';
+        return '<tr><td colspan="5">Нет данных по работодателям</td></tr>';
     }
 
     return items.map(function(row) {
@@ -219,27 +215,26 @@ function buildCombinedEmployerRawRowsHtml(rows) {
         var valueHtml = typeof getEmployerValueHtml === 'function'
             ? getEmployerValueHtml(valueKey)
             : escapeHtml(valueLabel);
+        var salaryCurrency = String(row.salaryCurrency || 'RUR').trim().toUpperCase() || 'RUR';
+        var salaryMetric = String(row.salaryMetric || 'avg').trim().toLowerCase() || 'avg';
+        var salaryValue = (row.salaryValue !== null && row.salaryValue !== undefined && isFinite(row.salaryValue))
+            ? row.salaryValue
+            : (row.avgRur !== null && row.avgRur !== undefined && isFinite(row.avgRur) ? row.avgRur : null);
+        var salaryValueAttr = (salaryValue !== null && salaryValue !== undefined && isFinite(salaryValue)) ? String(salaryValue) : '';
         return '<tr class="employer-analysis-row" ' +
             'data-month="' + escapeHtml(row.month || '') + '" ' +
             'data-factor="' + escapeHtml(row.factorKey || '') + '" ' +
             'data-factor-value="' + escapeHtml(valueKey) + '" ' +
             'data-group-n="' + escapeHtml(row.groupN || 0) + '" ' +
-            'data-avg-rur-n="' + escapeHtml(row.avgRurN || 0) + '" ' +
-            'data-avg-rur="' + escapeHtml(asNumber(row.avgRur)) + '" ' +
-            'data-avg-usd-n="' + escapeHtml(row.avgUsdN || 0) + '" ' +
-            'data-avg-usd="' + escapeHtml(asNumber(row.avgUsd)) + '" ' +
-            'data-avg-eur-n="' + escapeHtml(row.avgEurN || 0) + '" ' +
-            'data-avg-eur="' + escapeHtml(asNumber(row.avgEur)) + '" ' +
-            'data-avg-other-n="' + escapeHtml(row.avgOtherN || 0) + '" ' +
-            'data-avg-other="' + escapeHtml(asNumber(row.avgOther)) + '">' +
+            'data-salary-currency="' + escapeHtml(salaryCurrency) + '" ' +
+            'data-salary-metric="' + escapeHtml(salaryMetric) + '" ' +
+            'data-salary-value="' + escapeHtml(salaryValueAttr) + '" ' +
+            'data-salary-count="' + escapeHtml(row.salaryCount || 0) + '">' +
             '<td>' + escapeHtml(row.month || '') + '</td>' +
             '<td>' + escapeHtml(factorLabel) + '</td>' +
             '<td class="employer-factor-value-cell" data-raw-value="' + escapeHtml(valueKey) + '">' + valueHtml + '</td>' +
             '<td>' + (row.groupN || 0) + '</td>' +
-            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgRur) : (row.avgRur || '—')) + '</td>' +
-            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgUsd) : (row.avgUsd || '—')) + '</td>' +
-            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgEur) : (row.avgEur || '—')) + '</td>' +
-            '<td>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(row.avgOther) : (row.avgOther || '—')) + '</td>' +
+            '<td' + (salaryValueAttr ? ' data-sort-num="' + escapeHtml(salaryValueAttr) + '"' : '') + '>' + (typeof formatEmployerNumber === 'function' ? formatEmployerNumber(salaryValue) : (salaryValue || '—')) + '</td>' +
         '</tr>';
     }).join('');
 }
@@ -758,7 +753,7 @@ function renderAllRolesContainer(container, roleContents) {
                             '<thead>' +
                                 '<tr>' +
                                     '<th>Месяц</th><th>Фактор</th><th>Значение фактора</th><th>Количество</th>' +
-                                    '<th>Средняя зарплата, RUR</th><th>Средняя зарплата, USD</th><th>Средняя зарплата, EUR</th><th>Средняя зарплата, Другая валюта</th>' +
+                                    '<th>Зарплата</th>' +
                                 '</tr>' +
                             '</thead>' +
                             '<tbody>' + buildCombinedEmployerRawRowsHtml(allRolesEmployerRows) + '</tbody>' +

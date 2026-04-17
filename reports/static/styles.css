@@ -8118,6 +8118,29 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     overflow: hidden;
 }
 
+.totals-employer-overview-card {
+    grid-column: 1 / -1;
+}
+
+.totals-employer-overview-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.totals-employer-overview-controls .totals-switch {
+    margin: 0;
+}
+
+.totals-employer-overview-controls .totals-switch-compact {
+    flex: 0 0 auto;
+}
+
+.totals-employer-overview-graph {
+    min-height: 420px;
+}
+
 .dashboard-card-title {
     font-size: 1rem;
     font-weight: 700;
@@ -8149,10 +8172,22 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 
 .donut-chart circle {
     fill: none;
+}
+
+.donut-chart-track-outer,
+.donut-chart-segment-outer {
     stroke-width: 32;
     cx: 100;
     cy: 100;
     r: 80;
+}
+
+.donut-chart-track-inner,
+.donut-chart-segment-inner {
+    stroke-width: 18;
+    cx: 100;
+    cy: 100;
+    r: 56;
 }
 
 .donut-center-label {
@@ -8236,10 +8271,10 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     background: linear-gradient(135deg, #f38bff 0%, #8b5cf6 100%);
 }
 .donut-legend-color-new {
-    background: linear-gradient(135deg, #5eead4 0%, #22c55e 100%);
+    background: linear-gradient(135deg, #8fe9f7 0%, #5f95ff 100%);
 }
 .donut-legend-color-published-archived {
-    background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+    background: linear-gradient(135deg, #efc3ff 0%, #b58cff 100%);
 }
 
 .donut-legend-color-kpi {
@@ -8472,6 +8507,90 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     min-width: 0;
 }
 
+.salary-coverage-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.salary-coverage-main,
+.salary-coverage-currencies {
+    display: grid;
+    gap: 12px;
+}
+
+.salary-coverage-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.salary-coverage-currencies {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.salary-coverage-subtitle {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.salary-coverage-item {
+    border-radius: 14px;
+    padding: 14px 12px;
+    border: 1px solid rgba(226, 232, 240, 0.96);
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.98) 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.salary-coverage-item.is-with-salary {
+    background: linear-gradient(180deg, rgba(224, 242, 254, 0.98) 0%, rgba(191, 219, 254, 0.98) 100%);
+    border-color: rgba(96, 165, 250, 0.35);
+}
+
+.salary-coverage-item.is-without-salary {
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(226, 232, 240, 0.98) 100%);
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+.salary-coverage-item.is-rur {
+    border-color: rgba(56, 189, 248, 0.28);
+}
+
+.salary-coverage-item.is-usd {
+    border-color: rgba(96, 165, 250, 0.28);
+}
+
+.salary-coverage-item.is-eur {
+    border-color: rgba(129, 140, 248, 0.28);
+}
+
+.salary-coverage-item.is-other {
+    border-color: rgba(192, 132, 252, 0.28);
+}
+
+.salary-coverage-item-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+.salary-coverage-item-value {
+    font-size: 1.5rem;
+    line-height: 1;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.salary-coverage-item-share {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
 .salary-chart-row {
     display: flex;
     flex-direction: column;
@@ -8632,11 +8751,21 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         width: 160px;
         height: 160px;
     }
-    .donut-chart circle {
+
+    .donut-chart-track-outer,
+    .donut-chart-segment-outer {
         cx: 80;
         cy: 80;
         r: 64;
         stroke-width: 26;
+    }
+
+    .donut-chart-track-inner,
+    .donut-chart-segment-inner {
+        cx: 80;
+        cy: 80;
+        r: 44;
+        stroke-width: 14;
     }
     .donut-center-value {
         font-size: 1.4rem;
@@ -8655,6 +8784,9 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     }
     .dashboard-overview {
         grid-template-columns: 1fr;
+    }
+    .salary-coverage-currencies {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .funnel-stage {
         padding: 12px;

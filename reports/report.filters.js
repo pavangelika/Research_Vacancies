@@ -1791,6 +1791,17 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
 
 function createSalaryMetricFilterControl(activeRole, analysisType) {
     if (!activeRole) return null;
+    var currentAnalysis = String(analysisType || activeRole.dataset.activeAnalysis || '').replace(/-all$/, '');
+    var stateKey = currentAnalysis === 'employer-analysis'
+        ? 'totals_employer_salary_metric'
+        : 'market_trends_salary_metric';
+    var rerender = function() {
+        if (currentAnalysis === 'employer-analysis') {
+            if (typeof renderGlobalEmployerFiltered === 'function') renderGlobalEmployerFiltered(activeRole);
+            return;
+        }
+        if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+    };
 
     var wrap = document.createElement('div');
     wrap.className = 'totals-top-filter-control';
@@ -1807,9 +1818,9 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
     metricTabs.className = 'totals-top-filter-chip-row';
     metricWrap.appendChild(metricTabs);
 
-    var currentMetric = String(uiState.market_trends_salary_metric || 'avg').toLowerCase();
+    var currentMetric = String(uiState[stateKey] || 'avg').toLowerCase();
     if (['min', 'max', 'avg', 'median', 'mode'].indexOf(currentMetric) < 0) currentMetric = 'avg';
-    uiState.market_trends_salary_metric = currentMetric;
+    uiState[stateKey] = currentMetric;
     var metricButtons = [];
     [
         { value: 'min', label: 'Мин' },
@@ -1825,13 +1836,13 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
         button.setAttribute('aria-pressed', metric.value === currentMetric ? 'true' : 'false');
         if (metric.value === currentMetric) button.classList.add('active');
         button.addEventListener('click', function() {
-            if (uiState.market_trends_salary_metric === metric.value) return;
-            uiState.market_trends_salary_metric = metric.value;
+            if (uiState[stateKey] === metric.value) return;
+            uiState[stateKey] = metric.value;
             metricButtons.forEach(function(other) {
                 other.classList.toggle('active', other === button);
                 other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
             });
-            if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            rerender();
             if (typeof syncSharedFilterPanel === 'function') syncSharedFilterPanel(activeRole, analysisType, true);
         });
         metricButtons.push(button);

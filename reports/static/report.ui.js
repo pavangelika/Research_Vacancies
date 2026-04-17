@@ -672,9 +672,9 @@ function resolveUnifiedChartContext(target, fallbackContext) {
         : '';
     if (explicitContext) {
         var explicitExperience = getResolvedAnalysisExperienceLabel(activeRole, analysisType);
-        if (explicitContext.indexOf('Период:') !== -1 && explicitContext.indexOf('Опыт:') !== -1) return explicitContext;
-        if (explicitContext.indexOf('Период:') === 0) return explicitContext + ' · Опыт: ' + explicitExperience;
-        return 'Период: ' + explicitContext + ' · Опыт: ' + explicitExperience;
+        var normalizedExplicitContext = explicitContext.replace(/^Период:\s*/i, '');
+        if (normalizedExplicitContext.indexOf('Опыт:') !== -1) return normalizedExplicitContext;
+        return normalizedExplicitContext + ' · Опыт: ' + explicitExperience;
     }
     if (activeRole && analysisType) {
         var periodOptions = getGlobalFilterOptions(activeRole, 'periods', analysisType);
@@ -685,10 +685,10 @@ function resolveUnifiedChartContext(target, fallbackContext) {
         if (built) return built;
     }
     var fallback = stripChartTitleText(fallbackContext);
-    if (!fallback) return 'Период: Весь период · Опыт: все категории';
-    if (fallback.indexOf('Период:') !== -1 && fallback.indexOf('Опыт:') !== -1) return fallback;
-    if (fallback.indexOf('Период:') === 0) return fallback + ' · Опыт: все категории';
-    return 'Период: ' + fallback + ' · Опыт: все категории';
+    if (!fallback) return 'Весь период · Опыт: все категории';
+    var normalizedFallback = fallback.replace(/^Период:\s*/i, '');
+    if (normalizedFallback.indexOf('Опыт:') !== -1) return normalizedFallback;
+    return normalizedFallback + ' · Опыт: все категории';
 }
 function registerSkillDisplayName(rawSkill) {
     var raw = String(rawSkill || '').trim();
@@ -3562,7 +3562,7 @@ function buildChartContextLabel(periodValue, experienceValue) {
         if (values.length !== allExperienceValues.length) return false;
         return allExperienceValues.every(function(item) { return values.indexOf(item) !== -1; });
     }
-    if (period) parts.push('Период: ' + period);
+    if (period) parts.push(period);
     if (isAllExperienceSelection(experience)) {
         parts.push('Опыт: все категории');
     } else if (experience) {
@@ -4718,6 +4718,57 @@ function totalsBuildBurnupSeries(vacancies, periodWindows) {
     };
 }
 
+function buildTotalsBurnupPeriodWindows(vacancies) {
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var minDate = null;
+    var maxDate = null;
+    list.forEach(function(vacancy) {
+        var published = parsePublishedAtDate(vacancy && vacancy.published_at);
+        var archived = parsePublishedAtDate(vacancy && vacancy.archived_at);
+        if (published && (!minDate || published < minDate)) minDate = published;
+        if (published && (!maxDate || published > maxDate)) maxDate = published;
+        if (archived && (!maxDate || archived > maxDate)) maxDate = archived;
+    });
+    if (!minDate || !maxDate) return [];
+
+    var rangeDays = Math.round((totalsEndOfDay(maxDate) - totalsStartOfDay(minDate)) / (1000 * 60 * 60 * 24));
+    if (rangeDays <= 31) {
+        return [{
+            label: totalsFormatDayMonthLabel(minDate),
+            start: totalsStartOfDay(minDate),
+            end: totalsEndOfDay(maxDate)
+        }];
+    }
+
+    var cursor = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    var lastMonth = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+    var windows = [];
+    while (cursor <= lastMonth) {
+        var monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+        var monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
+        windows.push({
+            label: String(monthStart.getFullYear()) + '-' + String(monthStart.getMonth() + 1).padStart(2, '0'),
+            start: totalsStartOfDay(monthStart < minDate ? minDate : monthStart),
+            end: totalsEndOfDay(monthEnd > maxDate ? maxDate : monthEnd)
+        });
+        cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    }
+    return windows;
+}
+
+function buildTotalsBurnupPeriodLabel(periodWindows) {
+    var windows = Array.isArray(periodWindows) ? periodWindows.filter(Boolean) : [];
+    if (!windows.length) return 'За период';
+    if (windows.length === 1) {
+        var window = windows[0];
+        var spanDays = Math.round((window.end - window.start) / (1000 * 60 * 60 * 24));
+        if (spanDays <= 31) {
+            return 'Весь период';
+        }
+    }
+    return typeof formatMonthTitle === 'function' ? formatMonthTitle(windows.length) : ('За ' + windows.length + ' мес.');
+}
+
 function getLatestPublishedAtDate(vacancies) {
     var list = Array.isArray(vacancies) ? vacancies : [];
     var maxDate = null;
@@ -5401,7 +5452,8 @@ function renderGlobalEmployerFiltered(parentRole) {
     var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
-    block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, getResolvedAnalysisExperienceLabel(parentRole, 'employer-analysis'));
+    block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, null);
+    var employerFilters = getEmployerAnalysisFilters(parentRole);
     var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'employer-analysis', {
         skipPeriods: true
     });
@@ -5412,14 +5464,14 @@ function renderGlobalEmployerFiltered(parentRole) {
     });
     var allPeriod = !selectedPeriods.length || !effectivePeriods.length;
     if (allPeriod) {
-        rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'filtered');
+        rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'filtered', employerFilters);
     } else {
-        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods), 'filtered');
+        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, selectedPeriods), 'filtered', employerFilters);
     }
 
     renderEmployerAnalysisTable(block, rows, periodLabel);
     block.dataset.employerActiveMonth = 'global';
-    renderEmployerAnalysisChart(block);
+    applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || uiState.employer_analysis_view_mode || 'together');
 }
 
 function normalizeTotalsCurrency(value) {
@@ -5470,7 +5522,7 @@ function totalsBuildOverviewLegendHtml(periodLabel, experienceLabel) {
     var periodText = String(periodLabel || '').trim();
     var experienceText = String(experienceLabel || '').trim();
     if (periodText) {
-        items.push('<div class="totals-overview-legend-item"><span class="totals-overview-legend-label">Период</span><strong>' + escapeHtml(periodText) + '</strong></div>');
+        items.push('<div class="totals-overview-legend-item"><strong>' + escapeHtml(periodText) + '</strong></div>');
     }
     if (experienceText) {
         items.push('<div class="totals-overview-legend-item"><span class="totals-overview-legend-label">Опыт</span><strong>' + escapeHtml(experienceText) + '</strong></div>');
@@ -5598,6 +5650,214 @@ function totalsComputeSalaryByCurrency(vacancies) {
         };
     });
 }
+function totalsComputeSalaryCoverage(vacancies) {
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var stats = {
+        total: list.length,
+        withSalary: 0,
+        withoutSalary: 0,
+        withSalaryShare: 0,
+        withoutSalaryShare: 0,
+        currencies: {
+            RUR: { count: 0, share: 0 },
+            USD: { count: 0, share: 0 },
+            EUR: { count: 0, share: 0 },
+            other: { count: 0, share: 0 }
+        }
+    };
+    list.forEach(function(v) {
+        var curr = normalizeTotalsCurrency(v && v.currency);
+        var salaryValue = computeSalaryValue(v || {}, curr);
+        if (salaryValue !== null && salaryValue !== undefined && isFinite(salaryValue)) {
+            stats.withSalary += 1;
+            if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') stats.currencies[curr].count += 1;
+            else stats.currencies.other.count += 1;
+        } else {
+            stats.withoutSalary += 1;
+        }
+    });
+    stats.withSalaryShare = stats.total ? Math.round((stats.withSalary * 10000) / stats.total) / 100 : 0;
+    stats.withoutSalaryShare = stats.total ? Math.round((stats.withoutSalary * 10000) / stats.total) / 100 : 0;
+    Object.keys(stats.currencies).forEach(function(key) {
+        stats.currencies[key].share = stats.withSalary
+            ? Math.round((stats.currencies[key].count * 10000) / stats.withSalary) / 100
+            : 0;
+    });
+    return stats;
+}
+function normalizeEmployerOverviewCurrency(value) {
+    var current = String(value || '').trim().toUpperCase();
+    if (current === 'RUB') return 'RUR';
+    if (current === 'EURO') return 'EUR';
+    if (current === 'ДРУГАЯ' || current === 'OTHER') return 'OTHER';
+    return ['RUR', 'USD', 'EUR'].indexOf(current) >= 0 ? current : 'RUR';
+}
+function normalizeEmployerOverviewMetric(value) {
+    var current = String(value || '').trim().toLowerCase();
+    return ['min', 'avg', 'median', 'mode', 'max'].indexOf(current) >= 0 ? current : 'avg';
+}
+function resolveEmployerOverviewFilters(selectedCurrencyValues, metricValue) {
+    var normalizedCurrencies = Array.isArray(selectedCurrencyValues)
+        ? selectedCurrencyValues.map(function(value) {
+            return normalizeEmployerOverviewCurrency(value);
+        }).filter(Boolean)
+        : [];
+    var currency = normalizedCurrencies.length ? normalizedCurrencies[0] : 'RUR';
+    return {
+        currency: currency,
+        metric: normalizeEmployerOverviewMetric(metricValue)
+    };
+}
+function buildEmployerOverviewChartModel(vacancies, currency, metric) {
+    var selectedCurrency = normalizeEmployerOverviewCurrency(currency);
+    var selectedMetric = normalizeEmployerOverviewMetric(metric);
+    var list = dedupeVacanciesById(Array.isArray(vacancies) ? vacancies.slice() : []);
+    var categories = [
+        { key: 'accr_false', label: 'ИТ-аккредитация: Нет' },
+        { key: 'accr_true', label: 'ИТ-аккредитация: Да' },
+        { key: 'test_false', label: 'Тестовое задание: Нет' },
+        { key: 'test_true', label: 'Тестовое задание: Да' },
+        { key: 'cover_false', label: 'Сопроводительное письмо: Нет' },
+        { key: 'cover_true', label: 'Сопроводительное письмо: Да' },
+        { key: 'rating_unknown', label: 'Рейтинг: нет рейтинга' },
+        { key: 'rating_lt_35', label: 'Рейтинг: <3.5' },
+        { key: 'rating_35_399', label: 'Рейтинг: 3.5-3.99' },
+        { key: 'rating_40_449', label: 'Рейтинг: 4.0-4.49' },
+        { key: 'rating_ge_45', label: 'Рейтинг: >=4.5' }
+    ];
+    var buckets = {};
+    categories.forEach(function(category) {
+        buckets[category.key] = [];
+    });
+
+    function normalizeCurrencyKey(value) {
+        var current = String(value || '').trim().toUpperCase();
+        if (!current) return '';
+        if (current === 'RUB') return 'RUR';
+        if (current === 'EURO') return 'EUR';
+        return ['RUR', 'USD', 'EUR'].indexOf(current) >= 0 ? current : 'OTHER';
+    }
+    function resolveBucketKey(factorKey, valueKey) {
+        if (factorKey === 'accreditation') return valueKey === 'true' ? 'accr_true' : 'accr_false';
+        if (factorKey === 'has_test') return valueKey === 'true' ? 'test_true' : 'test_false';
+        if (factorKey === 'cover_letter_required') return valueKey === 'true' ? 'cover_true' : 'cover_false';
+        if (factorKey === 'rating_bucket') {
+            if (valueKey === 'unknown') return 'rating_unknown';
+            if (valueKey === '<3.5') return 'rating_lt_35';
+            if (valueKey === '3.5-3.99') return 'rating_35_399';
+            if (valueKey === '4.0-4.49') return 'rating_40_449';
+            if (valueKey === '>=4.5') return 'rating_ge_45';
+        }
+        return '';
+    }
+    function computeMetricValue(values) {
+        var list = Array.isArray(values) ? values.filter(function(item) {
+            return item !== null && item !== undefined && isFinite(item);
+        }) : [];
+        if (!list.length) return null;
+        if (selectedMetric === 'min') return Math.min.apply(Math, list);
+        if (selectedMetric === 'max') return Math.max.apply(Math, list);
+        if (selectedMetric === 'median') {
+            var sortedMedian = list.slice().sort(function(a, b) { return a - b; });
+            var middle = Math.floor(sortedMedian.length / 2);
+            return sortedMedian.length % 2
+                ? sortedMedian[middle]
+                : (sortedMedian[middle - 1] + sortedMedian[middle]) / 2;
+        }
+        if (selectedMetric === 'mode') {
+            var counts = new Map();
+            list.forEach(function(item) {
+                counts.set(item, (counts.get(item) || 0) + 1);
+            });
+            var bestValue = list[0];
+            var bestCount = counts.get(bestValue) || 0;
+            counts.forEach(function(count, value) {
+                if (count > bestCount || (count === bestCount && Number(value) < Number(bestValue))) {
+                    bestValue = Number(value);
+                    bestCount = count;
+                }
+            });
+            return Number(bestValue);
+        }
+        return list.reduce(function(sum, item) { return sum + Number(item); }, 0) / list.length;
+    }
+
+    list.forEach(function(vacancy) {
+        var currencyKey = normalizeCurrencyKey(vacancy && (vacancy.salary_currency || vacancy.currency));
+        if (!currencyKey || currencyKey !== selectedCurrency) return;
+        var salary = computeSalaryValue(vacancy || {}, selectedCurrency === 'OTHER' ? 'Другая' : selectedCurrency);
+        if (salary === null || salary === undefined || !isFinite(salary)) return;
+        [
+            ['accreditation', getSkillsSearchVacancyBooleanValue(vacancy, 'accreditation') ? 'true' : 'false'],
+            ['has_test', getSkillsSearchVacancyBooleanValue(vacancy, 'has_test') ? 'true' : 'false'],
+            ['cover_letter_required', getSkillsSearchVacancyBooleanValue(vacancy, 'cover_letter_required') ? 'true' : 'false'],
+            ['rating_bucket', getEmployerRatingBucketFromVacancy(vacancy)]
+        ].forEach(function(item) {
+            var bucketKey = resolveBucketKey(item[0], item[1]);
+            if (!bucketKey || !buckets[bucketKey]) return;
+            buckets[bucketKey].push(Number(salary));
+        });
+    });
+
+    return {
+        currency: selectedCurrency,
+        metric: selectedMetric,
+        labels: categories.map(function(category) { return category.label; }),
+        values: categories.map(function(category) {
+            return computeMetricValue(buckets[category.key]);
+        })
+    };
+}
+
+function normalizeEmployerAnalysisVacancyCurrency(value) {
+    var current = String(value || '').trim().toUpperCase();
+    if (!current) return '';
+    if (current === 'RUB') return 'RUR';
+    if (current === 'EURO') return 'EUR';
+    return ['RUR', 'USD', 'EUR'].indexOf(current) >= 0 ? current : 'OTHER';
+}
+
+function computeEmployerAnalysisMetricValue(values, metric) {
+    var selectedMetric = normalizeEmployerOverviewMetric(metric || 'avg');
+    var list = Array.isArray(values) ? values.filter(function(item) {
+        return item !== null && item !== undefined && isFinite(item);
+    }).map(function(item) {
+        return Number(item);
+    }) : [];
+    if (!list.length) return null;
+    if (selectedMetric === 'min') return Math.min.apply(Math, list);
+    if (selectedMetric === 'max') return Math.max.apply(Math, list);
+    if (selectedMetric === 'median') return computeMedian(list);
+    if (selectedMetric === 'mode') return computeMode(list);
+    return list.reduce(function(sum, item) { return sum + item; }, 0) / list.length;
+}
+
+function getEmployerAnalysisFilters(parentRole) {
+    var selectedCurrencyValues = hasExplicitGlobalFilterSelection('currency')
+        ? getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'employer-analysis'))
+        : [];
+    var currency = selectedCurrencyValues.length
+        ? normalizeEmployerOverviewCurrency(selectedCurrencyValues[0])
+        : normalizeEmployerOverviewCurrency(uiState.totals_employer_currency || 'RUR');
+    var metric = normalizeEmployerOverviewMetric(
+        uiState.totals_employer_salary_metric || uiState.market_trends_salary_metric || 'avg'
+    );
+    uiState.totals_employer_currency = currency;
+    uiState.totals_employer_salary_metric = metric;
+    return {
+        currency: currency,
+        currencyLabel: currency === 'OTHER' ? 'Другая валюта' : currency,
+        metric: metric,
+        metricLabel: totalsMetricLabel(metric)
+    };
+}
+
+function getEmployerChartValueLabel(valueKey) {
+    if (valueKey === 'true') return 'Да';
+    if (valueKey === 'false') return 'Нет';
+    if (valueKey === 'unknown') return 'нет рейтинга';
+    return String(valueKey || '');
+}
 function totalsComputeSkillsCost(vacancies, currency) {
     var curr = normalizeTotalsCurrency(currency || 'RUR');
     var map = new Map();
@@ -5691,6 +5951,42 @@ function totalsComputeCompanySalaryLeaders(vacancies, currency, direction) {
             || (b.total - a.total)
             || String(a.employer).localeCompare(String(b.employer), 'ru');
     });
+}
+function setEmployerAnalysisTableOnlyMode(block) {
+    if (!block) return 'table';
+    block.dataset.employerViewMode = 'table';
+    var viewToggle = block.querySelector('.employer-view-toggle');
+    if (viewToggle) {
+        viewToggle.style.display = 'none';
+        viewToggle.setAttribute('hidden', 'hidden');
+    }
+    var graph = block.querySelector('.employer-analysis-graph');
+    if (graph) {
+        if (typeof Plotly !== 'undefined' && typeof Plotly.purge === 'function') {
+            try {
+                Plotly.purge(graph);
+            } catch (_e) {
+                // ignore purge errors for detached nodes
+            }
+        }
+        graph.innerHTML = '';
+        graph.style.display = 'none';
+        graph.setAttribute('hidden', 'hidden');
+    }
+    var table = block.querySelector('.employer-analysis-table-container') || block.querySelector('.table-container');
+    if (table) {
+        table.style.display = 'block';
+        table.style.width = '100%';
+        table.style.maxWidth = 'none';
+        table.style.flex = '1 1 auto';
+    }
+    var layoutRoot = block.querySelector('.employer-analysis-main') || block.querySelector('.employer-analysis-view');
+    if (layoutRoot) {
+        layoutRoot.style.display = 'block';
+        layoutRoot.style.width = '100%';
+        layoutRoot.style.maxWidth = 'none';
+    }
+    return 'table';
 }
 function totalsComputeTopVacanciesBySalary(vacancies, currency, direction) {
     var curr = normalizeTotalsCurrency(currency || 'RUR');
@@ -6817,7 +7113,16 @@ function renderGlobalTotalsFiltered(parentRole) {
             }, null)
         };
     var periodStats = totalsComputePeriodVacancyStats(vacancyKpiVacancies || [], summaryWindow);
-    var burnupSeries = totalsBuildBurnupSeries(vacancyKpiVacancies || [], periodWindows);
+    var burnupUseFullPeriod = (selectedPeriods || []).some(function(label) {
+        return isSummaryMonth(String(label || '').trim());
+    });
+    var burnupPeriodWindows = burnupUseFullPeriod
+        ? buildTotalsBurnupPeriodWindows(vacancyKpiVacancies || [])
+        : periodWindows;
+    var burnupPeriodLabel = burnupUseFullPeriod
+        ? buildTotalsBurnupPeriodLabel(burnupPeriodWindows)
+        : (periodLabel || 'За период');
+    var burnupSeries = totalsBuildBurnupSeries(vacancyKpiVacancies || [], burnupPeriodWindows);
     var totalCount = periodStats.total || 0;
     var archivedCount = periodStats.archived || 0;
     var activeCount = periodStats.active || 0;
@@ -7083,21 +7388,34 @@ function renderGlobalTotalsFiltered(parentRole) {
     // ===== Круговая диаграмма (donut) для вакансий =====
     function buildDonutChartHtml(total, active, archived, avgAgeValue, breakdownData, interactiveEnabled) {
         var circumference = 2 * Math.PI * 80; // r=80
+        var innerCircumference = 2 * Math.PI * 56; // r=56
         var activePct = total > 0 ? active / total : 0;
         var archivedPct = total > 0 ? archived / total : 0;
-        var activeLen = activePct * circumference;
-        var archivedLen = archivedPct * circumference;
-        var offset1 = 0;
-        var offset2 = activeLen;
         var activeMetrics = (breakdownData && breakdownData.active && breakdownData.active.periodMetrics) || {};
         var archivedMetrics = (breakdownData && breakdownData.archived && breakdownData.archived.periodMetrics) || {};
+        var newPublished = activeMetrics && activeMetrics.newPublished ? activeMetrics.newPublished : 0;
+        var publishedAndArchived = archivedMetrics && archivedMetrics.publishedAndArchived ? archivedMetrics.publishedAndArchived : 0;
+        var newPublishedPct = total > 0 ? newPublished / total : 0;
+        var publishedAndArchivedPct = total > 0 ? publishedAndArchived / total : 0;
+        var activeLen = activePct * circumference;
+        var archivedLen = archivedPct * circumference;
+        var innerActiveLen = newPublishedPct * innerCircumference;
+        var innerArchivedLen = publishedAndArchivedPct * innerCircumference;
+        var offset1 = 0;
+        var offset2 = activeLen;
+        var innerOffset1 = 0;
+        var innerOffset2 = innerActiveLen;
         var donutKey = String(roleSuffix || 'default');
         var activeGradientId = 'donut-active-gradient-' + donutKey;
         var archivedGradientId = 'donut-archived-gradient-' + donutKey;
+        var activeInnerGradientId = 'donut-active-inner-gradient-' + donutKey;
+        var archivedInnerGradientId = 'donut-archived-inner-gradient-' + donutKey;
         var breakdownEncoded = encodeURIComponent(JSON.stringify(breakdownData || {}));
         var interactiveAttr = interactiveEnabled ? ' data-interactive="1"' : ' data-interactive="0"';
-        var activeSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-active' + (interactiveEnabled ? ' is-clickable' : '');
-        var archivedSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-archived' + (interactiveEnabled ? ' is-clickable' : '');
+        var activeSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active' + (interactiveEnabled ? ' is-clickable' : '');
+        var archivedSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-archived' + (interactiveEnabled ? ' is-clickable' : '');
+        var activeInnerSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-new' + (interactiveEnabled ? ' is-clickable' : '');
+        var archivedInnerSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-published-archived' + (interactiveEnabled ? ' is-clickable' : '');
         var activeLegendTag = interactiveEnabled ? 'button' : 'div';
         var archivedLegendTag = interactiveEnabled ? 'button' : 'div';
         var activeLegendAttrs = interactiveEnabled
@@ -7120,10 +7438,23 @@ function renderGlobalTotalsFiltered(parentRole) {
                             '<stop offset="0%" stop-color="' + DONUT_ARCHIVED_GRADIENT_START + '"></stop>' +
                             '<stop offset="100%" stop-color="' + DONUT_ARCHIVED_GRADIENT_END + '"></stop>' +
                         '</linearGradient>' +
+                        '<linearGradient id="' + activeInnerGradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+                            '<stop offset="0%" stop-color="#8fe9f7"></stop>' +
+                            '<stop offset="55%" stop-color="#49c8f2"></stop>' +
+                            '<stop offset="100%" stop-color="#5f95ff"></stop>' +
+                        '</linearGradient>' +
+                        '<linearGradient id="' + archivedInnerGradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
+                            '<stop offset="0%" stop-color="#efc3ff"></stop>' +
+                            '<stop offset="55%" stop-color="#d79cfb"></stop>' +
+                            '<stop offset="100%" stop-color="#b58cff"></stop>' +
+                        '</linearGradient>' +
                     '</defs>' +
-                    '<circle stroke="rgba(148, 163, 184, 0.18)" stroke-dasharray="' + circumference + ' 0" stroke-dashoffset="0"></circle>' +
+                    '<circle class="donut-chart-track donut-chart-track-outer" stroke="rgba(148, 163, 184, 0.18)" stroke-dasharray="' + circumference + ' 0" stroke-dashoffset="0"></circle>' +
                     '<circle class="' + activeSegmentClass + '" data-status="active" stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для открытых вакансий"></circle>' +
                     '<circle class="' + archivedSegmentClass + '" data-status="archived" stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для архивных вакансий"></circle>' +
+                    '<circle class="donut-chart-track donut-chart-track-inner" stroke="rgba(148, 163, 184, 0.12)" stroke-dasharray="' + innerCircumference + ' 0" stroke-dashoffset="0"></circle>' +
+                    '<circle class="' + activeInnerSegmentClass + '" data-status="active" stroke="url(#' + activeInnerGradientId + ')" stroke-dasharray="' + innerActiveLen + ' ' + (innerCircumference - innerActiveLen) + '" stroke-dashoffset="' + (-innerOffset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию новых вакансий за период"></circle>' +
+                    '<circle class="' + archivedInnerSegmentClass + '" data-status="archived" stroke="url(#' + archivedInnerGradientId + ')" stroke-dasharray="' + innerArchivedLen + ' ' + (innerCircumference - innerArchivedLen) + '" stroke-dashoffset="' + (-innerOffset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию вакансий, опубликованных и архивированных за период"></circle>' +
                 '</svg>' +
                 '<div class="donut-center-label">' +
                     '<div class="donut-center-value">' + total + '</div>' +
@@ -7139,7 +7470,7 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-new"></span>' +
                     '<span class="donut-legend-label">Новые за период</span>' +
-                    '<span class="donut-legend-value">' + (activeMetrics.newPublished || 0) + '</span>' +
+                    '<span class="donut-legend-value">' + newPublished + '</span>' +
                 '</button>' +
                 '<' + archivedLegendTag + archivedLegendAttrs + '>' +
                     '<span class="donut-legend-color donut-legend-color-archived"></span>' +
@@ -7149,7 +7480,7 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-published-archived"></span>' +
                     '<span class="donut-legend-label">Опубл. и архив. за период</span>' +
-                    '<span class="donut-legend-value">' + (archivedMetrics.publishedAndArchived || 0) + '</span>' +
+                    '<span class="donut-legend-value">' + publishedAndArchived + '</span>' +
                 '</button>' +
                 '<div class="donut-legend-item donut-legend-kpi">' +
                     '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
@@ -7324,6 +7655,29 @@ function renderGlobalTotalsFiltered(parentRole) {
 
         return '<div class="salary-chart-container">' + html + '</div>';
     }
+    function buildSalaryCoverageChartHtml(coverageStats) {
+        var stats = coverageStats || totalsComputeSalaryCoverage([]);
+        function coverageItem(label, count, share, cls) {
+            return '<div class="salary-coverage-item ' + cls + '">' +
+                '<div class="salary-coverage-item-label">' + escapeHtml(label) + '</div>' +
+                '<div class="salary-coverage-item-value">' + (count || 0) + '</div>' +
+                '<div class="salary-coverage-item-share">' + totalsFormatNumber(share || 0) + '%</div>' +
+            '</div>';
+        }
+        return '<div class="salary-coverage-card">' +
+            '<div class="salary-coverage-main">' +
+                coverageItem('С з/п', stats.withSalary || 0, stats.withSalaryShare || 0, 'is-with-salary') +
+                coverageItem('Без з/п', stats.withoutSalary || 0, stats.withoutSalaryShare || 0, 'is-without-salary') +
+            '</div>' +
+            '<div class="salary-coverage-subtitle">Из вакансий с зарплатой</div>' +
+            '<div class="salary-coverage-currencies">' +
+                coverageItem('RUR', stats.currencies.RUR.count || 0, stats.currencies.RUR.share || 0, 'is-rur') +
+                coverageItem('USD', stats.currencies.USD.count || 0, stats.currencies.USD.share || 0, 'is-usd') +
+                coverageItem('EUR', stats.currencies.EUR.count || 0, stats.currencies.EUR.share || 0, 'is-eur') +
+                coverageItem('Другая', stats.currencies.other.count || 0, stats.currencies.other.share || 0, 'is-other') +
+            '</div>' +
+        '</div>';
+    }
 
     function formatSalaryValue(val, currency) {
         if (val === null || val === undefined || !isFinite(val)) return '—';
@@ -7335,6 +7689,79 @@ function renderGlobalTotalsFiltered(parentRole) {
         }
         return String(num);
     }
+    function buildEmployerOverviewCardHtml(graphId) {
+        return '<div class="dashboard-card totals-employer-overview-card">' +
+            '<h3 class="dashboard-card-title">Анализ работодателей</h3>' +
+            '<div class="plotly-graph totals-employer-overview-graph" id="' + graphId + '"></div>' +
+        '</div>';
+    }
+    function renderEmployerOverviewCard(graphId) {
+        var graphEl = document.getElementById(graphId);
+        if (!graphEl || typeof Plotly === 'undefined') return;
+        var selectedCurrencyValues = hasExplicitGlobalFilterSelection('currency')
+            ? getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'totals'))
+            : [];
+        var resolvedEmployerFilters = resolveEmployerOverviewFilters(
+            selectedCurrencyValues,
+            uiState.market_trends_salary_metric || 'avg'
+        );
+        var currentCurrency = resolvedEmployerFilters.currency;
+        var currentMetric = resolvedEmployerFilters.metric;
+        var model = buildEmployerOverviewChartModel(vacancies || [], currentCurrency, currentMetric);
+        var currentContext = '';
+        var points = model.labels.map(function(label, index) {
+            return { label: label, value: model.values[index] };
+        }).filter(function(item) {
+            return item.value !== null && item.value !== undefined && isFinite(item.value);
+        });
+        if (!points.length) {
+            graphEl.dataset.plotSignature = currentCurrency + '|' + currentMetric + '|empty';
+            graphEl.dataset.plotReady = '';
+            graphEl.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по зарплате для выбранной валюты</div>';
+            return;
+        }
+        var axisCurrencyLabel = currentCurrency === 'OTHER' ? 'Другая валюта' : currentCurrency;
+        var metricLabel = totalsMetricLabel(currentMetric);
+        var labels = points.map(function(item) { return item.label; });
+        var values = points.map(function(item) { return item.value; });
+        var signature = currentCurrency + '|' + currentMetric + '|' + values.join('|') + '|' + labels.join('|') + '|' + currentContext;
+        var colors = labels.map(function(label) {
+            if (label.indexOf(': Да') >= 0) return CHART_COLORS.light;
+            if (label.indexOf(': Нет') >= 0) return CHART_COLORS.dark;
+            return CHART_COLORS.medium;
+        });
+        plotIfChangedById(graphId, signature, [{
+            type: 'bar',
+            orientation: 'h',
+            x: values,
+            y: labels,
+            marker: { color: colors, line: { width: 0 } },
+            text: values.map(function(value) {
+                return totalsFormatSalaryPointValue(value, currentCurrency === 'OTHER' ? '' : currentCurrency);
+            }),
+            textposition: 'auto',
+            hovertemplate: '%{y}<br>' + escapeHtml(metricLabel) + ': %{x}<extra></extra>'
+        }], {
+            title: { text: '', x: 0.5, xanchor: 'center' },
+            xaxis: { title: 'Зарплата, ' + axisCurrencyLabel, automargin: true },
+            yaxis: { title: '', automargin: true, autorange: 'reversed' },
+            margin: { t: 56, r: 16, b: 40, l: 220 },
+            height: 420,
+            showlegend: false
+        });
+        var headingEl = graphEl.querySelector('.unified-chart-heading');
+        if (headingEl) {
+            headingEl.style.display = 'none';
+            var titleEl = headingEl.querySelector('.unified-chart-title');
+            var subtitleEl = headingEl.querySelector('.unified-chart-subtitle');
+            if (titleEl) titleEl.textContent = '';
+            if (subtitleEl) {
+                subtitleEl.textContent = '';
+                subtitleEl.style.display = 'none';
+            }
+        }
+        resizePlotlyScope(graphEl);
+    }
 
     var overviewHtml =
         '<div class="dashboard-overview">' +
@@ -7343,17 +7770,22 @@ function renderGlobalTotalsFiltered(parentRole) {
                 buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
             '</div>' +
             '<div class="dashboard-card">' +
+                '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
+                buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
+            '</div>' +
+            '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
                 buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
             '</div>' +
             '<div class="dashboard-card">' +
-                '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
-                buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
+                '<h3 class="dashboard-card-title">Покрытие зарплат</h3>' +
+                buildSalaryCoverageChartHtml(totalsComputeSalaryCoverage(vacancies)) +
             '</div>' +
             '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Зарплаты</h3>' +
                 buildSalaryChartHtml(salaryRows) +
             '</div>' +
+            buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
         '</div>';
     var topTitlePrefix = 'Топ-' + topLimit;
     var topHtml =
@@ -7453,6 +7885,10 @@ function renderGlobalTotalsFiltered(parentRole) {
     if (dashboardMode !== 'overview') return;
 
     var burnupGraphId = 'totals-burnup-graph-' + roleSuffix;
+    var burnupGraphEl = document.getElementById(burnupGraphId);
+    if (burnupGraphEl && burnupGraphEl.dataset) {
+        burnupGraphEl.dataset.chartContext = buildChartContextLabel(burnupPeriodLabel, null);
+    }
     buildTotalsTrendLineChart(burnupGraphId, burnupSeries.labels || [], [
         {
             x: burnupSeries.labels || [],
@@ -7486,7 +7922,8 @@ function renderGlobalTotalsFiltered(parentRole) {
             mode: 'lines+markers',
             line: { color: CHART_COLORS.selectedMid, width: 3 }
         }
-    ], '', '', 'Количество', false);
+    ], 'Сгорание вакансий', buildChartContextLabel(burnupPeriodLabel, null), 'Количество', false);
+    renderEmployerOverviewCard('totals-employer-overview-graph-' + roleSuffix);
 
     var donutContainer = block.querySelector('.donut-chart-container[data-interactive="1"]');
     if (!donutContainer) return;
@@ -8681,6 +9118,8 @@ function getSharedFilterSnapshot(activeRole, analysisType) {
         globalFilters: {},
         totals_dashboard_mode: uiState.totals_dashboard_mode || 'overview',
         totals_top_limit: normalizeTotalsTopLimit(uiState.totals_top_limit || 15),
+        totals_employer_currency: normalizeEmployerOverviewCurrency(uiState.totals_employer_currency || 'RUR'),
+        totals_employer_salary_metric: normalizeEmployerOverviewMetric(uiState.totals_employer_salary_metric || 'avg'),
         market_trends_currency: normalizeTotalsCurrency(uiState.market_trends_currency || 'RUR'),
         market_trends_salary_metric: String(uiState.market_trends_salary_metric || 'avg').toLowerCase(),
         market_trends_excluded_roles: Array.isArray(uiState.market_trends_excluded_roles) ? uiState.market_trends_excluded_roles.slice() : [],
@@ -8749,6 +9188,12 @@ function applySharedFilterSnapshot(snapshot, activeRole, analysisType) {
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, 'totals_top_limit')) {
         uiState.totals_top_limit = normalizeTotalsTopLimit(snapshot.totals_top_limit || 15);
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'totals_employer_currency')) {
+        uiState.totals_employer_currency = normalizeEmployerOverviewCurrency(snapshot.totals_employer_currency || 'RUR');
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, 'totals_employer_salary_metric')) {
+        uiState.totals_employer_salary_metric = normalizeEmployerOverviewMetric(snapshot.totals_employer_salary_metric || 'avg');
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, 'market_trends_currency')) {
         uiState.market_trends_currency = normalizeTotalsCurrency(snapshot.market_trends_currency || 'RUR');
@@ -9870,6 +10315,7 @@ function applyEmployerAnalysisMonthFilter(block, month) {
     }
     if (block.dataset.employerActiveMonth === month) return;
     var parentRole = block.closest('.role-content');
+    var employerFilters = getEmployerAnalysisFilters(parentRole);
     var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'employer-analysis', {
         skipPeriods: true
     });
@@ -9877,21 +10323,21 @@ function applyEmployerAnalysisMonthFilter(block, month) {
     var rows = [];
     var explicitLabel = '';
     if (month === 'all') {
-        rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'all');
+        rows = buildEmployerAnalysisRowsFromVacancies(baseVacancies, 'all', employerFilters);
         explicitLabel = periodLabel;
     } else if (block.__employerRowsByPeriod && block.__employerRowsByPeriod[month]) {
         var periodKey = String(month || '').trim();
         var daysMatch = periodKey.match(/^last_(\d+)$/);
-        if (periodKey === 'today') rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByLatestDay(baseVacancies), month);
-        else rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, daysMatch ? Number(daysMatch[1]) : 0), month);
+        if (periodKey === 'today') rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByLatestDay(baseVacancies), month, employerFilters);
+        else rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesByRecentDays(baseVacancies, daysMatch ? Number(daysMatch[1]) : 0), month, employerFilters);
         explicitLabel = (block.__employerLabelsByPeriod && block.__employerLabelsByPeriod[month]) || '';
     } else {
-        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, [month]), month);
+        rows = buildEmployerAnalysisRowsFromVacancies(filterVacanciesBySelectedPeriods(baseVacancies, [month]), month, employerFilters);
         explicitLabel = month;
     }
     block.dataset.chartContext = buildChartContextLabel(
         normalizeUnifiedPeriodLabel(explicitLabel || month),
-        getResolvedAnalysisExperienceLabel(block.closest('.role-content'), 'employer-analysis')
+        null
     );
     renderEmployerAnalysisTable(block, rows, explicitLabel || null);
     var chips = block.querySelectorAll('.employer-period-chip');
@@ -9900,40 +10346,33 @@ function applyEmployerAnalysisMonthFilter(block, month) {
         chip.classList.toggle('active', isActive);
     });
     block.dataset.employerActiveMonth = month;
-    renderEmployerAnalysisChart(block);
+    applyEmployerAnalysisViewMode(block, block.dataset.employerViewMode || uiState.employer_analysis_view_mode || 'together');
     syncSharedFilterPanel(block.closest('.role-content'), 'employer-analysis');
 }
 
 function applyEmployerAnalysisViewMode(block, mode) {
-    if (!block) return;
+    if (!block) return 'together';
     mode = normalizeResponsiveViewMode(mode || uiState.employer_analysis_view_mode || 'together');
+    uiState.employer_analysis_view_mode = mode;
+    if (typeof persistViewModes === 'function') persistViewModes();
+    block.dataset.employerViewMode = mode;
     var table = block.querySelector('.employer-analysis-table-container') || block.querySelector('.table-container');
     var graph = block.querySelector('.employer-analysis-graph');
     var layoutRoot = block.querySelector('.employer-analysis-main') || block.querySelector('.employer-analysis-view');
-    if (!table || !graph) return;
-
-    if (typeof syncAllViewModes === 'function') syncAllViewModes(mode);
-    else uiState.employer_analysis_view_mode = mode;
-    block.dataset.employerViewMode = mode;
-    if (typeof persistViewModes === 'function') persistViewModes();
     var btns = block.querySelectorAll('.employer-view-btn');
     btns.forEach(function(btn) {
         btn.classList.toggle('active', (btn.dataset.view || '') === mode);
     });
-
-    if (layoutRoot) {
-        applyCompositeViewMode(layoutRoot, table, graph, mode, {
-            layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
-            tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
-            splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
-            splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
-            splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
-        });
-    }
-
-    if (mode !== 'table') {
-        renderEmployerAnalysisChart(block);
-    }
+    if (!table || !graph || !layoutRoot) return mode;
+    applyCompositeViewMode(layoutRoot, table, graph, mode, {
+        layoutWidth: UNIFIED_ANALYSIS_LAYOUT_WIDTH,
+        tableOnlyWidth: UNIFIED_ANALYSIS_SINGLE_WIDTH,
+        splitTableWidth: UNIFIED_ANALYSIS_TABLE_WIDTH,
+        splitGraphWidth: UNIFIED_ANALYSIS_GRAPH_WIDTH,
+        splitMinWidth: UNIFIED_ANALYSIS_SPLIT_MIN_WIDTH
+    });
+    if (mode !== 'table') renderEmployerAnalysisChart(block);
+    return mode;
 }
 
 function renderEmployerAnalysisChart(block) {
@@ -9948,146 +10387,50 @@ function renderEmployerAnalysisChart(block) {
         return row.style.display !== 'none';
     });
     if (!rows.length) {
-        if (graph.__avgRurChartEl) Plotly.purge(graph.__avgRurChartEl);
-        if (graph.__avgUsdChartEl) Plotly.purge(graph.__avgUsdChartEl);
-        if (graph.__avgEurChartEl) Plotly.purge(graph.__avgEurChartEl);
-        if (graph.__avgOtherChartEl) Plotly.purge(graph.__avgOtherChartEl);
-        graph.__avgRurChartEl = null;
-        graph.__avgUsdChartEl = null;
-        graph.__avgEurChartEl = null;
-        graph.__avgOtherChartEl = null;
+        if (graph.__chartHostEl && typeof Plotly.purge === 'function') Plotly.purge(graph.__chartHostEl);
+        graph.__chartHostEl = null;
         graph.dataset.plotSignature = '';
         graph.dataset.plotReady = '';
         graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
         return;
     }
-
-    var categories = [
-        { key: 'accr_false', label: 'ИТ-аккредитация false' },
-        { key: 'accr_true', label: 'ИТ-аккредитация true' },
-        { key: 'test_false', label: 'Тестовое задание false' },
-        { key: 'test_true', label: 'Тестовое задание true' },
-        { key: 'cover_false', label: 'Сопроводительное письмо false' },
-        { key: 'cover_true', label: 'Сопроводительное письмо true' },
-        { key: 'rating_unknown', label: 'без рейтинга' },
-        { key: 'rating_lt_35', label: 'рейтинг <3.5' },
-        { key: 'rating_35_399', label: 'рейтинг 3.5-3.99' },
-        { key: 'rating_40_449', label: 'рейтинг 4.0-4.49' },
-        { key: 'rating_ge_45', label: 'рейтинг >=4.5' }
-    ];
-    var buckets = {};
-    categories.forEach(function(c) {
-        buckets[c.key] = {
-            wRur: 0,
-            sumRur: 0,
-            wUsd: 0,
-            sumUsd: 0,
-            wEur: 0,
-            sumEur: 0,
-            wOther: 0,
-            sumOther: 0
-        };
-    });
-
-    function normalizeVal(v) {
-        return String(v || '').trim().toLowerCase();
-    }
-    function toNum(v) {
-        var s = String(v || '').trim();
-        if (!s) return NaN;
-        var n = parseFloat(s.replace(/\s/g, '').replace(',', '.'));
-        return isFinite(n) ? n : NaN;
-    }
-    function toInt(v) {
-        var n = parseInt(String(v || '0').replace(/\s/g, ''), 10);
-        return isFinite(n) ? n : 0;
-    }
-    function resolveBucket(factorKey, valueKey) {
-        if (factorKey === 'rating_bucket') {
-            if (valueKey === 'unknown' || valueKey === 'нет рейтинга') return 'rating_unknown';
-            if (valueKey === '<3.5') return 'rating_lt_35';
-            if (valueKey === '3.5-3.99') return 'rating_35_399';
-            if (valueKey === '4.0-4.49') return 'rating_40_449';
-            if (valueKey === '>=4.5') return 'rating_ge_45';
-            return null;
-        }
-        if (factorKey === 'accreditation') {
-            if (valueKey === 'true') return 'accr_true';
-            if (valueKey === 'false') return 'accr_false';
-            return null;
-        }
-        if (factorKey === 'has_test') {
-            if (valueKey === 'true') return 'test_true';
-            if (valueKey === 'false') return 'test_false';
-            return null;
-        }
-        if (factorKey === 'cover_letter_required') {
-            if (valueKey === 'true') return 'cover_true';
-            if (valueKey === 'false') return 'cover_false';
-        }
-        return null;
-    }
-    function updateWeighted(bucket, value, weight, sumKey, weightKey) {
-        if (!isFinite(value)) return;
-        bucket[sumKey] += value * weight;
-        bucket[weightKey] += weight;
-    }
-
-    rows.forEach(function(row) {
-        var factorKey = normalizeVal(row.dataset.factor);
-        var valueKey = normalizeVal(row.dataset.valueKey || row.dataset.valueLabel || (row.cells && row.cells[2] ? row.cells[2].textContent : ''));
-        var bucketKey = resolveBucket(factorKey, valueKey);
-        if (!bucketKey) return;
-        var avgRur = toNum(row.dataset.avgRur || (row.cells && row.cells[4] ? row.cells[4].textContent : ''));
-        var avgRurN = toInt(row.dataset.avgRurN || row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
-        var avgUsd = toNum(row.dataset.avgUsd || (row.cells && row.cells[5] ? row.cells[5].textContent : ''));
-        var avgUsdN = toInt(row.dataset.avgUsdN || row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
-        var avgEur = toNum(row.dataset.avgEur || (row.cells && row.cells[6] ? row.cells[6].textContent : ''));
-        var avgEurN = toInt(row.dataset.avgEurN || row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
-        var avgOther = toNum(row.dataset.avgOther || (row.cells && row.cells[7] ? row.cells[7].textContent : ''));
-        var avgOtherN = toInt(row.dataset.avgOtherN || row.dataset.groupN || (row.cells && row.cells[3] ? row.cells[3].textContent : '0'));
-        updateWeighted(buckets[bucketKey], avgRur, avgRurN, 'sumRur', 'wRur');
-        updateWeighted(buckets[bucketKey], avgUsd, avgUsdN, 'sumUsd', 'wUsd');
-        updateWeighted(buckets[bucketKey], avgEur, avgEurN, 'sumEur', 'wEur');
-        updateWeighted(buckets[bucketKey], avgOther, avgOtherN, 'sumOther', 'wOther');
-    });
-
-    var labels = categories.map(function(c) { return c.label; });
-    var avgRur = categories.map(function(c) {
-        var b = buckets[c.key];
-        return b.wRur ? (b.sumRur / b.wRur) : null;
-    });
-    var avgUsd = categories.map(function(c) {
-        var b = buckets[c.key];
-        return b.wUsd ? (b.sumUsd / b.wUsd) : null;
-    });
-    var avgEur = categories.map(function(c) {
-        var b = buckets[c.key];
-        return b.wEur ? (b.sumEur / b.wEur) : null;
-    });
-    var avgOther = categories.map(function(c) {
-        var b = buckets[c.key];
-        return b.wOther ? (b.sumOther / b.wOther) : null;
-    });
-    var signature = chartContext + '|' + categories.map(function(c, idx) {
-        return [
-            c.key,
-            avgRur[idx] == null ? '' : avgRur[idx],
-            avgUsd[idx] == null ? '' : avgUsd[idx],
-            avgEur[idx] == null ? '' : avgEur[idx],
-            avgOther[idx] == null ? '' : avgOther[idx]
-        ].join(':');
-    }).join('|');
-
     var palette = (typeof CHART_COLORS !== 'undefined')
         ? CHART_COLORS
         : { light: '#00C3D3', medium: '#007AD8', dark: '#D149EF', orange: '#FE9500', green: '#00AD00', red: '#FF6262' };
-    var colorByCategory = categories.map(function(c) {
-        if (c.key.indexOf('_true') !== -1) return palette.light;
-        if (c.key.indexOf('_false') !== -1) return palette.dark;
-        return palette.medium;
+    var labels = [];
+    var values = [];
+    var colors = [];
+    var salaryMetric = '';
+    var salaryCurrency = '';
+    rows.forEach(function(row) {
+        var value = Number(row.dataset.salaryValue);
+        if (!isFinite(value)) return;
+        var factorLabel = String(row.dataset.factorLabel || '').trim();
+        var valueLabel = getEmployerChartValueLabel(String(row.dataset.valueKey || '').trim());
+        labels.push(factorLabel + ': ' + valueLabel);
+        values.push(value);
+        salaryMetric = salaryMetric || String(row.dataset.salaryMetric || '').trim();
+        salaryCurrency = salaryCurrency || String(row.dataset.salaryCurrency || '').trim();
+        if (valueLabel === 'Да') colors.push(palette.light);
+        else if (valueLabel === 'Нет') colors.push(palette.dark);
+        else colors.push(palette.medium);
     });
-
+    if (!values.length) {
+        if (graph.__chartHostEl && typeof Plotly.purge === 'function') Plotly.purge(graph.__chartHostEl);
+        graph.__chartHostEl = null;
+        graph.dataset.plotSignature = '';
+        graph.dataset.plotReady = '';
+        graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных по зарплате для выбранной валюты</div>';
+        return;
+    }
+    var metricLabel = totalsMetricLabel(salaryMetric || 'avg');
+    var currencyLabel = (salaryCurrency || 'RUR') === 'OTHER' ? 'Другая валюта' : (salaryCurrency || 'RUR');
+    var signature = [chartContext, salaryMetric, salaryCurrency, labels.join('|'), values.join('|')].join('|');
+    if (!graph.__chartHostEl) {
+        graph.innerHTML = '<div class="employer-analysis-chart-host"></div>';
+        graph.__chartHostEl = graph.querySelector('.employer-analysis-chart-host');
+    }
+    if (graph.dataset.plotSignature === signature && graph.dataset.plotReady === '1') return;
     graph.style.width = '100%';
     graph.style.maxWidth = '100%';
     graph.style.minWidth = '0';
@@ -10095,145 +10438,28 @@ function renderEmployerAnalysisChart(block) {
     graph.style.height = 'auto';
     graph.style.display = 'block';
     graph.style.overflow = 'visible';
-    if (!graph.__avgRurChartEl || !graph.__avgUsdChartEl || !graph.__avgEurChartEl || !graph.__avgOtherChartEl) {
-        graph.innerHTML =
-            '<div class="employer-analysis-subgraph employer-analysis-avg-rur-graph"></div>' +
-            '<div class="employer-analysis-subgraph employer-analysis-avg-usd-graph"></div>' +
-            '<div class="employer-analysis-subgraph employer-analysis-avg-eur-graph"></div>' +
-            '<div class="employer-analysis-subgraph employer-analysis-avg-other-graph"></div>';
-        graph.__avgRurChartEl = graph.querySelector('.employer-analysis-avg-rur-graph');
-        graph.__avgUsdChartEl = graph.querySelector('.employer-analysis-avg-usd-graph');
-        graph.__avgEurChartEl = graph.querySelector('.employer-analysis-avg-eur-graph');
-        graph.__avgOtherChartEl = graph.querySelector('.employer-analysis-avg-other-graph');
-    }
-    if (graph.dataset.plotSignature === signature && graph.dataset.plotReady === '1') return;
-
-    function renderEmployerSubplot(target, data, layout) {
-        if (!target) return;
-        var plotHeight = Number(layout && layout.height) || 0;
-        var parts = extractLayoutTitleParts(layout);
-        var titleText = parts.base;
-        var subtitleText = resolveUnifiedChartContext(target, parts.context);
-        var header = target.querySelector('.employer-analysis-subgraph-heading');
-        var titleEl = target.querySelector('.employer-analysis-subgraph-title');
-        var subtitleEl = target.querySelector('.employer-analysis-subgraph-subtitle');
-        var plotHost = target.querySelector('.employer-analysis-subgraph-host');
-        if (!header || !titleEl || !subtitleEl || !plotHost) {
-            target.innerHTML =
-                '<div class="employer-analysis-subgraph-heading">' +
-                    '<div class="unified-chart-title employer-analysis-subgraph-title"></div>' +
-                    '<div class="unified-chart-subtitle employer-analysis-subgraph-subtitle"></div>' +
-                '</div>' +
-                '<div class="employer-analysis-subgraph-host"></div>';
-            header = target.querySelector('.employer-analysis-subgraph-heading');
-            titleEl = target.querySelector('.employer-analysis-subgraph-title');
-            subtitleEl = target.querySelector('.employer-analysis-subgraph-subtitle');
-            plotHost = target.querySelector('.employer-analysis-subgraph-host');
-        }
-        if (header && titleEl && subtitleEl) {
-            header.style.display = (titleText || subtitleText) ? 'block' : 'none';
-            titleEl.textContent = titleText || '';
-            subtitleEl.textContent = subtitleText || '';
-            subtitleEl.style.display = subtitleText ? 'block' : 'none';
-        }
-        target.style.width = '100%';
-        target.style.maxWidth = '100%';
-        target.style.minWidth = '0';
-        target.style.display = 'flex';
-        target.style.flexDirection = 'column';
-        target.style.alignItems = 'stretch';
-        target.style.height = 'auto';
-        target.style.minHeight = '0';
-        target.style.flex = '0 0 auto';
-        target.style.position = 'relative';
-        target.style.overflow = 'visible';
-        if (plotHost) {
-            plotHost.className = 'employer-analysis-subgraph-host';
-            plotHost.style.height = plotHeight + 'px';
-            plotHost.style.minHeight = plotHeight + 'px';
-            plotHost.style.flex = '0 0 auto';
-        }
-        if (layout) {
-            if (typeof layout.title === 'string') layout.title = '';
-            else if (layout.title && typeof layout.title === 'object') layout.title.text = '';
-        }
-        if (plotHost && plotHost.dataset.plotReady === '1' && typeof Plotly.react === 'function') {
-            Plotly.react(plotHost, data, layout, { responsive: true, displayModeBar: false });
-        } else {
-            Plotly.newPlot(plotHost || target, data, layout, { responsive: true, displayModeBar: false });
-        }
-        target.dataset.plotReady = '1';
-        if (plotHost) plotHost.dataset.plotReady = '1';
-        resizePlotlyScope(plotHost || target);
-    }
-
-    renderEmployerSubplot(graph.__avgRurChartEl, [{
+    Plotly.react(graph.__chartHostEl, [{
         type: 'bar',
-        name: 'Средняя (RUR)',
-        x: avgRur,
-        y: labels,
         orientation: 'h',
-        marker: { color: colorByCategory, line: { width: 0 } }
-    }], {
-        title: { text: composeChartTitle('Средняя зарплата по параметрам (RUR)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { title: 'Зарплата, RUR', automargin: true },
-        yaxis: { title: '', automargin: true, autorange: 'reversed' },
-        margin: { t: 56, r: 16, b: 40, l: 160 },
-        height: 420
-    });
-
-    renderEmployerSubplot(graph.__avgUsdChartEl, [{
-        type: 'bar',
-        name: 'Средняя (USD)',
-        x: avgUsd,
+        x: values,
         y: labels,
-        orientation: 'h',
-        marker: { color: colorByCategory, line: { width: 0 } }
+        marker: { color: colors, line: { width: 0 } },
+        text: values.map(function(value) {
+            return totalsFormatSalaryPointValue(value, salaryCurrency === 'OTHER' ? '' : salaryCurrency);
+        }),
+        textposition: 'auto',
+        hovertemplate: '%{y}<br>' + escapeHtml(metricLabel) + ': %{x}<extra></extra>'
     }], {
-        title: { text: composeChartTitle('Средняя зарплата по параметрам (USD)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { title: 'Зарплата, USD', automargin: true },
+        title: { text: composeChartTitle('Анализ работодателей · ' + metricLabel + ' зарплата (' + currencyLabel + ')', chartContext), x: 0.5, xanchor: 'center' },
+        xaxis: { title: 'Зарплата, ' + currencyLabel, automargin: true },
         yaxis: { title: '', automargin: true, autorange: 'reversed' },
-        margin: { t: 56, r: 16, b: 40, l: 160 },
-        height: 420
-    });
-
-    renderEmployerSubplot(graph.__avgEurChartEl, [{
-        type: 'bar',
-        name: 'Средняя (EUR)',
-        x: avgEur,
-        y: labels,
-        orientation: 'h',
-        marker: { color: colorByCategory, line: { width: 0 } }
-    }], {
-        title: { text: composeChartTitle('Средняя зарплата по параметрам (EUR)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { title: 'Зарплата, EUR', automargin: true },
-        yaxis: { title: '', automargin: true, autorange: 'reversed' },
-        margin: { t: 56, r: 16, b: 40, l: 160 },
-        height: 420
-    });
-
-    renderEmployerSubplot(graph.__avgOtherChartEl, [{
-        type: 'bar',
-        name: 'Средняя (Другая валюта)',
-        x: avgOther,
-        y: labels,
-        orientation: 'h',
-        marker: { color: colorByCategory, line: { width: 0 } }
-    }], {
-        title: { text: composeChartTitle('Средняя зарплата по параметрам (Другая валюта)', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { title: 'Зарплата, Другая валюта', automargin: true },
-        yaxis: { title: '', automargin: true, autorange: 'reversed' },
-        margin: { t: 56, r: 16, b: 40, l: 160 },
-        height: 420
-    });
-    ensureStackedChartLayout(graph, [
-        { key: 'rur', label: 'RUR', el: graph.__avgRurChartEl || null },
-        { key: 'usd', label: 'USD', el: graph.__avgUsdChartEl || null },
-        { key: 'eur', label: 'EUR', el: graph.__avgEurChartEl || null },
-        { key: 'other', label: 'Другая валюта', el: graph.__avgOtherChartEl || null }
-    ]);
+        margin: { t: 56, r: 16, b: 40, l: 220 },
+        height: 420,
+        showlegend: false
+    }, { responsive: true, displayModeBar: false });
     graph.dataset.plotSignature = signature;
     graph.dataset.plotReady = '1';
+    resizePlotlyScope(graph.__chartHostEl || graph);
 }
 
 function getEmployerFactorOrder(factorKey) {
@@ -10330,8 +10556,11 @@ function getEmployerRatingBucketFromVacancy(vacancy) {
     return '>=4.5';
 }
 
-function buildEmployerAnalysisRowsFromVacancies(vacancies, periodKey) {
+function buildEmployerAnalysisRowsFromVacancies(vacancies, periodKey, options) {
     var list = dedupeVacanciesById((vacancies || []).slice());
+    var settings = options || {};
+    var selectedCurrency = normalizeEmployerOverviewCurrency(settings.currency || 'RUR');
+    var selectedMetric = normalizeEmployerOverviewMetric(settings.metric || 'avg');
     var buckets = {};
 
     function ensureBucket(factorKey, valueKey) {
@@ -10344,52 +10573,22 @@ function buildEmployerAnalysisRowsFromVacancies(vacancies, periodKey) {
                 valueKey: valueKey,
                 valueLabel: getEmployerValueLabel(factorKey, valueKey),
                 groupN: 0,
-                avgRurN: 0,
-                avgRurSum: 0,
-                avgUsdN: 0,
-                avgUsdSum: 0,
-                avgEurN: 0,
-                avgEurSum: 0,
-                avgOtherN: 0,
-                avgOtherSum: 0
+                salaries: {
+                    RUR: [],
+                    USD: [],
+                    EUR: [],
+                    OTHER: []
+                }
             };
         }
         return buckets[key];
     }
 
     function appendSalary(bucket, vacancy) {
-        var currency = String(vacancy && (vacancy.salary_currency || vacancy.currency) || '').trim().toUpperCase();
-        var salary = null;
-        if (currency === 'RUR') {
-            salary = computeSalaryValue(vacancy, 'RUR');
-            if (salary !== null && isFinite(salary)) {
-                bucket.avgRurSum += salary;
-                bucket.avgRurN += 1;
-            }
-            return;
-        }
-        if (currency === 'USD') {
-            salary = computeSalaryValue(vacancy, 'USD');
-            if (salary !== null && isFinite(salary)) {
-                bucket.avgUsdSum += salary;
-                bucket.avgUsdN += 1;
-            }
-            return;
-        }
-        if (currency === 'EUR') {
-            salary = computeSalaryValue(vacancy, 'EUR');
-            if (salary !== null && isFinite(salary)) {
-                bucket.avgEurSum += salary;
-                bucket.avgEurN += 1;
-            }
-            return;
-        }
+        var currency = normalizeEmployerAnalysisVacancyCurrency(vacancy && (vacancy.salary_currency || vacancy.currency));
         if (!currency) return;
-        salary = computeSalaryValue(vacancy, 'Другая');
-        if (salary !== null && isFinite(salary)) {
-            bucket.avgOtherSum += salary;
-            bucket.avgOtherN += 1;
-        }
+        var salary = computeSalaryValue(vacancy, currency === 'OTHER' ? 'Другая' : currency);
+        if (salary !== null && isFinite(salary)) bucket.salaries[currency].push(Number(salary));
     }
 
     function addVacancy(factorKey, valueKey, vacancy) {
@@ -10407,6 +10606,7 @@ function buildEmployerAnalysisRowsFromVacancies(vacancies, periodKey) {
 
     return Object.keys(buckets).map(function(key) {
         var bucket = buckets[key];
+        var selectedValues = bucket.salaries[selectedCurrency] || [];
         return {
             month: bucket.month,
             factorKey: bucket.factorKey,
@@ -10414,14 +10614,11 @@ function buildEmployerAnalysisRowsFromVacancies(vacancies, periodKey) {
             valueKey: bucket.valueKey,
             valueLabel: bucket.valueLabel,
             groupN: bucket.groupN,
-            avgRurN: bucket.avgRurN,
-            avgRur: bucket.avgRurN ? (bucket.avgRurSum / bucket.avgRurN) : null,
-            avgUsdN: bucket.avgUsdN,
-            avgUsd: bucket.avgUsdN ? (bucket.avgUsdSum / bucket.avgUsdN) : null,
-            avgEurN: bucket.avgEurN,
-            avgEur: bucket.avgEurN ? (bucket.avgEurSum / bucket.avgEurN) : null,
-            avgOtherN: bucket.avgOtherN,
-            avgOther: bucket.avgOtherN ? (bucket.avgOtherSum / bucket.avgOtherN) : null
+            salaryCurrency: selectedCurrency,
+            salaryMetric: selectedMetric,
+            salaryMetricLabel: totalsMetricLabel(selectedMetric),
+            salaryValue: computeEmployerAnalysisMetricValue(selectedValues, selectedMetric),
+            salaryCount: selectedValues.length
         };
     });
 }
@@ -10550,12 +10747,24 @@ function formatEmployerNumber(value) {
 }
 
 function renderEmployerAnalysisTable(block, rows, allPeriodLabel) {
-    var tbody = block.querySelector('.table-container tbody');
-    if (!tbody) return;
     var sortedRows = sortEmployerAnalysisData(rows.slice());
+    var table = block.querySelector('.table-container table');
+    var tbody = table ? table.querySelector('tbody') : null;
+    var theadRow = table ? table.querySelector('thead tr') : null;
+    if (!tbody || !theadRow) return;
     block.classList.toggle('employer-aggregated-mode', !!allPeriodLabel);
+    var headerRow = sortedRows[0] || null;
+    var metricLabel = headerRow ? String(headerRow.salaryMetricLabel || totalsMetricLabel(headerRow.salaryMetric || 'avg')) : 'Средняя';
+    var currencyLabel = headerRow ? ((headerRow.salaryCurrency || 'RUR') === 'OTHER' ? 'Другая валюта' : (headerRow.salaryCurrency || 'RUR')) : 'RUR';
+    theadRow.innerHTML =
+        '<th>Месяц</th>' +
+        '<th>Фактор</th>' +
+        '<th>Значение фактора</th>' +
+        '<th>Количество</th>' +
+        '<th>Зарплата, ' + currencyLabel + ' · ' + metricLabel + '</th>';
     tbody.innerHTML = sortedRows.map(function(row) {
         var monthLabel = allPeriodLabel ? '' : row.month;
+        var salaryValueAttr = (row.salaryValue !== null && row.salaryValue !== undefined && isFinite(row.salaryValue)) ? String(row.salaryValue) : '';
         return '<tr class="employer-analysis-row" ' +
             'data-month="' + row.month + '" ' +
             'data-factor="' + row.factorKey + '" ' +
@@ -10563,22 +10772,15 @@ function renderEmployerAnalysisTable(block, rows, allPeriodLabel) {
             'data-value-key="' + row.valueKey + '" ' +
             'data-value-label="' + row.valueLabel + '" ' +
             'data-group-n="' + row.groupN + '" ' +
-            'data-avg-rur-n="' + (row.avgRurN || 0) + '" ' +
-            'data-avg-rur="' + (row.avgRur || '') + '" ' +
-            'data-avg-usd-n="' + (row.avgUsdN || 0) + '" ' +
-            'data-avg-usd="' + (row.avgUsd || '') + '" ' +
-            'data-avg-eur-n="' + (row.avgEurN || 0) + '" ' +
-            'data-avg-eur="' + (row.avgEur || '') + '" ' +
-            'data-avg-other-n="' + (row.avgOtherN || 0) + '" ' +
-            'data-avg-other="' + (row.avgOther || '') + '">' +
+            'data-salary-currency="' + row.salaryCurrency + '" ' +
+            'data-salary-metric="' + row.salaryMetric + '" ' +
+            'data-salary-value="' + salaryValueAttr + '" ' +
+            'data-salary-count="' + (row.salaryCount || 0) + '">' +
             '<td>' + monthLabel + '</td>' +
             '<td>' + row.factorLabel + '</td>' +
             '<td class="employer-factor-value-cell">' + getEmployerValueHtml(row.valueKey) + '</td>' +
             '<td>' + row.groupN + '</td>' +
-            '<td>' + formatEmployerNumber(row.avgRur) + '</td>' +
-            '<td>' + formatEmployerNumber(row.avgUsd) + '</td>' +
-            '<td>' + formatEmployerNumber(row.avgEur) + '</td>' +
-            '<td>' + formatEmployerNumber(row.avgOther) + '</td>' +
+            '<td' + (salaryValueAttr ? ' data-sort-num="' + salaryValueAttr + '"' : '') + '>' + formatEmployerNumber(row.salaryValue) + '</td>' +
             '</tr>';
     }).join('');
     toggleEmployerMonthColumn(block, !allPeriodLabel);
@@ -10636,6 +10838,8 @@ function initEmployerAnalysisFilter(block) {
         viewToggle = document.createElement('div');
     }
     viewToggle.className = 'employer-view-toggle employer-side-toggle';
+    viewToggle.style.display = '';
+    viewToggle.removeAttribute('hidden');
     if (viewToggle.querySelectorAll('.employer-view-btn').length !== 3) {
         viewToggle.innerHTML = buildViewModeButtonsHtml(['together', 'table', 'graph'], 'employer-view-btn', uiState.employer_analysis_view_mode || 'together');
     }
@@ -10643,14 +10847,15 @@ function initEmployerAnalysisFilter(block) {
     var graph = block.querySelector('.employer-analysis-graph');
     if (!graph) {
         graph = document.createElement('div');
-        graph.className = 'employer-analysis-graph';
+        graph.className = 'plotly-graph employer-analysis-graph';
         graph.style.display = 'none';
     }
-    if (graph.parentElement !== mainWrap) {
+    if (graph && graph.parentElement !== mainWrap) {
         mainWrap.appendChild(graph);
     }
+    if (graph) graph.removeAttribute('hidden');
 
-    if (!viewToggle.dataset.bound) viewToggle.dataset.bound = '1';
+    if (viewToggle && !viewToggle.dataset.bound) viewToggle.dataset.bound = '1';
 
     var parsedRows = parseEmployerAnalysisData(block);
     if (!parsedRows.length) return;
@@ -10677,7 +10882,7 @@ function initEmployerAnalysisFilter(block) {
         block.insertBefore(topBar, analysisView || tableContainer);
     }
     if (chipsWrap.parentElement !== topBar) topBar.appendChild(chipsWrap);
-    if (viewToggle.parentElement !== topBar) topBar.appendChild(viewToggle);
+    if (viewToggle && viewToggle.parentElement !== topBar) topBar.appendChild(viewToggle);
 
     var months = Array.from(new Set(parsedRows.map(function(row) { return row.month; }).filter(Boolean))).sort();
     months.reverse();
@@ -10699,7 +10904,7 @@ function initEmployerAnalysisFilter(block) {
         var quickVacancies = item.key === 'today'
             ? filterVacanciesByLatestDay(baseVacancies)
             : filterVacanciesByRecentDays(baseVacancies, item.days);
-        block.__employerRowsByPeriod[item.key] = buildEmployerAnalysisRowsFromVacancies(quickVacancies, item.key);
+        block.__employerRowsByPeriod[item.key] = buildEmployerAnalysisRowsFromVacancies(quickVacancies, item.key, getEmployerAnalysisFilters(block.closest('.role-content')));
         block.__employerLabelsByPeriod[item.key] = item.label;
     });
 
@@ -10823,9 +11028,9 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     }
     if (!subtitleText) {
         var periodSource = target.dataset.period || '';
-        subtitleText = 'Период: ' + String(formatPeriodSelectionValue(periodSource) || periodSource || 'За весь период').trim();
-    } else if (subtitleText.indexOf('Период:') !== 0) {
-        subtitleText = 'Период: ' + subtitleText;
+        subtitleText = String(formatPeriodSelectionValue(periodSource) || periodSource || 'За весь период').trim();
+    } else if (subtitleText.indexOf('Период:') === 0) {
+        subtitleText = subtitleText.replace(/^Период:\s*/i, '');
     }
     var renderHtmlFallback = function() {
         var maxCount = top.reduce(function(max, item) {
