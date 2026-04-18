@@ -5451,6 +5451,535 @@ function totalsMetricLabel(metric) {
     if (metric === 'mode') return 'Мода';
     return 'Средняя';
 }
+function assignCompactSalaryPointRows(points) {
+    var list = Array.isArray(points) ? points.map(function(point) {
+        return Object.assign({}, point);
+    }) : [];
+    var minHorizontalGap = 12;
+    var maxRows = 3;
+    var lastLeftByRow = [];
+    list.forEach(function(point) {
+        var left = Number(point && point.leftPct);
+        var assignedRow = maxRows - 1;
+        for (var rowIndex = 0; rowIndex < maxRows; rowIndex += 1) {
+            var lastLeft = lastLeftByRow[rowIndex];
+            if (!isFinite(lastLeft) || left - lastLeft >= minHorizontalGap) {
+                assignedRow = rowIndex;
+                break;
+            }
+        }
+        point.pointRow = assignedRow;
+        lastLeftByRow[assignedRow] = left;
+    });
+    return list;
+}
+function resolveSalaryChartRenderModel(selectedExperiences, monthData, contextLabel) {
+    var selectedExperience = Array.isArray(selectedExperiences) && selectedExperiences.length === 1
+        ? String(selectedExperiences[0] || '').trim()
+        : '';
+    return {
+        kind: 'progress-panels',
+        experienceLabel: selectedExperience || 'все категории опыта',
+        contextLabel: String(contextLabel || '').trim(),
+        model: buildSalaryExperienceProgressPanelsModel({
+            month: monthData && monthData.month ? monthData.month : '',
+            selectedExperience: selectedExperience,
+            experiences: monthData && Array.isArray(monthData.experiences) ? monthData.experiences : []
+        })
+    };
+}
+function buildTotalsSalarySummaryChartModel(payload, preferredCurrency, metric, selectedExperience) {
+    var data = payload || {};
+    function normalizeCurrency(value) {
+        var current = String(value || '').trim().toUpperCase();
+        if (current === 'RUB') return 'RUR';
+        if (current === 'EURO') return 'EUR';
+        return current;
+    }
+    var selectedCurrency = normalizeCurrency(preferredCurrency || 'RUR');
+    var selectedMetric = String(metric || 'avg').trim().toLowerCase();
+    var selectedExperienceLabel = String(selectedExperience || '').trim();
+    var pointColors = ['#00C3D3', '#00AADF', '#007AD8', '#7B61E8', '#D149EF'];
+    var statusDefs = [
+        { key: 'open', compactLabel: 'Открытые', singularLabel: 'Открытая' },
+        { key: 'archived', compactLabel: 'Архивные', singularLabel: 'Архивная' },
+        { key: 'new', compactLabel: 'Новые за период', singularLabel: 'Новые за период' },
+        { key: 'period_archived', compactLabel: 'Опубл. и архив. за период', singularLabel: 'Опубл. и архив. за период' }
+    ];
+    function normalizeStatusMeta(statusLabel) {
+        var label = String(statusLabel || '').trim();
+        var normalized = label.toLowerCase();
+        if (normalized === 'открытая' || normalized === 'открытые') return statusDefs[0];
+        if (normalized === 'архивная' || normalized === 'архивные') return statusDefs[1];
+        if (normalized === 'новые за период' || normalized === 'новые') return statusDefs[2];
+        if (normalized === 'опубл. и архив. за период' || normalized === 'опубл. и архивир.' || normalized === 'опубликована и архивирована') return statusDefs[3];
+        return { key: normalized || 'other', compactLabel: label || 'Не указано', singularLabel: label || 'Не указано' };
+    }
+    function experienceSortIndex(label) {
+        var current = String(label || '').trim().toLowerCase();
+        if (current === 'нет опыта') return 0;
+        if (current === 'от 1 года до 3 лет') return 1;
+        if (current === 'от 3 до 6 лет') return 2;
+        if (current === 'более 6 лет') return 3;
+        if (typeof getExperienceOrder === 'function') {
+            var order = getExperienceOrder();
+            if (Object.prototype.hasOwnProperty.call(order, label)) return Number(order[label]) || 99;
+        }
+        return 99;
+    }
+    function buildPositions(count) {
+        if (!count) return [];
+        if (count === 1) return [50];
+        if (count === 2) return [0, 100];
+        if (count === 3) return [0, 50, 100];
+        if (count === 4) return [0, 36, 66, 100];
+        return [0, 22, 48, 74, 100];
+    }
+    function formatValueLabel(value) {
+        if (typeof formatCompactThousandsValue === 'function') return formatCompactThousandsValue(value);
+        return String(value);
+    }
+    function assignPointRows(points) {
+        var list = Array.isArray(points) ? points.map(function(point) {
+            return Object.assign({}, point);
+        }) : [];
+        var minHorizontalGap = 12;
+        var maxRows = 3;
+        var lastLeftByRow = [];
+        list.forEach(function(point) {
+            var left = Number(point && point.leftPct);
+            var assignedRow = maxRows - 1;
+            for (var rowIndex = 0; rowIndex < maxRows; rowIndex += 1) {
+                var lastLeft = lastLeftByRow[rowIndex];
+                if (!isFinite(lastLeft) || left - lastLeft >= minHorizontalGap) {
+                    assignedRow = rowIndex;
+                    break;
+                }
+            }
+            point.pointRow = assignedRow;
+            lastLeftByRow[assignedRow] = left;
+        });
+        return list;
+    }
+    function mergePointItems(items) {
+        var list = (items || []).filter(function(item) {
+            return item && item.value !== null && item.value !== undefined && isFinite(item.value);
+        }).map(function(item) {
+            return Object.assign({}, item, { value: Number(item.value) });
+        }).sort(function(a, b) {
+            return a.value - b.value;
+        });
+        var grouped = [];
+        list.forEach(function(item) {
+            var last = grouped.length ? grouped[grouped.length - 1] : null;
+            if (last && last.value === item.value) {
+                last.labels.push(item.label);
+            } else {
+                grouped.push({ value: item.value, labels: [item.label], color: item.color });
+            }
+        });
+        var positions = buildPositions(grouped.length);
+        return assignPointRows(grouped.map(function(group, index) {
+            return {
+                label: group.labels.join(', '),
+                value: group.value,
+                valueLabel: formatValueLabel(group.value),
+                color: group.color,
+                leftPct: positions[index]
+            };
+        }));
+    }
+    function hasSalaryData(entry) {
+        if (!entry) return false;
+        if (Number(entry.vacancies_with_salary) > 0) return true;
+        return ['avg_salary', 'median_salary', 'mode_salary', 'min_salary', 'max_salary'].some(function(key) {
+            var value = Number(entry[key]);
+            return entry[key] !== null && entry[key] !== undefined && isFinite(value) && value > 0;
+        });
+    }
+    function aggregateLegacyStatuses(currencyModel) {
+        var experienceRows = Array.isArray(currencyModel && currencyModel.experiences) ? currencyModel.experiences : [];
+        var statusMap = {};
+        experienceRows.forEach(function(experienceRow) {
+            var tracks = Array.isArray(experienceRow && experienceRow.tracks) ? experienceRow.tracks : [];
+            tracks.forEach(function(track) {
+                if (!track || !Array.isArray(track.points) || !track.points.length) return;
+                var values = track.points.map(function(point) { return Number(point.value); }).filter(function(value) { return isFinite(value); });
+                if (!values.length) return;
+                statusMap[track.statusKey] = statusMap[track.statusKey] || {
+                    statusKey: track.statusKey,
+                    label: track.statusLabel || '',
+                    values: []
+                };
+                statusMap[track.statusKey].values = statusMap[track.statusKey].values.concat(values);
+            });
+        });
+        return statusDefs.filter(function(def) {
+            return !!statusMap[def.key];
+        }).map(function(def) {
+            var values = statusMap[def.key].values;
+            var avgValue = values.length ? Math.round(values.reduce(function(sum, value) { return sum + value; }, 0) / values.length) : 0;
+            return {
+                statusKey: def.key,
+                label: def.compactLabel,
+                value: avgValue,
+                valueLabel: formatValueLabel(avgValue),
+                widthPct: 0
+            };
+        });
+    }
+    if (Array.isArray(data.currencies) && !Array.isArray(data.experiences)) {
+        var legacyCurrency = (data.currencies || []).find(function(item) {
+            return normalizeCurrency(item && item.currency) === selectedCurrency;
+        }) || (data.currencies || [])[0] || { currency: selectedCurrency, experiences: [] };
+        var legacyStatuses = aggregateLegacyStatuses(legacyCurrency);
+        var legacyMax = legacyStatuses.reduce(function(maxValue, row) {
+            return Math.max(maxValue, Number(row.value) || 0);
+        }, 0);
+        legacyStatuses.forEach(function(row) {
+            row.widthPct = legacyMax ? Math.max(12, Math.round((row.value / legacyMax) * 100)) : 0;
+        });
+        return {
+            currency: normalizeCurrency(legacyCurrency.currency || selectedCurrency),
+            statuses: legacyStatuses
+        };
+    }
+
+    var experiences = Array.isArray(data.experiences) ? data.experiences.filter(function(item) {
+        return item && !(typeof isSalarySummaryExperience === 'function' && isSalarySummaryExperience(item.experience));
+    }) : [];
+    if (!selectedExperienceLabel) {
+        var legend = experiences.slice().sort(function(a, b) {
+            return experienceSortIndex(String(a.experience || '').trim()) - experienceSortIndex(String(b.experience || '').trim());
+        }).map(function(item, index) {
+            return {
+                label: String(item.experience || '').trim(),
+                color: pointColors[index % pointColors.length]
+            };
+        });
+        var currencySet = [];
+        experiences.forEach(function(experienceRow) {
+            (experienceRow.entries || []).forEach(function(entry) {
+                if (!hasSalaryData(entry)) return;
+                var currency = normalizeCurrency(entry && entry.currency);
+                currency = normalizeCurrency(currency);
+                if (currency && currencySet.indexOf(currency) === -1) currencySet.push(currency);
+            });
+        });
+        currencySet.sort(function(a, b) {
+            var preferred = ['RUR', 'USD', 'EUR'];
+            var left = preferred.indexOf(a);
+            var right = preferred.indexOf(b);
+            if (left === -1 && right === -1) return String(a).localeCompare(String(b), 'ru');
+            if (left === -1) return 1;
+            if (right === -1) return -1;
+            return left - right;
+        });
+        return {
+            title: 'Зарплаты',
+            legendMode: 'experience',
+            metricLabel: totalsMetricLabel(selectedMetric),
+            legend: legend,
+            currencies: currencySet.map(function(currency) {
+                return {
+                    currency: currency,
+                    statuses: statusDefs.map(function(statusDef) {
+                        var points = mergePointItems(experiences.map(function(experienceRow, index) {
+                            var matchedEntry = (experienceRow.entries || []).find(function(entry) {
+                                var statusMeta = normalizeStatusMeta(entry && entry.status);
+                                return normalizeCurrency(entry && entry.currency) === currency && statusMeta.key === statusDef.key;
+                            });
+                            var value = matchedEntry ? Number(matchedEntry.avg_salary) : null;
+                            return {
+                                label: legend[index] ? legend[index].label : String(experienceRow.experience || '').trim(),
+                                value: isFinite(value) ? value : null,
+                                color: legend[index] ? legend[index].color : pointColors[index % pointColors.length]
+                            };
+                        }));
+                        return {
+                            statusKey: statusDef.key,
+                            label: statusDef.compactLabel,
+                            points: points
+                        };
+                    })
+                };
+            })
+        };
+    }
+
+    var selectedRow = experiences.find(function(item) {
+        return String(item.experience || '').trim() === selectedExperienceLabel;
+    }) || { experience: selectedExperienceLabel, entries: [] };
+    var metricLegend = [
+        { label: 'Мин', color: pointColors[0], key: 'min_salary' },
+        { label: 'Мода', color: pointColors[1], key: 'mode_salary' },
+        { label: 'Медиана', color: pointColors[2], key: 'median_salary' },
+        { label: 'Среднее', color: pointColors[3], key: 'avg_salary' },
+        { label: 'Макс', color: pointColors[4], key: 'max_salary' }
+    ];
+    return {
+        title: 'Зарплаты',
+        legendMode: 'metric',
+        metricLabel: totalsMetricLabel(selectedMetric),
+        legend: metricLegend.map(function(item) {
+            return { label: item.label, color: item.color };
+        }),
+        currencies: ['RUR', 'USD', 'EUR'].map(function(currency) {
+            var matchingEntries = (selectedRow.entries || []).filter(function(entry) {
+                return normalizeCurrency(entry && entry.currency) === currency;
+            });
+            var trackKeys = ['open', 'archived'];
+            matchingEntries.forEach(function(entry) {
+                var meta = normalizeStatusMeta(entry && entry.status);
+                if (trackKeys.indexOf(meta.key) === -1) trackKeys.push(meta.key);
+            });
+            return {
+                currency: currency,
+                statuses: trackKeys.map(function(trackKey) {
+                    var statusDef = statusDefs.find(function(def) { return def.key === trackKey; }) || normalizeStatusMeta(trackKey);
+                    var matchedEntry = matchingEntries.find(function(entry) {
+                        return normalizeStatusMeta(entry && entry.status).key === trackKey;
+                    });
+                    var points = mergePointItems(metricLegend.map(function(metricItem) {
+                        var value = matchedEntry ? Number(matchedEntry[metricItem.key]) : null;
+                        return {
+                            label: metricItem.label,
+                            value: isFinite(value) ? value : null,
+                            color: metricItem.color
+                        };
+                    }));
+                    return {
+                        statusKey: trackKey,
+                        label: statusDef.compactLabel || statusDef.singularLabel || statusDef.label || trackKey,
+                        points: points
+                    };
+                })
+            };
+        })
+    };
+}
+function buildTotalsSalarySummaryChartHtml(summary) {
+    var data = summary || {};
+    if (Array.isArray(data.currencies)) {
+        function pointRowsHtml(rows) {
+            return rows.map(function(row) {
+                var points = Array.isArray(row && row.points) ? row.points : [];
+                return '<div class="salary-summary-chart-row">' +
+                    '<div class="salary-summary-chart-label">' + escapeHtml(row && row.label || '—') + '</div>' +
+                    '<div class="salary-summary-chart-line">' +
+                        '<div class="salary-summary-chart-line-track"></div>' +
+                        points.map(function(point) {
+                            var color = String(point && point.color || '#94a3b8');
+                            var pointLabel = String(point && point.label || '').trim();
+                            var leftPct = Number(point && point.leftPct);
+                            var pointRow = Number(point && point.pointRow);
+                            return '<div class="salary-summary-chart-point" style="left:' + leftPct + '%;--salary-point-row:' + pointRow + ';">' +
+                                '<span class="salary-summary-chart-point-dot" style="background:' + escapeHtml(color) + ';"></span>' +
+                                '<span class="salary-summary-chart-point-text" style="color:' + escapeHtml(color) + ';">' + escapeHtml(pointLabel || '—') + '</span>' +
+                                '<span class="salary-summary-chart-point-value">' + escapeHtml(point && point.valueLabel || '—') + '</span>' +
+                            '</div>';
+                        }).join('') +
+                    '</div>' +
+                '</div>';
+            }).join('');
+        }
+        var legend = Array.isArray(data.legend) ? data.legend : [];
+        return '<div class="salary-summary-chart salary-summary-chart-compact salary-summary-chart-points">' +
+            '<div class="salary-summary-chart-head">' +
+                '<div class="salary-summary-chart-title">' + escapeHtml(String(data.title || ((data.metricLabel ? String(data.metricLabel) + ' зарплаты' : 'Средняя зарплата')))) + '</div>' +
+                '<div class="salary-summary-chart-subtitle">' + escapeHtml(data.legendMode === 'metric' ? 'По зарплатным метрикам' : 'По группам опыта') + '</div>' +
+            '</div>' +
+            (legend.length ? '<div class="salary-summary-chart-legend salary-summary-chart-legend-text">' + legend.map(function(item) {
+                var color = String(item && item.color || '#94a3b8');
+                return '<div class="salary-summary-chart-legend-item">' +
+                    '<span class="salary-summary-chart-legend-label" style="color:' + escapeHtml(color) + ';">' + escapeHtml(item && item.label || '—') + '</span>' +
+                '</div>';
+            }).join('') + '</div>' : '') +
+            '<div class="salary-summary-chart-body salary-summary-chart-body-points">' +
+                (data.currencies || []).map(function(currencyModel) {
+                    var rows = Array.isArray(currencyModel && currencyModel.statuses) ? currencyModel.statuses : [];
+                    return '<section class="salary-summary-chart-currency-section">' +
+                        '<div class="salary-summary-chart-currency-head">' +
+                            '<div class="salary-summary-chart-currency-title">' + escapeHtml(currencyModel && currencyModel.currency || '—') + '</div>' +
+                        '</div>' +
+                        pointRowsHtml(rows) +
+                    '</section>';
+                }).join('') +
+            '</div>' +
+        '</div>';
+    }
+    var statuses = Array.isArray(data.statuses) ? data.statuses : [];
+    return '<div class="salary-summary-chart">' +
+        '<div class="salary-summary-chart-head">' +
+            '<div class="salary-summary-chart-title">' + escapeHtml((data.currency || 'RUR') + ' · средняя зарплата') + '</div>' +
+        '</div>' +
+        '<div class="salary-summary-chart-body">' +
+            statuses.map(function(row) {
+                return '<div class="salary-summary-chart-row salary-summary-chart-row-bars">' +
+                    '<div class="salary-summary-chart-label">' + escapeHtml(row.label || '—') + '</div>' +
+                    '<div class="salary-summary-chart-bar-wrap">' +
+                        '<div class="salary-summary-chart-bar" style="width:' + escapeHtml(String(row.widthPct || 0)) + '%;"></div>' +
+                        '<div class="salary-summary-chart-bar-value">' + escapeHtml(row.valueLabel || '—') + '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('') +
+        '</div>' +
+    '</div>';
+}
+function buildSalaryProgressPanelsHtml(model, contextLabel) {
+    var data = model || {};
+    var currencies = Array.isArray(data.currencies) ? data.currencies : [];
+    function normalizeStatusLabel(label) {
+        var current = String(label || '').trim();
+        if (current === 'Открытые') return 'Открытая';
+        if (current === 'Архивные') return 'Архивная';
+        return current;
+    }
+    function buildMetricChipsHtml(points) {
+        var list = Array.isArray(points) ? points : [];
+        if (!list.length) return '<span class="salary-progress-status-empty">нет данных</span>';
+        return '<div class="salary-progress-status-metrics">' + list.map(function(point) {
+            return '<span class="salary-progress-metric-chip">' +
+                '<span class="salary-progress-metric-chip-label">' + escapeHtml(point.labels || '—') + '</span>' +
+                '<span class="salary-progress-metric-chip-value">' + escapeHtml(formatCompactThousandsValue(point.value)) + '</span>' +
+            '</span>';
+        }).join('') + '</div>';
+    }
+    return '<div class="salary-progress-panels">' +
+        currencies.map(function(currencyRow) {
+            var experienceRows = Array.isArray(currencyRow && currencyRow.experiences) ? currencyRow.experiences : [];
+            return '<section class="salary-progress-currency-section">' +
+                '<div class="salary-progress-currency-head">' +
+                    '<div class="salary-progress-currency-title">' + escapeHtml(currencyRow && currencyRow.currency || '—') + '</div>' +
+                    (contextLabel ? '<div class="salary-progress-currency-context">' + escapeHtml(contextLabel) + '</div>' : '') +
+                '</div>' +
+                experienceRows.map(function(experienceRow) {
+                    var tracks = Array.isArray(experienceRow && experienceRow.tracks) ? experienceRow.tracks : [];
+                    var referenceTrack = tracks.find(function(track) { return track && Array.isArray(track.points) && track.points.length; }) || { points: [] };
+                    return '<div class="salary-progress-experience-divider">' +
+                        '<div class="salary-progress-experience-title">' + escapeHtml(experienceRow && experienceRow.experience || '—') + '</div>' +
+                        '<div class="salary-progress-track">' +
+                            '<div class="salary-progress-track-line"></div>' +
+                            (referenceTrack.points || []).map(function(point) {
+                                return '<div class="salary-progress-track-point" style="left:' + escapeHtml(String(point.positionPct)) + '%;">' +
+                                    '<span class="salary-progress-track-point-dot"></span>' +
+                                    '<span class="salary-progress-track-point-label">' + escapeHtml(point.labels || '—') + '</span>' +
+                                    '<span class="salary-progress-track-point-value">' + escapeHtml(formatCompactThousandsValue(point.value)) + '</span>' +
+                                '</div>';
+                            }).join('') +
+                        '</div>' +
+                        '<div class="salary-progress-status-list">' +
+                            tracks.map(function(track) {
+                                return '<div class="salary-progress-status-item">' +
+                                    '<span class="salary-progress-status-name">' + escapeHtml(normalizeStatusLabel(track.statusLabel || '—')) + '</span>' +
+                                    '<div class="salary-progress-status-values">' + buildMetricChipsHtml(track.empty ? [] : (track.points || [])) + '</div>' +
+                                '</div>';
+                            }).join('') +
+                        '</div>' +
+                    '</div>';
+                }).join('') +
+            '</section>';
+        }).join('') +
+    '</div>';
+}
+function buildTotalsSalaryProgressSource(model) {
+    var data = model || {};
+    var currencies = Array.isArray(data.currencies) ? data.currencies : [];
+    return currencies.map(function(currencyRow) {
+        var statuses = Array.isArray(currencyRow && currencyRow.statuses) ? currencyRow.statuses : [];
+        return {
+            currency: currencyRow && currencyRow.currency || '',
+            statuses: statuses.map(function(statusRow) {
+                var label = String(statusRow && statusRow.statusLabel || '').trim().toLowerCase();
+                if (label === 'новые') label = 'новые';
+                if (label === 'опубл. и архив.') label = 'опубл. и архивир.';
+                return {
+                    statusKey: statusRow && statusRow.statusKey || '',
+                    shortLabel: label === 'новые' ? 'Новые' : (label === 'опубл. и архивир.' ? 'Опубл. и архивир.' : String(statusRow && statusRow.statusLabel || '').trim()),
+                    points: Array.isArray(statusRow && statusRow.points) ? statusRow.points : []
+                };
+            })
+        };
+    });
+}
+function buildTotalsSalaryOverviewSectionHtml(summaryChart, progressPanels) {
+    return '<div class="salary-overview-stack">' +
+        buildSalaryOverviewChartHtml(summaryChart || {}) +
+    '</div>';
+}
+function buildSalaryOverviewChartHtml(model) {
+    var data = model || {};
+    var currencies = Array.isArray(data.currencies) ? data.currencies : [];
+    function colorToTint(color, alpha) {
+        var current = String(color || '').trim();
+        var match = current.match(/^#([0-9a-f]{6})$/i);
+        if (!match) return 'rgba(148, 163, 184, ' + String(alpha || 0.18) + ')';
+        var hex = match[1];
+        var red = parseInt(hex.slice(0, 2), 16);
+        var green = parseInt(hex.slice(2, 4), 16);
+        var blue = parseInt(hex.slice(4, 6), 16);
+        return 'rgba(' + red + ', ' + green + ', ' + blue + ', ' + String(alpha || 0.18) + ')';
+    }
+    function buildLegendHtml() {
+        var legend = Array.isArray(data.legend) ? data.legend : [];
+        if (!legend.length) return '';
+        return '<div class="salary-overview-legend">' + legend.map(function(item) {
+            var color = String(item && item.color || '#94a3b8');
+            var gradient = String(item && item.gradient || '').trim();
+            var chipStyle = gradient
+                ? 'background-image:' + escapeHtml(gradient) + ';background-color:rgba(255,255,255,0.18);background-blend-mode:screen;border-color:transparent;color:#0f172a;'
+                : 'color:' + escapeHtml(color) + ';background:' + escapeHtml(colorToTint(color, 0.14)) + ';border-color:' + escapeHtml(colorToTint(color, 0.28)) + ';';
+            return '<span class="salary-overview-legend-label' + (gradient ? ' is-gradient' : '') + '" style="' + chipStyle + '">' + escapeHtml(item && item.label || '—') + '</span>';
+        }).join('') + '</div>';
+    }
+    function buildCurrencySectionHtml(currencyRow) {
+        var currency = String(currencyRow && currencyRow.currency || '—');
+        var statuses = Array.isArray(currencyRow && currencyRow.statuses) ? currencyRow.statuses : [];
+        var expanded = !!(currencyRow && currencyRow.expanded);
+        return '<section class="salary-overview-currency-section' + (expanded ? ' is-expanded' : '') + '" data-currency="' + escapeHtml(currency) + '">' +
+            '<button type="button" class="salary-overview-currency-button" data-currency="' + escapeHtml(currency) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '">' +
+                '<span class="salary-overview-currency-title">' + escapeHtml(currency) + '</span>' +
+            '</button>' +
+            '<div class="salary-overview-currency-panel"' + (expanded ? '' : ' hidden') + '>' +
+                statuses.map(function(statusRow) {
+                    var points = Array.isArray(statusRow && statusRow.points) ? statusRow.points : [];
+                    return '<div class="salary-overview-status-row">' +
+                        '<div class="salary-overview-status-label">' + escapeHtml(statusRow && statusRow.statusLabel || '—') + '</div>' +
+                        '<div class="salary-overview-track">' +
+                            '<div class="salary-overview-track-line"></div>' +
+                            points.map(function(point) {
+                                var color = String(point && point.color || '#94a3b8');
+                                var gradient = String(point && point.gradient || '').trim();
+                                var textColor = String(point && point.textColor || color || '#94a3b8');
+                                var dotStyle = gradient
+                                    ? 'background-image:' + escapeHtml(gradient) + ';background-color:' + escapeHtml(color) + ';'
+                                    : 'background:' + escapeHtml(color) + ';';
+                                var valueStyle = gradient
+                                    ? 'color:#0f172a;'
+                                    : 'color:' + escapeHtml(color) + ';';
+                                return '<div class="salary-overview-track-point" style="left:' + escapeHtml(String(point && point.leftPct || 0)) + '%;--salary-point-row:' + escapeHtml(String(point && point.pointRow || 0)) + ';">' +
+                                    '<span class="salary-overview-track-point-dot' + (gradient ? ' is-gradient' : '') + '" style="' + dotStyle + '"></span>' +
+                                    '<span class="salary-overview-track-point-value' + (gradient ? ' is-gradient' : '') + '" style="' + valueStyle + '">' + escapeHtml(point && point.valueLabel || '—') + '</span>' +
+                                '</div>';
+                            }).join('') +
+                        '</div>' +
+                    '</div>';
+                }).join('') +
+            '</div>' +
+        '</section>';
+    }
+    if (!currencies.length) {
+        return '<div class="salary-overview-chart">' +
+            '<div class="salary-overview-empty">Нет данных по зарплате для выбранных фильтров</div>' +
+        '</div>';
+    }
+    return '<div class="salary-overview-chart">' +
+        buildLegendHtml() +
+        '<div class="salary-overview-currencies">' +
+            currencies.map(buildCurrencySectionHtml).join('') +
+        '</div>' +
+    '</div>';
+}
 function normalizeTotalsTopLimit(value) {
     var num = Number(value);
     if (!isFinite(num)) num = 15;
@@ -6962,10 +7491,22 @@ function renderGlobalTotalsFiltered(parentRole) {
     vacancies = dedupeVacanciesById(vacancies || []);
 
     var salaryRows = totalsComputeSalaryByCurrency(vacancies);
+    var salaryMonthData = buildSalaryMonthFromVacancies(vacancies, periodLabel || 'За период');
+    var salarySelectedExperience = Array.isArray(selectedExps) && selectedExps.length === 1 ? String(selectedExps[0] || '').trim() : '';
+    var salaryOverviewModel = buildSalaryOverviewChartModel({
+        month: contextText,
+        selectedExperience: salarySelectedExperience,
+        selectedCurrency: uiState.totals_salary_currency || '',
+        experiences: salaryMonthData && Array.isArray(salaryMonthData.experiences) ? salaryMonthData.experiences : []
+    });
     var currencies = salaryRows.filter(function(row) { return row.withSalary > 0; }).map(function(row) { return row.currency; });
     if (!currencies.length) {
         currencies = salaryRows.filter(function(row) { return row.total > 0; }).map(function(row) { return row.currency; });
     }
+    (salaryOverviewModel && Array.isArray(salaryOverviewModel.currencies) ? salaryOverviewModel.currencies : []).forEach(function(row) {
+        var currency = String(row && row.currency || '').trim();
+        if (currency && currencies.indexOf(currency) === -1) currencies.push(currency);
+    });
     if (!currencies.length) currencies = ['RUR', 'USD', 'EUR'];
     var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
     if (dashboardMode !== 'overview' && dashboardMode !== 'top' && dashboardMode !== 'market-trends') dashboardMode = 'overview';
@@ -7670,7 +8211,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             '</div>' +
             '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Зарплаты</h3>' +
-                buildSalaryChartHtml(salaryRows) +
+                buildTotalsSalaryOverviewSectionHtml(salaryOverviewModel) +
             '</div>' +
             buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
         '</div>';
@@ -7749,6 +8290,14 @@ function renderGlobalTotalsFiltered(parentRole) {
             uiState[key] = value;
             renderGlobalTotalsFiltered(parentRole);
             if (key === 'totals_dashboard_mode') syncSharedFilterPanel(parentRole, 'totals', true);
+        });
+    });
+    block.querySelectorAll('.salary-overview-currency-button').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var currency = String(btn.dataset.currency || '').trim();
+            if (!currency) return;
+            uiState.totals_salary_currency = currency;
+            renderGlobalTotalsFiltered(parentRole);
         });
     });
     if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading) {
@@ -11191,7 +11740,25 @@ function restoreAllRolesPeriodState(parentRole, analysisType) {
     var wrapper = parentRole.querySelector('.all-roles-period-wrapper[data-analysis="' + analysisId + '"]');
     if (!wrapper) return;
     var buttons = wrapper.querySelectorAll('.month-button');
-    if (!buttons.length) return;
+    if (!buttons.length) {
+        var period = uiState.all_roles_periods ? uiState.all_roles_periods[analysisType] : null;
+        var contentNodes = wrapper.querySelectorAll('.all-roles-period-content');
+        if (!contentNodes.length) return;
+        var targetNode = Array.from(contentNodes).find(function(node) {
+            return String(node.dataset.period || '').trim() === String(period || 'all').trim();
+        }) || Array.from(contentNodes).find(function(node) {
+            return String(node.dataset.period || '').trim() === 'all';
+        }) || contentNodes[0];
+        if (!targetNode) return;
+        Array.from(contentNodes).forEach(function(node) {
+            node.style.display = 'none';
+        });
+        targetNode.style.display = 'block';
+        if (analysisType === 'salary' && typeof renderAllRolesSalaryPeriodContent === 'function') {
+            renderAllRolesSalaryPeriodContent(targetNode, String(targetNode.dataset.period || period || 'all').trim() || 'all');
+        }
+        return;
+    }
     var saved = uiState.all_roles_periods ? uiState.all_roles_periods[analysisType] : null;
     if (saved) {
         for (var btn of buttons) {

@@ -1,0 +1,70 @@
+﻿<h2>Какой вид salary chart использовать, когда опыт не выбран?</h2>
+<p class="subtitle">Ориентир: сохранить компактность dashboard-card как в <code>dash1.jpg</code>, но дать честное сравнение зарплат по опытам.</p>
+<style>
+.compare-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:18px}.compare-card{border:1px solid rgba(255,255,255,.08);border-radius:22px;background:linear-gradient(180deg,#171b2a 0%,#111522 100%);padding:16px;box-shadow:0 18px 44px rgba(0,0,0,.28);min-height:380px}.compare-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.compare-kicker{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#7dd3fc}.compare-title{font-size:18px;font-weight:700;color:#f8fafc;margin:0 0 4px}.compare-copy{font-size:13px;line-height:1.45;color:#a8b3cf;margin:0}.mock-chart{border-radius:18px;background:radial-gradient(circle at top left,rgba(34,211,238,.18),transparent 38%),linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);padding:14px;margin:14px 0 12px}.axis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end;height:180px}.group{display:flex;align-items:flex-end;justify-content:center;gap:6px;height:100%}.bar{width:18px;border-radius:10px 10px 4px 4px;background:linear-gradient(180deg,#22d3ee 0%,#0ea5e9 100%)}.bar.alt{background:linear-gradient(180deg,#e879f9 0%,#a855f7 100%)}.bar.mid{background:linear-gradient(180deg,#c084fc 0%,#6366f1 100%)}.xlabels{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px;font-size:11px;color:#94a3b8;text-align:center}.line-chart{position:relative;height:180px;border-left:1px solid rgba(148,163,184,.25);border-bottom:1px solid rgba(148,163,184,.25);margin:8px 6px 4px 6px}.line{position:absolute;left:0;right:0;height:2px;background:transparent}.line svg{width:100%;height:180px;overflow:visible}.line-labels{display:grid;grid-template-columns:repeat(4,1fr);font-size:11px;color:#94a3b8;text-align:center;margin-top:8px}.bullet-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}.bullet-list div{font-size:13px;color:#dbe6ff;padding-left:14px;position:relative}.bullet-list div:before{content:'•';position:absolute;left:0;color:#67e8f9}.recommend{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#111827;background:linear-gradient(135deg,#67e8f9,#c084fc);padding:6px 10px;border-radius:999px}.small-multiples{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mini{border-radius:14px;background:rgba(15,23,42,.72);border:1px solid rgba(255,255,255,.06);padding:10px}.mini-title{font-size:11px;color:#cbd5e1;margin-bottom:8px}.mini-bars{display:flex;align-items:flex-end;gap:5px;height:88px}.mini-bars span{flex:1;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#22d3ee 0%,#a855f7 100%)}@media (max-width: 1100px){.compare-grid{grid-template-columns:1fr}}</style>
+<div class="options compare-grid">
+  <div class="option compare-card" data-choice="grouped-bars" onclick="toggleSelect(this)">
+    <div class="compare-head">
+      <div>
+        <div class="compare-kicker">Рекомендую</div>
+        <h3 class="compare-title">Группированные столбцы по опыту</h3>
+        <p class="compare-copy">Ось X: опыт. Внутри каждой группы 2–3 серии: средняя, медиана, p75. Это самый читаемый способ сравнить уровни зарплат между опытами.</p>
+      </div>
+      <span class="recommend">Best fit</span>
+    </div>
+    <div class="mock-chart">
+      <div class="axis">
+        <div class="group"><div class="bar" style="height:42%"></div><div class="bar alt" style="height:36%"></div><div class="bar mid" style="height:51%"></div></div>
+        <div class="group"><div class="bar" style="height:58%"></div><div class="bar alt" style="height:54%"></div><div class="bar mid" style="height:67%"></div></div>
+        <div class="group"><div class="bar" style="height:76%"></div><div class="bar alt" style="height:68%"></div><div class="bar mid" style="height:84%"></div></div>
+        <div class="group"><div class="bar" style="height:94%"></div><div class="bar alt" style="height:88%"></div><div class="bar mid" style="height:100%"></div></div>
+      </div>
+      <div class="xlabels"><span>Нет опыта</span><span>1–3</span><span>3–6</span><span>6+</span></div>
+    </div>
+    <div class="bullet-list">
+      <div>Лучше всего работает в одной dashboard-card</div>
+      <div>Сразу видно рост зарплаты с опытом</div>
+      <div>Легко уважает фильтр валюты и переключатель метрики</div>
+    </div>
+  </div>
+  <div class="option compare-card" data-choice="lines" onclick="toggleSelect(this)">
+    <div class="compare-head">
+      <div>
+        <div class="compare-kicker">Более аналитично</div>
+        <h3 class="compare-title">Линии по метрикам</h3>
+        <p class="compare-copy">Опыт остаётся на оси X, а средняя, медиана и p75 становятся линиями. График выглядит ближе к dashboard-референсу, но хуже считывает точные различия между соседними уровнями.</p>
+      </div>
+    </div>
+    <div class="mock-chart">
+      <div class="line-chart">
+        <div class="line"><svg viewBox="0 0 100 100" preserveAspectRatio="none"><polyline fill="none" stroke="#22d3ee" stroke-width="3" points="0,72 33,54 66,32 100,12"/><polyline fill="none" stroke="#e879f9" stroke-width="3" points="0,80 33,60 66,40 100,20"/><polyline fill="none" stroke="#a78bfa" stroke-width="3" points="0,64 33,48 66,22 100,6"/></svg></div>
+      </div>
+      <div class="line-labels"><span>Нет опыта</span><span>1–3</span><span>3–6</span><span>6+</span></div>
+    </div>
+    <div class="bullet-list">
+      <div>Выглядит легче и «дашборднее»</div>
+      <div>Хорош для тренда, слабее для сравнения абсолютов</div>
+      <div>Риск визуального шума на маленькой высоте</div>
+    </div>
+  </div>
+  <div class="option compare-card" data-choice="small-multiples" onclick="toggleSelect(this)">
+    <div class="compare-head">
+      <div>
+        <div class="compare-kicker">Наименее предпочтительно</div>
+        <h3 class="compare-title">Малые карточки по опытам</h3>
+        <p class="compare-copy">Отдельная мини-карточка на каждый уровень опыта. Красиво, но для сравнения между опытами пользователь вынужден бегать глазами между несколькими блоками.</p>
+      </div>
+    </div>
+    <div class="mock-chart small-multiples">
+      <div class="mini"><div class="mini-title">Нет опыта</div><div class="mini-bars"><span style="height:34%"></span><span style="height:28%"></span><span style="height:42%"></span></div></div>
+      <div class="mini"><div class="mini-title">1–3</div><div class="mini-bars"><span style="height:48%"></span><span style="height:44%"></span><span style="height:60%"></span></div></div>
+      <div class="mini"><div class="mini-title">3–6</div><div class="mini-bars"><span style="height:68%"></span><span style="height:58%"></span><span style="height:78%"></span></div></div>
+      <div class="mini"><div class="mini-title">6+</div><div class="mini-bars"><span style="height:82%"></span><span style="height:76%"></span><span style="height:92%"></span></div></div>
+    </div>
+    <div class="bullet-list">
+      <div>Лучше для showcase, хуже для аналитики</div>
+      <div>Занимает больше места</div>
+      <div>На мобильном сложнее собирать общую картину</div>
+    </div>
+  </div>
+</div>

@@ -8233,6 +8233,8 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     border: 1px solid rgba(148, 163, 184, 0.16);
     cursor: pointer;
     text-align: left;
+    font: inherit;
+    color: inherit;
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 .donut-legend-action:hover {
@@ -8746,6 +8748,458 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 }
 
 /* Адаптивность */
+.salary-overview-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.salary-overview-chart {
+    padding: 0;
+}
+
+.salary-overview-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-top: 2px;
+}
+
+.salary-overview-legend-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    font-family: Arial, sans-serif;
+    font-size: 0.73rem;
+    font-weight: 700;
+}
+
+.salary-overview-legend-label.is-gradient {
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+    text-shadow: none;
+    font-weight: 800;
+}
+
+.salary-overview-currencies {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.salary-overview-currency-section {
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.78);
+    overflow: hidden;
+}
+
+.salary-overview-currency-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.salary-overview-currency-button:hover {
+    background: rgba(241, 245, 249, 0.9);
+}
+
+.salary-overview-currency-title {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.salary-overview-currency-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 14px 8px;
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.salary-overview-status-row {
+    display: grid;
+    grid-template-columns: 94px minmax(0, 1fr);
+    align-items: end;
+    gap: 6px;
+}
+
+.salary-overview-status-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.salary-overview-track {
+    position: relative;
+    min-height: 38px;
+}
+
+.salary-overview-track-line {
+    position: absolute;
+    top: 24px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.28);
+}
+
+.salary-overview-track-point {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    display: block;
+    min-width: 44px;
+}
+
+.salary-overview-track-point-dot {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.98);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+}
+
+.salary-overview-track-point-dot.is-gradient {
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+}
+
+.salary-overview-track-point-value {
+    position: absolute;
+    left: 50%;
+    bottom: calc(14px + (10px * var(--salary-point-row, 0)));
+    transform: translateX(-50%);
+    font-size: 0.72rem;
+    line-height: 1.15;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.salary-overview-track-point-value {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.salary-overview-track-point-value.is-gradient {
+    color: #0f172a !important;
+    background-image: none !important;
+    -webkit-text-fill-color: #0f172a;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.92);
+}
+
+.salary-overview-empty {
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.salary-summary-chart,
+.salary-progress-panels {
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.82) 0%, rgba(241, 245, 249, 0.92) 100%);
+    border: 1px solid rgba(226, 232, 240, 0.96);
+    padding: 16px;
+}
+
+.salary-summary-chart-head,
+.salary-progress-currency-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.salary-summary-chart-title,
+.salary-progress-currency-title,
+.salary-progress-experience-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.salary-summary-chart-subtitle,
+.salary-progress-currency-context {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.salary-summary-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin-top: 10px;
+}
+
+.salary-summary-chart-legend-item {
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.salary-summary-chart-body {
+    margin-top: 14px;
+}
+
+.salary-summary-chart-body-points {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 14px;
+}
+
+.salary-summary-chart-currency-section,
+.salary-progress-currency-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.salary-summary-chart-currency-section + .salary-summary-chart-currency-section,
+.salary-progress-currency-section + .salary-progress-currency-section {
+    padding-top: 12px;
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.salary-summary-chart-currency-title {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-primary);
+}
+
+.salary-summary-chart-row {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+}
+
+.salary-summary-chart-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.salary-summary-chart-line {
+    position: relative;
+    min-height: 86px;
+}
+
+.salary-summary-chart-line-track {
+    position: absolute;
+    top: 54px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(203, 213, 225, 0.68);
+}
+
+.salary-summary-chart-point {
+    position: absolute;
+    top: calc(18px * var(--salary-point-row, 0));
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 42px;
+}
+
+.salary-summary-chart-point-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+}
+
+.salary-summary-chart-point-text,
+.salary-summary-chart-point-value {
+    font-size: 0.72rem;
+    line-height: 1.15;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.salary-summary-chart-point-value {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.salary-summary-chart-row-bars {
+    grid-template-columns: 132px minmax(0, 1fr);
+    margin-bottom: 10px;
+}
+
+.salary-summary-chart-bar-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.salary-summary-chart-bar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #00c3d3 0%, #7b61e8 55%, #d149ef 100%);
+    opacity: 0.88;
+}
+
+.salary-summary-chart-bar-value {
+    position: relative;
+    z-index: 1;
+    margin-left: auto;
+    padding: 0 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.salary-progress-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.salary-progress-experience-divider {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.salary-progress-experience-divider + .salary-progress-experience-divider {
+    padding-top: 10px;
+    border-top: 1px dashed rgba(203, 213, 225, 0.9);
+}
+
+.salary-progress-track {
+    position: relative;
+    min-height: 42px;
+}
+
+.salary-progress-track-line {
+    position: absolute;
+    top: 16px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(203, 213, 225, 0.68);
+}
+
+.salary-progress-track-point {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.salary-progress-track-point-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: linear-gradient(135deg, #00c3d3 0%, #7b61e8 100%);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16);
+}
+
+.salary-progress-track-point-label,
+.salary-progress-track-point-value,
+.salary-progress-status-name,
+.salary-progress-status-values {
+    font-size: 0.74rem;
+}
+
+.salary-progress-track-point-value,
+.salary-progress-status-name {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.salary-progress-track-point-label,
+.salary-progress-status-values {
+    color: var(--text-secondary);
+}
+
+.salary-progress-status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.salary-progress-status-item {
+    display: grid;
+    grid-template-columns: 144px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.salary-progress-status-values {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.salary-progress-status-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.salary-progress-metric-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(203, 213, 225, 0.9);
+}
+
+.salary-progress-metric-chip-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+.salary-progress-metric-chip-value {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.salary-progress-status-empty {
+    font-size: 0.74rem;
+    color: var(--text-secondary);
+}
+
 @media (max-width: 600px) {
     .donut-chart {
         width: 160px;
@@ -8787,6 +9241,18 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     }
     .salary-coverage-currencies {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .salary-summary-chart-row,
+    .salary-summary-chart-row-bars,
+    .salary-progress-status-item,
+    .salary-overview-status-row {
+        grid-template-columns: 1fr;
+    }
+    .salary-summary-chart-line {
+        min-height: 98px;
+    }
+    .salary-overview-track {
+        min-height: 48px;
     }
     .funnel-stage {
         padding: 12px;

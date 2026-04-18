@@ -479,6 +479,524 @@ function buildSalaryEntriesFromBuckets(bucketsByKey) {
     entries.sort((a, b) => (a.status !== 'Открытая') - (b.status !== 'Открытая') || a.status.localeCompare(b.status));
     return entries;
 }
+function buildSalaryExperienceProgressPanelsModel(payload) {
+    var data = payload || {};
+    var experiences = Array.isArray(data.experiences) ? data.experiences.slice() : [];
+    var selectedExperience = String(data.selectedExperience || '').trim();
+    var preferredCurrencies = ['RUR', 'USD', 'EUR', 'Другая', 'Не заполнена'];
+    var metricOrder = [
+        { key: 'min_salary', label: 'Мин' },
+        { key: 'mode_salary', label: 'Мода' },
+        { key: 'median_salary', label: 'Медиана' },
+        { key: 'avg_salary', label: 'Среднее' },
+        { key: 'max_salary', label: 'Макс' }
+    ];
+    var extraStatusOrder = ['new', 'period_archived'];
+
+    function normalizeCurrency(value) {
+        var current = String(value || '').trim().toUpperCase();
+        if (!current) return 'Не заполнена';
+        if (current === 'RUB') return 'RUR';
+        if (current === 'EURO') return 'EUR';
+        if (current === 'ДРУГАЯ') return 'Другая';
+        return current;
+    }
+    function normalizeStatusMeta(statusLabel) {
+        var label = String(statusLabel || '').trim();
+        var normalized = label.toLowerCase();
+        if (normalized === 'открытая' || normalized === 'открытые') {
+            return { key: 'open', label: 'Открытая' };
+        }
+        if (normalized === 'архивная' || normalized === 'архивные') {
+            return { key: 'archived', label: 'Архивная' };
+        }
+        if (normalized === 'новые за период' || normalized === 'новые') {
+            return { key: 'new', label: 'Новые за период' };
+        }
+        if (normalized === 'опубл. и архив. за период' || normalized === 'опубл. и архивир.' || normalized === 'опубликована и архивирована') {
+            return { key: 'period_archived', label: 'Опубл. и архив. за период' };
+        }
+        return { key: normalized || 'other', label: label || 'Не указано' };
+    }
+    function computeEntryMetric(entry, metricKey, currency) {
+        var directValue = Number(entry && entry[metricKey]);
+        if (entry && entry[metricKey] !== null && entry[metricKey] !== undefined && isFinite(directValue)) return directValue;
+        var withSalary = entry && Array.isArray(entry.vacancies_with_salary_list) ? entry.vacancies_with_salary_list : [];
+        var values = withSalary.map(function(vacancy) {
+            return computeSalaryValue(vacancy || {}, currency);
+        }).filter(function(value) {
+            return value !== null && value !== undefined && isFinite(value);
+        }).map(function(value) {
+            return Number(value);
+        });
+        if (!values.length) return null;
+        if (metricKey === 'min_salary') return Math.min.apply(Math, values);
+        if (metricKey === 'max_salary') return Math.max.apply(Math, values);
+        if (metricKey === 'median_salary') return computeMedian(values);
+        if (metricKey === 'mode_salary') return computeMode(values);
+        if (metricKey === 'avg_salary') {
+            return values.reduce(function(sum, value) { return sum + value; }, 0) / values.length;
+        }
+        return null;
+    }
+    function buildPositions(count) {
+        if (!count) return [];
+        if (count === 1) return [50];
+        if (count === 2) return [0, 100];
+        if (count === 3) return [0, 50, 100];
+        if (count === 4) return [0, 38, 64, 100];
+        return [0, 24, 50, 76, 100];
+    }
+    function assignPointRows(points) {
+        var minHorizontalGap = 12;
+        var maxRows = 3;
+        var lastLeftByRow = [];
+        return (points || []).map(function(point) {
+            var clone = Object.assign({}, point);
+            var left = Number(clone.positionPct);
+            var assignedRow = maxRows - 1;
+            for (var rowIndex = 0; rowIndex < maxRows; rowIndex += 1) {
+                var lastLeft = lastLeftByRow[rowIndex];
+                if (!isFinite(lastLeft) || left - lastLeft >= minHorizontalGap) {
+                    assignedRow = rowIndex;
+                    break;
+                }
+            }
+            clone.pointRow = assignedRow;
+            lastLeftByRow[assignedRow] = left;
+            return clone;
+        });
+    }
+    function buildMetricPoints(entry, currency) {
+        var directWithSalary = Number(entry && entry.vacancies_with_salary);
+        var directSalaryList = entry && Array.isArray(entry.vacancies_with_salary_list) ? entry.vacancies_with_salary_list : [];
+        if (!(directWithSalary > 0) && !directSalaryList.length) return [];
+        var rawPoints = [];
+        metricOrder.forEach(function(metric) {
+            var value = computeEntryMetric(entry, metric.key, currency);
+            if (value === null || value === undefined || !isFinite(value)) return;
+            rawPoints.push({ value: Number(value), label: metric.label });
+        });
+        rawPoints.sort(function(a, b) {
+            return a.value - b.value;
+        });
+        var grouped = [];
+        rawPoints.forEach(function(point) {
+            var last = grouped.length ? grouped[grouped.length - 1] : null;
+            if (last && last.value === point.value) {
+                last.labels.push(point.label);
+            } else {
+                grouped.push({ value: point.value, labels: [point.label] });
+            }
+        });
+        var positions = buildPositions(grouped.length);
+        return assignPointRows(grouped.map(function(point, index) {
+            return {
+                value: point.value,
+                labels: point.labels.join(', '),
+                positionPct: positions[index]
+            };
+        }));
+    }
+    function sortCurrencies(values) {
+        return values.slice().sort(function(a, b) {
+            var left = preferredCurrencies.indexOf(a);
+            var right = preferredCurrencies.indexOf(b);
+            if (left === -1 && right === -1) return String(a).localeCompare(String(b), 'ru');
+            if (left === -1) return 1;
+            if (right === -1) return -1;
+            return left - right;
+        });
+    }
+    function buildTracksForEntries(entries, currency) {
+        var list = Array.isArray(entries) ? entries : [];
+        var mapped = {};
+        var extras = [];
+        list.forEach(function(entry) {
+            var meta = normalizeStatusMeta(entry && entry.status);
+            mapped[meta.key] = {
+                statusKey: meta.key,
+                statusLabel: meta.label,
+                points: buildMetricPoints(entry, currency)
+            };
+            if (extraStatusOrder.indexOf(meta.key) >= 0 && extras.indexOf(meta.key) === -1) extras.push(meta.key);
+        });
+        var trackKeys = ['open', 'archived'].concat(extraStatusOrder.filter(function(key) {
+            return extras.indexOf(key) >= 0;
+        }));
+        return trackKeys.map(function(key) {
+            if (mapped[key]) {
+                var existing = mapped[key];
+                return Object.assign({}, existing, {
+                    maxValue: existing.points.length
+                        ? Math.max.apply(Math, existing.points.map(function(point) { return point.value; }))
+                        : 0,
+                    empty: !existing.points.length
+                });
+            }
+            var fallbackMeta = normalizeStatusMeta(
+                key === 'open' ? 'Открытая'
+                    : (key === 'archived' ? 'Архивная'
+                        : (key === 'new' ? 'Новые за период' : 'Опубл. и архив. за период'))
+            );
+            return {
+                statusKey: key,
+                statusLabel: fallbackMeta.label,
+                points: [],
+                maxValue: 0,
+                empty: true
+            };
+        });
+    }
+
+    var filteredExperiences = experiences.filter(function(item) {
+        if (!item) return false;
+        if (typeof isSalarySummaryExperience === 'function' && isSalarySummaryExperience(item.experience)) return false;
+        return true;
+    }).map(function(item) {
+        return {
+            experience: normalizeExperience(item.experience),
+            entries: Array.isArray(item.entries) ? item.entries.slice() : []
+        };
+    });
+
+    if (selectedExperience) {
+        filteredExperiences = filteredExperiences.filter(function(item) {
+            return normalizeExperience(item.experience) === normalizeExperience(selectedExperience);
+        });
+    }
+
+    var currencyMap = {};
+    filteredExperiences.forEach(function(experienceRow) {
+        var experienceName = normalizeExperience(experienceRow.experience);
+        var entryGroups = {};
+        (experienceRow.entries || []).forEach(function(entry) {
+            var currency = normalizeCurrency(entry && entry.currency);
+            entryGroups[currency] = entryGroups[currency] || [];
+            entryGroups[currency].push(entry);
+        });
+        Object.keys(entryGroups).forEach(function(currency) {
+            currencyMap[currency] = currencyMap[currency] || [];
+            currencyMap[currency].push({
+                experience: experienceName,
+                tracks: buildTracksForEntries(entryGroups[currency], currency)
+            });
+        });
+    });
+
+    var currencies = Object.keys(currencyMap);
+    currencies = sortCurrencies(currencies).filter(function(currency) {
+        return !!(currencyMap[currency] && currencyMap[currency].some(function(experienceRow) {
+            return Array.isArray(experienceRow.tracks) && experienceRow.tracks.some(function(track) {
+                return Array.isArray(track.points) && track.points.length;
+            });
+        }));
+    });
+
+    return {
+        mode: selectedExperience ? 'single-experience' : 'all-experiences',
+        selectedExperience: selectedExperience,
+        currencies: currencies.map(function(currency) {
+            var experienceRows = (currencyMap[currency] || []).slice();
+            experienceRows.sort(function(a, b) {
+                var expOrder = typeof getExperienceOrder === 'function' ? getExperienceOrder() : {};
+                return (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99);
+            });
+            return {
+                currency: currency,
+                experiences: selectedExperience
+                    ? (experienceRows.length ? experienceRows : [{
+                        experience: normalizeExperience(selectedExperience),
+                        tracks: buildTracksForEntries([], currency)
+                    }])
+                    : experienceRows
+            };
+        })
+    };
+}
+function buildSalaryOverviewChartModel(payload) {
+    var data = payload || {};
+    var selectedExperience = String(data.selectedExperience || '').trim();
+    var selectedCurrency = String(data.selectedCurrency || '').trim().toUpperCase();
+    var experiences = Array.isArray(data.experiences) ? data.experiences.slice() : [];
+    var preferredCurrencies = ['RUR', 'USD', 'EUR', 'Другая', 'Не заполнена'];
+    var experiencePalette = ['#49c8f2', '#007AD8', '#d79cfb', '#8b5cf6', '#00C3D3'];
+    var metricDefs = [
+        { key: 'min_salary', label: 'Мин', color: experiencePalette[0] },
+        { key: 'mode_salary', label: 'Мода', color: experiencePalette[1] },
+        { key: 'median_salary', label: 'Медиана', color: experiencePalette[2] },
+        { key: 'avg_salary', label: 'Среднее', color: experiencePalette[3] },
+        { key: 'max_salary', label: 'Макс', color: experiencePalette[4] }
+    ];
+    metricDefs = metricDefs.map(function(item, index) {
+        var metricPalette = ['#00C3D3', '#007AD8', '#49c8f2', '#d79cfb', '#8b5cf6'];
+        return Object.assign({}, item, {
+            color: metricPalette[index] || item.color
+        });
+    });
+    experiencePalette = [
+        { color: '#49c8f2', gradient: 'linear-gradient(135deg, #8fe9f7 0%, #49c8f2 55%, #5f95ff 100%)', textColor: '#49c8f2' },
+        { color: '#007AD8', gradient: 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%)', textColor: '#007AD8' },
+        { color: '#d79cfb', gradient: 'linear-gradient(135deg, #efc3ff 0%, #d79cfb 55%, #b58cff 100%)', textColor: '#d79cfb' },
+        { color: '#8b5cf6', gradient: 'linear-gradient(135deg, #f38bff 0%, #8b5cf6 100%)', textColor: '#8b5cf6' },
+        { color: '#49c8f2', gradient: 'linear-gradient(135deg, #8fe9f7 0%, #49c8f2 55%, #5f95ff 100%)', textColor: '#49c8f2' }
+    ];
+    metricDefs = [
+        { key: 'min_salary', label: metricDefs[0].label, color: '#49c8f2', gradient: 'linear-gradient(135deg, #8fe9f7 0%, #49c8f2 55%, #5f95ff 100%)', textColor: '#49c8f2' },
+        { key: 'mode_salary', label: metricDefs[1].label, color: '#007AD8', gradient: 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%)', textColor: '#007AD8' },
+        { key: 'median_salary', label: metricDefs[2].label, color: '#d79cfb', gradient: 'linear-gradient(135deg, #efc3ff 0%, #d79cfb 55%, #b58cff 100%)', textColor: '#d79cfb' },
+        { key: 'avg_salary', label: metricDefs[3].label, color: '#8b5cf6', gradient: 'linear-gradient(135deg, #f38bff 0%, #8b5cf6 100%)', textColor: '#8b5cf6' },
+        { key: 'max_salary', label: metricDefs[4].label, color: '#007AD8', gradient: 'linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%)', textColor: '#007AD8' }
+    ];
+    var statusDefs = [
+        { key: 'open', label: 'Активные' },
+        { key: 'archived', label: 'Архивные' },
+        { key: 'new', label: 'Новые' },
+        { key: 'period_archived', label: 'Опубл. и архив.' }
+    ];
+
+    function normalizeCurrency(value) {
+        var current = String(value || '').trim();
+        var upper = current.toUpperCase();
+        if (!upper) return 'Не заполнена';
+        if (upper === 'RUB') return 'RUR';
+        if (upper === 'EURO') return 'EUR';
+        if (upper === 'OTHER' || upper === 'ДРУГАЯ') return 'Другая';
+        return upper;
+    }
+    function normalizeStatusKey(statusLabel) {
+        var normalized = String(statusLabel || '').trim().toLowerCase();
+        if (normalized === 'открытая' || normalized === 'открытые' || normalized === 'активные') return 'open';
+        if (normalized === 'архивная' || normalized === 'архивные') return 'archived';
+        if (normalized === 'новые за период' || normalized === 'новые') return 'new';
+        if (normalized === 'опубл. и архив. за период' || normalized === 'опубл. и архив.' || normalized === 'опубл. и архивир.' || normalized === 'опубликована и архивирована') return 'period_archived';
+        return normalized || 'other';
+    }
+    function hasSalaryData(entry) {
+        if (!entry) return false;
+        if (Number(entry.vacancies_with_salary) > 0) return true;
+        return Array.isArray(entry.vacancies_with_salary_list) && entry.vacancies_with_salary_list.length > 0;
+    }
+    function formatValueLabel(value) {
+        if (typeof formatCompactThousandsValue === 'function') return formatCompactThousandsValue(value);
+        return String(value);
+    }
+    function sortCurrencies(values) {
+        return values.slice().sort(function(a, b) {
+            var left = preferredCurrencies.indexOf(a);
+            var right = preferredCurrencies.indexOf(b);
+            if (left === -1 && right === -1) return String(a).localeCompare(String(b), 'ru');
+            if (left === -1) return 1;
+            if (right === -1) return -1;
+            return left - right;
+        });
+    }
+    function getExperienceLegend() {
+        var order = typeof getExperienceOrder === 'function' ? getExperienceOrder() : {};
+        return experiences.filter(function(item) {
+            return item && !(typeof isSalarySummaryExperience === 'function' && isSalarySummaryExperience(item.experience));
+        }).map(function(item) {
+            return normalizeExperience(item.experience);
+        }).filter(function(value, index, list) {
+            return value && list.indexOf(value) === index;
+        }).sort(function(a, b) {
+            return (Object.prototype.hasOwnProperty.call(order, a) ? Number(order[a]) : 999)
+                - (Object.prototype.hasOwnProperty.call(order, b) ? Number(order[b]) : 999);
+        }).map(function(label, index) {
+            var paletteItem = experiencePalette[index % experiencePalette.length] || experiencePalette[0];
+            return {
+                key: label,
+                label: label,
+                color: paletteItem.color,
+                gradient: paletteItem.gradient,
+                textColor: paletteItem.textColor
+            };
+        });
+    }
+    function buildActualPositions(items) {
+        var list = Array.isArray(items) ? items.slice() : [];
+        if (!list.length) return [];
+        if (list.length === 1) return [50];
+        var values = list.map(function(item) { return Number(item.value); });
+        var minValue = Math.min.apply(Math, values);
+        var maxValue = Math.max.apply(Math, values);
+        if (!(maxValue > minValue)) {
+            return list.map(function(_, index) {
+                if (list.length === 2) return index === 0 ? 35 : 65;
+                return Math.round((index / Math.max(1, list.length - 1)) * 100);
+            });
+        }
+        var minGap = list.length >= 5 ? 12 : 16;
+        var actual = values.map(function(value) {
+            if (value <= minValue) return 0;
+            if (value >= maxValue) return 100;
+            return ((value - minValue) / (maxValue - minValue)) * 100;
+        });
+        var result = [0];
+        for (var index = 1; index < list.length - 1; index += 1) {
+            var slot = (index / (list.length - 1)) * 100;
+            var desired = (actual[index] * 0.72) + (slot * 0.28);
+            var minAllowed = result[index - 1] + minGap;
+            var maxAllowed = 100 - (minGap * (list.length - 1 - index));
+            result[index] = Math.max(minAllowed, Math.min(maxAllowed, desired));
+        }
+        result.push(100);
+        return result.map(function(value) { return Math.round(value * 10) / 10; });
+    }
+    function assignPointRows(points) {
+        var lastLeftByRow = [];
+        var maxRows = 3;
+        var minHorizontalGap = 14;
+        return (points || []).map(function(point) {
+            var clone = Object.assign({}, point);
+            var left = Number(clone.leftPct);
+            var assignedRow = 0;
+            for (var rowIndex = 0; rowIndex < maxRows; rowIndex += 1) {
+                var lastLeft = lastLeftByRow[rowIndex];
+                if (!isFinite(lastLeft) || left - lastLeft >= minHorizontalGap) {
+                    assignedRow = rowIndex;
+                    break;
+                }
+                assignedRow = rowIndex + 1;
+            }
+            if (assignedRow >= maxRows) assignedRow = maxRows - 1;
+            clone.pointRow = assignedRow;
+            lastLeftByRow[assignedRow] = left;
+            return clone;
+        });
+    }
+    function mergePoints(rawPoints) {
+        var list = (rawPoints || []).filter(function(point) {
+            return point && point.value !== null && point.value !== undefined && isFinite(Number(point.value));
+        }).map(function(point) {
+            return Object.assign({}, point, { value: Number(point.value) });
+        }).sort(function(a, b) {
+            return a.value - b.value;
+        });
+        if (!list.length) return [];
+        var grouped = [];
+        list.forEach(function(point) {
+            var last = grouped.length ? grouped[grouped.length - 1] : null;
+            if (last && last.value === point.value) {
+                last.labels.push(point.label);
+            } else {
+                grouped.push({
+                    value: point.value,
+                    color: point.color,
+                    gradient: point.gradient,
+                    textColor: point.textColor,
+                    labels: [point.label]
+                });
+            }
+        });
+        var positions = buildActualPositions(grouped);
+        return assignPointRows(grouped.map(function(group, index) {
+            return {
+                key: group.labels.join('|'),
+                label: group.labels.join(', '),
+                mergedLabels: group.labels.slice(),
+                color: group.color,
+                gradient: group.gradient,
+                textColor: group.textColor || group.color,
+                value: group.value,
+                valueLabel: formatValueLabel(group.value),
+                leftPct: positions[index]
+            };
+        }));
+    }
+
+    var legend = selectedExperience
+        ? metricDefs.map(function(item) {
+            return { key: item.key, label: item.label, color: item.color, gradient: item.gradient, textColor: item.textColor };
+        })
+        : getExperienceLegend();
+    var statusMapByCurrency = {};
+    var filteredExperiences = experiences.filter(function(item) {
+        if (!item) return false;
+        if (typeof isSalarySummaryExperience === 'function' && isSalarySummaryExperience(item.experience)) return false;
+        return true;
+    });
+    if (selectedExperience) {
+        filteredExperiences = filteredExperiences.filter(function(item) {
+            return normalizeExperience(item.experience) === normalizeExperience(selectedExperience);
+        });
+    }
+
+    filteredExperiences.forEach(function(experienceRow) {
+        var experienceLabel = normalizeExperience(experienceRow.experience);
+        (experienceRow.entries || []).forEach(function(entry) {
+            if (!hasSalaryData(entry)) return;
+            var currency = normalizeCurrency(entry.currency);
+            var statusKey = normalizeStatusKey(entry.status);
+            if (statusDefs.map(function(item) { return item.key; }).indexOf(statusKey) === -1) return;
+            statusMapByCurrency[currency] = statusMapByCurrency[currency] || {};
+            statusMapByCurrency[currency][statusKey] = statusMapByCurrency[currency][statusKey] || [];
+            if (selectedExperience) {
+                metricDefs.forEach(function(metric) {
+                    var value = Number(entry && entry[metric.key]);
+                    if (entry && entry[metric.key] !== null && entry[metric.key] !== undefined && isFinite(value)) {
+                        statusMapByCurrency[currency][statusKey].push({
+                            label: metric.label,
+                            color: metric.color,
+                            gradient: metric.gradient,
+                            textColor: metric.textColor,
+                            value: value
+                        });
+                    }
+                });
+            } else {
+                var avgValue = Number(entry && entry.avg_salary);
+                if (entry && entry.avg_salary !== null && entry.avg_salary !== undefined && isFinite(avgValue)) {
+                    var legendItem = legend.find(function(item) { return item.label === experienceLabel; });
+                    statusMapByCurrency[currency][statusKey].push({
+                        label: experienceLabel,
+                        color: legendItem ? legendItem.color : experiencePalette[0].color,
+                        gradient: legendItem ? legendItem.gradient : experiencePalette[0].gradient,
+                        textColor: legendItem ? legendItem.textColor : experiencePalette[0].textColor,
+                        value: avgValue
+                    });
+                }
+            }
+        });
+    });
+
+    var currencies = sortCurrencies(Object.keys(statusMapByCurrency)).map(function(currency) {
+        var statuses = statusDefs.map(function(statusDef) {
+            return {
+                statusKey: statusDef.key,
+                statusLabel: statusDef.label,
+                points: mergePoints(statusMapByCurrency[currency][statusDef.key] || [])
+            };
+        }).filter(function(statusRow) {
+            return Array.isArray(statusRow.points) && statusRow.points.length > 0;
+        });
+        return {
+            currency: currency,
+            statuses: statuses
+        };
+    }).filter(function(currencyRow) {
+        return Array.isArray(currencyRow.statuses) && currencyRow.statuses.length > 0;
+    });
+
+    var expandedCurrency = selectedCurrency && currencies.some(function(item) { return item.currency === selectedCurrency; })
+        ? selectedCurrency
+        : (currencies[0] ? currencies[0].currency : '');
+
+    currencies = currencies.map(function(currencyRow) {
+        return Object.assign({}, currencyRow, {
+            expanded: currencyRow.currency === expandedCurrency
+        });
+    });
+
+    return {
+        title: 'Зарплаты',
+        mode: selectedExperience ? 'single-experience' : 'all-experiences',
+        subtitle: selectedExperience ? 'По зарплатным метрикам' : 'По группам опыта',
+        contextLabel: String(data.month || '').trim(),
+        legend: legend,
+        currencies: currencies
+    };
+}
 function aggregateSalary(roleContents) {
     var expOrder = getExperienceOrder();
     var byMonth = {};

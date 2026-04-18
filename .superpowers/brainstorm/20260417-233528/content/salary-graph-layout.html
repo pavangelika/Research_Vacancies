@@ -1,0 +1,104 @@
+<h2>Новый график зарплат</h2>
+<p class="subtitle">Нужно зафиксировать, как именно читать точки на линиях статусов. В обоих вариантах метрика берётся из фильтра зарплаты: <strong>Мин / Мода / Медиана / Средн / Макс</strong>.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. Рекомендую</div>
+        <div class="mockup-body" style="padding:16px;background:#f8fafc;">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:#6c7680;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#14b8a6;display:inline-block;"></span>Нет опыта</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>1-3 года</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>3-6 лет</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block;"></span>6+ лет</span>
+          </div>
+          <div style="display:grid;gap:16px;">
+            <div>
+              <div style="font-size:12px;color:#6c7680;margin-bottom:6px;">Открытые</div>
+              <div style="position:relative;height:34px;border-top:2px solid #cbd5e1;">
+                <span style="position:absolute;left:8%;top:-6px;width:10px;height:10px;border-radius:50%;background:#14b8a6;"></span>
+                <span style="position:absolute;left:4%;top:10px;font-size:11px;color:#6c7680;">90k</span>
+                <span style="position:absolute;left:36%;top:-6px;width:10px;height:10px;border-radius:50%;background:#3b82f6;"></span>
+                <span style="position:absolute;left:31%;top:10px;font-size:11px;color:#6c7680;">125k</span>
+                <span style="position:absolute;left:61%;top:-6px;width:10px;height:10px;border-radius:50%;background:#8b5cf6;"></span>
+                <span style="position:absolute;left:56%;top:10px;font-size:11px;color:#6c7680;">155k</span>
+                <span style="position:absolute;left:86%;top:-6px;width:10px;height:10px;border-radius:50%;background:#f97316;"></span>
+                <span style="position:absolute;left:81%;top:10px;font-size:11px;color:#6c7680;">195k</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:#6c7680;margin-bottom:6px;">Архивные</div>
+              <div style="position:relative;height:34px;border-top:2px solid #cbd5e1;">
+                <span style="position:absolute;left:10%;top:-6px;width:10px;height:10px;border-radius:50%;background:#14b8a6;"></span>
+                <span style="position:absolute;left:5%;top:10px;font-size:11px;color:#6c7680;">95k</span>
+                <span style="position:absolute;left:33%;top:-6px;width:10px;height:10px;border-radius:50%;background:#3b82f6;"></span>
+                <span style="position:absolute;left:28%;top:10px;font-size:11px;color:#6c7680;">118k</span>
+                <span style="position:absolute;left:58%;top:-6px;width:10px;height:10px;border-radius:50%;background:#8b5cf6;"></span>
+                <span style="position:absolute;left:53%;top:10px;font-size:11px;color:#6c7680;">148k</span>
+                <span style="position:absolute;left:79%;top:-6px;width:10px;height:10px;border-radius:50%;background:#f97316;"></span>
+                <span style="position:absolute;left:74%;top:10px;font-size:11px;color:#6c7680;">176k</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:#6c7680;margin-bottom:6px;">Новые за период</div>
+              <div style="position:relative;height:34px;border-top:2px solid #cbd5e1;">
+                <span style="position:absolute;left:14%;top:-6px;width:10px;height:10px;border-radius:50%;background:#14b8a6;"></span>
+                <span style="position:absolute;left:9%;top:10px;font-size:11px;color:#6c7680;">102k</span>
+                <span style="position:absolute;left:38%;top:-6px;width:10px;height:10px;border-radius:50%;background:#3b82f6;"></span>
+                <span style="position:absolute;left:33%;top:10px;font-size:11px;color:#6c7680;">129k</span>
+                <span style="position:absolute;left:67%;top:-6px;width:10px;height:10px;border-radius:50%;background:#8b5cf6;"></span>
+                <span style="position:absolute;left:62%;top:10px;font-size:11px;color:#6c7680;">166k</span>
+                <span style="position:absolute;left:88%;top:-6px;width:10px;height:10px;border-radius:50%;background:#f97316;"></span>
+                <span style="position:absolute;left:83%;top:10px;font-size:11px;color:#6c7680;">198k</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Горизонтальные треки</h3>
+      <p>Три строки статусов. Цвет точки = опыт. Подпись рядом с точкой = значение выбранной метрики.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. Плотнее</div>
+        <div class="mockup-body" style="padding:16px;background:#f8fafc;">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;color:#6c7680;">
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#14b8a6;display:inline-block;"></span>Нет опыта</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>1-3 года</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>3-6 лет</span>
+            <span style="display:flex;align-items:center;gap:6px;"><span style="width:10px;height:10px;border-radius:50%;background:#f97316;display:inline-block;"></span>6+ лет</span>
+          </div>
+          <div style="display:grid;gap:16px;">
+            <div>
+              <div style="font-size:12px;color:#6c7680;margin-bottom:6px;">Открытые</div>
+              <div style="position:relative;height:44px;border-top:2px solid #cbd5e1;">
+                <span style="position:absolute;left:8%;top:-6px;width:10px;height:10px;border-radius:50%;background:#14b8a6;"></span>
+                <span style="position:absolute;left:5%;top:12px;font-size:10px;color:#6c7680;">Нет опыта · 90k</span>
+                <span style="position:absolute;left:36%;top:-6px;width:10px;height:10px;border-radius:50%;background:#3b82f6;"></span>
+                <span style="position:absolute;left:30%;top:12px;font-size:10px;color:#6c7680;">1-3 года · 125k</span>
+                <span style="position:absolute;left:61%;top:-6px;width:10px;height:10px;border-radius:50%;background:#8b5cf6;"></span>
+                <span style="position:absolute;left:55%;top:12px;font-size:10px;color:#6c7680;">3-6 лет · 155k</span>
+                <span style="position:absolute;left:86%;top:-6px;width:10px;height:10px;border-radius:50%;background:#f97316;"></span>
+                <span style="position:absolute;left:80%;top:12px;font-size:10px;color:#6c7680;">6+ лет · 195k</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:#6c7680;margin-bottom:6px;">Архивные / Новые за период</div>
+              <div class="placeholder" style="height:88px;border-style:dashed;">Та же логика, но текста на экране заметно больше</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Подпись “опыт + значение” у каждой точки</h3>
+      <p>Больше контекста прямо на графике, но выше риск визуального шума и наложений.</p>
+    </div>
+  </div>
+</div>

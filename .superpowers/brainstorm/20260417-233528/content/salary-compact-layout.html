@@ -1,0 +1,137 @@
+<h2>Компактный Salary Block</h2>
+<p class="subtitle">Сравнение двух направлений для блока на <strong>Дашборд → Общее</strong>. В обоих вариантах: 3 валюты <strong>RUR / USD / EUR</strong>, меньше вложенности, подписи цветом точки, без цветных точек в легенде.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. Плотный стек валют</div>
+        <div class="mockup-body" style="padding:18px;background:linear-gradient(180deg,#ffffff 0%,#f5f7fb 100%);border-radius:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:700;">Средняя зарплата</div>
+            <div style="font-size:12px;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #d7dde5;color:#6c7680;">Опыт = Все</div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;">
+            <span style="color:#00C3D3;font-weight:700;">Нет опыта</span>
+            <span style="color:#007AD8;font-weight:700;">От 1 года до 3 лет</span>
+            <span style="color:#D149EF;font-weight:700;">От 3 до 6 лет</span>
+            <span style="color:#FF6262;font-weight:700;">Более 6 лет</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="padding:10px 12px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.06);">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><strong>RUR</strong><span style="color:#6c7680;font-size:12px;">4 строки</span></div>
+              <div style="display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;font-size:12px;">
+                <div>Открытые</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);">
+                  <span style="position:absolute;left:6%;top:-2px;color:#00C3D3;font-weight:700;">51К</span>
+                  <span style="position:absolute;left:24%;top:-2px;color:#007AD8;font-weight:700;">98К</span>
+                  <span style="position:absolute;left:66%;top:-2px;color:#D149EF;font-weight:700;">210К</span>
+                  <span style="position:absolute;left:85%;top:-2px;color:#FF6262;font-weight:700;">238К</span>
+                </div>
+                <div>Архивные</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+                <div>Новые за период</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+                <div>Опубл. и архив.</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+              </div>
+            </div>
+
+            <div style="padding:10px 12px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.06);">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><strong>USD</strong><span style="color:#6c7680;font-size:12px;">тот же шаблон</span></div>
+              <div style="height:32px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+            </div>
+
+            <div style="padding:10px 12px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.06);">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><strong>EUR</strong><span style="color:#6c7680;font-size:12px;">тот же шаблон</span></div>
+              <div style="height:32px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Плотный стек</h3>
+      <p>Три компактных валютных графика подряд. Блок короче по высоте, лучше для общей панели.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. Переключаемый режим данных</div>
+        <div class="mockup-body" style="padding:18px;background:linear-gradient(180deg,#ffffff 0%,#f5f7fb 100%);border-radius:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-weight:700;">Медиана зарплаты</div>
+            <div style="font-size:12px;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #d7dde5;color:#6c7680;">Опыт = От 1 года до 3 лет</div>
+          </div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;">
+            <span style="color:#00C3D3;font-weight:700;">Мин</span>
+            <span style="color:#007AD8;font-weight:700;">Мода</span>
+            <span style="color:#D149EF;font-weight:700;">Медиана</span>
+            <span style="color:#FE9500;font-weight:700;">Среднее</span>
+            <span style="color:#FF6262;font-weight:700;">Макс</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="padding:10px 12px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.06);">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><strong>RUR</strong><span style="color:#6c7680;font-size:12px;">совпадения объединяются</span></div>
+              <div style="display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;font-size:12px;">
+                <div>Открытые</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);">
+                  <span style="position:absolute;left:8%;top:-2px;color:#00C3D3;font-weight:700;">90К</span>
+                  <span style="position:absolute;left:32%;top:-2px;color:#007AD8;font-weight:700;">110К, 110К</span>
+                  <span style="position:absolute;left:60%;top:-2px;color:#FE9500;font-weight:700;">125К</span>
+                  <span style="position:absolute;left:84%;top:-2px;color:#FF6262;font-weight:700;">180К</span>
+                </div>
+                <div>Архивные</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+                <div>Новые за период</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+                <div>Опубл. и архив.</div>
+                <div style="position:relative;height:34px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div style="padding:10px 12px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.06);">
+                <strong>USD</strong>
+                <div style="height:28px;margin-top:8px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+              </div>
+              <div style="padding:10px 12px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(15,23,42,.06);">
+                <strong>EUR</strong>
+                <div style="height:28px;margin-top:8px;border-radius:999px;background:linear-gradient(180deg,#fff 0%,#e4eaf2 100%);"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Смена легенды по режиму</h3>
+      <p>Когда выбран конкретный опыт, верхняя легенда сразу превращается в легенду метрик. Более наглядно для анализа одной категории.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Что общее в обоих</h4>
+      <ul>
+        <li>Три отдельных графика: <strong>RUR</strong>, <strong>USD</strong>, <strong>EUR</strong></li>
+        <li>Сортировка точек по возрастанию значений</li>
+        <li>Смысл совпадений: одна точка, подписи через запятую</li>
+        <li>Расстановка относительная, с анти-наложением по оси</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Ключевой выбор</h4>
+      <ul>
+        <li><strong>A</strong>: один и тот же вертикальный ритм для всех режимов</li>
+        <li><strong>B</strong>: сильнее меняется блок, зато режим выбранного опыта читается лучше</li>
+      </ul>
+    </div>
+  </div>
+</div>
