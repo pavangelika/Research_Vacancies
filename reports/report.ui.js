@@ -559,9 +559,37 @@ function stripAxisTitles(layout) {
         }
     });
 }
+function getDashboardCssVar(name, fallback) {
+    if (typeof window === 'undefined' || !window.getComputedStyle || !document || !document.documentElement) {
+        return fallback;
+    }
+    var value = window.getComputedStyle(document.documentElement).getPropertyValue(name);
+    value = String(value || '').trim();
+    return value || fallback;
+}
+function getDashboardChartFontFamily() {
+    return getDashboardCssVar('--chart-font-family', "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif");
+}
+function getDashboardChartSecondaryTextColor() {
+    return getDashboardCssVar('--text-secondary', '#6c7680');
+}
+function getDashboardChartSecondaryTextSize() {
+    var raw = getDashboardCssVar('--chart-secondary-font-size', '0.8rem');
+    if (/px$/i.test(raw)) return parseFloat(raw);
+    if (/rem$/i.test(raw)) {
+        var rootSize = 16;
+        if (typeof window !== 'undefined' && window.getComputedStyle && document && document.documentElement) {
+            rootSize = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || rootSize;
+        }
+        return parseFloat(raw) * rootSize;
+    }
+    return parseFloat(raw) || 12.8;
+}
 function applyIosChartDefaults(layout, traces) {
     if (!layout || typeof layout !== 'object') return;
-    var fontFamily = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+    var fontFamily = getDashboardChartFontFamily();
+    var secondaryTextColor = getDashboardChartSecondaryTextColor();
+    var secondaryTextSize = getDashboardChartSecondaryTextSize();
     var isHorizontal = isHorizontalBarChartData(traces);
     layout.font = layout.font || {};
     layout.font.family = fontFamily;
@@ -598,7 +626,8 @@ function applyIosChartDefaults(layout, traces) {
         axis.linecolor = axis.linecolor || 'rgba(148, 163, 184, 0.22)';
         axis.tickfont = axis.tickfont || {};
         axis.tickfont.family = fontFamily;
-        axis.tickfont.color = axis.tickfont.color || '#475569';
+        axis.tickfont.size = axis.tickfont.size || secondaryTextSize;
+        axis.tickfont.color = axis.tickfont.color || secondaryTextColor;
     });
     if (isHorizontal) {
         layout.yaxis.autorange = 'reversed';
@@ -10830,26 +10859,24 @@ function renderEmployerAnalysisChart(block) {
         graph.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для выбранного периода</div>';
         return;
     }
-    var palette = (typeof CHART_COLORS !== 'undefined')
-        ? CHART_COLORS
-        : { light: '#00C3D3', medium: '#007AD8', dark: '#D149EF', orange: '#FE9500', green: '#00AD00', red: '#FF6262' };
     var labels = [];
     var values = [];
     var colors = [];
+    var factorKeys = [];
     var salaryMetric = '';
     var salaryCurrency = '';
     rows.forEach(function(row) {
         var value = Number(row.dataset.salaryValue);
         if (!isFinite(value)) return;
+        var factorKey = normalizeEmployerFactor(String(row.dataset.factor || row.dataset.factorLabel || '').trim());
         var factorLabel = String(row.dataset.factorLabel || '').trim();
         var valueLabel = getEmployerChartValueLabel(String(row.dataset.valueKey || '').trim());
         labels.push(factorLabel + ': ' + valueLabel);
         values.push(value);
+        factorKeys.push(factorKey);
         salaryMetric = salaryMetric || String(row.dataset.salaryMetric || '').trim();
         salaryCurrency = salaryCurrency || String(row.dataset.salaryCurrency || '').trim();
-        if (valueLabel === 'Да') colors.push(palette.light);
-        else if (valueLabel === 'Нет') colors.push(palette.dark);
-        else colors.push(palette.medium);
+        colors.push(getEmployerAnalysisGradientFallbackColor(factorKey));
     });
     if (!values.length) {
         if (graph.__chartHostEl && typeof Plotly.purge === 'function') Plotly.purge(graph.__chartHostEl);
@@ -10874,7 +10901,7 @@ function renderEmployerAnalysisChart(block) {
     graph.style.height = 'auto';
     graph.style.display = 'block';
     graph.style.overflow = 'visible';
-    Plotly.react(graph.__chartHostEl, [{
+    var plotResult = Plotly.react(graph.__chartHostEl, [{
         type: 'bar',
         orientation: 'h',
         x: values,
@@ -10887,12 +10914,19 @@ function renderEmployerAnalysisChart(block) {
         hovertemplate: '%{y}<br>' + escapeHtml(metricLabel) + ': %{x}<extra></extra>'
     }], {
         title: { text: composeChartTitle('Анализ работодателей · ' + metricLabel + ' зарплата (' + currencyLabel + ')', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { title: 'Зарплата, ' + currencyLabel, automargin: true },
-        yaxis: { title: '', automargin: true, autorange: 'reversed' },
-        margin: { t: 56, r: 16, b: 40, l: 220 },
+        xaxis: { title: 'Зарплата, ' + currencyLabel, automargin: true, showgrid: false, zeroline: false },
+        yaxis: { title: '', automargin: true, autorange: 'reversed', showgrid: false, zeroline: false },
+        margin: { t: 28, r: 16, b: 40, l: 220 },
         height: 420,
         showlegend: false
     }, { responsive: true, displayModeBar: false });
+    if (plotResult && typeof plotResult.then === 'function') {
+        plotResult.then(function() {
+            applyEmployerAnalysisBarGradients(graph.__chartHostEl, factorKeys);
+        });
+    } else {
+        applyEmployerAnalysisBarGradients(graph.__chartHostEl, factorKeys);
+    }
     graph.dataset.plotSignature = signature;
     graph.dataset.plotReady = '1';
     resizePlotlyScope(graph.__chartHostEl || graph);
@@ -10918,6 +10952,54 @@ function getEmployerRatingOrder(valueKey) {
         '>=4.5': 4
     };
     return (order[valueKey] !== undefined) ? order[valueKey] : 99;
+}
+
+function getEmployerAnalysisGradientStops(factorKey) {
+    if (factorKey === 'accreditation') return ['#00C3D3', '#007AD8'];
+    if (factorKey === 'cover_letter_required') return ['#8fe9f7', '#5f95ff'];
+    if (factorKey === 'has_test') return ['#f38bff', '#8b5cf6'];
+    if (factorKey === 'rating_bucket') return ['#efc3ff', '#b58cff'];
+    return ['#00C3D3', '#007AD8'];
+}
+
+function getEmployerAnalysisGradientFallbackColor(factorKey) {
+    return getEmployerAnalysisGradientStops(factorKey)[1];
+}
+
+function applyEmployerAnalysisBarGradients(host, factorKeys) {
+    if (!host || !Array.isArray(factorKeys) || !factorKeys.length) return;
+    var svg = host.querySelector('svg');
+    if (!svg) return;
+    var ns = 'http://www.w3.org/2000/svg';
+    var defs = svg.querySelector('defs');
+    if (!defs) {
+        defs = document.createElementNS(ns, 'defs');
+        svg.insertBefore(defs, svg.firstChild);
+    }
+    var bars = Array.from(svg.querySelectorAll('.barlayer .trace.bars .points path'));
+    bars.forEach(function(bar, index) {
+        var factorKey = factorKeys[index] || 'accreditation';
+        var stops = getEmployerAnalysisGradientStops(factorKey);
+        var gradientId = 'employer-analysis-gradient-' + factorKey + '-' + index;
+        var gradient = svg.querySelector('#' + gradientId);
+        if (!gradient) {
+            gradient = document.createElementNS(ns, 'linearGradient');
+            gradient.setAttribute('id', gradientId);
+            gradient.setAttribute('x1', '0%');
+            gradient.setAttribute('y1', '0%');
+            gradient.setAttribute('x2', '100%');
+            gradient.setAttribute('y2', '0%');
+            defs.appendChild(gradient);
+        }
+        while (gradient.firstChild) gradient.removeChild(gradient.firstChild);
+        stops.forEach(function(color, stopIndex) {
+            var stop = document.createElementNS(ns, 'stop');
+            stop.setAttribute('offset', stopIndex === 0 ? '0%' : '100%');
+            stop.setAttribute('stop-color', color);
+            gradient.appendChild(stop);
+        });
+        bar.style.fill = 'url(#' + gradientId + ')';
+    });
 }
 
 function normalizeEmployerFactor(rawFactor) {
@@ -11608,10 +11690,12 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
         zeroline: false,
         fixedrange: true
     };
+    var secondaryTextColor = getDashboardChartSecondaryTextColor();
+    var secondaryTextSize = getDashboardChartSecondaryTextSize();
     layout.yaxis = {
         automargin: true,
         autorange: 'reversed',
-        tickfont: { size: 12, color: '#0f172a' },
+        tickfont: { size: secondaryTextSize, color: secondaryTextColor },
         fixedrange: true
     };
     avgLayout.xaxis = {
@@ -11623,7 +11707,7 @@ function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attemp
     avgLayout.yaxis = {
         automargin: true,
         autorange: 'reversed',
-        tickfont: { size: 12, color: '#0f172a' },
+        tickfont: { size: secondaryTextSize, color: secondaryTextColor },
         fixedrange: true
     };
     plotHost.style.minHeight = '0';

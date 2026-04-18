@@ -4,6 +4,10 @@
     --surface: #ffffff;
     --surface-variant: #f3f6f9;
     --border-light: #e4e9ef;
+    --chart-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --chart-secondary-font-size: 0.8rem;
+    --chart-secondary-line-height: 1.5;
+    --chart-secondary-font-weight: 400;
     --text-primary: #3b4754;
     --text-secondary: #6c7680;
 
@@ -2618,7 +2622,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--chart-font-family);
     background-color: var(--bg-body);
     margin: 0;
     padding: var(--spacing);
@@ -4048,6 +4052,10 @@ tr:hover { background-color: #f0f4f9; }
     width: 100%;
     min-width: 0;
 }
+.employer-analysis-chart-host {
+    width: 100%;
+    min-width: 0;
+}
 .employer-analysis-subgraph .js-plotly-plot,
 .employer-analysis-subgraph .plot-container,
 .employer-analysis-subgraph .svg-container,
@@ -5473,10 +5481,10 @@ tbody tr:hover {
 .shared-filter-field-label {
     padding: 0 8px;
     margin-bottom: 4px;
-    color: #94a3b8;
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1.2;
+    color: var(--text-secondary);
+    font-size: var(--chart-secondary-font-size);
+    font-weight: var(--chart-secondary-font-weight);
+    line-height: var(--chart-secondary-line-height);
 }
 
 .shared-filter-panel .totals-top-filter-limit,
@@ -7702,6 +7710,7 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-butt
     display: flex;
     align-items: center;
     gap: clamp(0.5rem, 0.4rem + 0.4vw, 0.75rem);
+    font: inherit;
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 0;
     background: rgba(255, 255, 255, 0.02);
@@ -8401,7 +8410,9 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     color: var(--text-primary);
 }
 .donut-drilldown-meta {
-    font-size: 0.8rem;
+    font-size: var(--chart-secondary-font-size);
+    font-weight: var(--chart-secondary-font-weight);
+    line-height: var(--chart-secondary-line-height);
     color: var(--text-secondary);
     white-space: nowrap;
 }
@@ -8771,7 +8782,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid rgba(148, 163, 184, 0.22);
-    font-family: Arial, sans-serif;
+    font-family: inherit;
     font-size: 0.73rem;
     font-weight: 700;
 }
