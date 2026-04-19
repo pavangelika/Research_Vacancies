@@ -47,18 +47,12 @@ runTest('static Plotly defaults use donut legend font stack', () => {
 
 runTest('report salary overview legend inherits donut legend font stack', () => {
   const source = read(FILES.reportStyles);
-  assert.match(
-    source,
-    /\.salary-overview-legend-label\s*\{[\s\S]*font-family:\s*inherit;/
-  );
+  assert.match(source, /\.salary-overview-legend-label\s*\{[\s\S]*font-family:\s*inherit;/);
 });
 
 runTest('static salary overview legend inherits donut legend font stack', () => {
   const source = read(FILES.staticReportStyles);
-  assert.match(
-    source,
-    /\.salary-overview-legend-label\s*\{[\s\S]*font-family:\s*inherit;/
-  );
+  assert.match(source, /\.salary-overview-legend-label\s*\{[\s\S]*font-family:\s*inherit;/);
 });
 
 runTest('report stylesheet defines shared chart typography tokens', () => {
@@ -67,14 +61,8 @@ runTest('report stylesheet defines shared chart typography tokens', () => {
   assert.match(source, /--chart-secondary-font-size:\s*0\.8rem;/);
   assert.match(source, /--chart-secondary-line-height:\s*1\.5;/);
   assert.match(source, /--chart-secondary-font-weight:\s*400;/);
-  assert.match(
-    source,
-    /shared-filter-panel-rail-button\s*\{[\s\S]*font:\s*inherit;/
-  );
-  assert.match(
-    source,
-    /\.shared-filter-field-label\s*\{[\s\S]*font-size:\s*var\(--chart-secondary-font-size\);[\s\S]*font-weight:\s*var\(--chart-secondary-font-weight\);[\s\S]*line-height:\s*var\(--chart-secondary-line-height\);/
-  );
+  assert.match(source, /shared-filter-panel-rail-button\s*\{[\s\S]*font:\s*inherit;/);
+  assert.match(source, /\.shared-filter-field-label\s*\{[\s\S]*font-size:\s*var\(--chart-secondary-font-size\);[\s\S]*font-weight:\s*var\(--chart-secondary-font-weight\);[\s\S]*line-height:\s*var\(--chart-secondary-line-height\);/);
 });
 
 runTest('static stylesheet defines shared chart typography tokens', () => {
@@ -83,46 +71,56 @@ runTest('static stylesheet defines shared chart typography tokens', () => {
   assert.match(source, /--chart-secondary-font-size:\s*0\.8rem;/);
   assert.match(source, /--chart-secondary-line-height:\s*1\.5;/);
   assert.match(source, /--chart-secondary-font-weight:\s*400;/);
-  assert.match(
-    source,
-    /shared-filter-panel-rail-button\s*\{[\s\S]*font:\s*inherit;/
-  );
-  assert.match(
-    source,
-    /\.shared-filter-field-label\s*\{[\s\S]*font-size:\s*var\(--chart-secondary-font-size\);[\s\S]*font-weight:\s*var\(--chart-secondary-font-weight\);[\s\S]*line-height:\s*var\(--chart-secondary-line-height\);/
-  );
+  assert.match(source, /shared-filter-panel-rail-button\s*\{[\s\S]*font:\s*inherit;/);
+  assert.match(source, /\.shared-filter-field-label\s*\{[\s\S]*font-size:\s*var\(--chart-secondary-font-size\);[\s\S]*font-weight:\s*var\(--chart-secondary-font-weight\);[\s\S]*line-height:\s*var\(--chart-secondary-line-height\);/);
 });
 
-function assertEmployerAnalysisGradientConfig(label, source) {
-  assert.match(
-    source,
-    /composeChartTitle\('Анализ работодателей · ' \+ metricLabel \+ ' зарплата \(' \+ currencyLabel \+ '\)', chartContext\)/
-  );
-  assert.match(
-    source,
-    /xaxis:\s*\{\s*title:\s*'Зарплата, ' \+ currencyLabel,\s*automargin:\s*true,\s*showgrid:\s*false,\s*zeroline:\s*false\s*\}/
-  );
-  assert.match(
-    source,
-    /yaxis:\s*\{\s*title:\s*'',\s*automargin:\s*true,\s*autorange:\s*'reversed',\s*showgrid:\s*false,\s*zeroline:\s*false\s*\}/
-  );
-  assert.match(source, /margin:\s*\{\s*t:\s*28,\s*r:\s*16,\s*b:\s*40,\s*l:\s*220\s*\}/);
+function assertEmployerAnalysisGradientConfig(source) {
+  assert.match(source, /function buildEmployerAnalysisDonutChartHtml\(labels,\s*values,\s*factorKeys,\s*metricLabel,\s*currencyLabel,\s*chartContext,\s*signature\)/);
+  assert.match(source, /graph\.__chartHostEl\.innerHTML = buildEmployerAnalysisDonutChartHtml\(labels,\s*values,\s*factorKeys,\s*metricLabel,\s*currencyLabel,\s*chartContext,\s*signature\);/);
+  assert.match(source, /function getEmployerAnalysisDonutGradientMeta\(factorKey\)/);
+  assert.match(source, /composeChartTitle\('Анализ работодателей · ' \+ metricLabel \+ ' зарплата \(' \+ currencyLabel \+ '\)', chartContext\)/);
+  assert.match(source, /segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active'/);
+  assert.match(source, /segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-new'/);
+  assert.match(source, /segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-archived'/);
+  assert.match(source, /segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-published-archived'/);
+  assert.match(source, /trackClass: 'donut-chart-track donut-chart-track-outer'/);
+  assert.match(source, /trackClass: 'donut-chart-track donut-chart-track-inner'/);
   assert.match(source, /function getEmployerAnalysisGradientStops\(factorKey\)/);
   assert.match(source, /function getEmployerAnalysisGradientFallbackColor\(factorKey\)/);
-  assert.match(source, /function applyEmployerAnalysisBarGradients\(host,\s*factorKeys\)/);
-  assert.match(source, /if \(factorKey === 'accreditation'\)/);
-  assert.match(source, /if \(factorKey === 'cover_letter_required'\)/);
-  assert.match(source, /if \(factorKey === 'has_test'\)/);
-  assert.match(source, /if \(factorKey === 'rating_bucket'\)/);
-  assert.match(source, /applyEmployerAnalysisBarGradients\(graph\.__chartHostEl,\s*factorKeys\)/);
+  assert.match(source, /return getDonutGradientStopsByKey\('active'\);/);
+  assert.match(source, /return getDonutGradientStopsByKey\('new'\);/);
+  assert.match(source, /return getDonutGradientStopsByKey\('archived'\);/);
+  assert.match(source, /return getDonutGradientStopsByKey\('published-archived'\);/);
+  assert.match(source, /<linearGradient id="/);
+  assert.match(source, /x2="100%" y2="100%"/);
+  assert.match(source, /var offset = stopIndex === 0 \? '0%' : stopIndex === stops\.length - 1 \? '100%' : '55%';/);
+  assert.match(source, /stroke-linecap="round"/);
+  assert.doesNotMatch(source, /return \['#00C3D3', '#007AD8'\];/);
+  assert.doesNotMatch(source, /return \['#8fe9f7', '#5f95ff'\];/);
+  assert.doesNotMatch(source, /return \['#efc3ff', '#b58cff'\];/);
 }
 
-runTest('report employer analysis uses donut-style gradient chart config', () => {
+runTest('report employer analysis fully reuses donut svg styling', () => {
   const source = read(FILES.reportUi);
-  assertEmployerAnalysisGradientConfig('reports/report.ui.js', source);
+  assertEmployerAnalysisGradientConfig(source);
 });
 
-runTest('static employer analysis uses donut-style gradient chart config', () => {
+runTest('static employer analysis fully reuses donut svg styling', () => {
   const source = read(FILES.staticReportUi);
-  assertEmployerAnalysisGradientConfig('reports/static/report.ui.js', source);
+  assertEmployerAnalysisGradientConfig(source);
+});
+
+runTest('report stylesheet defines employer analysis donut chart styles', () => {
+  const source = read(FILES.reportStyles);
+  assert.match(source, /\.employer-analysis-donut-chart\s*\{/);
+  assert.match(source, /\.employer-analysis-donut-chart-title\s*\{/);
+  assert.match(source, /\.employer-analysis-donut-axis-line,\s*[\s\S]*\.employer-analysis-donut-axis-tick line\s*\{/);
+});
+
+runTest('static stylesheet defines employer analysis donut chart styles', () => {
+  const source = read(FILES.staticReportStyles);
+  assert.match(source, /\.employer-analysis-donut-chart\s*\{/);
+  assert.match(source, /\.employer-analysis-donut-chart-title\s*\{/);
+  assert.match(source, /\.employer-analysis-donut-axis-line,\s*[\s\S]*\.employer-analysis-donut-axis-tick line\s*\{/);
 });

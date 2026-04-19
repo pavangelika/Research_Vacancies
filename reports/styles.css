@@ -8433,6 +8433,50 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     color: var(--text-secondary);
 }
 
+.employer-analysis-donut-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.employer-analysis-donut-chart-title {
+    text-align: center;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.employer-analysis-donut-chart svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.employer-analysis-donut-label,
+.employer-analysis-donut-value,
+.employer-analysis-donut-axis-tick text {
+    font-family: var(--chart-font-family);
+    font-size: var(--chart-secondary-font-size);
+    font-weight: var(--chart-secondary-font-weight);
+    line-height: var(--chart-secondary-line-height);
+}
+
+.employer-analysis-donut-label {
+    fill: var(--text-primary);
+}
+
+.employer-analysis-donut-value,
+.employer-analysis-donut-axis-tick text {
+    fill: var(--text-secondary);
+}
+
+.employer-analysis-donut-axis-line,
+.employer-analysis-donut-axis-tick line {
+    stroke: rgba(148, 163, 184, 0.22);
+    stroke-width: 1.5;
+}
+
 /* Воронка */
 .funnel-chart {
     display: flex;

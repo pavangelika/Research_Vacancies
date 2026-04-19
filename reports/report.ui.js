@@ -585,6 +585,21 @@ function getDashboardChartSecondaryTextSize() {
     }
     return parseFloat(raw) || 12.8;
 }
+function getDonutGradientStopsByKey(gradientKey) {
+    if (gradientKey === 'active') {
+        return [CHART_COLORS.selectedStart, CHART_COLORS.selectedMid, CHART_COLORS.selectedEnd];
+    }
+    if (gradientKey === 'new') {
+        return ['#8fe9f7', '#49c8f2', '#5f95ff'];
+    }
+    if (gradientKey === 'archived') {
+        return ['#f38bff', '#8b5cf6'];
+    }
+    if (gradientKey === 'published-archived') {
+        return ['#efc3ff', '#d79cfb', '#b58cff'];
+    }
+    return [CHART_COLORS.selectedStart, CHART_COLORS.selectedMid, CHART_COLORS.selectedEnd];
+}
 function applyIosChartDefaults(layout, traces) {
     if (!layout || typeof layout !== 'object') return;
     var fontFamily = getDashboardChartFontFamily();
@@ -10841,7 +10856,7 @@ function applyEmployerAnalysisViewMode(block, mode) {
 }
 
 function renderEmployerAnalysisChart(block) {
-    if (!block || typeof Plotly === 'undefined') return;
+    if (!block) return;
     var graph = block.querySelector('.employer-analysis-graph');
     if (!graph) return;
     var chartContext = block.dataset.chartContext || '';
@@ -10852,7 +10867,6 @@ function renderEmployerAnalysisChart(block) {
         return row.style.display !== 'none';
     });
     if (!rows.length) {
-        if (graph.__chartHostEl && typeof Plotly.purge === 'function') Plotly.purge(graph.__chartHostEl);
         graph.__chartHostEl = null;
         graph.dataset.plotSignature = '';
         graph.dataset.plotReady = '';
@@ -10879,7 +10893,6 @@ function renderEmployerAnalysisChart(block) {
         colors.push(getEmployerAnalysisGradientFallbackColor(factorKey));
     });
     if (!values.length) {
-        if (graph.__chartHostEl && typeof Plotly.purge === 'function') Plotly.purge(graph.__chartHostEl);
         graph.__chartHostEl = null;
         graph.dataset.plotSignature = '';
         graph.dataset.plotReady = '';
@@ -10901,35 +10914,9 @@ function renderEmployerAnalysisChart(block) {
     graph.style.height = 'auto';
     graph.style.display = 'block';
     graph.style.overflow = 'visible';
-    var plotResult = Plotly.react(graph.__chartHostEl, [{
-        type: 'bar',
-        orientation: 'h',
-        x: values,
-        y: labels,
-        marker: { color: colors, line: { width: 0 } },
-        text: values.map(function(value) {
-            return totalsFormatSalaryPointValue(value, salaryCurrency === 'OTHER' ? '' : salaryCurrency);
-        }),
-        textposition: 'auto',
-        hovertemplate: '%{y}<br>' + escapeHtml(metricLabel) + ': %{x}<extra></extra>'
-    }], {
-        title: { text: composeChartTitle('Анализ работодателей · ' + metricLabel + ' зарплата (' + currencyLabel + ')', chartContext), x: 0.5, xanchor: 'center' },
-        xaxis: { title: 'Зарплата, ' + currencyLabel, automargin: true, showgrid: false, zeroline: false },
-        yaxis: { title: '', automargin: true, autorange: 'reversed', showgrid: false, zeroline: false },
-        margin: { t: 28, r: 16, b: 40, l: 220 },
-        height: 420,
-        showlegend: false
-    }, { responsive: true, displayModeBar: false });
-    if (plotResult && typeof plotResult.then === 'function') {
-        plotResult.then(function() {
-            applyEmployerAnalysisBarGradients(graph.__chartHostEl, factorKeys);
-        });
-    } else {
-        applyEmployerAnalysisBarGradients(graph.__chartHostEl, factorKeys);
-    }
+    graph.__chartHostEl.innerHTML = buildEmployerAnalysisDonutChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature);
     graph.dataset.plotSignature = signature;
     graph.dataset.plotReady = '1';
-    resizePlotlyScope(graph.__chartHostEl || graph);
 }
 
 function getEmployerFactorOrder(factorKey) {
@@ -10955,51 +10942,96 @@ function getEmployerRatingOrder(valueKey) {
 }
 
 function getEmployerAnalysisGradientStops(factorKey) {
-    if (factorKey === 'accreditation') return ['#00C3D3', '#007AD8'];
-    if (factorKey === 'cover_letter_required') return ['#8fe9f7', '#5f95ff'];
-    if (factorKey === 'has_test') return ['#f38bff', '#8b5cf6'];
-    if (factorKey === 'rating_bucket') return ['#efc3ff', '#b58cff'];
-    return ['#00C3D3', '#007AD8'];
+    if (factorKey === 'accreditation') return getDonutGradientStopsByKey('active');
+    if (factorKey === 'cover_letter_required') return getDonutGradientStopsByKey('new');
+    if (factorKey === 'has_test') return getDonutGradientStopsByKey('archived');
+    if (factorKey === 'rating_bucket') return getDonutGradientStopsByKey('published-archived');
+    return getDonutGradientStopsByKey('active');
 }
 
 function getEmployerAnalysisGradientFallbackColor(factorKey) {
     return getEmployerAnalysisGradientStops(factorKey)[1];
 }
 
-function applyEmployerAnalysisBarGradients(host, factorKeys) {
-    if (!host || !Array.isArray(factorKeys) || !factorKeys.length) return;
-    var svg = host.querySelector('svg');
-    if (!svg) return;
-    var ns = 'http://www.w3.org/2000/svg';
-    var defs = svg.querySelector('defs');
-    if (!defs) {
-        defs = document.createElementNS(ns, 'defs');
-        svg.insertBefore(defs, svg.firstChild);
+function getEmployerAnalysisDonutGradientMeta(factorKey) {
+    if (factorKey === 'accreditation') {
+        return { key: 'active', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active', trackClass: 'donut-chart-track donut-chart-track-outer' };
     }
-    var bars = Array.from(svg.querySelectorAll('.barlayer .trace.bars .points path'));
-    bars.forEach(function(bar, index) {
+    if (factorKey === 'cover_letter_required') {
+        return { key: 'new', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-new', trackClass: 'donut-chart-track donut-chart-track-inner' };
+    }
+    if (factorKey === 'has_test') {
+        return { key: 'archived', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-archived', trackClass: 'donut-chart-track donut-chart-track-outer' };
+    }
+    if (factorKey === 'rating_bucket') {
+        return { key: 'published-archived', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-published-archived', trackClass: 'donut-chart-track donut-chart-track-inner' };
+    }
+    return { key: 'active', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active', trackClass: 'donut-chart-track donut-chart-track-outer' };
+}
+
+function buildEmployerAnalysisDonutChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature) {
+    var chartTitle = composeChartTitle('Анализ работодателей · ' + metricLabel + ' зарплата (' + currencyLabel + ')', chartContext);
+    var maxValue = values.reduce(function(max, value) {
+        return value > max ? value : max;
+    }, 0) || 1;
+    var chartWidth = 960;
+    var leftPad = 290;
+    var rightPad = 84;
+    var topPad = 18;
+    var rowGap = 52;
+    var bottomPad = 48;
+    var trackStart = leftPad;
+    var trackEnd = chartWidth - rightPad;
+    var trackWidth = trackEnd - trackStart;
+    var chartHeight = topPad + labels.length * rowGap + bottomPad;
+    var baseId = String(signature || 'employer-analysis')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(-48) || 'employer-analysis';
+    var defsHtml = factorKeys.map(function(factorKey, index) {
+        var meta = getEmployerAnalysisDonutGradientMeta(factorKey);
+        var stops = getDonutGradientStopsByKey(meta.key);
+        var gradientId = 'employer-analysis-gradient-' + baseId + '-' + factorKey + '-' + index;
+        var stopsHtml = stops.map(function(color, stopIndex) {
+            var offset = stopIndex === 0 ? '0%' : stopIndex === stops.length - 1 ? '100%' : '55%';
+            return '<stop offset="' + offset + '" stop-color="' + color + '"></stop>';
+        }).join('');
+        return '<linearGradient id="' + gradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' + stopsHtml + '</linearGradient>';
+    }).join('');
+    var ticks = [0, 0.25, 0.5, 0.75, 1].map(function(part, index) {
+        var x = trackStart + trackWidth * part;
+        var value = maxValue * part;
+        return '<g class="employer-analysis-donut-axis-tick">' +
+            '<line x1="' + x + '" y1="' + (chartHeight - bottomPad + 4) + '" x2="' + x + '" y2="' + (chartHeight - bottomPad + 10) + '"></line>' +
+            '<text x="' + x + '" y="' + (chartHeight - bottomPad + 28) + '" text-anchor="' + (index === 0 ? 'start' : index === 4 ? 'end' : 'middle') + '">' + escapeHtml(totalsFormatSalaryPointValue(value, currencyLabel === 'Другая валюта' ? '' : currencyLabel)) + '</text>' +
+        '</g>';
+    }).join('');
+    var rowsHtml = labels.map(function(label, index) {
         var factorKey = factorKeys[index] || 'accreditation';
-        var stops = getEmployerAnalysisGradientStops(factorKey);
-        var gradientId = 'employer-analysis-gradient-' + factorKey + '-' + index;
-        var gradient = svg.querySelector('#' + gradientId);
-        if (!gradient) {
-            gradient = document.createElementNS(ns, 'linearGradient');
-            gradient.setAttribute('id', gradientId);
-            gradient.setAttribute('x1', '0%');
-            gradient.setAttribute('y1', '0%');
-            gradient.setAttribute('x2', '100%');
-            gradient.setAttribute('y2', '0%');
-            defs.appendChild(gradient);
-        }
-        while (gradient.firstChild) gradient.removeChild(gradient.firstChild);
-        stops.forEach(function(color, stopIndex) {
-            var stop = document.createElementNS(ns, 'stop');
-            stop.setAttribute('offset', stopIndex === 0 ? '0%' : '100%');
-            stop.setAttribute('stop-color', color);
-            gradient.appendChild(stop);
-        });
-        bar.style.fill = 'url(#' + gradientId + ')';
-    });
+        var meta = getEmployerAnalysisDonutGradientMeta(factorKey);
+        var gradientId = 'employer-analysis-gradient-' + baseId + '-' + factorKey + '-' + index;
+        var y = topPad + index * rowGap + 22;
+        var value = values[index] || 0;
+        var ratio = maxValue > 0 ? value / maxValue : 0;
+        var x2 = trackStart + trackWidth * ratio;
+        var valueLabel = totalsFormatSalaryPointValue(value, currencyLabel === 'Другая валюта' ? '' : currencyLabel);
+        return '<g class="employer-analysis-donut-row">' +
+            '<text class="employer-analysis-donut-label" x="' + (leftPad - 18) + '" y="' + (y + 5) + '" text-anchor="end">' + escapeHtml(label) + '</text>' +
+            '<line class="' + meta.trackClass + '" x1="' + trackStart + '" y1="' + y + '" x2="' + trackEnd + '" y2="' + y + '" stroke-linecap="round"></line>' +
+            '<line class="' + meta.segmentClass + '" x1="' + trackStart + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="url(#' + gradientId + ')" stroke-linecap="round"></line>' +
+            '<text class="employer-analysis-donut-value" x="' + (trackEnd + 14) + '" y="' + (y + 5) + '" text-anchor="start">' + escapeHtml(valueLabel) + '</text>' +
+        '</g>';
+    }).join('');
+    return '<div class="employer-analysis-donut-chart">' +
+        '<div class="employer-analysis-donut-chart-title">' + escapeHtml(chartTitle) + '</div>' +
+        '<svg viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" preserveAspectRatio="xMidYMin meet">' +
+            '<defs>' + defsHtml + '</defs>' +
+            rowsHtml +
+            '<line class="employer-analysis-donut-axis-line" x1="' + trackStart + '" y1="' + (chartHeight - bottomPad) + '" x2="' + trackEnd + '" y2="' + (chartHeight - bottomPad) + '"></line>' +
+            ticks +
+        '</svg>' +
+    '</div>';
 }
 
 function normalizeEmployerFactor(rawFactor) {
