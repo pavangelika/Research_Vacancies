@@ -3396,10 +3396,47 @@ function positionGlobalFilterMenu(trigger, menu) {
     var width = Math.max(220, Math.round(trigger.offsetWidth || rect.width || 0));
     var viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
     var scrollHost = trigger.closest ? trigger.closest('.shared-filter-panel-body') : null;
+    var rawHostBottomSpace = viewportBottomSpace;
     var hostBottomSpace = viewportBottomSpace;
+    var hostRect = null;
     if (scrollHost && typeof scrollHost.getBoundingClientRect === 'function') {
-        var hostRect = scrollHost.getBoundingClientRect();
-        if (hostRect) hostBottomSpace = Math.max(96, Math.round(hostRect.bottom - rect.bottom) - 12);
+        hostRect = scrollHost.getBoundingClientRect();
+        if (hostRect) {
+            rawHostBottomSpace = Math.round(hostRect.bottom - rect.bottom) - 12;
+            hostBottomSpace = Math.max(96, rawHostBottomSpace);
+        }
+    }
+    var desiredHeight = Math.max(
+        96,
+        Math.min(
+            Math.max(
+                Math.round((menu.scrollHeight || 0) + 8),
+                Math.round((typeof menu.getBoundingClientRect === 'function' ? menu.getBoundingClientRect().height : 0) || 0),
+                0
+            ),
+            Math.round(window.innerHeight * 0.72)
+        )
+    );
+    if (scrollHost && desiredHeight > rawHostBottomSpace) {
+        var maxScrollTop = Math.max(0, Math.round((scrollHost.scrollHeight || 0) - (scrollHost.clientHeight || 0)));
+        var currentScrollTop = Math.max(0, Math.round(scrollHost.scrollTop || 0));
+        var availableScroll = Math.max(0, maxScrollTop - currentScrollTop);
+        var scrollDelta = Math.min(availableScroll, desiredHeight - rawHostBottomSpace);
+        if (scrollDelta > 0) {
+            scrollHost.scrollTop = currentScrollTop + scrollDelta;
+            rect = trigger.getBoundingClientRect();
+            viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
+            if (typeof scrollHost.getBoundingClientRect === 'function') {
+                hostRect = scrollHost.getBoundingClientRect();
+                if (hostRect) {
+                    rawHostBottomSpace = Math.round(hostRect.bottom - rect.bottom) - 12;
+                    hostBottomSpace = Math.max(96, rawHostBottomSpace);
+                }
+            } else {
+                rawHostBottomSpace = viewportBottomSpace;
+                hostBottomSpace = viewportBottomSpace;
+            }
+        }
     }
     var availableBottomSpace = Math.max(96, Math.min(viewportBottomSpace, hostBottomSpace));
     var maxHeight = Math.max(96, Math.min(availableBottomSpace, Math.round(window.innerHeight * 0.72)));
@@ -3418,6 +3455,36 @@ function positionGlobalFilterMenu(trigger, menu) {
     menu.style.setProperty('transform', 'none', 'important');
     menu.style.setProperty('inset', 'auto auto auto auto', 'important');
     menu.style.setProperty('z-index', '5000', 'important');
+    if (scrollHost) {
+        var remainingMenuOverflow = Math.max(0, Math.round((menu.scrollHeight || 0) - (menu.clientHeight || 0)));
+        if (remainingMenuOverflow > 0) {
+            var maxScrollTopAfterRender = Math.max(0, Math.round((scrollHost.scrollHeight || 0) - (scrollHost.clientHeight || 0)));
+            var currentScrollTopAfterRender = Math.max(0, Math.round(scrollHost.scrollTop || 0));
+            var remainingHostScroll = Math.max(0, maxScrollTopAfterRender - currentScrollTopAfterRender);
+            var extraScrollDelta = Math.min(remainingHostScroll, remainingMenuOverflow);
+            if (extraScrollDelta > 0) {
+                scrollHost.scrollTop = currentScrollTopAfterRender + extraScrollDelta;
+                rect = trigger.getBoundingClientRect();
+                viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
+                if (typeof scrollHost.getBoundingClientRect === 'function') {
+                    hostRect = scrollHost.getBoundingClientRect();
+                    if (hostRect) {
+                        rawHostBottomSpace = Math.round(hostRect.bottom - rect.bottom) - 12;
+                        hostBottomSpace = Math.max(96, rawHostBottomSpace);
+                    }
+                } else {
+                    rawHostBottomSpace = viewportBottomSpace;
+                    hostBottomSpace = viewportBottomSpace;
+                }
+                availableBottomSpace = Math.max(96, Math.min(viewportBottomSpace, hostBottomSpace));
+                maxHeight = Math.max(96, Math.min(availableBottomSpace, Math.round(window.innerHeight * 0.72)));
+                menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
+                menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
+                menu.style.setProperty('width', Math.round(width) + 'px', 'important');
+                menu.style.setProperty('max-height', maxHeight + 'px', 'important');
+            }
+        }
+    }
     bindGlobalFilterMenuScrollLock(menu);
     ensureSharedFilterMenuVisibility(trigger, menu);
 }

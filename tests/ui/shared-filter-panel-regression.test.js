@@ -177,7 +177,7 @@ function evaluateAccordionBehavior(content) {
   };
 }
 
-function evaluateMenuPositioning(content) {
+function evaluateMenuPositioning(content, options = {}) {
   const script = [
     extractFunctionSource(content, 'resetGlobalFilterMenuPosition'),
     extractFunctionSource(content, 'restoreGlobalFilterMenuHost'),
@@ -186,6 +186,11 @@ function evaluateMenuPositioning(content) {
     'module.exports = { positionGlobalFilterMenu };'
   ].join('\n\n');
 
+  const panelRect = options.panelRect || { top: 100, bottom: 360, height: 260 };
+  const triggerRect = options.triggerRect || { top: 160, bottom: 200, left: 10, right: 250, width: 240, height: 40 };
+  const menuRect = options.menuRect || { top: 202, bottom: 332, height: 130 };
+  const menuScrollHeight = options.menuScrollHeight || 130;
+  const windowInnerHeight = options.windowInnerHeight || 600;
   const host = {
     style: {},
     appendChild(node) {
@@ -193,19 +198,28 @@ function evaluateMenuPositioning(content) {
     }
   };
   const panelBody = {
-    scrollTop: 0,
+    scrollTop: options.initialScrollTop || 0,
     clientHeight: 260,
+    scrollHeight: options.panelScrollHeight || 800,
     getBoundingClientRect() {
-      return { top: 100, bottom: 360, height: 260 };
+      return panelRect;
     }
   };
   const trigger = {
     offsetWidth: 240,
-    offsetTop: 320,
+    offsetTop: options.triggerOffsetTop != null ? options.triggerOffsetTop : triggerRect.top,
     offsetHeight: 40,
-    offsetLeft: 10,
+    offsetLeft: triggerRect.left,
     getBoundingClientRect() {
-      return { top: 320, bottom: 360, left: 10, right: 250, width: 240, height: 40 };
+      const scrollShift = panelBody.scrollTop - (options.initialScrollTop || 0);
+      return {
+        top: triggerRect.top - scrollShift,
+        bottom: triggerRect.bottom - scrollShift,
+        left: triggerRect.left,
+        right: triggerRect.right,
+        width: triggerRect.width,
+        height: triggerRect.height
+      };
     },
     closest(selector) {
       if (selector === '.shared-filter-panel-body') return panelBody;
@@ -225,14 +239,16 @@ function evaluateMenuPositioning(content) {
         this.set[name] = value;
       }
     },
+    clientHeight: options.menuClientHeight != null ? options.menuClientHeight : menuRect.height,
+    scrollHeight: menuScrollHeight,
     getBoundingClientRect() {
-      return { top: 362, bottom: 612, height: 250 };
+      return menuRect;
     }
   };
   const sandbox = {
     module: { exports: {} },
     exports: {},
-    window: { innerHeight: 420 },
+    window: { innerHeight: windowInnerHeight },
     bindGlobalFilterMenuScrollLock() {},
     Math
   };
@@ -339,9 +355,31 @@ runTest('shared filter accordion keeps only the newly opened section visible', (
 
 runTest('opening a filter menu keeps shared filter scroll stable and uses menu max-height instead', () => {
   [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
-    const result = evaluateMenuPositioning(read(filePath));
+    const result = evaluateMenuPositioning(read(filePath), {
+      panelRect: { top: 100, bottom: 520, height: 420 },
+      triggerRect: { top: 180, bottom: 220, left: 10, right: 250, width: 240, height: 40 },
+      triggerOffsetTop: 180,
+      menuRect: { top: 222, bottom: 352, height: 130 },
+      menuScrollHeight: 130,
+      windowInnerHeight: 800
+    });
     assert.equal(result.panelBody.scrollTop, 0, `${path.basename(filePath)} should not shift panel scroll when menu opens`);
     assert.match(String(result.menu.style.set['max-height'] || ''), /^\d+px$/);
+  });
+});
+
+runTest('opening a lower shared-filter dropdown scrolls panel to fit the full menu height', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const result = evaluateMenuPositioning(read(filePath), {
+      panelRect: { top: 100, bottom: 360, height: 260 },
+      triggerRect: { top: 320, bottom: 360, left: 10, right: 250, width: 240, height: 40 },
+      triggerOffsetTop: 320,
+      menuRect: { top: 362, bottom: 522, height: 160 },
+      menuScrollHeight: 160,
+      windowInnerHeight: 800
+    });
+    assert.ok(result.panelBody.scrollTop > 0, `${path.basename(filePath)} should scroll panel to make room for lower dropdown`);
+    assert.ok(parseInt(result.menu.style.set['max-height'], 10) >= 160, `${path.basename(filePath)} should size menu to full content height after scroll`);
   });
 });
 
