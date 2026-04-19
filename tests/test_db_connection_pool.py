@@ -5,6 +5,7 @@ class _FakeCursor:
     def __init__(self, rows):
         self._rows = rows
         self.rowcount = len(rows)
+        self.executed = []
 
     def __enter__(self):
         return self
@@ -13,6 +14,7 @@ class _FakeCursor:
         return False
 
     def execute(self, query, params=None):
+        self.executed.append((" ".join(query.split()), params))
         return None
 
     def fetchall(self):
@@ -31,6 +33,7 @@ class _FakeConnection:
         self._rows = rows
         self.info = _FakeInfo()
         self.closed = False
+        self.cursor_obj = _FakeCursor(rows)
 
     def __enter__(self):
         return self
@@ -39,7 +42,7 @@ class _FakeConnection:
         return False
 
     def cursor(self):
-        return _FakeCursor(self._rows)
+        return self.cursor_obj
 
     def commit(self):
         return None
@@ -158,8 +161,9 @@ def test_get_sent_resume_vacancies_reuses_db_connection(monkeypatch):
     connect_calls = []
 
     def fake_connect(*args, **kwargs):
-        connect_calls.append({"args": args, "kwargs": kwargs})
-        return _FakeConnection(rows)
+        conn = _FakeConnection(rows)
+        connect_calls.append({"args": args, "kwargs": kwargs, "connection": conn})
+        return conn
 
     monkeypatch.setattr(db.psycopg2, "connect", fake_connect)
 
@@ -169,6 +173,24 @@ def test_get_sent_resume_vacancies_reuses_db_connection(monkeypatch):
     assert [item["id"] for item in first] == ["vac-1"]
     assert [item["id"] for item in second] == ["vac-1"]
     assert len(connect_calls) == 1
+    assert all("ALTER TABLE get_vacancies" not in query for query, _ in connect_calls[0]["connection"].cursor_obj.executed)
+
+
+def test_get_sent_resume_vacancies_does_not_run_runtime_ddl(monkeypatch):
+    db = importlib.import_module("scripts.db")
+    db = importlib.reload(db)
+
+    rows = []
+    fake_connection = _FakeConnection(rows)
+
+    def fake_connect(*args, **kwargs):
+        return fake_connection
+
+    monkeypatch.setattr(db.psycopg2, "connect", fake_connect)
+
+    db.get_sent_resume_vacancies()
+
+    assert all("ALTER TABLE get_vacancies" not in query for query, _ in fake_connection.cursor_obj.executed)
 
 
 def test_get_db_connection_closes_closed_connections(monkeypatch):

@@ -206,7 +206,6 @@ def get_sent_resume_vacancies() -> list[dict]:
     РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РїРѕ РґР°С‚Рµ РѕС‚РєР»РёРєР°.
     """
     with get_db_connection() as conn, conn.cursor() as cur:
-        ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
             SELECT
@@ -282,7 +281,6 @@ def get_vacancy_details(vacancy_id: str) -> dict | None:
     if not vacancy_id:
         return None
     with get_db_connection() as conn, conn.cursor() as cur:
-        ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
             SELECT
@@ -351,7 +349,6 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
         "cons",
     ]
     with get_db_connection() as conn, conn.cursor() as cur:
-        ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
             SELECT hr_name, interview_date, interview_stages, company_type, result, feedback, offer_salary, pros, cons, updated_at
