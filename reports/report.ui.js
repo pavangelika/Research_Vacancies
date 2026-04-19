@@ -6814,68 +6814,6 @@ function buildTotalsSimpleBarChart(graphId, labels, values, titleText, contextTe
 function isMobileFilterViewport() {
     return !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 960px)').matches);
 }
-function setMobileFilterPanelOpen(open) {
-    var nextOpen = !!open && isMobileFilterViewport();
-    var body = document.body;
-    if (!body) return;
-    body.classList.toggle('mobile-filters-open', nextOpen);
-    var btn = document.getElementById('mobile-filter-toggle');
-    if (btn) {
-        btn.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
-        btn.setAttribute('aria-label', nextOpen ? 'Закрыть панель фильтров' : 'Открыть панель фильтров');
-        btn.textContent = nextOpen ? '✕' : '☰';
-    }
-}
-function ensureMobileFilterPanelControls() {
-    if (typeof document === 'undefined') return;
-    var body = document.body;
-    var roleSelector = document.getElementById('role-selector');
-    if (!body || !roleSelector) return;
-
-    var backdrop = document.getElementById('mobile-filter-backdrop');
-    if (!backdrop) {
-        backdrop = document.createElement('div');
-        backdrop.id = 'mobile-filter-backdrop';
-        body.appendChild(backdrop);
-    }
-
-    var btn = document.getElementById('mobile-filter-toggle');
-    if (!btn) {
-        btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = 'mobile-filter-toggle';
-        btn.textContent = '☰';
-        btn.setAttribute('aria-label', 'Открыть панель фильтров');
-        btn.setAttribute('aria-expanded', 'false');
-        body.appendChild(btn);
-    }
-
-    if (!btn.dataset.bound) {
-        btn.addEventListener('click', function() {
-            setMobileFilterPanelOpen(!document.body.classList.contains('mobile-filters-open'));
-        });
-        btn.dataset.bound = '1';
-    }
-    if (!backdrop.dataset.bound) {
-        backdrop.addEventListener('click', function() {
-            setMobileFilterPanelOpen(false);
-        });
-        backdrop.dataset.bound = '1';
-    }
-    if (!window.__mobileFilterPanelResizeBound) {
-        window.__mobileFilterPanelResizeBound = true;
-        window.addEventListener('resize', function() {
-            if (!isMobileFilterViewport()) setMobileFilterPanelOpen(false);
-        });
-    }
-    if (!document.body.dataset.mobileFilterEscBound) {
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') setMobileFilterPanelOpen(false);
-        });
-        document.body.dataset.mobileFilterEscBound = '1';
-    }
-    if (!isMobileFilterViewport()) setMobileFilterPanelOpen(false);
-}
 function buildTotalsWeekdayChart(graphId, weekdays, contextText) {
     var el = document.getElementById(graphId);
     if (!el) return;
@@ -8673,7 +8611,6 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     hideSharedFilterSources(activeRole);
     var panel = ensureSharedFilterPanel();
     if (!panel) return;
-    ensureMobileFilterPanelControls();
     if (uiState.keep_roles_filter_open) {
         refreshExistingGlobalFilterUi(parentRole, analysisType);
         return;

@@ -5,6 +5,8 @@ import psycopg2
 import shutil
 import logging
 import socket
+from contextlib import contextmanager
+from psycopg2.pool import ThreadedConnectionPool
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from collections import defaultdict
 
@@ -16,6 +18,10 @@ REPORTS_DIR = os.path.join(PROJECT_ROOT, 'reports')
 REPORT_TEMPLATES_DIR = os.path.join(REPORTS_DIR, 'templates')
 REPORT_STATIC_DIR = os.path.join(REPORTS_DIR, 'static')
 REPORT_OUTPUT_DIR = os.environ.get('REPORTS_OUTPUT_DIR', REPORTS_DIR)
+DB_POOL_MIN = max(1, int(os.getenv("DB_POOL_MIN", "1")))
+DB_POOL_MAX = max(DB_POOL_MIN, int(os.getenv("DB_POOL_MAX", "4")))
+
+_DB_POOL = None
 
 
 def compact_text(value, max_len=240):
@@ -101,30 +107,49 @@ def build_city_country_map(areas):
 
     return city_to_countries, country_names, other_regions_cities
 
-def get_db_connection():
-    """Устанавливает соединение с PostgreSQL."""
+def _build_database_url():
+    db_user = os.getenv("DB_USER", "postgres")
+    db_pass = os.getenv("DB_PASS", "password")
+    db_name = os.getenv("DB_NAME", "mydb")
+    db_host = os.getenv("DB_HOST", "postgres")
+    db_port = os.getenv("DB_PORT", "5432")
+    resolved_host = db_host
     try:
-        DB_USER = os.getenv("DB_USER", "postgres")
-        DB_PASS = os.getenv("DB_PASS", "password")
-        DB_NAME = os.getenv("DB_NAME", "mydb")
-        DB_HOST = os.getenv("DB_HOST", "postgres")
-        DB_PORT = os.getenv("DB_PORT", "5432")
-        resolved_host = DB_HOST
-        try:
-            socket.gethostbyname(DB_HOST)
-        except OSError:
-            logging.warning("DB_HOST=%s недоступен, используем localhost", DB_HOST)
-            resolved_host = "127.0.0.1"
-        database_url = os.environ.get(
-            'DATABASE_URL',
-            f'postgresql://{DB_USER}:{DB_PASS}@{resolved_host}:{DB_PORT}/{DB_NAME}'
-        )
-        conn = psycopg2.connect(database_url)
-        logging.info("Database connection established")
-        return conn
+        socket.gethostbyname(db_host)
+    except OSError:
+        logging.warning("DB_HOST=%s недоступен, используем localhost", db_host)
+        resolved_host = "127.0.0.1"
+    return os.environ.get(
+        'DATABASE_URL',
+        f'postgresql://{db_user}:{db_pass}@{resolved_host}:{db_port}/{db_name}'
+    )
+
+
+def get_db_pool():
+    global _DB_POOL
+    if _DB_POOL is None:
+        _DB_POOL = ThreadedConnectionPool(DB_POOL_MIN, DB_POOL_MAX, _build_database_url())
+        logging.info("Database connection pool established")
+    return _DB_POOL
+
+
+@contextmanager
+def get_db_connection():
+    conn = None
+    pool = None
+    try:
+        pool = get_db_pool()
+        conn = pool.getconn()
+        yield conn
+        conn.commit()
     except Exception as e:
+        if conn is not None and not getattr(conn, "closed", 1):
+            conn.rollback()
         logging.error(f"Database connection failed: {e}")
         raise
+    finally:
+        if conn is not None and pool is not None:
+            pool.putconn(conn, close=bool(getattr(conn, "closed", 0)))
 
 def fetch_data(mapping):
     """
@@ -132,8 +157,6 @@ def fetch_data(mapping):
     - months: помесячная статистика по опыту (для таблиц), включая сводный месяц и итоговую строку "Всего"
     - trend: данные для графика динамики (месяц -> суммарные активные, архивные, средний возраст)
     """
-    conn = get_db_connection()
-    cur = conn.cursor()
     query = """
         WITH salary_normalized AS (
             SELECT
@@ -162,10 +185,9 @@ def fetch_data(mapping):
         GROUP BY month, professional_role, experience
         ORDER BY month, professional_role, experience;
     """
-    cur.execute(query)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
 
     roles_dict = {}
     trends = defaultdict(lambda: {'months': [], 'active': [], 'archived': [], 'avg_age': []})
@@ -349,8 +371,6 @@ def fetch_weekday_data(mapping):
     Возвращает данные для анализа по дням недели:
     для каждой роли список записей (день, публикации, архивации, ср. время публикации, ср. время архивации)
     """
-    conn = get_db_connection()
-    cur = conn.cursor()
     query = """
         SELECT 
             professional_role as role_id,
@@ -365,10 +385,9 @@ def fetch_weekday_data(mapping):
         HAVING COUNT(*) > 0
         ORDER BY professional_role, COUNT(*) DESC;
     """
-    cur.execute(query)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
 
     weekdays_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     roles_weekdays = {}
@@ -411,8 +430,6 @@ def fetch_skills_monthly_data(mapping):
     В начало списка месяцев добавляется сводный месяц с агрегированными
     данными по всем месяцам, с названием вида "За N мес.".
     """
-    conn = get_db_connection()
-    cur = conn.cursor()
     query = """
         WITH skill_analysis AS (
             SELECT
@@ -491,10 +508,9 @@ def fetch_skills_monthly_data(mapping):
             month,
             rank_position;
     """
-    cur.execute(query)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
 
     # Организуем данные: role -> month -> experience -> список навыков
     skills_by_role = {}
@@ -618,9 +634,6 @@ def fetch_salary_data(mapping):
     а внутри каждого опыта – список записей (для статусов и валют) с полной статистикой.
     В начало списка месяцев добавляется сводный месяц с агрегированными данными по всем месяцам.
     """
-    conn = get_db_connection()
-    cur = conn.cursor()
-
     def _display_currency(currency):
         if currency == 'RUR':
             return 'RUR'
@@ -831,8 +844,9 @@ def fetch_salary_data(mapping):
             AND ts.archived = a.archived
         ORDER BY a.professional_role, a.experience, a.month_start, a.display_currency, a.archived;
     """
-    cur.execute(query_monthly)
-    rows_monthly = cur.fetchall()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query_monthly)
+        rows_monthly = cur.fetchall()
 
     # Запрос для общих данных по всем месяцам (для сводного месяца) – аналогичные изменения
     query_total = """
@@ -1021,8 +1035,9 @@ def fetch_salary_data(mapping):
             AND ts.archived = a.archived
         ORDER BY a.professional_role, a.experience, a.display_currency, a.archived;
     """
-    cur.execute(query_total)
-    rows_total = cur.fetchall()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query_total)
+        rows_total = cur.fetchall()
 
     query_vacancies = """
         SELECT
@@ -1053,10 +1068,9 @@ def fetch_salary_data(mapping):
         WHERE v.published_at IS NOT NULL
           AND v.professional_role IS NOT NULL;
     """
-    cur.execute(query_vacancies)
-    vacancy_rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query_vacancies)
+        vacancy_rows = cur.fetchall()
 
     # Обработка помесячных данных
     salary_by_role = {}
@@ -1345,8 +1359,6 @@ def fetch_salary_data(mapping):
     return result, vacancies_by_role
 
 def fetch_employer_analysis_data(mapping):
-    conn = get_db_connection()
-    cur = conn.cursor()
     query = """
         WITH vacancies_base AS (
             SELECT
@@ -1544,10 +1556,9 @@ def fetch_employer_analysis_data(mapping):
          AND s.factor_value = c.factor_value
         ORDER BY c.professional_role, c.month_start, c.factor, c.group_n DESC;
     """
-    cur.execute(query)
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(query)
+        rows = cur.fetchall()
 
     roles = {}
     for role_id, month, factor, factor_value, group_n, avg_salary_rur_n, avg_salary_rur, avg_salary_usd_n, avg_salary_usd, avg_salary_eur_n, avg_salary_eur, avg_salary_other_n, avg_salary_other in rows:

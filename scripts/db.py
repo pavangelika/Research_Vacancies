@@ -2,9 +2,11 @@ import os
 import logging
 import time
 import socket
+from contextlib import contextmanager
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 import requests
 from datetime import datetime
@@ -17,6 +19,10 @@ DB_PASS = os.getenv("DB_PASS")
 DB_NAME = os.getenv("DB_NAME")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
+DB_POOL_MIN = max(1, int(os.getenv("DB_POOL_MIN", "1")))
+DB_POOL_MAX = max(DB_POOL_MIN, int(os.getenv("DB_POOL_MAX", "8")))
+
+_DB_POOL = None
 
 
 def has_interview_details(values: list) -> bool:
@@ -31,6 +37,40 @@ def get_resolved_db_host() -> str:
     except OSError:
         logger.warning("DB_HOST=%s РЅРµРґРѕСЃС‚СѓРїРµРЅ, РёСЃРїРѕР»СЊР·СѓРµРј localhost", host)
         return "127.0.0.1"
+
+
+def _build_db_connect_kwargs(dbname: str | None = None) -> dict:
+    return {
+        "dbname": dbname or DB_NAME,
+        "user": DB_USER,
+        "password": DB_PASS,
+        "host": get_resolved_db_host(),
+        "port": DB_PORT,
+    }
+
+
+def get_db_pool() -> ThreadedConnectionPool:
+    global _DB_POOL
+    if _DB_POOL is None:
+        _DB_POOL = ThreadedConnectionPool(DB_POOL_MIN, DB_POOL_MAX, **_build_db_connect_kwargs())
+    return _DB_POOL
+
+
+@contextmanager
+def get_db_connection():
+    conn = None
+    pool = get_db_pool()
+    try:
+        conn = pool.getconn()
+        yield conn
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            conn.rollback()
+        raise
+    finally:
+        if conn is not None:
+            pool.putconn(conn)
 
 
 def create_database():
@@ -73,13 +113,7 @@ def create_database():
 
 def init_table():
     logger.info("РџСЂРѕРІРµСЂРєР° С‚Р°Р±Р»РёС†С‹ get_vacancies...")
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS get_vacancies (
@@ -121,7 +155,6 @@ def init_table():
             """
         )
         ensure_get_vacancies_tracking_columns(cur)
-        conn.commit()
         logger.info("вњ… РўР°Р±Р»РёС†Р° get_vacancies РіРѕС‚РѕРІР°")
 
 
@@ -142,13 +175,7 @@ def mark_resume_sent(vacancy_id: str) -> dict:
     if not vacancy_id:
         return {"updated": False, "vacancy_id": str(vacancy_id or "").strip(), "resume_at": None, "updated_at": None}
 
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
             UPDATE get_vacancies
@@ -162,7 +189,6 @@ def mark_resume_sent(vacancy_id: str) -> dict:
         )
         updated_row = cur.fetchone()
         updated = cur.rowcount > 0
-        conn.commit()
         if not updated:
             logger.warning("Failed to mark send_resume: vacancy_id=%s not found in DB", vacancy_id)
             return {"updated": False, "vacancy_id": str(vacancy_id), "resume_at": None, "updated_at": None}
@@ -179,13 +205,7 @@ def get_sent_resume_vacancies() -> list[dict]:
     Р’РѕР·РІСЂР°С‰Р°РµС‚ РІР°РєР°РЅСЃРёРё, РїРѕ РєРѕС‚РѕСЂС‹Рј РѕС‚РїСЂР°РІР»РµРЅРѕ СЂРµР·СЋРјРµ (send_resume = TRUE),
     РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РїРѕ РґР°С‚Рµ РѕС‚РєР»РёРєР°.
     """
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
         ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
@@ -261,13 +281,7 @@ def get_sent_resume_vacancies() -> list[dict]:
 def get_vacancy_details(vacancy_id: str) -> dict | None:
     if not vacancy_id:
         return None
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
         ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
@@ -336,13 +350,7 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
         "pros",
         "cons",
     ]
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
         ensure_get_vacancies_tracking_columns(cur)
         cur.execute(
             """
@@ -420,7 +428,6 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
             )
         )
         updated_row = cur.fetchone()
-        conn.commit()
         return {
             "ok": True,
             "updated": cur.rowcount > 0,
@@ -432,13 +439,7 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
 def save_vacancies(vacancies: list[dict]):
     logger.info("РЎРѕС…СЂР°РЅРµРЅРёРµ РІР°РєР°РЅСЃРёР№ РІ Р‘Р”...")
 
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
 
         for v in vacancies:
             try:
@@ -493,13 +494,7 @@ def update_archived_status(
 
     logger.info("РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° РІР°РєР°РЅСЃРёР№ РЅР° Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ/СѓРґР°Р»РµРЅРёРµ...")
 
-    with psycopg2.connect(
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS,
-            host=get_resolved_db_host(),
-            port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
 
         # РџРѕР»СѓС‡Р°РµРј РІСЃРµ РІР°РєР°РЅСЃРёРё, РєРѕС‚РѕСЂС‹С… РЅРµС‚ РІ С‚РµРєСѓС‰РµРј СЃРїРёСЃРєРµ
         cur.execute(
@@ -597,13 +592,7 @@ def update_archived_status(
 def init_employers():
     logger.info("РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚Р°Р±Р»РёС†С‹ employers...")
 
-    with psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASS,
-        host=get_resolved_db_host(),
-        port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS employers (
@@ -644,13 +633,7 @@ def update_employers(vacancies: list[dict]):
         logger.info("РќРµС‚ РІР°РєР°РЅСЃРёР№ РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ СЂР°Р±РѕС‚РѕРґР°С‚РµР»РµР№")
         return
 
-    with psycopg2.connect(
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS,
-            host=get_resolved_db_host(),
-            port=DB_PORT,
-    ) as conn, conn.cursor() as cur:
+    with get_db_connection() as conn, conn.cursor() as cur:
 
         updated_count = 0
 
