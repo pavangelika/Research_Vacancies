@@ -65,12 +65,12 @@ def get_db_connection():
         yield conn
         conn.commit()
     except Exception:
-        if conn is not None:
+        if conn is not None and not getattr(conn, "closed", 1):
             conn.rollback()
         raise
     finally:
         if conn is not None:
-            pool.putconn(conn)
+            pool.putconn(conn, close=bool(getattr(conn, "closed", 0)))
 
 
 def create_database():
@@ -471,7 +471,7 @@ def save_vacancies(vacancies: list[dict]):
     logger.info("вњ… РЎРѕС…СЂР°РЅРµРЅРёРµ РІР°РєР°РЅСЃРёР№ Р·Р°РІРµСЂС€РµРЅРѕ")
 
 
-def update_archived_status(
+def _update_archived_status_legacy(
         current_vacancy_ids: list[str],
         timeout: int = 30,
         request_delay: float = 0.2,
@@ -587,6 +587,121 @@ def update_archived_status(
                 time.sleep(request_delay)
 
         logger.info(f"РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° РІР°РєР°РЅСЃРёР№ Р·Р°РІРµСЂС€РµРЅР°. РћР±СЂР°Р±РѕС‚Р°РЅРѕ {total_missing} РІР°РєР°РЅСЃРёР№")
+
+
+def update_archived_status(
+        current_vacancy_ids: list[str],
+        timeout: int = 30,
+        request_delay: float = 0.2,
+        max_retries: int = 3,
+        backoff_factor: float = 2.0
+):
+    """
+    Проверяет вакансии, которых нет в текущем списке, через HH API.
+    Держим транзакции короткими: чтение missing ids отдельно, изменения в БД отдельно.
+    """
+
+    load_dotenv()
+    hh_api_url = os.getenv("HH_API_URL")
+
+    logger.info("Проверка статуса вакансий на архивирование/удаление...")
+
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id
+            FROM get_vacancies
+            WHERE id NOT IN %s
+            """,
+            (tuple(current_vacancy_ids) if current_vacancy_ids else ('',),)
+        )
+        missing_vacancies = cur.fetchall()
+
+    total_missing = len(missing_vacancies)
+    logger.info("Найдено %s вакансий для проверки", total_missing)
+
+    for index, (vac_id,) in enumerate(missing_vacancies, 1):
+        api_url = f"{hh_api_url}/{vac_id}"
+
+        if index % 10 == 0:
+            logger.info("Прогресс: проверено %s/%s вакансий", index, total_missing)
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                resp = requests.get(api_url, timeout=timeout)
+
+                if resp.status_code == 404:
+                    with get_db_connection() as conn, conn.cursor() as cur:
+                        cur.execute("DELETE FROM get_vacancies WHERE id = %s;", (vac_id,))
+                    logger.info("Вакансия %s удалена из базы (404)", vac_id)
+                    break
+
+                if resp.status_code in (403, 429):
+                    if attempt < max_retries:
+                        wait_time = backoff_factor ** attempt
+                        logger.warning(
+                            "Вакансия %s: статус %s (попытка %s/%s). Жду %.1f сек",
+                            vac_id,
+                            resp.status_code,
+                            attempt,
+                            max_retries,
+                            wait_time,
+                        )
+                        time.sleep(wait_time)
+                    else:
+                        logger.warning("Вакансия %s недоступна (403/429) после %s попыток", vac_id, max_retries)
+                    continue
+
+                resp.raise_for_status()
+                data = resp.json()
+
+                if data.get("archived"):
+                    with get_db_connection() as conn, conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            UPDATE get_vacancies
+                            SET archived = TRUE,
+                                archived_at = %s
+                            WHERE id = %s
+                            """,
+                            (datetime.utcnow(), vac_id)
+                        )
+                    logger.info("Вакансия %s архивирована по API", vac_id)
+                else:
+                    logger.debug("Вакансия %s не архивирована", vac_id)
+                break
+
+            except requests.exceptions.Timeout:
+                logger.warning(
+                    "Таймаут при проверке вакансии %s (попытка %s/%s)",
+                    vac_id,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(backoff_factor ** attempt)
+                continue
+
+            except requests.exceptions.RequestException as e:
+                logger.warning(
+                    "Ошибка сети при проверке вакансии %s: %s (попытка %s/%s)",
+                    vac_id,
+                    e,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(backoff_factor ** attempt)
+                continue
+
+            except Exception as e:
+                logger.error("Неожиданная ошибка при проверке вакансии %s: %s", vac_id, e)
+                break
+
+        if request_delay > 0 and index < total_missing:
+            time.sleep(request_delay)
+
+    logger.info("Проверка статуса вакансий завершена. Обработано %s вакансий", total_missing)
 
 
 def init_employers():

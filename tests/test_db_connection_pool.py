@@ -51,6 +51,69 @@ class _FakeConnection:
         self.closed = False
 
 
+class _PoolConnection:
+    def __init__(self):
+        self.info = _FakeInfo()
+        self.closed = 0
+        self.commit_calls = 0
+        self.rollback_calls = 0
+
+    def commit(self):
+        self.commit_calls += 1
+
+    def rollback(self):
+        self.rollback_calls += 1
+
+
+class _FakePool:
+    def __init__(self):
+        self.connection = _PoolConnection()
+        self.putconn_close_args = []
+
+    def getconn(self):
+        return self.connection
+
+    def putconn(self, conn, close=False):
+        assert conn is self.connection
+        self.putconn_close_args.append(close)
+
+
+class _UpdateCursor:
+    def __init__(self, rows):
+        self._rows = rows
+        self.executed = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, query, params=None):
+        self.executed.append((" ".join(query.split()), params))
+
+    def fetchall(self):
+        return list(self._rows)
+
+
+class _UpdateConnection:
+    def __init__(self, rows):
+        self.rows = rows
+        self.closed = 0
+        self.commit_calls = 0
+        self.rollback_calls = 0
+        self.cursor_obj = _UpdateCursor(rows)
+
+    def cursor(self):
+        return self.cursor_obj
+
+    def commit(self):
+        self.commit_calls += 1
+
+    def rollback(self):
+        self.rollback_calls += 1
+
+
 def test_get_sent_resume_vacancies_reuses_db_connection(monkeypatch):
     db = importlib.import_module("scripts.db")
     db = importlib.reload(db)
@@ -106,3 +169,67 @@ def test_get_sent_resume_vacancies_reuses_db_connection(monkeypatch):
     assert [item["id"] for item in first] == ["vac-1"]
     assert [item["id"] for item in second] == ["vac-1"]
     assert len(connect_calls) == 1
+
+
+def test_get_db_connection_closes_closed_connections(monkeypatch):
+    db = importlib.import_module("scripts.db")
+    db = importlib.reload(db)
+
+    pool = _FakePool()
+    monkeypatch.setattr(db, "get_db_pool", lambda: pool)
+
+    try:
+        with db.get_db_connection() as conn:
+            conn.closed = 1
+            raise RuntimeError("boom")
+    except RuntimeError as exc:
+        assert str(exc) == "boom"
+
+    assert pool.connection.rollback_calls == 0
+    assert pool.putconn_close_args == [True]
+
+
+def test_update_archived_status_releases_initial_connection_before_http(monkeypatch):
+    db = importlib.import_module("scripts.db")
+    db = importlib.reload(db)
+
+    current_ids = ["current-id"]
+    select_conn = _UpdateConnection([("missing-id",)])
+    delete_conn = _UpdateConnection([])
+    connections = [select_conn, delete_conn]
+    active_connections = []
+
+    class _ConnectionManager:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def __enter__(self):
+            active_connections.append(self.conn)
+            return self.conn
+
+        def __exit__(self, exc_type, exc, tb):
+            active_connections.remove(self.conn)
+            return False
+
+    def fake_get_db_connection():
+        assert connections, "unexpected extra DB connection request"
+        return _ConnectionManager(connections.pop(0))
+
+    class _Response:
+        status_code = 404
+
+    def fake_requests_get(url, timeout):
+        assert active_connections == [], "DB connection leaked into HTTP request"
+        return _Response()
+
+    monkeypatch.setattr(db, "get_db_connection", fake_get_db_connection)
+    monkeypatch.setattr(db, "load_dotenv", lambda: None)
+    monkeypatch.setattr(db.os, "getenv", lambda key, default=None: "https://example.test/vacancies" if key == "HH_API_URL" else default)
+    monkeypatch.setattr(db.requests, "get", fake_requests_get)
+
+    db.update_archived_status(current_ids, request_delay=0, max_retries=1)
+
+    assert select_conn.commit_calls == 0
+    assert delete_conn.commit_calls == 0
+    assert any("SELECT id FROM get_vacancies WHERE id NOT IN" in query for query, _ in select_conn.cursor_obj.executed)
+    assert any("DELETE FROM get_vacancies WHERE id = %s;" in query for query, _ in delete_conn.cursor_obj.executed)
