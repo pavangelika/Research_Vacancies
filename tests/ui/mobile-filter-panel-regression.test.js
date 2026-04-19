@@ -79,3 +79,19 @@ runTest('mobile expanded shared filter panel is driven by shared panel state sel
     );
   });
 });
+
+runTest('mobile expanded shared filter panel opens fullscreen from viewport top', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /body\.report-dashboard\.shared-filters-expanded\s+#global-shared-filter-panel\[data-panel-open="1"\]\s*\{[^}]*top:\s*0\s*!important;[^}]*bottom:\s*0\s*!important;[^}]*height:\s*100dvh\s*!important;[^}]*min-height:\s*100dvh\s*!important;[^}]*max-height:\s*100dvh\s*!important;[^}]*background:\s*linear-gradient\(/,
+      `${path.basename(filePath)} should open the mobile expanded shared filter panel fullscreen from the top of the viewport`
+    );
+    assert.doesNotMatch(
+      source,
+      /--mobile-shared-filter-top-offset/,
+      `${path.basename(filePath)} should not keep a mobile top offset for the expanded shared filter panel`
+    );
+  });
+});
