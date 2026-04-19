@@ -44,15 +44,36 @@ function ensureSharedFilterPanelState() {
     if (!uiState.shared_filter_panel_state.sections || typeof uiState.shared_filter_panel_state.sections !== 'object') {
         uiState.shared_filter_panel_state.sections = {};
     }
-    if (!Object.prototype.hasOwnProperty.call(uiState.shared_filter_panel_state.sections, 'roles')) {
-        uiState.shared_filter_panel_state.sections.roles = true;
-    }
     if (typeof uiState.shared_filter_panel_state.activeSection !== 'string') {
         uiState.shared_filter_panel_state.activeSection = 'roles';
     }
     if (typeof uiState.shared_filter_panel_state.lastAnalysis !== 'string') {
         uiState.shared_filter_panel_state.lastAnalysis = '';
     }
+    var sectionKeys = Array.isArray(SHARED_FILTER_PANEL_SECTION_META)
+        ? SHARED_FILTER_PANEL_SECTION_META.map(function(section) {
+            return String(section && section.key || '').trim();
+        }).filter(Boolean)
+        : ['my-filters', 'roles', 'salary', 'responses', 'top', 'vacancy', 'skills'];
+    if (sectionKeys.indexOf('roles') === -1) sectionKeys.unshift('roles');
+    sectionKeys.forEach(function(sectionKey) {
+        if (!Object.prototype.hasOwnProperty.call(uiState.shared_filter_panel_state.sections, sectionKey)) {
+            uiState.shared_filter_panel_state.sections[sectionKey] = false;
+        } else {
+            uiState.shared_filter_panel_state.sections[sectionKey] = uiState.shared_filter_panel_state.sections[sectionKey] === true;
+        }
+    });
+    var activeSection = String(uiState.shared_filter_panel_state.activeSection || '').trim();
+    if (!activeSection || sectionKeys.indexOf(activeSection) === -1) activeSection = 'roles';
+    var openSections = sectionKeys.filter(function(sectionKey) {
+        return uiState.shared_filter_panel_state.sections[sectionKey] === true;
+    });
+    if (openSections.length !== 1 || openSections[0] !== activeSection) {
+        sectionKeys.forEach(function(sectionKey) {
+            uiState.shared_filter_panel_state.sections[sectionKey] = sectionKey === activeSection;
+        });
+    }
+    uiState.shared_filter_panel_state.activeSection = activeSection;
     return uiState.shared_filter_panel_state;
 }
 
@@ -80,6 +101,11 @@ function getSharedFilterPanelToggleLabel(collapsed) {
     return collapsed ? 'Развернуть панель фильтров' : 'Свернуть панель фильтров';
 }
 
+function getSharedFilterPanelToggleGlyph(collapsed) {
+    if (typeof isMobileFilterViewport === 'function' && isMobileFilterViewport()) return '\u2500';
+    return collapsed ? '\u25B6' : '\u25C0';
+}
+
 function syncSharedFilterPanelCollapsedUi(panel) {
     if (!panel) return;
     var collapsed = isSharedFilterPanelCollapsed();
@@ -103,7 +129,7 @@ function syncSharedFilterPanelCollapsedUi(panel) {
 
     var toggle = panel.querySelector('.shared-filter-panel-toggle');
     if (toggle) {
-        toggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+        toggle.textContent = getSharedFilterPanelToggleGlyph(collapsed);
         toggle.title = getSharedFilterPanelToggleLabel(collapsed);
         toggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
         toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
@@ -140,7 +166,7 @@ function syncSharedFilterPanelCollapsedUi(panel) {
 
     var railToggle = panel.querySelector('.shared-filter-panel-rail-toggle');
     if (railToggle) {
-        railToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+        railToggle.textContent = getSharedFilterPanelToggleGlyph(collapsed);
         railToggle.title = getSharedFilterPanelToggleLabel(collapsed);
         railToggle.setAttribute('aria-label', getSharedFilterPanelToggleLabel(collapsed));
     }

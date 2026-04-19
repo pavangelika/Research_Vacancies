@@ -3349,6 +3349,41 @@ function restoreGlobalFilterMenuHost(menu) {
     resetGlobalFilterMenuPosition(menu);
 }
 
+function ensureSharedFilterSectionVisibility(panel, sectionKey) {
+    if (!panel || !sectionKey) return;
+    if (String(sectionKey || '').trim() === 'skills') return;
+    var scrollHost = panel.querySelector('.shared-filter-panel-body');
+    var group = panel.querySelector('.shared-filter-group[data-section-key="' + sectionKey + '"]');
+    if (!scrollHost || !group || typeof scrollHost.scrollTop !== 'number') return;
+    var hostRect = typeof scrollHost.getBoundingClientRect === 'function' ? scrollHost.getBoundingClientRect() : null;
+    var groupRect = typeof group.getBoundingClientRect === 'function' ? group.getBoundingClientRect() : null;
+    if (!hostRect || !groupRect) return;
+    var safeGap = 12;
+    var deltaDown = groupRect.bottom - (hostRect.bottom - safeGap);
+    if (deltaDown > 0) {
+        scrollHost.scrollTop += deltaDown;
+        return;
+    }
+    var deltaUp = groupRect.top - (hostRect.top + safeGap);
+    if (deltaUp < 0) {
+        scrollHost.scrollTop += deltaUp;
+    }
+}
+
+function ensureSharedFilterMenuVisibility(trigger, menu) {
+    if (!trigger || !menu) return;
+    var sectionGroup = trigger.closest ? trigger.closest('.shared-filter-group[data-section-key]') : null;
+    if (sectionGroup && String(sectionGroup.dataset.sectionKey || '').trim() === 'skills') return;
+    var safeGap = 12;
+    var menuRect = typeof menu.getBoundingClientRect === 'function' ? menu.getBoundingClientRect() : null;
+    if (menuRect) {
+        var viewportOverflow = menuRect.bottom - (window.innerHeight - safeGap);
+        if (viewportOverflow > 0 && typeof window.scrollBy === 'function') {
+            window.scrollBy({ top: viewportOverflow, behavior: 'instant' });
+        }
+    }
+}
+
 function positionGlobalFilterMenu(trigger, menu) {
     if (!trigger || !menu) return;
     restoreGlobalFilterMenuHost(menu);
@@ -3359,8 +3394,15 @@ function positionGlobalFilterMenu(trigger, menu) {
     }
     var rect = trigger.getBoundingClientRect();
     var width = Math.max(220, Math.round(trigger.offsetWidth || rect.width || 0));
-    var viewportBottomSpace = window.innerHeight - Math.round(rect.bottom) - 12;
-    var maxHeight = Math.max(240, Math.min(viewportBottomSpace, Math.round(window.innerHeight * 0.72)));
+    var viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
+    var scrollHost = trigger.closest ? trigger.closest('.shared-filter-panel-body') : null;
+    var hostBottomSpace = viewportBottomSpace;
+    if (scrollHost && typeof scrollHost.getBoundingClientRect === 'function') {
+        var hostRect = scrollHost.getBoundingClientRect();
+        if (hostRect) hostBottomSpace = Math.max(96, Math.round(hostRect.bottom - rect.bottom) - 12);
+    }
+    var availableBottomSpace = Math.max(96, Math.min(viewportBottomSpace, hostBottomSpace));
+    var maxHeight = Math.max(96, Math.min(availableBottomSpace, Math.round(window.innerHeight * 0.72)));
     menu.style.setProperty('position', 'absolute', 'important');
     menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
     menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
@@ -3377,6 +3419,7 @@ function positionGlobalFilterMenu(trigger, menu) {
     menu.style.setProperty('inset', 'auto auto auto auto', 'important');
     menu.style.setProperty('z-index', '5000', 'important');
     bindGlobalFilterMenuScrollLock(menu);
+    ensureSharedFilterMenuVisibility(trigger, menu);
 }
 
 function ensureGlobalFilterSearchState() {
@@ -4030,7 +4073,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
 
 function createGlobalFilterDropdown(filterKey, title, options, disabled) {
     var bucket = ensureGlobalFilterBucket(filterKey);
-    var isRolesFilter = filterKey === 'roles' || filterKey === 'employer';
+    var isRolesFilter = usesRoleWidthSharedFilter(filterKey);
     var allowMulti = ['status', 'country', 'accreditation', 'cover_letter_required', 'has_test', 'interview', 'result', 'offer'].indexOf(filterKey) < 0;
     var baseTextColor = getDashboardFilterBaseTextColor();
     if (!allowMulti && isGlobalFilterMultiEnabled(filterKey)) {
@@ -4838,6 +4881,10 @@ var SHARED_FILTER_FIELD_WIDTH = 'calc(220px * 0.98)';
 var SHARED_FILTER_FIELD_MENU_WIDTH = 'calc(220px * 0.98)';
 var SHARED_FILTER_WIDE_FIELD_WIDTH = 'calc(280px * 0.98)';
 var SHARED_FILTER_WIDE_MENU_WIDTH = 'calc(240px * 0.98)';
+
+function usesRoleWidthSharedFilter(filterKey) {
+    return ['roles', 'status', 'currency', 'country', 'interview', 'result', 'offer', 'employer'].indexOf(String(filterKey || '').trim()) >= 0;
+}
 
 function getDefaultGlobalPeriodOptionValue(activeRole, analysisType) {
     var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
@@ -8538,8 +8585,9 @@ function createSharedFilterGroup(title, nodes) {
             heading.type = 'button';
             heading.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             heading.addEventListener('click', function() {
+                if (wrap.dataset.sectionOpen === '1') return;
                 if (typeof setSharedFilterPanelSectionOpen === 'function') {
-                    setSharedFilterPanelSectionOpen(sectionKey, !(wrap.dataset.sectionOpen === '1'));
+                    setSharedFilterPanelSectionOpen(sectionKey, true);
                 }
             });
         }
@@ -8593,20 +8641,28 @@ function setSharedFilterPanelSectionOpen(sectionKey, open) {
             if (!groupKey) return;
             uiState.shared_filter_panel_state.sections[groupKey] = groupKey === key;
         });
+        uiState.shared_filter_panel_state.activeSection = key;
+    } else if (!nextOpen && uiState.shared_filter_panel_state.activeSection !== key) {
+        uiState.shared_filter_panel_state.sections[key] = false;
     } else {
-        uiState.shared_filter_panel_state.sections[key] = nextOpen;
+        nextOpen = true;
+        uiState.shared_filter_panel_state.sections[key] = true;
+        uiState.shared_filter_panel_state.activeSection = key;
     }
     if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
     if (!panel) return;
+    panel.dataset.activeSection = uiState.shared_filter_panel_state.activeSection || key;
     panel.querySelectorAll('.shared-filter-group[data-section-key]').forEach(function(group) {
         var groupKey = String(group.dataset.sectionKey || '').trim();
         if (!groupKey) return;
-        var isOpen = nextOpen ? groupKey === key : (groupKey === key ? false : uiState.shared_filter_panel_state.sections[groupKey] === true);
+        var isOpen = uiState.shared_filter_panel_state.sections[groupKey] === true;
         group.dataset.sectionOpen = isOpen ? '1' : '0';
-        var body = group.querySelector('.shared-filter-group-body');
         var heading = group.querySelector('.shared-filter-group-title');
         if (heading) heading.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
+    if (uiState.shared_filter_panel_state.activeSection) {
+        ensureSharedFilterSectionVisibility(panel, uiState.shared_filter_panel_state.activeSection);
+    }
     if (typeof syncSharedFilterPanelCollapsedUi === 'function') {
         syncSharedFilterPanelCollapsedUi(panel);
     }
@@ -8635,7 +8691,7 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
     }
     panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
     panel.dataset.activeAnalysis = current;
-    panel.dataset.activeSection = getSharedFilterPanelSectionKeyForAnalysis(current);
+    panel.dataset.activeSection = panelState.activeSection || getSharedFilterPanelSectionKeyForAnalysis(current);
     body.style.display = panelState.open === false ? 'none' : 'flex';
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
