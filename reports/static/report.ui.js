@@ -3395,15 +3395,20 @@ function positionGlobalFilterMenu(trigger, menu) {
     var rect = trigger.getBoundingClientRect();
     var width = Math.max(220, Math.round(trigger.offsetWidth || rect.width || 0));
     var viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
+    var viewportTopSpace = Math.max(96, Math.round(rect.top) - 12);
     var scrollHost = trigger.closest ? trigger.closest('.shared-filter-panel-body') : null;
     var rawHostBottomSpace = viewportBottomSpace;
     var hostBottomSpace = viewportBottomSpace;
+    var rawHostTopSpace = viewportTopSpace;
+    var hostTopSpace = viewportTopSpace;
     var hostRect = null;
     if (scrollHost && typeof scrollHost.getBoundingClientRect === 'function') {
         hostRect = scrollHost.getBoundingClientRect();
         if (hostRect) {
             rawHostBottomSpace = Math.round(hostRect.bottom - rect.bottom) - 12;
             hostBottomSpace = Math.max(96, rawHostBottomSpace);
+            rawHostTopSpace = Math.round(rect.top - hostRect.top) - 12;
+            hostTopSpace = Math.max(96, rawHostTopSpace);
         }
     }
     var desiredHeight = Math.max(
@@ -3426,22 +3431,39 @@ function positionGlobalFilterMenu(trigger, menu) {
             scrollHost.scrollTop = currentScrollTop + scrollDelta;
             rect = trigger.getBoundingClientRect();
             viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
+            viewportTopSpace = Math.max(96, Math.round(rect.top) - 12);
             if (typeof scrollHost.getBoundingClientRect === 'function') {
                 hostRect = scrollHost.getBoundingClientRect();
                 if (hostRect) {
                     rawHostBottomSpace = Math.round(hostRect.bottom - rect.bottom) - 12;
                     hostBottomSpace = Math.max(96, rawHostBottomSpace);
+                    rawHostTopSpace = Math.round(rect.top - hostRect.top) - 12;
+                    hostTopSpace = Math.max(96, rawHostTopSpace);
                 }
             } else {
                 rawHostBottomSpace = viewportBottomSpace;
                 hostBottomSpace = viewportBottomSpace;
+                rawHostTopSpace = viewportTopSpace;
+                hostTopSpace = viewportTopSpace;
             }
         }
     }
     var availableBottomSpace = Math.max(96, Math.min(viewportBottomSpace, hostBottomSpace));
     var maxHeight = Math.max(96, Math.min(availableBottomSpace, Math.round(window.innerHeight * 0.72)));
+    var availableTopSpace = Math.max(96, Math.min(viewportTopSpace, hostTopSpace));
+    var opensUpward = false;
+    if (desiredHeight > availableBottomSpace && availableTopSpace > availableBottomSpace) {
+        maxHeight = Math.max(96, Math.min(desiredHeight, availableTopSpace, Math.round(window.innerHeight * 0.72)));
+        opensUpward = true;
+    }
     menu.style.setProperty('position', 'absolute', 'important');
-    menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
+    menu.style.setProperty(
+        'top',
+        opensUpward
+            ? Math.max(0, Math.round((trigger.offsetTop || 0) - maxHeight - 2)) + 'px'
+            : Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px',
+        'important'
+    );
     menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
     menu.style.setProperty('right', 'auto', 'important');
     menu.style.setProperty('bottom', 'auto', 'important');
@@ -3466,19 +3488,36 @@ function positionGlobalFilterMenu(trigger, menu) {
                 scrollHost.scrollTop = currentScrollTopAfterRender + extraScrollDelta;
                 rect = trigger.getBoundingClientRect();
                 viewportBottomSpace = Math.max(96, window.innerHeight - Math.round(rect.bottom) - 12);
+                viewportTopSpace = Math.max(96, Math.round(rect.top) - 12);
                 if (typeof scrollHost.getBoundingClientRect === 'function') {
                     hostRect = scrollHost.getBoundingClientRect();
                     if (hostRect) {
                         rawHostBottomSpace = Math.round(hostRect.bottom - rect.bottom) - 12;
                         hostBottomSpace = Math.max(96, rawHostBottomSpace);
+                        rawHostTopSpace = Math.round(rect.top - hostRect.top) - 12;
+                        hostTopSpace = Math.max(96, rawHostTopSpace);
                     }
                 } else {
                     rawHostBottomSpace = viewportBottomSpace;
                     hostBottomSpace = viewportBottomSpace;
+                    rawHostTopSpace = viewportTopSpace;
+                    hostTopSpace = viewportTopSpace;
                 }
                 availableBottomSpace = Math.max(96, Math.min(viewportBottomSpace, hostBottomSpace));
                 maxHeight = Math.max(96, Math.min(availableBottomSpace, Math.round(window.innerHeight * 0.72)));
-                menu.style.setProperty('top', Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px', 'important');
+                availableTopSpace = Math.max(96, Math.min(viewportTopSpace, hostTopSpace));
+                opensUpward = false;
+                if (desiredHeight > availableBottomSpace && availableTopSpace > availableBottomSpace) {
+                    maxHeight = Math.max(96, Math.min(desiredHeight, availableTopSpace, Math.round(window.innerHeight * 0.72)));
+                    opensUpward = true;
+                }
+                menu.style.setProperty(
+                    'top',
+                    opensUpward
+                        ? Math.max(0, Math.round((trigger.offsetTop || 0) - maxHeight - 2)) + 'px'
+                        : Math.round((trigger.offsetTop || 0) + (trigger.offsetHeight || 0) + 2) + 'px',
+                    'important'
+                );
                 menu.style.setProperty('left', Math.round(trigger.offsetLeft || 0) + 'px', 'important');
                 menu.style.setProperty('width', Math.round(width) + 'px', 'important');
                 menu.style.setProperty('max-height', maxHeight + 'px', 'important');

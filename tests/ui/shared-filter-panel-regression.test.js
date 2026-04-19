@@ -323,6 +323,60 @@ function evaluateSkillsMenuScroll(content) {
   return { panelBody, windowScrollByCalls };
 }
 
+function evaluateSalaryMetricControlStructure(content) {
+  const script = [
+    extractFunctionSource(content, 'createSalaryMetricFilterControl'),
+    'module.exports = { createSalaryMetricFilterControl };'
+  ].join('\n\n');
+
+  function createNode(tag) {
+    return {
+      tagName: String(tag || '').toUpperCase(),
+      className: '',
+      classList: {
+        add() {},
+        remove() {},
+        toggle() {},
+        contains() { return false; }
+      },
+      textContent: '',
+      children: [],
+      attrs: {},
+      dataset: {},
+      appendChild(child) {
+        this.children.push(child);
+        child.parentNode = this;
+        return child;
+      },
+      setAttribute(name, value) {
+        this.attrs[name] = value;
+      },
+      addEventListener() {}
+    };
+  }
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    uiState: {
+      market_trends_salary_metric: 'avg'
+    },
+    document: {
+      createElement(tag) {
+        return createNode(tag);
+      }
+    }
+  };
+
+  vm.runInNewContext(script, sandbox, { filename: 'salary-metric-control.vm.js' });
+  const activeRole = { dataset: { activeAnalysis: 'salary' } };
+  const control = sandbox.module.exports.createSalaryMetricFilterControl(activeRole, 'salary');
+  const metricWrap = control && control.children ? control.children[0] : null;
+  const label = metricWrap && metricWrap.children ? metricWrap.children[0] : null;
+  const chipShell = metricWrap && metricWrap.children ? metricWrap.children[1] : null;
+  return { control, metricWrap, label, chipShell };
+}
+
 runTest('shared filter panel state defaults to roles section only', () => {
   [FILES.reportFilters, FILES.staticReportFilters].forEach((filePath) => {
     const state = evaluateDefaultState(read(filePath));
@@ -383,6 +437,23 @@ runTest('opening a lower shared-filter dropdown scrolls panel to fit the full me
   });
 });
 
+runTest('opening a lower shared-filter dropdown flips upward when panel can no longer scroll', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const result = evaluateMenuPositioning(read(filePath), {
+      panelRect: { top: 100, bottom: 360, height: 260 },
+      panelScrollHeight: 260,
+      triggerRect: { top: 320, bottom: 360, left: 10, right: 250, width: 240, height: 40 },
+      triggerOffsetTop: 320,
+      menuRect: { top: 362, bottom: 522, height: 160 },
+      menuScrollHeight: 160,
+      windowInnerHeight: 800
+    });
+    assert.equal(result.panelBody.scrollTop, 0, `${path.basename(filePath)} should not try to scroll a full panel`);
+    assert.ok(parseInt(result.menu.style.set['max-height'], 10) >= 160, `${path.basename(filePath)} should preserve full menu height when opening upward`);
+    assert.ok(parseInt(result.menu.style.set.top, 10) < 320, `${path.basename(filePath)} should place the menu above the trigger when there is no room below`);
+  });
+});
+
 runTest('skills section opening does not auto-scroll the shared filter panel', () => {
   [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
     assert.equal(evaluateSkillsSectionScroll(read(filePath)), 0, `${path.basename(filePath)} should not auto-scroll skills section`);
@@ -394,5 +465,14 @@ runTest('skills dropdown opening does not auto-scroll panel or window', () => {
     const result = evaluateSkillsMenuScroll(read(filePath));
     assert.equal(result.panelBody.scrollTop, 0, `${path.basename(filePath)} should not move panel scroll for skills menu`);
     assert.equal(result.windowScrollByCalls, 0, `${path.basename(filePath)} should not scroll window for skills menu`);
+  });
+});
+
+runTest('salary metric filter uses the same field shell structure as shared dropdown filters', () => {
+  [FILES.reportFilters, FILES.staticReportFilters].forEach((filePath) => {
+    const result = evaluateSalaryMetricControlStructure(read(filePath));
+    assert.match(String(result.metricWrap && result.metricWrap.className || ''), /shared-filter-salary-dropdown/);
+    assert.equal(String(result.label && result.label.className || ''), 'shared-filter-field-label');
+    assert.equal(String(result.chipShell && result.chipShell.className || ''), 'totals-top-filter-chip-row');
   });
 });

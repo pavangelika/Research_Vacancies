@@ -1624,7 +1624,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
     if (!isTopMode && !isMarketTrendsMode) return null;
 
     var wrap = document.createElement('div');
-    wrap.className = 'totals-top-filter-control';
+    wrap.className = 'totals-top-filter-control shared-filter-salary-filter-control';
     if (currentAnalysis === 'skills-search') wrap.classList.add('skills-search-top-limit-control');
 
     if (isTopMode) {
@@ -1833,10 +1833,10 @@ function createSalaryMetricFilterControl(activeRole, analysisType) {
     wrap.className = 'totals-top-filter-control';
 
     var metricWrap = document.createElement('div');
-    metricWrap.className = 'totals-top-filter-currency';
+    metricWrap.className = 'totals-top-filter-currency shared-filter-salary-dropdown';
 
     var metricLabel = document.createElement('div');
-    metricLabel.className = 'totals-top-filter-subtitle';
+    metricLabel.className = 'shared-filter-field-label';
     metricLabel.textContent = 'Зарплата';
     metricWrap.appendChild(metricLabel);
 
