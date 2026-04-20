@@ -997,9 +997,94 @@ function renderCombinedContainer(container, roleContents) {
             combinedEmployerRows = combinedEmployerRows.concat(buildEmployerAnalysisRowsFromVacancies(monthVacancies, month));
         });
     }
-    var activityBlocks = '';
-    var weekdayBlock = '';
-    var skillsBlock = '';
+    var activityBlocks =
+        '<div id="month-combined-summary" class="month-content activity-only" data-entries="' + encodeURIComponent(JSON.stringify(combinedActivity.entries || [])) + '" data-month="' + combinedActivity.month + '">' +
+            '<div class="view-toggle-horizontal">' +
+                buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.activity_view_mode || 'together') +
+            '</div>' +
+            '<div class="analysis-flex view-mode-container" data-analysis="activity">' +
+                '<div class="table-container">' +
+                    '<table>' +
+                        '<thead><tr><th>Опыт</th><th>Всего</th><th>Архивных</th><th>Активных</th><th>Ср. возраст (дни)</th></tr></thead>' +
+                        '<tbody>' +
+                            combinedActivity.entries.map(function(e) {
+                                return '<tr' + (e.is_max_archived ? ' class="max-archived"' : '') + '>' +
+                                    '<td>' + e.experience + '</td>' +
+                                    '<td>' + e.total + '</td>' +
+                                    '<td>' + e.archived + '</td>' +
+                                    '<td>' + e.active + '</td>' +
+                                    '<td>' + (e.avg_age !== null && e.avg_age !== undefined ? Number(e.avg_age).toFixed(1) : '—') + '</td>' +
+                                '</tr>';
+                            }).join('') +
+                        '</tbody>' +
+                    '</table>' +
+                '</div>' +
+                '<div class="plotly-graph" id="activity-graph-all"></div>' +
+            '</div>' +
+        '</div>';
+    var weekdayBlock = (
+        '<div class="weekday-content" data-analysis="weekday-all" style="display: none;" data-weekdays="">' +
+            (weekdays.length ? (
+                '<div class="view-toggle-horizontal">' +
+                    buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.weekday_view_mode || 'together') +
+                '</div>' +
+                '<div class="analysis-flex view-mode-container" data-analysis="weekday">' +
+                    '<div class="table-container">' +
+                        '<table>' +
+                            '<thead><tr><th>День недели</th><th>Публикаций</th><th>Архиваций</th><th>Ср. время публикации</th><th>Ср. время архивации</th></tr></thead>' +
+                            '<tbody>' +
+                                weekdays.map(function(d) {
+                                    return '<tr><td>' + d.weekday + '</td><td>' + d.publications + '</td><td>' + d.archives + '</td><td>' + d.avg_pub_hour + '</td><td>' + d.avg_arch_hour + '</td></tr>';
+                                }).join('') +
+                            '</tbody>' +
+                        '</table>' +
+                    '</div>' +
+                    '<div class="plotly-graph" id="weekday-graph-all"></div>' +
+                '</div>'
+            ) : '<p>Нет данных по дням недели</p>') +
+        '</div>'
+    );
+    var skillsBlock = (
+        '<div class="skills-monthly-content" data-analysis="skills-monthly-all" style="display: none;" data-skills-monthly="">' +
+            (skillsMonthly.length ? (
+                '<div class="tabs month-tabs monthly-skills-month-tabs" style="justify-content: center; margin-top: 10px;">' +
+                    skillsMonthly.map(function(m, i) {
+                        return '<button class="tab-button month-button monthly-skills-month-button" onclick="openMonthlySkillsMonthTab(event, \'ms-month-combined-' + (i + 1) + '\')">' + m.month + '</button>';
+                    }).join('') +
+                '</div>' +
+                skillsMonthly.map(function(m, i) {
+                    return '<div id="ms-month-combined-' + (i + 1) + '" class="monthly-skills-month-content" data-month="" style="display: none;">' +
+                        '<div class="tabs monthly-skills-exp-tabs" style="justify-content: center; margin-top: 5px;">' +
+                            m.experiences.map(function(exp, j) {
+                                return '<button class="tab-button monthly-skills-exp-button" onclick="openMonthlySkillsExpTab(event, \'ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '\')">' + exp.experience + '</button>';
+                            }).join('') +
+                        '</div>' +
+                        m.experiences.map(function(exp, j) {
+                            return '<div id="ms-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="monthly-skills-exp-content" data-exp="" style="display: none;">' +
+                                '<div class="view-toggle-horizontal">' +
+                                    buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.skills_monthly_view_mode || 'together') +
+                                '</div>' +
+                                '<div class="analysis-flex view-mode-container" data-analysis="skills-monthly">' +
+                                    '<div class="table-container">' +
+                                        '<table>' +
+                                            '<thead><tr><th>Навык</th><th>Упоминаний</th><th>% покрытия</th></tr></thead>' +
+                                            '<tbody>' +
+                                                exp.skills.map(function(s) {
+                                                    return '<tr><td>' + s.skill + '</td><td>' + s.count + '</td><td>' + s.coverage + '%</td></tr>';
+                                                }).join('') +
+                                            '</tbody>' +
+                                        '</table>' +
+                                        '<p style="margin-top: 10px; color: var(--text-secondary);">Всего вакансий с навыками: ' + exp.total_vacancies + '</p>' +
+                                    '</div>' +
+                                    '<div class="plotly-graph" id="skills-monthly-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
+                                '</div>' +
+                            '</div>';
+                        }).join('') +
+                    '</div>';
+                }).join('')
+            ) : '<p>Нет данных по навыкам</p>') +
+        '</div>'
+    );
 
     var skillsSearchBlock = (
         '<div class="skills-search-content" data-analysis="skills-search-combined" style="display: none;">' +
@@ -1010,13 +1095,74 @@ function renderCombinedContainer(container, roleContents) {
         '</div>'
     );
 
-    var salaryBlock = '';
+    var salaryBlock = (
+        '<div class="salary-content" data-analysis="salary-all" style="display: none;" data-salary="">' +
+            (salaryMonths.length ? (
+                '<div class="tabs month-tabs salary-month-tabs" style="justify-content: center; margin-top: 10px;">' +
+                    salaryMonths.map(function(m, i) {
+                        return '<button class="tab-button month-button salary-month-button" onclick="openSalaryMonthTab(event, \'sal-month-combined-' + (i + 1) + '\')">' + m.month + '</button>';
+                    }).join('') +
+                '</div>' +
+                salaryMonths.map(function(m, i) {
+                    return '<div id="sal-month-combined-' + (i + 1) + '" class="salary-month-content" data-month="" style="display: none;">' +
+                        '<div class="tabs salary-exp-tabs" style="justify-content: center; margin-top: 5px;">' +
+                            m.experiences.map(function(exp, j) {
+                                return '<button class="tab-button salary-exp-button" onclick="openSalaryExpTab(event, \'sal-exp-combined-' + (i + 1) + '-' + (j + 1) + '\')">' + exp.experience + '</button>';
+                            }).join('') +
+                        '</div>' +
+                        m.experiences.map(function(exp, j) {
+                            return '<div id="sal-exp-combined-' + (i + 1) + '-' + (j + 1) + '" class="salary-exp-content" data-exp="" style="display: none;">' +
+                                '<div class="salary-display-flex" data-exp-index="' + (j + 1) + '">' +
+                                    '<div class="salary-main-content">' +
+                                        '<div class="salary-table-container">' +
+                                            '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+                                                '<table class="vacancy-table salary-table">' +
+                                                    '<thead><tr><th>Статус</th><th>Валюта</th><th>Всего</th><th>С з/п</th><th>% с з/п</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                                                    '<tbody>' +
+                                                        exp.entries.map(function(entry) {
+                                                            return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
+                                                                '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
+                                                                '<td>' + entry.currency + '</td>' +
+                                                                '<td>' + entry.total_vacancies + '</td>' +
+                                                                '<td>' + entry.vacancies_with_salary + '</td>' +
+                                                                '<td>' + entry.salary_percentage + '%</td>' +
+                                                                '<td>' + Math.round(entry.avg_salary) + '</td>' +
+                                                                '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
+                                                                '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
+                                                                '<td>' + Math.round(entry.min_salary) + '</td>' +
+                                                                '<td>' + Math.round(entry.max_salary) + '</td>' +
+                                                                '<td>' + entry.top_skills + '</td>' +
+                                                            '</tr>';
+                                                        }).join('') +
+                                                    '</tbody>' +
+                                                '</table>' +
+                                            '</div>' +
+                                        '</div>' +
+                                        '<div class="salary-graph-container">' +
+                                            '<div class="plotly-graph" id="salary-graph-combined-' + (i + 1) + '-' + (j + 1) + '"></div>' +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div class="salary-view-toggle">' +
+                                        buildViewModeButtonsHtml(['together', 'table', 'graph'], '', uiState.salary_view_mode || 'together') +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>';
+                        }).join('') +
+                    '</div>';
+                }).join('')
+            ) : '<p>Нет данных по зарплатам</p>') +
+        '</div>'
+    );
     var employerBlock = '';
 
     container.innerHTML =
         '<div class="role-period-label">Период публикации: ' + period + '</div>' +
         '<div class="tabs analysis-tabs">' +
-            '<button class="tab-button analysis-button active" data-analysis-id="skills-search-combined" onclick="switchAnalysis(event, \'skills-search-combined\')">Поиск вакансий</button>' +
+            buildUpperTextTabButtonHtml('Динамика по ролям', 'analysis-button active', 'data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')"') +
+            buildUpperTextTabButtonHtml('Лидер публикаций', 'analysis-button', 'data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')"') +
+            buildUpperTextTabButtonHtml('Стоимость навыков', 'analysis-button', 'data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')"') +
+            buildUpperTextTabButtonHtml('Поиск вакансий', 'analysis-button', 'data-analysis-id="skills-search-all" onclick="switchAnalysis(event, \'skills-search-all\')"') +
+            buildUpperTextTabButtonHtml('Вилка по ролям', 'analysis-button', 'data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')"') +
         '</div>' +
         activityBlocks +
         weekdayBlock +
@@ -1029,10 +1175,57 @@ function renderCombinedContainer(container, roleContents) {
     container._data.vacancies = combinedVacancies;
     container._data.skillsVacancies = combinedVacanciesRaw;
 
+    var monthBlocks = container.querySelectorAll('.month-content');
+    monthBlocks.forEach(function(block) {
+        block._data = { entries: combinedActivity.entries || [], month: combinedActivity.month || '' };
+    });
+
+    var weekdayContent = container.querySelector('.weekday-content');
+    if (weekdayContent) {
+        weekdayContent._data = { weekdays: weekdays };
+    }
+
+    var skillsRoot = container.querySelector('.skills-monthly-content');
+    if (skillsRoot) {
+        skillsRoot._data = { skillsMonthly: skillsMonthly };
+    }
+    var skillsMonthBlocks = container.querySelectorAll('.monthly-skills-month-content');
+    skillsMonthBlocks.forEach(function(block, i) {
+        block._data = { month: skillsMonthly[i] || {} };
+        var expBlocks = block.querySelectorAll('.monthly-skills-exp-content');
+        expBlocks.forEach(function(expBlock, j) {
+            var expData = (skillsMonthly[i] && skillsMonthly[i].experiences) ? skillsMonthly[i].experiences[j] : {};
+            expBlock._data = { exp: expData };
+        });
+    });
+
+    var salaryRoot = container.querySelector('.salary-content');
+    if (salaryRoot) {
+        salaryRoot._data = { salary: salaryMonths };
+    }
+    var salaryMonthBlocks = container.querySelectorAll('.salary-month-content');
+    salaryMonthBlocks.forEach(function(block, i) {
+        block._data = { month: salaryMonths[i] || {} };
+        var expBlocks = block.querySelectorAll('.salary-exp-content');
+        expBlocks.forEach(function(expBlock, j) {
+            var expData = (salaryMonths[i] && salaryMonths[i].experiences) ? salaryMonths[i].experiences[j] : {};
+            expBlock._data = { exp: expData };
+            applySalaryTablesMarkup(expBlock, expData.entries || []);
+            var rows = expBlock.querySelectorAll('.salary-row');
+            rows.forEach(function(row, k) {
+                var entry = (expData.entries || [])[k] || {};
+                row._data = {
+                    withList: entry.vacancies_with_salary_list || [],
+                    withoutList: entry.vacancies_without_salary_list || []
+                };
+            });
+        });
+    });
+
     addSummaryTabs(container);
 
     var savedType = normalizeAnalysisTypeForButtonLookup(uiState[getAnalysisStateKey(container.id)] || uiState.global_analysis_type || 'skills-search');
-    var targetButton = container.querySelector(".analysis-button[data-analysis-id='" + savedType + "-combined']");
+    var targetButton = container.querySelector(".analysis-button[data-analysis-id='" + savedType + "-all']");
     if (targetButton) targetButton.click();
     else {
         var analysisButton = container.querySelector('.analysis-tabs .analysis-button');

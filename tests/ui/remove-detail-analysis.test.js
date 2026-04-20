@@ -100,3 +100,29 @@ runTest('combined report renderer does not build detail-analysis tabs', () => {
     );
   });
 });
+
+runTest('combined report renderer keeps comparative analysis tabs', () => {
+  const requiredMarkers = [
+    "data-analysis-id=\"activity-all\"",
+    "data-analysis-id=\"weekday-all\"",
+    "data-analysis-id=\"skills-monthly-all\"",
+    "data-analysis-id=\"skills-search-all\"",
+    "data-analysis-id=\"salary-all\"",
+    "onclick=\"switchAnalysis(event, \\'activity-all\\')\"",
+    "onclick=\"switchAnalysis(event, \\'weekday-all\\')\"",
+    "onclick=\"switchAnalysis(event, \\'skills-monthly-all\\')\"",
+    "onclick=\"switchAnalysis(event, \\'skills-search-all\\')\"",
+    "onclick=\"switchAnalysis(event, \\'salary-all\\')\"",
+    "data-analysis=\"weekday-all\"",
+    "data-analysis=\"skills-monthly-all\"",
+    "data-analysis=\"salary-all\""
+  ];
+
+  requiredMarkers.forEach((marker) => {
+    assert.equal(
+      RENDER_SOURCE.includes(marker),
+      true,
+      `report.render.js should contain comparative report marker: ${marker}`
+    );
+  });
+});
