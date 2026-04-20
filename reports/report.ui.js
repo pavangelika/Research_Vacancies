@@ -8705,7 +8705,24 @@ function setSharedFilterPanelSectionOpen(sectionKey, open) {
         if (heading) heading.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
     });
     if (uiState.shared_filter_panel_state.activeSection) {
-        ensureSharedFilterSectionVisibility(panel, uiState.shared_filter_panel_state.activeSection);
+        var activeSectionKey = uiState.shared_filter_panel_state.activeSection;
+        var isMobileExpandedPanel = nextOpen
+            && typeof isMobileFilterViewport === 'function'
+            && isMobileFilterViewport()
+            && uiState.shared_filter_panel_state.collapsed !== true;
+        if (isMobileExpandedPanel) {
+            var scrollHost = panel.querySelector('.shared-filter-panel-body');
+            var activeGroup = panel.querySelector('.shared-filter-group[data-section-key="' + activeSectionKey + '"]');
+            if (scrollHost && activeGroup && typeof scrollHost.scrollTop === 'number') {
+                var hostRect = typeof scrollHost.getBoundingClientRect === 'function' ? scrollHost.getBoundingClientRect() : null;
+                var groupRect = typeof activeGroup.getBoundingClientRect === 'function' ? activeGroup.getBoundingClientRect() : null;
+                if (hostRect && groupRect) {
+                    scrollHost.scrollTop += groupRect.top - (hostRect.top + 14);
+                }
+            }
+        } else {
+            ensureSharedFilterSectionVisibility(panel, activeSectionKey);
+        }
     }
     if (typeof syncSharedFilterPanelCollapsedUi === 'function') {
         syncSharedFilterPanelCollapsedUi(panel);

@@ -6617,16 +6617,20 @@ body.report-dashboard #global-shared-filter-panel.is-collapsed .shared-filter-pa
 body.report-dashboard #role-selector .shared-filter-group {
     padding: 0 !important;
     border: 0 !important;
-    border-radius: 0 !important;
+    border-radius: var(--filters-panel-group-radius) !important;
     background: rgba(15, 23, 42, 0.88) !important;
-    margin-top: 8px;
+    margin-top: 0;
     box-shadow: none !important;
     overflow: hidden;
 }
 body.report-dashboard #role-selector .shared-filter-group-title {
     position: relative;
-    min-height: 32px;
-    padding: 10px 12px 10px 18px !important;
+    min-height: var(--filters-panel-group-title-min-h);
+    padding:
+        var(--filters-panel-group-title-pad-block)
+        var(--filters-panel-group-title-pad-inline)
+        var(--filters-panel-group-title-pad-block)
+        calc(var(--filters-panel-group-title-pad-inline) * 1.5) !important;
     border: 0 !important;
     border-radius: 0 !important;
     appearance: none;
@@ -6650,7 +6654,10 @@ body.report-dashboard #role-selector .shared-filter-group-title::before {
 }
 body.report-dashboard #role-selector .shared-filter-group-body {
     gap: 6px !important;
-    padding: 0 12px 12px !important;
+    padding:
+        0
+        var(--filters-panel-group-body-pad-inline)
+        var(--filters-panel-group-body-pad-bottom) !important;
 }
 body.report-dashboard #role-selector .shared-filter-group-arrow {
     display: none !important;
@@ -7348,8 +7355,11 @@ body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-t
 }
 
 body.report-dashboard #role-selector .shared-filter-group-body {
-    gap: 4px !important;
-    padding: 2px 10px 6px !important;
+    gap: var(--filters-panel-inner-gap) !important;
+    padding:
+        calc(var(--filters-panel-inner-gap) * 0.5)
+        var(--filters-panel-group-body-pad-inline)
+        var(--filters-panel-group-body-pad-bottom) !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group[data-section-open="0"] {
@@ -7361,7 +7371,7 @@ body.report-dashboard #role-selector .shared-filter-group[data-section-open="0"]
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
-    gap: 6px !important;
+    gap: var(--filters-panel-shell-gap) !important;
 }
 
 /* Dashboard ref skin */
@@ -7388,8 +7398,18 @@ body.report-dashboard {
     --filters-panel-icon-size: clamp(1.1875rem, 0.9975rem + 0.3325vw, 1.425rem);
     --filters-panel-gap: clamp(0.475rem, 0.3325rem + 0.38vw, 0.7125rem);
     --filters-panel-group-gap: clamp(0.35625rem, 0.2375rem + 0.285vw, 0.59375rem);
+    --filters-panel-shell-gap: clamp(0.0625rem, 0.04rem + 0.08vw, 0.125rem);
+    --filters-panel-group-stack-gap: clamp(0.125rem, 0.09rem + 0.12vw, 0.25rem);
+    --filters-panel-open-group-separation: clamp(0.375rem, 0.28rem + 0.2vw, 0.625rem);
     --filters-panel-pad-x: clamp(0.83125rem, 0.665rem + 0.5225vw, 0.95rem);
     --filters-panel-pad-y: clamp(0.59375rem, 0.475rem + 0.4275vw, 0.83125rem);
+    --filters-panel-group-radius: clamp(0.875rem, 0.78rem + 0.22vw, 1.125rem);
+    --filters-panel-group-title-min-h: clamp(2rem, 1.85rem + 0.35vw, 2.35rem);
+    --filters-panel-group-title-pad-inline: clamp(0.625rem, 0.52rem + 0.32vw, 0.9rem);
+    --filters-panel-group-title-pad-block: clamp(0.375rem, 0.3rem + 0.2vw, 0.625rem);
+    --filters-panel-group-body-pad-inline: clamp(0.625rem, 0.52rem + 0.32vw, 0.85rem);
+    --filters-panel-group-body-pad-bottom: clamp(0.375rem, 0.3rem + 0.22vw, 0.625rem);
+    --filters-panel-inner-gap: clamp(0.1875rem, 0.14rem + 0.14vw, 0.375rem);
     --filters-panel-field-height: clamp(2.030625rem, 1.89525rem + 0.225625vw, 2.1434375rem);
     --filters-panel-head-pad-top: clamp(0.95rem, 0.76rem + 0.57vw, 1.06875rem);
     --filters-panel-head-pad-bottom: clamp(0.7125rem, 0.57rem + 0.38vw, 0.83125rem);
@@ -7987,7 +8007,7 @@ body.report-dashboard .totals-content {
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
-    gap: 2px !important;
+    gap: var(--filters-panel-shell-gap) !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group-body {
@@ -8003,7 +8023,7 @@ body.report-dashboard #role-selector .shared-filter-group {
 }
 
 body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group {
-    margin-top: -1px !important;
+    margin-top: var(--filters-panel-group-stack-gap) !important;
 }
 
 @media (max-width: 1200px) {
@@ -8092,11 +8112,6 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         font-size: var(--filters-panel-title-size) !important;
     }
 
-    body.report-dashboard #global-shared-filter-panel .shared-filter-panel-body {
-        padding: 0.4rem 0.5rem 0.4rem 0.4rem !important;
-        box-sizing: border-box !important;
-    }
-
     body.report-dashboard #role-selector .shared-filter-group,
     body.report-dashboard #role-selector .shared-filter-group-title,
     body.report-dashboard #role-selector .shared-filter-group-body {
@@ -8180,6 +8195,16 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 
     body.report-dashboard.shared-filters-expanded #global-shared-filter-panel[data-panel-open="1"] .shared-filter-panel-body {
         display: flex !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain !important;
+    }
+
+    body.report-dashboard.shared-filters-expanded #role-selector .shared-filter-group[data-section-open="1"] + .shared-filter-group {
+        margin-top: var(--filters-panel-open-group-separation) !important;
+    }
+
+    body.report-dashboard.shared-filters-expanded #role-selector .global-filter-menu {
+        max-height: min(52dvh, 34rem) !important;
         overflow-y: auto !important;
         overscroll-behavior: contain !important;
     }

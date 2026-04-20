@@ -257,6 +257,113 @@ function evaluateMenuPositioning(content, options = {}) {
   return { panelBody, menu };
 }
 
+function evaluateMobileAccordionBehavior(content, targetSection = 'salary') {
+  const script = [
+    extractFunctionSource(content, 'ensureSharedFilterSectionVisibility'),
+    extractFunctionSource(content, 'setSharedFilterPanelSectionOpen'),
+    'module.exports = { setSharedFilterPanelSectionOpen };'
+  ].join('\n\n');
+  const headings = {};
+  const panelBody = {
+    scrollTop: 0,
+    getBoundingClientRect() {
+      return { top: 100, bottom: 260, height: 160 };
+    }
+  };
+  const groups = ['roles', 'salary', 'responses'].map((key) => {
+    headings[key] = {
+      attrs: {},
+      setAttribute(name, value) {
+        this.attrs[name] = value;
+      }
+    };
+    return {
+      dataset: { sectionKey: key, sectionOpen: key === 'roles' ? '1' : '0' },
+      querySelector(selector) {
+        if (selector === '.shared-filter-group-title') return headings[key];
+        return null;
+      }
+    };
+  });
+
+  const panel = {
+    dataset: { collapsed: '0' },
+    querySelector(selector) {
+      if (selector === '.shared-filter-panel-body') return panelBody;
+      const match = selector.match(/\.shared-filter-group\[data-section-key="([^"]+)"\]/);
+      if (match) return groups.find((group) => group.dataset.sectionKey === match[1]) || null;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '.shared-filter-group[data-section-key]') return groups;
+      return [];
+    }
+  };
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    uiState: {
+      shared_filter_panel_state: {
+        open: true,
+        collapsed: false,
+        sections: {
+          roles: true,
+          salary: false,
+          responses: false,
+          skills: false
+        },
+        activeSection: 'roles'
+      }
+    },
+    document: {
+      getElementById(id) {
+        return id === 'global-shared-filter-panel' ? panel : null;
+      }
+    },
+    ensureSharedFilterPanelState() {
+      return sandbox.uiState.shared_filter_panel_state;
+    },
+    persistSharedFilterPanelState() {},
+    syncSharedFilterPanelCollapsedUi() {},
+    isMobileFilterViewport() {
+      return true;
+    }
+  };
+  groups.push({
+    dataset: { sectionKey: 'skills', sectionOpen: '0' },
+    querySelector(selector) {
+      if (selector === '.shared-filter-group-title') return {
+        attrs: {},
+        setAttribute() {}
+      };
+      return null;
+    }
+  });
+  groups.forEach((group, index) => {
+    group.getBoundingClientRect = function() {
+      return { top: 120 + (index * 120), bottom: 200 + (index * 120), height: 80 };
+    };
+  });
+
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-mobile-accordion.vm.js' });
+  sandbox.module.exports.setSharedFilterPanelSectionOpen(targetSection, true);
+  return panelBody.scrollTop;
+}
+
+function evaluateToggleGlyph(content) {
+  const script = [
+    extractFunctionSource(content, 'getSharedFilterPanelToggleGlyph'),
+    'module.exports = { getSharedFilterPanelToggleGlyph };'
+  ].join('\n\n');
+  const sandbox = { module: { exports: {} }, exports: {} };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-toggle.vm.js' });
+  return {
+    expanded: sandbox.module.exports.getSharedFilterPanelToggleGlyph(false),
+    collapsed: sandbox.module.exports.getSharedFilterPanelToggleGlyph(true)
+  };
+}
+
 function evaluateSkillsSectionScroll(content) {
   const script = [
     extractFunctionSource(content, 'ensureSharedFilterSectionVisibility'),
@@ -419,6 +526,26 @@ runTest('opening a filter menu keeps shared filter scroll stable and uses menu m
     });
     assert.equal(result.panelBody.scrollTop, 0, `${path.basename(filePath)} should not shift panel scroll when menu opens`);
     assert.match(String(result.menu.style.set['max-height'] || ''), /^\d+px$/);
+  });
+});
+
+runTest('mobile shared filter accordion moves the selected group toward the top of the panel', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    assert.equal(evaluateMobileAccordionBehavior(read(filePath)), 126, `${path.basename(filePath)} should align the selected group near the top on mobile`);
+  });
+});
+
+runTest('mobile shared filter accordion also aligns the skills group near the top of the panel', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    assert.equal(evaluateMobileAccordionBehavior(read(filePath), 'skills'), 366, `${path.basename(filePath)} should align the skills group near the top on mobile`);
+  });
+});
+
+runTest('shared filter toggle uses a hamburger glyph for collapsed and expanded states', () => {
+  [FILES.reportFilters, FILES.staticReportFilters].forEach((filePath) => {
+    const result = evaluateToggleGlyph(read(filePath));
+    assert.equal(result.expanded, '\u2630', `${path.basename(filePath)} should use hamburger in expanded state`);
+    assert.equal(result.collapsed, '\u2630', `${path.basename(filePath)} should use hamburger in collapsed state`);
   });
 });
 

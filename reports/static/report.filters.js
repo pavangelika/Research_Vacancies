@@ -102,8 +102,7 @@ function getSharedFilterPanelToggleLabel(collapsed) {
 }
 
 function getSharedFilterPanelToggleGlyph(collapsed) {
-    if (typeof isMobileFilterViewport === 'function' && isMobileFilterViewport()) return '\u2500';
-    return collapsed ? '\u25B6' : '\u25C0';
+    return '\u2630';
 }
 
 function syncSharedFilterPanelCollapsedUi(panel) {

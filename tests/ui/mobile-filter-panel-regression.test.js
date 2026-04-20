@@ -106,3 +106,90 @@ runTest('mobile expanded shared filter panel opens fullscreen from viewport top'
     );
   });
 });
+
+runTest('mobile expanded shared filter panel inherits desktop spacing instead of compact mobile overrides', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /body\.report-dashboard\s+#global-shared-filter-panel\s+\.shared-filter-panel-body\s*\{[\s\S]*padding:\s*0\.4rem\s*!important;[\s\S]*gap:\s*calc\(var\(--filters-panel-gap\)\s*\*\s*1\.25\)\s*!important;/,
+      `${path.basename(filePath)} should keep the desktop shared filter body spacing definition available`
+    );
+    assert.doesNotMatch(
+      source,
+      /body\.report-dashboard\s+#global-shared-filter-panel\s+\.shared-filter-panel-body\s*\{[\s\S]*padding:\s*0\.25rem\s+0\.4rem\s+0\.3rem\s+0\.3rem\s*!important;/,
+      `${path.basename(filePath)} should not override the shared filter body padding with a compact mobile value`
+    );
+    assert.doesNotMatch(
+      source,
+      /body\.report-dashboard\.shared-filters-expanded\s+#global-shared-filter-panel\[data-panel-open="1"\]\s+\.shared-filter-panel-body\s*\{[\s\S]*gap:\s*0\s*!important;/,
+      `${path.basename(filePath)} should not zero out the expanded mobile shared filter body gap`
+    );
+    assert.doesNotMatch(
+      source,
+      /body\.report-dashboard\.shared-filters-expanded\s+#role-selector\s+\.shared-filter-group\s*\+\s*\.shared-filter-group\s*\{[\s\S]*margin-top:\s*-4px\s*!important;/,
+      `${path.basename(filePath)} should not use the compact negative margin between mobile expanded shared filter groups`
+    );
+    assert.doesNotMatch(
+      source,
+      /body\.report-dashboard\.shared-filters-expanded\s+#role-selector\s+\.shared-filter-group\s*\{[\s\S]*padding-bottom:\s*0\s*!important;/,
+      `${path.basename(filePath)} should not flatten shared filter group padding in the expanded mobile panel`
+    );
+  });
+});
+
+runTest('mobile expanded role dropdown keeps its own scrollable menu container', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /@media\s*\(max-width:\s*960px\)\s*\{[\s\S]*body\.report-dashboard\.shared-filters-expanded\s+#role-selector\s+\.global-filter-menu\s*\{[\s\S]*max-height:\s*min\(52dvh,\s*34rem\)\s*!important;[\s\S]*overflow-y:\s*auto\s*!important;[\s\S]*overscroll-behavior:\s*contain\s*!important;/,
+      `${path.basename(filePath)} should keep long role dropdown lists scrollable inside the mobile expanded shared filter panel`
+    );
+  });
+});
+
+runTest('mobile expanded shared filter panel adds desktop-like separation after the open group', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /@media\s*\(max-width:\s*960px\)\s*\{[\s\S]*body\.report-dashboard\.shared-filters-expanded\s+#role-selector\s+\.shared-filter-group\[data-section-open="1"\]\s*\+\s*\.shared-filter-group\s*\{[\s\S]*margin-top:\s*var\(--filters-panel-open-group-separation\)\s*!important;/,
+      `${path.basename(filePath)} should define the mobile open-group separation through an adaptive token`
+    );
+  });
+});
+
+runTest('adaptive filter panel scale defines shell and open-group spacing through clamp-based variables', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /--filters-panel-shell-gap:\s*clamp\(/,
+      `${path.basename(filePath)} should define an adaptive shell gap token`
+    );
+    assert.match(
+      source,
+      /--filters-panel-group-stack-gap:\s*clamp\(/,
+      `${path.basename(filePath)} should define an adaptive group stack gap token`
+    );
+    assert.match(
+      source,
+      /--filters-panel-open-group-separation:\s*clamp\(/,
+      `${path.basename(filePath)} should define an adaptive open-group separation token`
+    );
+  });
+});
+
+runTest('adaptive filter panel scale removes targeted rigid px sizing from shared filter groups', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    [
+      /body\.report-dashboard\s+#role-selector\s+\.shared-filter-group\s*\{[\s\S]*margin-top:\s*8px;/,
+      /body\.report-dashboard\s+#role-selector\s+\.shared-filter-group-title\s*\{[\s\S]*min-height:\s*32px;/,
+      /body\.report-dashboard\s+#role-selector\s+\.shared-filter-group-body\s*\{[\s\S]*padding:\s*2px 10px 6px !important;/
+    ].forEach((pattern) => {
+      assert.doesNotMatch(source, pattern, `${path.basename(filePath)} should remove rigid shared filter group sizing`);
+    });
+  });
+});
