@@ -8054,6 +8054,13 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         max-height: none;
     }
 
+    body.report-dashboard.shared-filters-collapsed .dashboard-sidebar {
+        width: 100vw !important;
+        min-width: 100vw !important;
+        max-width: 100vw !important;
+        overflow: visible !important;
+    }
+
     /*body.report-dashboard .dashboard-main {*/
     /*    padding: 16px;*/
     /*}*/

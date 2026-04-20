@@ -58,6 +58,17 @@ runTest('mobile collapsed shared filter rail does not depend on overlay open sta
   });
 });
 
+runTest('mobile collapsed shared filter rail is not clipped by the sidebar container', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /@media\s*\(max-width:\s*960px\)\s*\{[\s\S]*body\.report-dashboard\.shared-filters-collapsed\s+\.dashboard-sidebar\s*\{[\s\S]*width:\s*100(?:vw|%)\s*!important;[\s\S]*min-width:\s*100(?:vw|%)\s*!important;[\s\S]*max-width:\s*100(?:vw|%)\s*!important;[\s\S]*overflow:\s*visible\s*!important;/,
+      `${path.basename(filePath)} should let the collapsed mobile shared filter rail extend across the viewport instead of clipping inside the sidebar`
+    );
+  });
+});
+
 runTest('mobile shared filter panel no longer references floating mobile toggle controls', () => {
   FILES.concat(UI_FILES).forEach((filePath) => {
     const source = read(filePath);
