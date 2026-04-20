@@ -65,7 +65,7 @@ services:
         sh -c "                                                                                                                                                                     
         while true; do                                                                                                                                                              
           python generate_report.py;                                                                                                                                                
-          sleep 3600;
+          sleep 1800;
         done                                                                                                                                                                        
         "
 
