@@ -5,7 +5,7 @@ var SHARED_FILTER_PANEL_SECTION_META = [
     { key: 'roles', label: 'Роль', icon: 'person' },
     { key: 'salary', label: 'Зарплата', icon: 'payments' },
     { key: 'responses', label: 'Отклики', icon: 'mail' },
-    { key: 'top', label: 'Топ', icon: 'format_size' },
+    { key: 'top', label: 'Топ', icon: 'text_fields' },
     { key: 'vacancy', label: 'Вакансия', icon: 'work' },
     { key: 'skills', label: 'Навыки', icon: 'local_fire_department' }
 ];
@@ -2407,6 +2407,7 @@ function ensureGlobalFilterBucket(filterKey) {
     if (!uiState.global_filters[filterKey]) uiState.global_filters[filterKey] = { include: [], exclude: [] };
     if (!Array.isArray(uiState.global_filters[filterKey].include)) uiState.global_filters[filterKey].include = [];
     if (!Array.isArray(uiState.global_filters[filterKey].exclude)) uiState.global_filters[filterKey].exclude = [];
+    if (typeof uiState.global_filters[filterKey].autoDefault !== 'string') uiState.global_filters[filterKey].autoDefault = '';
     if (filterKey === 'roles') {
         var includeSeen = new Set();
         uiState.global_filters[filterKey].include = uiState.global_filters[filterKey].include.filter(function(value) {

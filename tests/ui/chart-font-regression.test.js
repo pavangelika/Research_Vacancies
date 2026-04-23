@@ -75,6 +75,44 @@ runTest('static stylesheet defines shared chart typography tokens', () => {
   assert.match(source, /\.shared-filter-field-label\s*\{[\s\S]*font-size:\s*var\(--chart-secondary-font-size\);[\s\S]*font-weight:\s*var\(--chart-secondary-font-weight\);[\s\S]*line-height:\s*var\(--chart-secondary-line-height\);/);
 });
 
+runTest('report stylesheet highlights only shared filter icons, not labels', () => {
+  const source = read(FILES.reportStyles);
+  assert.doesNotMatch(
+    source,
+    /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-text|shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-text|shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-text/,
+    'report stylesheet should not color the collapsed shared filter text when a section is active or filled'
+  );
+  assert.doesNotMatch(
+    source,
+    /shared-filter-group\[data-section-filled="1"\]\s+\.shared-filter-group-title\s*\{|shared-filter-group\s+\.shared-filter-group-title\[data-section-filled="1"\]\s*\{|shared-filter-group\[data-section-active="1"\]\s+\.shared-filter-group-title\s*\{|shared-filter-group\s+\.shared-filter-group-title\[data-section-active="1"\]\s*\{|shared-filter-group\s+\.shared-filter-group-title\.active\s*\{/,
+    'report stylesheet should not recolor the expanded shared filter group title text when a section is active or filled'
+  );
+  assert.match(
+    source,
+    /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-icon/,
+    'report stylesheet should keep icon-only highlight rules for collapsed shared filters'
+  );
+});
+
+runTest('static stylesheet highlights only shared filter icons, not labels', () => {
+  const source = read(FILES.staticReportStyles);
+  assert.doesNotMatch(
+    source,
+    /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-text|shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-text|shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-text/,
+    'static stylesheet should not color the collapsed shared filter text when a section is active or filled'
+  );
+  assert.doesNotMatch(
+    source,
+    /shared-filter-group\[data-section-filled="1"\]\s+\.shared-filter-group-title\s*\{|shared-filter-group\s+\.shared-filter-group-title\[data-section-filled="1"\]\s*\{|shared-filter-group\[data-section-active="1"\]\s+\.shared-filter-group-title\s*\{|shared-filter-group\s+\.shared-filter-group-title\[data-section-active="1"\]\s*\{|shared-filter-group\s+\.shared-filter-group-title\.active\s*\{/,
+    'static stylesheet should not recolor the expanded shared filter group title text when a section is active or filled'
+  );
+  assert.match(
+    source,
+    /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-icon/,
+    'static stylesheet should keep icon-only highlight rules for collapsed shared filters'
+  );
+});
+
 function assertEmployerAnalysisGradientConfig(source) {
   assert.match(source, /function buildEmployerAnalysisDonutChartHtml\(labels,\s*values,\s*factorKeys,\s*metricLabel,\s*currencyLabel,\s*chartContext,\s*signature\)/);
   assert.match(source, /graph\.__chartHostEl\.innerHTML = buildEmployerAnalysisDonutChartHtml\(labels,\s*values,\s*factorKeys,\s*metricLabel,\s*currencyLabel,\s*chartContext,\s*signature\);/);

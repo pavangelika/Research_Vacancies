@@ -127,7 +127,7 @@ function getSharedFilterGroupIcon(sectionKey) {
         'roles': 'person',
         'salary': 'payments',
         'responses': 'mail',
-        'top': 'format_size',
+        'top': 'text_fields',
         'employer': 'business',
         'vacancy': 'work',
         'skills': 'local_fire_department'
@@ -142,7 +142,7 @@ function getSharedFilterMaterialGlyph(iconName) {
         person: '\u25C9',
         payments: '\u00A4',
         mail: '\u2709',
-        format_size: '\u2263',
+        text_fields: '\u2263',
         work: '\u25A3',
         business: '\u25A4',
         local_fire_department: '\u2726'
@@ -152,7 +152,7 @@ function getSharedFilterMaterialGlyph(iconName) {
 
 function createSharedFilterMaterialIcon(iconName, className) {
     var icon = document.createElement('span');
-    icon.className = (className ? className + ' ' : '') + 'shared-filter-local-icon';
+    icon.className = 'material-symbols-outlined' + (className ? ' ' + className : '');
     icon.setAttribute('aria-hidden', 'true');
     var name = String(iconName || '').trim();
     icon.dataset.icon = name;
@@ -162,10 +162,19 @@ function createSharedFilterMaterialIcon(iconName, className) {
     icon.style.justifyContent = 'center';
     icon.style.width = '24px';
     icon.style.height = '24px';
-    icon.style.lineHeight = '1';
+    icon.style.fontFamily = "'Material Symbols Outlined'";
+    icon.style.fontWeight = '400';
+    icon.style.fontStyle = 'normal';
     icon.style.fontSize = '24px';
-    icon.style.fontFamily = 'inherit';
-    icon.textContent = getSharedFilterMaterialGlyph(name);
+    icon.style.lineHeight = '1';
+    icon.style.letterSpacing = 'normal';
+    icon.style.textTransform = 'none';
+    icon.style.whiteSpace = 'nowrap';
+    icon.style.direction = 'ltr';
+    icon.style.fontFeatureSettings = "'liga'";
+    icon.style.webkitFontFeatureSettings = "'liga'";
+    icon.style.fontVariationSettings = "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24";
+    icon.textContent = name;
     return icon;
 }
 
@@ -3264,9 +3273,70 @@ function buildPeriodFilterOptionsFromVacancies(vacancies) {
         { value: totalLabel, label: totalLabel }
     ]));
 }
+function buildPeriodFilterOptionsFromMonths(months, totalLabel) {
+    var monthValues = Array.from(new Set((months || []).map(function(month) {
+        return String(month || '').trim();
+    }).filter(function(month) {
+        return /^\d{4}-\d{2}$/.test(month);
+    }))).sort().reverse();
+    if (!monthValues.length) return [];
+    var summaryLabel = String(totalLabel || '').trim() || (typeof formatMonthTitle === 'function' ? formatMonthTitle(monthValues.length) : 'Весь период');
+    var quickItems = typeof getStandardPeriodFilterItems === 'function'
+        ? getStandardPeriodFilterItems()
+        : [
+            { key: 'today', label: 'Сегодня', period: 'today' },
+            { key: 'd3', label: 'За 3 дня', period: 'last_3' },
+            { key: 'd7', label: 'За 7 дней', period: 'last_7' },
+            { key: 'd14', label: 'За 14 дней', period: 'last_14' }
+        ];
+    return dedupeFilterOptions(quickItems.map(function(item) {
+        return { value: item.period, label: item.label };
+    }).concat(monthValues.map(function(month) {
+        return { value: month, label: typeof formatMonthLabel === 'function' ? formatMonthLabel(month) : month };
+    })).concat([
+        { value: summaryLabel, label: summaryLabel }
+    ]));
+}
+
+function collectRolePeriodOptionsFromDom(activeRole) {
+    var scope = getGlobalFilterScopeRoleContents(activeRole);
+    var months = [];
+    var totalLabel = '';
+    scope.forEach(function(roleContent) {
+        if (!roleContent || typeof roleContent.querySelectorAll !== 'function') return;
+        Array.from(roleContent.querySelectorAll('.month-content.activity-only[data-month], .salary-month-content[data-month]')).forEach(function(node) {
+            var value = String((node.dataset && node.dataset.month) || node.getAttribute('data-month') || '').trim();
+            if (!value) return;
+            if (/^\d{4}-\d{2}$/.test(value)) {
+                months.push(value);
+            } else if (!totalLabel) {
+                totalLabel = value;
+            }
+        });
+        Array.from(roleContent.querySelectorAll('.monthly-skills-month-tabs .tab-button, .employer-period-chip[data-month]')).forEach(function(node) {
+            var dataValue = String((node.dataset && node.dataset.month) || '').trim();
+            var textValue = String(node.textContent || '').trim();
+            var value = /^\d{4}-\d{2}$/.test(dataValue) ? dataValue : textValue;
+            if (!value) return;
+            if (/^\d{4}-\d{2}$/.test(value)) {
+                months.push(value);
+            } else if (!totalLabel && dataValue !== 'all') {
+                totalLabel = textValue || value;
+            }
+        });
+    });
+    return buildPeriodFilterOptionsFromMonths(months, totalLabel);
+}
 function buildUnifiedRolePeriodFilterOptions(activeRole) {
     var scopedVacancies = collectScopedVacancies(activeRole);
-    return buildPeriodFilterOptionsFromVacancies(scopedVacancies);
+    var options = buildPeriodFilterOptionsFromVacancies(scopedVacancies);
+    if (options.some(function(option) {
+        return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
+    })) {
+        return options;
+    }
+    var domOptions = collectRolePeriodOptionsFromDom(activeRole);
+    return domOptions.length ? domOptions : options;
 }
 
 function buildPeriodFilterOptionsFromCalendarItems(vacancies) {
@@ -4187,6 +4257,7 @@ function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh)
     } else if (action === 'clear_excluded') {
         bucket.exclude = [];
     }
+    bucket.autoDefault = '';
     if (filterKey === 'roles') {
         if (uiState.keep_roles_filter_open && isGlobalFilterMultiEnabled('roles')) {
             uiState.pending_roles_filter_apply = true;
@@ -5338,7 +5409,7 @@ function getDefaultGlobalPeriodOptionValue(activeRole, analysisType) {
     var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
     if (!Array.isArray(options) || !options.length) return '';
     var defaultOption = options.find(function(option) {
-        return normalizeGlobalPeriodValue(option && option.value) === 'last_14';
+        return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
     });
     if (!defaultOption) {
         defaultOption = options.find(function(option) {
@@ -5347,7 +5418,7 @@ function getDefaultGlobalPeriodOptionValue(activeRole, analysisType) {
     }
     if (!defaultOption) {
         defaultOption = options.find(function(option) {
-            return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
+            return normalizeGlobalPeriodValue(option && option.value) === 'last_14';
         });
     }
     return defaultOption ? String(defaultOption.value || '').trim() : '';
@@ -10564,6 +10635,7 @@ function applySharedFilterSnapshot(snapshot, activeRole, analysisType) {
             var item = snapshot.globalFilters[filterKey] || {};
             bucket.include = Array.isArray(item.include) ? item.include.slice() : [];
             bucket.exclude = Array.isArray(item.exclude) ? item.exclude.slice() : [];
+            bucket.autoDefault = '';
         });
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, 'totals_dashboard_mode')) {
@@ -10670,26 +10742,23 @@ function getSharedFilterPresetState(analysisType) {
 }
 
 function ensureDefaultPeriodFilterSelection(activeRole, analysisType) {
-    if (hasExplicitGlobalFilterSelection('periods')) return false;
+    var bucket = ensureGlobalFilterBucket('periods');
+    var include = Array.isArray(bucket.include) ? bucket.include.filter(Boolean) : [];
+    var exclude = Array.isArray(bucket.exclude) ? bucket.exclude.filter(Boolean) : [];
+    var autoDefaultValue = String(bucket.autoDefault || '').trim();
+    var isAutoDefaultSelection = !!(autoDefaultValue && !exclude.length && include.length === 1 && String(include[0] || '').trim() === autoDefaultValue);
+    if (hasExplicitGlobalFilterSelection('periods') && !isAutoDefaultSelection) return false;
     var options = getGlobalFilterOptions(activeRole, 'periods', analysisType);
     if (!Array.isArray(options) || !options.length) return false;
-    var defaultOption = options.find(function(option) {
-        return normalizeGlobalPeriodValue(option && option.value) === 'last_14';
-    });
-    if (!defaultOption) {
-        defaultOption = options.find(function(option) {
-            return normalizeGlobalPeriodValue(option && option.value) === 'summary';
-        });
+    var defaultValue = getDefaultGlobalPeriodOptionValue(activeRole, analysisType);
+    if (!defaultValue) return false;
+    if (!exclude.length && include.length === 1 && String(include[0] || '').trim() === defaultValue) {
+        bucket.autoDefault = defaultValue;
+        return false;
     }
-    if (!defaultOption) {
-        defaultOption = options.find(function(option) {
-            return /^\d{4}-\d{2}$/.test(String(option && option.value || '').trim());
-        });
-    }
-    if (!defaultOption) return false;
-    var bucket = ensureGlobalFilterBucket('periods');
-    bucket.include = [defaultOption.value];
+    bucket.include = [defaultValue];
     bucket.exclude = [];
+    bucket.autoDefault = defaultValue;
     return true;
 }
 
@@ -10891,6 +10960,7 @@ function applySkillsSearchState(block, state) {
             var bucket = ensureGlobalFilterBucket(filterKey);
             bucket.include = Array.isArray(snapshot.include) ? snapshot.include.slice() : [];
             bucket.exclude = Array.isArray(snapshot.exclude) ? snapshot.exclude.slice() : [];
+            bucket.autoDefault = '';
         });
     } else {
         ['periods', 'experiences', 'status', 'currency', 'country', 'employer', 'interview', 'result', 'offer', 'accreditation', 'cover_letter_required', 'has_test'].forEach(function(filterKey) {
@@ -10899,6 +10969,7 @@ function applySkillsSearchState(block, state) {
             var bucket = ensureGlobalFilterBucket(filterKey);
             bucket.include = Array.isArray(snapshot.include) ? snapshot.include.slice() : [];
             bucket.exclude = Array.isArray(snapshot.exclude) ? snapshot.exclude.slice() : [];
+            bucket.autoDefault = '';
         });
     }
     applySkillsSearchSkillState(block, current.includeSkills || [], current.excludeSkills || [], current.logic || 'or');

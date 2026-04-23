@@ -283,11 +283,16 @@ function renderAllRolesContainer(container, roleContents) {
         { key: 'all', label: allLabel, period: null }
     ]);
     var defaultAllRolesPeriodIndex = periodItems.findIndex(function(item) {
-        return normalizeGlobalPeriodValue(item && item.period) === 'last_14';
+        return /^\d{4}-\d{2}$/.test(String(item && item.period || '').trim());
     });
     if (defaultAllRolesPeriodIndex < 0) {
         defaultAllRolesPeriodIndex = periodItems.findIndex(function(item) {
             return normalizeGlobalPeriodValue(item && item.period) === 'summary';
+        });
+    }
+    if (defaultAllRolesPeriodIndex < 0) {
+        defaultAllRolesPeriodIndex = periodItems.findIndex(function(item) {
+            return normalizeGlobalPeriodValue(item && item.period) === 'last_14';
         });
     }
     if (defaultAllRolesPeriodIndex < 0) {

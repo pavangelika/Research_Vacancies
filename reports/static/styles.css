@@ -6979,11 +6979,8 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-togg
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active .shared-filter-panel-rail-icon,
-body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.active .shared-filter-panel-rail-text,
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.filled .shared-filter-panel-rail-icon,
-body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.filled .shared-filter-panel-rail-text,
-body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] .shared-filter-panel-rail-icon,
-body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] .shared-filter-panel-rail-text {
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] .shared-filter-panel-rail-icon {
     color: inherit !important;
 }
 
@@ -7290,17 +7287,8 @@ body.report-dashboard #role-selector .shared-filter-group-title-icon {
     color: #bcc5c9 !important;
 }
 
-body.report-dashboard #role-selector .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
-    color: inherit !important;
-    background-color: currentColor !important;
-}
-
-body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-filled="1"],
-body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-active="1"],
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.active {
-    color: #ffffff !important;
+body.report-dashboard #role-selector .shared-filter-group-title-label {
+    color: #bcc5c9 !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title-icon,
@@ -7313,12 +7301,14 @@ body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-t
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-filled="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
-    color: #ffffff !important;
-    background-color: transparent !important;
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-filled="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled .shared-filter-group-title-icon {
     background-image: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title-icon,
@@ -7331,10 +7321,12 @@ body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-t
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-active="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.active .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
-    background-color: #bcc5c9 !important;
+body.report-dashboard #role-selector .shared-filter-group[data-section-active="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title[data-section-active="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.active .shared-filter-group-title-icon {
+    background-image: none !important;
+    color: #bcc5c9 !important;
+    -webkit-text-fill-color: currentColor !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"][data-section-active="1"] .shared-filter-group-title-icon,
@@ -7346,11 +7338,13 @@ body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-t
     font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
-body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"][data-section-active="1"] .shared-filter-group-title-icon .shared-filter-material-icon-glyph,
-body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled.active .shared-filter-group-title-icon .shared-filter-material-icon-glyph {
-    color: #ffffff !important;
-    background-color: transparent !important;
+body.report-dashboard #role-selector .shared-filter-group[data-section-filled="1"][data-section-active="1"] .shared-filter-group-title-icon,
+body.report-dashboard #role-selector .shared-filter-group .shared-filter-group-title.filled.active .shared-filter-group-title-icon {
     background-image: linear-gradient(135deg, #00C3D3 0%, #007AD8 55%, #D149EF 100%) !important;
+    background-clip: text !important;
+    -webkit-background-clip: text !important;
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
 }
 
 body.report-dashboard #role-selector .shared-filter-group-body {

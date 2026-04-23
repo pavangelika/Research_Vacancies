@@ -484,6 +484,148 @@ function evaluateSalaryMetricControlStructure(content) {
   return { control, metricWrap, label, chipShell };
 }
 
+function evaluateDefaultPeriodBehavior(content) {
+  const script = [
+    extractFunctionSource(content, 'getDefaultGlobalPeriodOptionValue'),
+    extractFunctionSource(content, 'ensureDefaultPeriodFilterSelection'),
+    'module.exports = { getDefaultGlobalPeriodOptionValue, ensureDefaultPeriodFilterSelection };'
+  ].join('\n\n');
+
+  const bucket = { include: [], exclude: [] };
+  const options = [
+    { value: 'today', label: 'Сегодня' },
+    { value: 'last_3', label: 'За 3 дня' },
+    { value: 'last_7', label: 'За 7 дней' },
+    { value: 'last_14', label: 'За 14 дней' },
+    { value: '2026-04', label: '2026-04' },
+    { value: '2026-03', label: '2026-03' },
+    { value: 'Весь период', label: 'Весь период' }
+  ];
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    getGlobalFilterOptions() {
+      return options.slice();
+    },
+    normalizeGlobalPeriodValue(value) {
+      return String(value || '').trim();
+    },
+    ensureGlobalFilterBucket() {
+      return bucket;
+    },
+    hasExplicitGlobalFilterSelection() {
+      return false;
+    }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-default-period.vm.js' });
+  const activeRole = { dataset: { activeAnalysis: 'totals' } };
+  const defaultValue = sandbox.module.exports.getDefaultGlobalPeriodOptionValue(activeRole, 'totals');
+  const changed = sandbox.module.exports.ensureDefaultPeriodFilterSelection(activeRole, 'totals');
+  return { defaultValue, changed, bucket };
+}
+
+function evaluateDeferredDefaultPeriodBehavior(content) {
+  const script = [
+    extractFunctionSource(content, 'getDefaultGlobalPeriodOptionValue'),
+    extractFunctionSource(content, 'ensureDefaultPeriodFilterSelection'),
+    'module.exports = { getDefaultGlobalPeriodOptionValue, ensureDefaultPeriodFilterSelection };'
+  ].join('\n\n');
+
+  const bucket = { include: ['Весь период'], exclude: [], autoDefault: 'Весь период' };
+  const options = [
+    { value: 'today', label: 'Сегодня' },
+    { value: 'last_14', label: 'За 14 дней' },
+    { value: '2026-04', label: '2026-04' },
+    { value: '2026-03', label: '2026-03' },
+    { value: 'Весь период', label: 'Весь период' }
+  ];
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    getGlobalFilterOptions() {
+      return options.slice();
+    },
+    normalizeGlobalPeriodValue(value) {
+      return String(value || '').trim();
+    },
+    ensureGlobalFilterBucket() {
+      return bucket;
+    },
+    hasExplicitGlobalFilterSelection() {
+      return !!((bucket.include && bucket.include.length) || (bucket.exclude && bucket.exclude.length));
+    }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-deferred-default-period.vm.js' });
+  const activeRole = { dataset: { activeAnalysis: 'totals' } };
+  const changed = sandbox.module.exports.ensureDefaultPeriodFilterSelection(activeRole, 'totals');
+  return { changed, bucket };
+}
+
+function evaluateDomBackedPeriodOptions(content) {
+  const script = [
+    extractFunctionSource(content, 'buildPeriodFilterOptionsFromMonths'),
+    extractFunctionSource(content, 'collectRolePeriodOptionsFromDom'),
+    extractFunctionSource(content, 'buildUnifiedRolePeriodFilterOptions'),
+    'module.exports = { buildUnifiedRolePeriodOptions: buildUnifiedRolePeriodFilterOptions };'
+  ].join('\n\n');
+
+  const activeRole = {
+    querySelectorAll(selector) {
+      if (selector === '.month-content.activity-only[data-month], .salary-month-content[data-month]') {
+        return [
+          { dataset: { month: 'За 3 месяца' }, getAttribute() { return 'За 3 месяца'; } },
+          { dataset: { month: '2026-03' }, getAttribute() { return '2026-03'; } },
+          { dataset: { month: '2026-04' }, getAttribute() { return '2026-04'; } }
+        ];
+      }
+      if (selector === '.monthly-skills-month-tabs .tab-button, .employer-period-chip[data-month]') {
+        return [];
+      }
+      return [];
+    }
+  };
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    collectScopedVacancies() {
+      return [];
+    },
+    buildPeriodFilterOptionsFromVacancies() {
+      return [
+        { value: 'today', label: 'Сегодня' },
+        { value: 'last_14', label: 'За 14 дней' },
+        { value: 'Весь период', label: 'Весь период' }
+      ];
+    },
+    getGlobalFilterScopeRoleContents() {
+      return [activeRole];
+    },
+    getStandardPeriodFilterItems() {
+      return [
+        { key: 'today', label: 'Сегодня', period: 'today' },
+        { key: 'd14', label: 'За 14 дней', period: 'last_14' }
+      ];
+    },
+    dedupeFilterOptions(items) {
+      const seen = new Set();
+      return items.filter((item) => {
+        const key = `${item.value}::${item.label}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    },
+    formatMonthLabel(value) {
+      return value;
+    },
+    formatMonthTitle(count) {
+      return count === 3 ? 'За 3 месяца' : `За ${count} месяцев`;
+    }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-dom-period-options.vm.js' });
+  return sandbox.module.exports.buildUnifiedRolePeriodOptions(activeRole);
+}
+
 runTest('shared filter panel state defaults to roles section only', () => {
   [FILES.reportFilters, FILES.staticReportFilters].forEach((filePath) => {
     const state = evaluateDefaultState(read(filePath));
@@ -601,5 +743,64 @@ runTest('salary metric filter uses the same field shell structure as shared drop
     assert.match(String(result.metricWrap && result.metricWrap.className || ''), /shared-filter-salary-dropdown/);
     assert.equal(String(result.label && result.label.className || ''), 'shared-filter-field-label');
     assert.equal(String(result.chipShell && result.chipShell.className || ''), 'totals-top-filter-chip-row');
+  });
+});
+
+runTest('shared filter panel uses documented Material icons for section groups', () => {
+  [FILES.reportFilters, FILES.staticReportFilters].forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(source, /\{\s*key:\s*'my-filters',\s*label:\s*'Избранное',\s*icon:\s*'favorite'\s*\}/);
+    assert.match(source, /\{\s*key:\s*'roles',\s*label:\s*'Роль',\s*icon:\s*'person'\s*\}/);
+    assert.match(source, /\{\s*key:\s*'salary',\s*label:\s*'Зарплата',\s*icon:\s*'payments'\s*\}/);
+    assert.match(source, /\{\s*key:\s*'responses',\s*label:\s*'Отклики',\s*icon:\s*'mail'\s*\}/);
+    assert.match(source, /\{\s*key:\s*'top',\s*label:\s*'Топ',\s*icon:\s*'text_fields'\s*\}/);
+    assert.match(source, /\{\s*key:\s*'vacancy',\s*label:\s*'Вакансия',\s*icon:\s*'work'\s*\}/);
+    assert.match(source, /\{\s*key:\s*'skills',\s*label:\s*'Навыки',\s*icon:\s*'local_fire_department'\s*\}/);
+    assert.doesNotMatch(source, /\{\s*key:\s*'top',\s*label:\s*'Топ',\s*icon:\s*'format_size'\s*\}/);
+  });
+});
+
+runTest('shared filter icons render as official material symbol text glyphs', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /function createSharedFilterMaterialIcon\(iconName,\s*className\)[\s\S]*icon\.className = 'material-symbols-outlined' \+ \(className \? ' ' \+ className : ''\);[\s\S]*icon\.dataset\.icon = name;[\s\S]*icon\.style\.fontFamily = \"'Material Symbols Outlined'\";[\s\S]*icon\.style\.fontFeatureSettings = \"'liga'\";[\s\S]*icon\.textContent = name;/,
+      `${path.basename(filePath)} should render shared filter icons as Material Symbols text glyphs`
+    );
+    assert.doesNotMatch(
+      source,
+      /api\.iconify\.design|shared-filter-material-icon-glyph|maskImage|webkitMaskImage/,
+      `${path.basename(filePath)} should not render shared filter icons through masked Iconify SVGs`
+    );
+  });
+});
+
+runTest('default shared period selects the latest calendar month instead of 14 days', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const result = evaluateDefaultPeriodBehavior(read(filePath));
+    assert.equal(result.defaultValue, '2026-04', `${path.basename(filePath)} should default periods to the latest month option`);
+    assert.equal(result.changed, true, `${path.basename(filePath)} should apply the default period when no explicit selection exists`);
+    assert.deepEqual(Array.from(result.bucket.include), ['2026-04'], `${path.basename(filePath)} should store the latest month as the default period selection`);
+    assert.deepEqual(Array.from(result.bucket.exclude), [], `${path.basename(filePath)} should not add default period exclusions`);
+  });
+});
+
+runTest('auto-applied fallback period upgrades to the latest month when month options appear', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const result = evaluateDeferredDefaultPeriodBehavior(read(filePath));
+    assert.equal(result.changed, true, `${path.basename(filePath)} should replace the fallback auto-default when month options appear`);
+    assert.deepEqual(Array.from(result.bucket.include), ['2026-04'], `${path.basename(filePath)} should upgrade the stored period to the latest month`);
+    assert.deepEqual(Array.from(result.bucket.exclude), [], `${path.basename(filePath)} should keep exclusions empty after upgrading the auto-default`);
+    assert.equal(result.bucket.autoDefault, '2026-04', `${path.basename(filePath)} should track the upgraded month as the current auto-default`);
+  });
+});
+
+runTest('period options fall back to month blocks in the DOM when vacancies are still lazy-loaded', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const options = evaluateDomBackedPeriodOptions(read(filePath));
+    assert.ok(options.some((item) => item.value === '2026-04'), `${path.basename(filePath)} should expose the latest month from rendered month blocks`);
+    assert.ok(options.some((item) => item.value === '2026-03'), `${path.basename(filePath)} should expose older rendered month blocks`);
+    assert.ok(options.some((item) => item.value === 'За 3 месяца'), `${path.basename(filePath)} should preserve the rendered summary option from month blocks`);
   });
 });
