@@ -3208,16 +3208,9 @@ function buildCurrencyFilterOptionsFromVacancies(vacancies) {
 function buildCountryFilterOptionsFromVacancies(vacancies) {
     var labels = {
         ru: 'Россия',
-        not_ru: 'Не Россия',
-        none: 'Не определена'
+        not_ru: 'не Россия'
     };
-    var seen = new Set();
-    (vacancies || []).forEach(function(vacancy) {
-        seen.add(getGlobalCountryFilterValue(vacancy));
-    });
-    return ['ru', 'not_ru', 'none'].filter(function(value) {
-        return seen.has(value);
-    }).map(function(value) {
+    return ['ru', 'not_ru'].map(function(value) {
         return { value: value, label: labels[value] || value };
     });
 }
@@ -3239,8 +3232,15 @@ function buildEmployerFilterOptionsFromVacancies(vacancies) {
 
 function buildBooleanFilterOptionsFromVacancies(vacancies, filterKey) {
     if (!(vacancies || []).length) return [];
+    var key = String(filterKey || '').trim();
+    if (key === 'cover_letter_required') {
+        return [
+            { value: 'true', label: 'Требуется' },
+            { value: 'false', label: 'Не требуется' }
+        ];
+    }
     return [
-        { value: 'true', label: 'Да' },
+        { value: 'true', label: 'Есть' },
         { value: 'false', label: 'Нет' }
     ];
 }
@@ -3347,7 +3347,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         return buildResponseStateFilterOptions(scopedVacancies, hasResultContent, 'Указан', 'Не указан');
     }
     if (filterKey === 'offer') {
-        return buildResponseStateFilterOptions(scopedVacancies, hasOfferContent, 'Да', 'Нет');
+        return buildResponseStateFilterOptions(scopedVacancies, hasOfferContent, 'Получен', 'Не получен');
     }
     if (filterKey === 'experiences') {
         if (current === 'skills-monthly') {
@@ -5212,6 +5212,30 @@ function isSharedFilterSectionFilled(sectionKey, activeRole, analysisType) {
         return hasExplicitGlobalSkillsSelection();
     }
     return false;
+}
+
+function shouldPrefetchRoleVacanciesForFilters(activeRole, analysisType) {
+    if (!activeRole || activeRole.id === 'role-all') return false;
+    if (activeRole._data && activeRole._data.filterVacanciesPrefetchDone) return false;
+    var current = String(analysisType || activeRole.dataset.activeAnalysis || '').trim();
+    if (!current) return false;
+    if (current === 'my-responses' || current === 'responses-calendar') return false;
+    if (typeof getRoleVacancies !== 'function') return false;
+    var vacancies = getRoleVacancies(activeRole);
+    if (Array.isArray(vacancies) && vacancies.length) return false;
+    if (current === 'totals') {
+        var panelState = uiState && uiState.shared_filter_panel_state ? uiState.shared_filter_panel_state : null;
+        var activeSection = String(panelState && panelState.activeSection || '').trim() || 'roles';
+        return activeSection === 'roles'
+            || activeSection === 'salary'
+            || activeSection === 'responses'
+            || activeSection === 'vacancy'
+            || activeSection === 'skills';
+    }
+    return current === 'skills-monthly'
+        || current === 'salary'
+        || current === 'activity'
+        || current === 'weekday';
 }
 
 function filterVacanciesByCurrencySelection(vacancies, selectedCurrencies) {
@@ -8896,6 +8920,25 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         : { open: true, sections: {} };
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
     var currentForFilters = current;
+    if (activeRole && typeof ensureRoleVacanciesLoaded === 'function' && shouldPrefetchRoleVacanciesForFilters(activeRole, currentForFilters)) {
+        activeRole._data = activeRole._data || {};
+        if (!activeRole._data.filterVacanciesPrefetchStarted) {
+            activeRole._data.filterVacanciesPrefetchStarted = true;
+            body.innerHTML = '<div class="shared-filter-panel-loading" style="padding: 12px 10px; color: var(--text-secondary);">Загрузка фильтров...</div>';
+            ensureRoleVacanciesLoaded(activeRole).then(function() {
+                activeRole._data.filterVacanciesPrefetchStarted = false;
+                activeRole._data.filterVacanciesPrefetchDone = true;
+                if (!activeRole.isConnected) return;
+                syncSharedFilterPanel(activeRole, currentForFilters, skipActiveApply);
+            }).catch(function() {
+                activeRole._data.filterVacanciesPrefetchStarted = false;
+                activeRole._data.filterVacanciesPrefetchDone = true;
+                if (!activeRole.isConnected) return;
+                syncSharedFilterPanel(activeRole, currentForFilters, skipActiveApply);
+            });
+        }
+        return;
+    }
     if (typeof syncDashboardTopbarMeta === 'function') {
         syncDashboardTopbarMeta(activeRole, current);
     }

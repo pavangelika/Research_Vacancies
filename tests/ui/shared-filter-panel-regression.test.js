@@ -626,6 +626,93 @@ function evaluateDomBackedPeriodOptions(content) {
   return sandbox.module.exports.buildUnifiedRolePeriodOptions(activeRole);
 }
 
+function evaluateInitialTotalsFilterPrefetch(content) {
+  const script = [
+    extractFunctionSource(content, 'shouldPrefetchRoleVacanciesForFilters'),
+    'module.exports = { shouldPrefetchRoleVacanciesForFilters };'
+  ].join('\n\n');
+
+  const activeRole = {
+    id: 'role-1',
+    dataset: { activeAnalysis: 'totals' },
+    _data: {}
+  };
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    uiState: {
+      shared_filter_panel_state: {
+        activeSection: 'roles',
+        lastAnalysis: '',
+        userActivatedSectionKey: ''
+      }
+    },
+    getRoleVacancies() {
+      return [];
+    }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-prefetch.vm.js' });
+  return sandbox.module.exports.shouldPrefetchRoleVacanciesForFilters(activeRole, 'totals');
+}
+
+function evaluateVacancyFilterOptionLabels(content) {
+  const script = [
+    extractFunctionSource(content, 'buildCountryFilterOptionsFromVacancies'),
+    extractFunctionSource(content, 'buildBooleanFilterOptionsFromVacancies'),
+    'module.exports = { buildCountryFilterOptionsFromVacancies, buildBooleanFilterOptionsFromVacancies };'
+  ].join('\n\n');
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    getGlobalCountryFilterValue(vacancy) {
+      const country = String(vacancy && vacancy.country || '').trim();
+      if (!country) return 'none';
+      return country === 'Россия' ? 'ru' : 'not_ru';
+    }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-option-labels.vm.js' });
+  return {
+    country: sandbox.module.exports.buildCountryFilterOptionsFromVacancies([{ country: null }]).map((item) => item.label),
+    accreditation: sandbox.module.exports.buildBooleanFilterOptionsFromVacancies([{ employer_accredited: true }], 'accreditation').map((item) => item.label),
+    coverLetter: sandbox.module.exports.buildBooleanFilterOptionsFromVacancies([{ cover_letter_required: true }], 'cover_letter_required').map((item) => item.label),
+    hasTest: sandbox.module.exports.buildBooleanFilterOptionsFromVacancies([{ has_test: true }], 'has_test').map((item) => item.label)
+  };
+}
+
+function evaluateOfferFilterLabels(content) {
+  const script = [
+    extractFunctionSource(content, 'getGlobalFilterOptions'),
+    'module.exports = { getGlobalFilterOptions };'
+  ].join('\n\n');
+
+  const vacancies = [{ offer_salary: 1000 }];
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    dedupeFilterOptions(items) { return items; },
+    getRoleMetaList() { return []; },
+    isResponsesCalendarAnalysis() { return false; },
+    buildUnifiedRolePeriodFilterOptions() { return []; },
+    getAllRoleContents() { return []; },
+    sortExperienceFilterOptions(items) { return items; },
+    buildCurrencyFilterOptionsFromVacancies() { return []; },
+    buildCountryFilterOptionsFromVacancies() { return []; },
+    buildEmployerFilterOptionsFromVacancies() { return []; },
+    buildBooleanFilterOptionsFromVacancies() { return []; },
+    collectScopedVacancies() { return vacancies.slice(); },
+    buildResponseStateFilterOptions(_vacancies, _resolver, yesLabel, noLabel) {
+      return [{ value: 'no', label: noLabel }, { value: 'yes', label: yesLabel }];
+    },
+    hasScheduledInterview() { return false; },
+    hasResultContent() { return false; },
+    hasOfferContent() { return true; },
+    getRoleVacancies() { return vacancies.slice(); }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'shared-filter-offer-labels.vm.js' });
+  return sandbox.module.exports.getGlobalFilterOptions({ id: 'role-1', dataset: { activeAnalysis: 'totals' } }, 'offer', 'totals').map((item) => item.label);
+}
+
 runTest('shared filter panel state defaults to roles section only', () => {
   [FILES.reportFilters, FILES.staticReportFilters].forEach((filePath) => {
     const state = evaluateDefaultState(read(filePath));
@@ -802,5 +889,29 @@ runTest('period options fall back to month blocks in the DOM when vacancies are 
     assert.ok(options.some((item) => item.value === '2026-04'), `${path.basename(filePath)} should expose the latest month from rendered month blocks`);
     assert.ok(options.some((item) => item.value === '2026-03'), `${path.basename(filePath)} should expose older rendered month blocks`);
     assert.ok(options.some((item) => item.value === 'За 3 месяца'), `${path.basename(filePath)} should preserve the rendered summary option from month blocks`);
+  });
+});
+
+runTest('totals filter panel prefetches vacancies on initial open when lazy data is still empty', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const shouldPrefetch = evaluateInitialTotalsFilterPrefetch(read(filePath));
+    assert.equal(shouldPrefetch, true, `${path.basename(filePath)} should start filter prefetch on the initial totals open`);
+  });
+});
+
+runTest('vacancy filter option labels match documentation wording', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const result = evaluateVacancyFilterOptionLabels(read(filePath));
+    assert.deepEqual(Array.from(result.country), ['Россия', 'не Россия'], `${path.basename(filePath)} should expose documented country options`);
+    assert.deepEqual(Array.from(result.accreditation), ['Есть', 'Нет'], `${path.basename(filePath)} should expose documented accreditation labels`);
+    assert.deepEqual(Array.from(result.coverLetter), ['Требуется', 'Не требуется'], `${path.basename(filePath)} should expose documented cover-letter labels`);
+    assert.deepEqual(Array.from(result.hasTest), ['Есть', 'Нет'], `${path.basename(filePath)} should expose documented test-task labels`);
+  });
+});
+
+runTest('offer filter labels match documentation wording', () => {
+  [FILES.reportUi, FILES.staticReportUi].forEach((filePath) => {
+    const labels = evaluateOfferFilterLabels(read(filePath));
+    assert.deepEqual(Array.from(labels), ['Не получен', 'Получен'], `${path.basename(filePath)} should expose documented offer labels`);
   });
 });

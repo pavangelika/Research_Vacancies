@@ -3438,16 +3438,9 @@ function buildCurrencyFilterOptionsFromVacancies(vacancies) {
 function buildCountryFilterOptionsFromVacancies(vacancies) {
     var labels = {
         ru: 'Россия',
-        not_ru: 'Не Россия',
-        none: 'Не определена'
+        not_ru: 'не Россия'
     };
-    var seen = new Set();
-    (vacancies || []).forEach(function(vacancy) {
-        seen.add(getGlobalCountryFilterValue(vacancy));
-    });
-    return ['ru', 'not_ru', 'none'].filter(function(value) {
-        return seen.has(value);
-    }).map(function(value) {
+    return ['ru', 'not_ru'].map(function(value) {
         return { value: value, label: labels[value] || value };
     });
 }
@@ -3469,8 +3462,15 @@ function buildEmployerFilterOptionsFromVacancies(vacancies) {
 
 function buildBooleanFilterOptionsFromVacancies(vacancies, filterKey) {
     if (!(vacancies || []).length) return [];
+    var key = String(filterKey || '').trim();
+    if (key === 'cover_letter_required') {
+        return [
+            { value: 'true', label: 'Требуется' },
+            { value: 'false', label: 'Не требуется' }
+        ];
+    }
     return [
-        { value: 'true', label: 'Да' },
+        { value: 'true', label: 'Есть' },
         { value: 'false', label: 'Нет' }
     ];
 }
@@ -3579,7 +3579,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
         return buildResponseStateFilterOptions(scopedVacancies, hasResultContent, 'Указан', 'Не указан');
     }
     if (filterKey === 'offer') {
-        return buildResponseStateFilterOptions(scopedVacancies, hasOfferContent, 'Да', 'Нет');
+        return buildResponseStateFilterOptions(scopedVacancies, hasOfferContent, 'Получен', 'Не получен');
     }
     if (filterKey === 'experiences') {
         if (current === 'skills-monthly') {
@@ -3620,14 +3620,7 @@ function shouldPrefetchRoleVacanciesForFilters(activeRole, analysisType) {
     if (Array.isArray(vacancies) && vacancies.length) return false;
     if (current === 'totals') {
         var panelState = uiState && uiState.shared_filter_panel_state ? uiState.shared_filter_panel_state : null;
-        if (!panelState || String(panelState.lastAnalysis || '').trim() !== current) return false;
-        var activeSection = String(
-            panelState
-            && panelState.activeSection
-            || ''
-        ).trim();
-        var userActivatedSectionKey = String(panelState && panelState.userActivatedSectionKey || '').trim();
-        if (!userActivatedSectionKey || userActivatedSectionKey !== activeSection) return false;
+        var activeSection = String(panelState && panelState.activeSection || '').trim() || 'roles';
         return activeSection === 'roles'
             || activeSection === 'salary'
             || activeSection === 'responses'
