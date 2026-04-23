@@ -8074,6 +8074,10 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         max-height: none;
     }
 
+    body.report-dashboard.shared-filters-expanded .dashboard-sidebar {
+        z-index: 1301 !important;
+    }
+
     body.report-dashboard.shared-filters-collapsed .dashboard-sidebar {
         width: 100vw !important;
         min-width: 100vw !important;

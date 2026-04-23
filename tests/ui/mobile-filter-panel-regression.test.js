@@ -91,6 +91,17 @@ runTest('mobile expanded shared filter panel is driven by shared panel state sel
   });
 });
 
+runTest('mobile expanded shared filter sidebar rises above the dashboard topbar', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /@media\s*\(max-width:\s*960px\)\s*\{[\s\S]*body\.report-dashboard\.shared-filters-expanded\s+\.dashboard-sidebar\s*\{[\s\S]*z-index:\s*(?:12[1-9]|1[3-9]\d{2,}|\d{4,})\s*!important;/,
+      `${path.basename(filePath)} should raise the mobile expanded shared filter sidebar above the dashboard topbar`
+    );
+  });
+});
+
 runTest('mobile expanded shared filter panel opens fullscreen from viewport top', () => {
   FILES.forEach((filePath) => {
     const source = read(filePath);
