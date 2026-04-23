@@ -1,109 +1,114 @@
-# Research_Vacancies - API Testing & Automation
+# Research_Vacancies
 
-### 🧠 Идея
-1. Получаем вакансии с HH API
-2. Сохраняем их в PostgreSQL
-3. Тестируем API
-4. Тестируем БД
-5. Запускаем тесты по расписанию
-6. Генерируем отчет о тестировании с историей
-7. Все это крутится автоматически через GitHub Actions
+Проект для работы с вакансиями HH: сбор данных, хранение, API-тесты, локальный backend для отчетов и UI-регрессии для фронтенда отчета.
 
-### 🌐 Источник данных
-#### HH API:  https://api.hh.ru/vacancies
+<!-- Replace <OWNER> and <REPO> with the real GitHub repository path if needed. -->
+[![CI Safe Suite](https://github.com/<OWNER>/<REPO>/actions/workflows/CI.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/CI.yml)
+[![External HH API Suite](https://github.com/<OWNER>/<REPO>/actions/workflows/run-tests.yml/badge.svg)](https://github.com/<OWNER>/<REPO>/actions/workflows/run-tests.yml)
 
-### 🚀 Быстрый старт
+## Stack
 
+- Python
+- Pytest
+- FastAPI
+- PostgreSQL
+- PowerShell
+- Node.js для локальных UI regression tests
 
-### 🛠️ Стек технологий
-* Парсинг API HH и создание БД PostgreSQL
-* Анализ и работа с PostgreSQL + SQL
-* Docker + Git + GitHub Actions (CI pipeline)
-* Тестирование API: smoke, contract, regress
-* Ручное тестирование API: Postman + Newman
-* Автотестирование API: Python + Pytest + Allure 
+## Main Test Modes
 
-### 📁 Структура проекта
-[Docker-образ с тестами, скриптами и Allure]
-         |
-         v
-[CI Runner (GitLab)]
-         |
-         +-- запуск по расписанию (cron)
-         |
-         v
-[Контейнер: pytest + Allure]
-         |
-         +-- сохраняет allure-results
-         |
-         v
-[Генерация отчёта Allure с историей]
-         |
-         v
-[Публикация статического отчёта (Nginx/S3/GitHub Pages)]
+В репозитории сейчас есть три основных набора тестов:
 
-### 🗄️ Схема базы данных
+- `tests/backend` — локальные backend/unit/contract тесты проекта
+- `tests/ui/*.test.js` — локальные JS regression tests для report UI
+- `tests/api` — live-тесты против внешнего `https://api.hh.ru`
 
-### 🐍 Python: что тестируем
+По умолчанию внешний HH API suite отключен и запускается только по явному opt-in через `RUN_EXTERNAL_API_TESTS=1`.
 
-### 📬 Postman: что тестируем
+## CI
 
-### 🔍 Контракт (пример schema)
+В репозитории настроены два GitHub Actions workflow:
 
-### 🐳 Docker Desktop
+- `CI Safe Suite` — основной безопасный workflow для `push` и `pull_request`
+- `External HH API Suite` — ручной workflow для live-тестов против `api.hh.ru`
 
-### 📊 SQL аналитика
+`CI Safe Suite` запускает только локально безопасные проверки:
 
-### 🤖 GitHub Actions (CI)
+- `pytest tests/test_external_api_gate.py -q`
+- `pytest tests/backend -q`
+- `.\scripts\test_local.ps1 ui`
 
-### 📈 Автоотчет
+`External HH API Suite` запускается только вручную через `workflow_dispatch` и выставляет `RUN_EXTERNAL_API_TESTS=1` для `tests/api`.
 
-## Playwright UI smoke
+## Local Test Runner
 
-UI-тесты встроены в текущий `pytest`-проект и запускаются отдельно от API-набора.
-
-### 1. Установить зависимости и браузер
+Для удобного локального запуска используй:
 
 ```powershell
-pip install -r requirements.txt
-python -m playwright install chromium
+.\scripts\test_local.ps1 help
 ```
 
-### 2. Добавить UI-конфиг в `.env`
+Доступные команды:
 
-```env
-UI_BASE_URL=https://example.com
-UI_EXPECTED_TITLE=Example Domain
-UI_READY_SELECTOR=body
-UI_PRIMARY_LINK_SELECTOR=a
-UI_SMOKE_PATHS=/,/docs
-```
+- `backend` — запускает `pytest tests/backend -q`
+- `ui` — запускает все `node tests/ui/*.test.js`
+- `api-external` — запускает `pytest tests/api -q`, но только если `RUN_EXTERNAL_API_TESTS=1`
+- `all-safe` — запускает безопасный локальный набор: gate tests, backend, UI
+- `all` — запускает `all-safe`, затем `api-external`
+- `help` — печатает справку
 
-Минимально обязателен только `UI_BASE_URL`. Остальные параметры опциональны и нужны для более точных smoke-проверок.
+## Examples
 
-### 3. Локальный запуск
-
-Headless smoke:
+Безопасный локальный прогон:
 
 ```powershell
-pytest tests/ui -m "ui and smoke" --browser chromium --tracing retain-on-failure --video retain-on-failure --screenshot only-on-failure --output test-results --html=reports/ui/ui-report.html --self-contained-html --alluredir=allure-results-ui
+.\scripts\test_local.ps1 all-safe
 ```
 
-Headed/debug:
+Только backend:
 
 ```powershell
-$env:PWDEBUG="1"
-pytest tests/ui -m "ui and smoke" --browser chromium --headed --tracing on --video on --screenshot on --output test-results
+.\scripts\test_local.ps1 backend
 ```
 
-Просмотр trace:
+Только UI regression tests:
 
 ```powershell
-python -m playwright show-trace .\test-results\<trace-folder>\trace.zip
+.\scripts\test_local.ps1 ui
 ```
 
-### 4. Артефакты
+Запуск внешнего HH API suite:
 
-- `test-results/` — trace, video, screenshots Playwright
-- `reports/ui/ui-report.html` — HTML-отчёт
-- `allure-results-ui/` — результаты для Allure
+```powershell
+$env:RUN_EXTERNAL_API_TESTS="1"
+.\scripts\test_local.ps1 api-external
+```
+
+Полный прогон:
+
+```powershell
+$env:RUN_EXTERNAL_API_TESTS="1"
+.\scripts\test_local.ps1 all
+```
+
+## Direct Commands
+
+Если нужно запускать наборы напрямую:
+
+```powershell
+pytest tests/backend -q
+pytest tests/test_external_api_gate.py -q
+pytest tests/api -q
+```
+
+Для UI regression tests:
+
+```powershell
+Get-ChildItem tests\ui\*.test.js | Sort-Object Name | ForEach-Object { node $_.FullName }
+```
+
+## Notes
+
+- В `pytest.ini` отключен автоплагин `playwright`, потому что внешний `pytest-playwright` в текущем окружении ломал запуск обычного `pytest`.
+- `tests/api` помечаются как `external` и пропускаются по умолчанию.
+- Локальный `pytest -q` должен проходить без доступа в интернет, кроме явно включенного внешнего suite.

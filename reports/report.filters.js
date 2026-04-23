@@ -675,6 +675,7 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
     var switchInput = document.createElement('input');
     switchInput.type = 'checkbox';
     switchInput.className = 'totals-ios-checkbox my-responses-offer-switch';
+    switchInput.name = 'my_responses_offer_filter';
     var switchUi = document.createElement('span');
     switchUi.className = 'totals-ios-checkbox-ui';
     switchWrap.appendChild(switchInput);
@@ -774,6 +775,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
     var searchInput = document.createElement('input');
     searchInput.type = 'search';
     searchInput.className = 'global-filter-search skills-search-top-search';
+    searchInput.name = 'skills_search_query';
     searchInput.placeholder = 'Поиск навыка';
     searchInput.value = String(uiState.skills_search_filter_query || '');
     searchInput.addEventListener('input', function() {
@@ -898,6 +900,7 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
+    input.name = 'skills_search_favorite_name';
     input.placeholder = 'Сохранить фильтр';
     input.autocomplete = 'off';
     input.spellcheck = false;
@@ -1121,6 +1124,7 @@ function createMyFiltersControl(activeRole, analysisType) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
+    input.name = 'skills_search_favorite_name';
     input.placeholder = 'Введите название';
     input.autocomplete = 'off';
     input.spellcheck = false;
@@ -1311,6 +1315,7 @@ function createSkillsSearchLogicControl(activeRole, analysisType) {
     var switchInput = document.createElement('input');
     switchInput.type = 'checkbox';
     switchInput.className = 'totals-ios-checkbox';
+    switchInput.name = 'skills_search_logic';
 
     var switchUi = document.createElement('span');
     switchUi.className = 'totals-ios-checkbox-ui';
@@ -1479,6 +1484,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     var search = document.createElement('input');
     search.type = 'text';
     search.className = 'global-filter-search';
+    search.name = isExcludeMode ? 'skills_exclude_search' : 'skills_include_search';
     search.placeholder = 'Поиск навыка';
     search.style.width = '100%';
     search.style.boxSizing = 'border-box';
@@ -1656,6 +1662,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         range.step = '1';
         range.value = String(limitValue);
         range.className = 'totals-top-filter-range';
+        range.name = 'totals_top_limit_range';
         limitControls.appendChild(range);
 
         var numberInput = document.createElement('input');
@@ -1665,6 +1672,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         numberInput.step = '1';
         numberInput.value = String(limitValue);
         numberInput.className = 'totals-top-filter-number';
+        numberInput.name = 'totals_top_limit_number';
         limitControls.appendChild(numberInput);
         limitWrap.appendChild(limitControls);
         wrap.appendChild(limitWrap);

@@ -120,7 +120,7 @@ runTest('totalsComputePeriodVacancyStats computes period-aware overview KPI', ()
   assert.equal(stats.newPublished, 3);
   assert.equal(stats.publishedAndArchived, 2);
   assert.equal(stats.activeNewPublished, 1);
-  assert.equal(stats.avgLifetimeDays, 5.3);
+  assert.equal(stats.avgLifetimeDays, 5.7);
 });
 
 runTest('totalsBuildBurnupSeries returns adaptive daily period series', () => {

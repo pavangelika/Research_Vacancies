@@ -7431,7 +7431,8 @@ body.report-dashboard .dashboard-shell {
 body.report-dashboard .dashboard-topbar {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 120;
+    isolation: isolate;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -7605,6 +7606,7 @@ body.report-dashboard.shared-filters-collapsed .report-layout {
 body.report-dashboard .dashboard-sidebar {
     position: sticky;
     top: 72px;
+    z-index: 1;
     align-self: stretch;
     inline-size: 100%;
     min-height: calc(100vh - 72px);
@@ -7745,6 +7747,11 @@ body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-butt
     border: 0;
     color: #ffffff !important;
     box-shadow: var(--filter-selected-shadow) !important;
+}
+
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button.filled .shared-filter-panel-rail-icon,
+body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-button[data-section-filled="1"] .shared-filter-panel-rail-icon {
+    color: inherit !important;
 }
 
 body.report-dashboard #global-shared-filter-panel .shared-filter-panel-rail-icon {
@@ -8283,8 +8290,8 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    flex-wrap: wrap;
+    gap: 16px;
+    flex-wrap: nowrap;
 }
 
 .donut-chart {
@@ -8347,6 +8354,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex: 0 1 186px;
 }
 
 .donut-legend-item {
@@ -8356,7 +8364,8 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     padding: 8px 12px;
     border-radius: 10px;
     background: var(--surface-variant);
-    min-width: 160px;
+    width: 100%;
+    min-width: 0;
 }
 .donut-legend-action {
     width: 100%;
@@ -8383,9 +8392,14 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     outline-offset: 2px;
 }
 
+.donut-legend-item-passive {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
 .donut-legend-kpi {
     background: var(--surface-variant);
-    border: none;
+    border: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .donut-legend-color {
@@ -9176,6 +9190,13 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     color: var(--text-secondary);
 }
 
+.salary-summary-chart-points .salary-summary-chart-row {
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+}
+
 .salary-summary-chart-line {
     position: relative;
     min-height: 86px;
@@ -9226,6 +9247,15 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 .salary-summary-chart-row-bars {
     grid-template-columns: 132px minmax(0, 1fr);
     margin-bottom: 10px;
+}
+
+.salary-summary-chart-compact .salary-summary-chart-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.salary-summary-chart-compact .salary-summary-chart-line {
+    min-height: 86px;
 }
 
 .salary-summary-chart-bar-wrap {
@@ -9377,6 +9407,15 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 }
 
 @media (max-width: 600px) {
+    .donut-chart-container {
+        flex-direction: column;
+        flex-wrap: wrap;
+    }
+
+    .donut-legend-item {
+        min-width: 0;
+    }
+
     .donut-chart {
         width: 160px;
         height: 160px;

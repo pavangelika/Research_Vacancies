@@ -18,7 +18,7 @@
         var titleCell = '<div class="vacancy-title-stack">' + titleLabel + titleId + '</div>';
         var replyCell = (v.apply_alternate_url || isResumeSent)
             ? '<label class="vacancy-apply-switch totals-ios-checkbox-wrap" aria-label="Отклик по вакансии ' + escapeHtml(titleText || vacancyId || '') + '">' +
-                '<input class="vacancy-apply-switch-input totals-ios-checkbox" type="checkbox" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url || '') + '"' + (isResumeSent ? ' checked disabled' : '') + '>' +
+                '<input class="vacancy-apply-switch-input totals-ios-checkbox" name="vacancy_apply_toggle" type="checkbox" data-vacancy-id="' + escapeHtml(v.id || '') + '" data-apply-url="' + escapeHtml(v.apply_alternate_url || '') + '"' + (isResumeSent ? ' checked disabled' : '') + '>' +
                 '<span class="vacancy-apply-switch-ui totals-ios-checkbox-ui"></span>' +
             '</label>'
             : '—';
@@ -1316,7 +1316,6 @@ function buildUnifiedTabsDataContract(selectedIndices, preferredAnalysisType) {
 function normalizeAnalysisTypeForButtonLookup(analysisType) {
     var normalized = String(analysisType || '').trim();
     if (normalized === 'detail-analysis') return 'skills-search';
-    if (normalized === 'activity' || normalized === 'weekday' || normalized === 'skills-monthly' || normalized === 'salary' || normalized === 'employer-analysis') return 'skills-search';
     return normalized;
 }
 function findAnalysisButtonByType(container, analysisType) {

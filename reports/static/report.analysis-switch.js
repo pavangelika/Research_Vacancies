@@ -73,6 +73,25 @@ function handleActivityAnalysisSwitch(ctx) {
     normalizeActivityControls(parentRole);
     if (isAllRolesContainerId(roleId)) {
         restoreAllRolesPeriodState(parentRole, 'activity');
+        var visibleActivityPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="activity-all"]')).find(function(node) {
+            return (node.style.display || '') === 'block';
+        }) || parentRole.querySelector('.all-roles-period-content[data-analysis="activity-all"]');
+        if (visibleActivityPeriod && typeof hydrateAllRolesActivityPeriodFromApi === 'function') {
+            hydrateAllRolesActivityPeriodFromApi(visibleActivityPeriod, parentRole).then(function() {
+                var mode = applyAllRolesViewMode(visibleActivityPeriod, 'activity');
+                var rows = parseJsonDataset(visibleActivityPeriod, 'entries', []);
+                var mainId = visibleActivityPeriod.dataset.graphMain;
+                var ageId = visibleActivityPeriod.dataset.graphAge;
+                var contextText = buildChartContextLabel(String(visibleActivityPeriod.dataset.period || '').trim(), null);
+                if (mode !== 'table' && mainId && ageId) {
+                    buildAllRolesActivityChart(rows, mainId, ageId);
+                    applyChartTitleContext(mainId, 'Открытые и архивные вакансии по ролям', contextText);
+                    applyChartTitleContext(ageId, 'Ср. возраст (дни) по ролям', contextText);
+                }
+            }).catch(function(err) {
+                console.error('hydrateAllRolesActivityPeriodFromApi failed', err);
+            });
+        }
         return;
     }
     if (isCombinedContainerWithoutActivityTabs(parentRole, roleId)) {
@@ -104,6 +123,23 @@ function handleWeekdayAnalysisSwitch(ctx) {
     normalizeWeekdayControls(parentRole);
     if (isAllRolesContainerId(roleId)) {
         restoreAllRolesPeriodState(parentRole, 'weekday');
+        var visibleWeekdayPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="weekday-all"]')).find(function(node) {
+            return (node.style.display || '') === 'block';
+        }) || parentRole.querySelector('.all-roles-period-content[data-analysis="weekday-all"]');
+        if (visibleWeekdayPeriod && typeof hydrateAllRolesWeekdayPeriodFromApi === 'function') {
+            hydrateAllRolesWeekdayPeriodFromApi(visibleWeekdayPeriod, parentRole).then(function() {
+                var mode = applyAllRolesViewMode(visibleWeekdayPeriod, 'weekday');
+                var rows = parseJsonDataset(visibleWeekdayPeriod, 'entries', []);
+                var graphId = visibleWeekdayPeriod.dataset.graphId;
+                var contextText = buildChartContextLabel(String(visibleWeekdayPeriod.dataset.period || '').trim(), null);
+                if (mode !== 'table' && graphId) {
+                    buildAllRolesWeekdayChart(rows, graphId);
+                    applyChartTitleContext(graphId, 'Публикации и архивы по ролям', contextText);
+                }
+            }).catch(function(err) {
+                console.error('hydrateAllRolesWeekdayPeriodFromApi failed', err);
+            });
+        }
         return;
     }
     var weekdays = parseJsonDataset(weekdayBlock, 'weekdays', []);
@@ -153,6 +189,17 @@ function handleSkillsMonthlyAnalysisSwitch(ctx) {
         }
         renderAllRolesSkillsChartFromTable(visibleSkillsPeriod, forcedGraphId, forcedContext);
     };
+    var visibleSkillsPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="skills-monthly-all"]')).find(function(node) {
+        return (node.style.display || '') === 'block';
+    }) || parentRole.querySelector('.all-roles-period-content[data-analysis="skills-monthly-all"]');
+    if (visibleSkillsPeriod && typeof hydrateAllRolesSkillsPeriodFromApi === 'function') {
+        hydrateAllRolesSkillsPeriodFromApi(visibleSkillsPeriod, parentRole).then(function() {
+            forceAllRolesSkillsRender();
+        }).catch(function(err) {
+            console.error('hydrateAllRolesSkillsPeriodFromApi failed', err);
+            forceAllRolesSkillsRender();
+        });
+    }
     forceAllRolesSkillsRender();
     requestAnimationFrame(forceAllRolesSkillsRender);
     setTimeout(forceAllRolesSkillsRender, 60);
@@ -198,14 +245,46 @@ function handleSalaryAnalysisSwitch(ctx) {
     if (!salaryBlock) return;
     salaryBlock.style.display = 'block';
     normalizeSalaryControls(parentRole);
-    if (isAllRolesContainerId(roleId)) restoreAllRolesPeriodState(parentRole, 'salary');
-    else restoreSalaryState(parentRole, roleId);
+    if (isAllRolesContainerId(roleId)) {
+        restoreAllRolesPeriodState(parentRole, 'salary');
+        var visibleSalaryPeriod = Array.from(parentRole.querySelectorAll('.all-roles-period-content[data-analysis="salary-all"]')).find(function(node) {
+            return (node.style.display || '') === 'block';
+        }) || parentRole.querySelector('.all-roles-period-content[data-analysis="salary-all"]');
+        if (visibleSalaryPeriod && typeof hydrateAllRolesSalaryPeriodFromApi === 'function') {
+            hydrateAllRolesSalaryPeriodFromApi(visibleSalaryPeriod, parentRole).then(function() {
+                if (typeof renderAllRolesSalaryPeriodContent === 'function') {
+                    renderAllRolesSalaryPeriodContent(
+                        visibleSalaryPeriod,
+                        String(visibleSalaryPeriod.dataset.period || 'all').trim() || 'all'
+                    );
+                }
+            }).catch(function(err) {
+                console.error('hydrateAllRolesSalaryPeriodFromApi failed', err);
+                if (typeof renderAllRolesSalaryPeriodContent === 'function') {
+                    renderAllRolesSalaryPeriodContent(
+                        visibleSalaryPeriod,
+                        String(visibleSalaryPeriod.dataset.period || 'all').trim() || 'all'
+                    );
+                }
+            });
+        }
+    } else restoreSalaryState(parentRole, roleId);
     applySalaryStatusIcons(parentRole);
 }
 function handleEmployerAnalysisSwitch(ctx) {
+    var parentRole = ctx.parentRole;
     var employerAnalysisBlock = ctx.blocks.employerAnalysisBlock;
     if (!employerAnalysisBlock) return;
     employerAnalysisBlock.style.display = 'block';
+    if (parentRole && parentRole.id === 'role-all' && typeof hydrateAllRolesEmployerBlockFromApi === 'function') {
+        hydrateAllRolesEmployerBlockFromApi(employerAnalysisBlock, parentRole).then(function() {
+            initEmployerAnalysisFilter(employerAnalysisBlock);
+        }).catch(function(err) {
+            console.error('hydrateAllRolesEmployerBlockFromApi failed', err);
+            initEmployerAnalysisFilter(employerAnalysisBlock);
+        });
+        return;
+    }
     initEmployerAnalysisFilter(employerAnalysisBlock);
 }
 function scheduleAnalysisUiRefresh(parentRole, analysisType) {

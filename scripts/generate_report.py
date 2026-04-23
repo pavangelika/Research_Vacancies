@@ -24,6 +24,11 @@ DB_POOL_MAX = max(DB_POOL_MIN, int(os.getenv("DB_POOL_MAX", "4")))
 _DB_POOL = None
 
 
+def should_embed_role_vacancies():
+    value = str(os.getenv("REPORT_EMBED_VACANCIES", "1")).strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
 def compact_text(value, max_len=240):
     if value is None:
         return None
@@ -34,6 +39,75 @@ def compact_text(value, max_len=240):
     if len(text) <= max_len:
         return text
     return text[: max_len - 1].rstrip() + '…'
+
+
+def build_embedded_vacancy_obj(
+    *,
+    vac_id,
+    name,
+    employer,
+    city,
+    country,
+    salary_from,
+    salary_to,
+    currency,
+    calculated_salary,
+    converted_salary,
+    published_iso,
+    archived_iso,
+    send_resume,
+    resume_iso,
+    role_key,
+    role_name,
+    experience,
+    status,
+    skills,
+    requirement,
+    responsibility,
+    apply_alternate_url,
+    accredited_it_employer,
+    rating,
+    trusted,
+    employer_url,
+):
+    vacancy = {
+        'id': vac_id,
+        'name': name,
+        'employer': employer,
+        'published_at': published_iso,
+        'experience': experience,
+    }
+    effective_calculated_salary = calculated_salary
+    if converted_salary is not None and calculated_salary == converted_salary:
+        effective_calculated_salary = None
+    optional_fields = {
+        'send_resume': bool(send_resume) if send_resume else None,
+        'city': city,
+        'country': country,
+        'salary_from': salary_from,
+        'salary_to': salary_to,
+        'currency': currency,
+        'calculated_salary': effective_calculated_salary,
+        'converted_salary': converted_salary,
+        'archived_at': archived_iso,
+        'resume_at': resume_iso,
+        # Embedded report payload only needs short previews; full details come from API now.
+        'skills': compact_text(skills, 80),
+        'requirement': compact_text(requirement, 120),
+        'responsibility': compact_text(responsibility, 120),
+        'apply_alternate_url': apply_alternate_url,
+        'employer_accredited': accredited_it_employer,
+        'employer_rating': rating,
+        'employer_trusted': trusted,
+        'employer_url': employer_url,
+    }
+    for key, value in optional_fields.items():
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip():
+            continue
+        vacancy[key] = value
+    return vacancy
 
 def load_roles_mapping(json_path):
     """Загружает JSON и возвращает словарь {id: name}."""
@@ -1228,35 +1302,34 @@ def fetch_salary_data(mapping):
         published_iso = published_at.isoformat() if published_at else None
         archived_iso = archived_at.isoformat() if archived_at else None
         resume_iso = resume_at.isoformat() if resume_at else None
-        vacancy_obj = {
-            'id': vac_id,
-            'name': name,
-            'employer': employer,
-            'city': city,
-            'country': country,
-            'salary_from': salary_from,
-            'salary_to': salary_to,
-            'currency': currency,
-            'calculated_salary': calculated_salary,
-            'converted_salary': converted_salary,
-            'published_at': published_iso,
-            'archived_at': archived_iso,
-            'send_resume': bool(send_resume) if send_resume is not None else False,
-            'resume_at': resume_iso,
-            'role_id': role_key,
-            'role_name': role_name,
-            'experience': experience,
-            '_experience': experience,
-            '_status': status,
-            'skills': compact_text(skills, 180),
-            'requirement': compact_text(requirement, 240),
-            'responsibility': compact_text(responsibility, 240),
-            'apply_alternate_url': apply_alternate_url,
-            'employer_accredited': accredited_it_employer,
-            'employer_rating': rating,
-            'employer_trusted': trusted,
-            'employer_url': employer_url
-        }
+        vacancy_obj = build_embedded_vacancy_obj(
+            vac_id=vac_id,
+            name=name,
+            employer=employer,
+            city=city,
+            country=country,
+            salary_from=salary_from,
+            salary_to=salary_to,
+            currency=currency,
+            calculated_salary=calculated_salary,
+            converted_salary=converted_salary,
+            published_iso=published_iso,
+            archived_iso=archived_iso,
+            send_resume=send_resume,
+            resume_iso=resume_iso,
+            role_key=role_key,
+            role_name=role_name,
+            experience=experience,
+            status=status,
+            skills=skills,
+            requirement=requirement,
+            responsibility=responsibility,
+            apply_alternate_url=apply_alternate_url,
+            accredited_it_employer=accredited_it_employer,
+            rating=rating,
+            trusted=trusted,
+            employer_url=employer_url,
+        )
         vacancies_by_role[role_key].append(vacancy_obj)
 
         if has_salary:
@@ -1593,10 +1666,12 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
     current_date = datetime.now().strftime("%d.%m.%Y")
     current_time = datetime.now().strftime("%H:%M")
     asset_version = datetime.now().strftime("%Y%m%d%H%M%S")
+    embed_vacancies = should_embed_role_vacancies()
 
     for role in roles_data:
         role_id = role['id']
-        role['vacancies'] = vacancies_by_role.get(role_id, [])
+        role['vacancies'] = vacancies_by_role.get(role_id, []) if embed_vacancies else []
+        role['embed_vacancies'] = embed_vacancies
 
     return template.render(roles=roles_data, weekday_roles=weekday_data,
                            skills_monthly_roles=skills_monthly_data,

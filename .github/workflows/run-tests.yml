@@ -1,81 +1,24 @@
-name: Nightly Regression + Allure History
+name: External HH API Suite
 
 on:
-  schedule:
-    - cron: '0 3 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  regression:
+  external-api:
     runs-on: ubuntu-latest
+    env:
+      RUN_EXTERNAL_API_TESTS: "1"
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install allure-pytest
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
 
-      # Установка Allure (бинарник)
-      - name: Install Allure
-        run: |
-          ALLURE_VERSION="2.32.0"
-          wget -q "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz"
-          tar -xzf "allure-${ALLURE_VERSION}.tgz"
-          sudo mv "allure-${ALLURE_VERSION}" /opt/allure
-          sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
-          allure --version
-
-      # Загрузка предыдущей истории (с обработкой отсутствия ветки)
-      - name: Download previous allure history
-        run: |
-          mkdir -p allure-history
-          # Проверяем, существует ли ветка gh-pages на удалённом репозитории
-          if git ls-remote --heads origin gh-pages | grep gh-pages; then
-            echo "Branch gh-pages exists, fetching..."
-            git fetch origin gh-pages --depth=1
-            git worktree add allure-history origin/gh-pages
-          else
-            echo "No gh-pages branch yet, starting fresh"
-          fi
-
-      # Запуск регрессионных тестов
-      - name: Run regression tests
-        run: |
-          pytest -m regression --alluredir=allure-results
-        continue-on-error: true
-
-      # Копируем старую историю в папку с результатами (если есть)
-      - name: Copy history to results
-        run: |
-          if [ -d "allure-history/history" ]; then
-            cp -r allure-history/history allure-results/
-          fi
-
-      # Генерация отчёта Allure
-      - name: Generate Allure Report
-        run: |
-          allure generate allure-results --clean -o allure-report
-
-      # Обновляем папку истории для следующего запуска
-      - name: Update history folder
-        run: |
-          mkdir -p allure-history
-          cp -r allure-report/history allure-history/
-
-      # Публикация отчёта на GitHub Pages
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./allure-reports
-          destination_dir: latest
-          keep_files: false
+      - name: Run external HH API tests
+        run: pytest tests/api -q

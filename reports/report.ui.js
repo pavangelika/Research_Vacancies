@@ -38,6 +38,73 @@ function updateReportLayoutScrollZones() {
     layout.style.removeProperty('--report-layout-scroll-height');
 }
 
+var FORM_FIELD_NAME_BY_CLASS = {
+    'skills-multi-toggle-input': 'skills_multi_toggle',
+    'skills-search-favorites-panel-input': 'skills_search_favorite_name',
+    'skills-search-top-search': 'skills_search_query',
+    'totals-top-filter-range': 'totals_top_limit_range',
+    'totals-top-filter-number': 'totals_top_limit_number',
+    'my-responses-offer-switch': 'my_responses_offer_filter',
+    'global-filter-search': 'filter_search_query',
+    'totals-ios-checkbox': 'boolean_toggle'
+};
+var formFieldNameSequence = 0;
+
+function inferFormFieldName(field) {
+    if (!field || !field.classList) return '';
+    var classNames = Array.from(field.classList);
+    for (var i = 0; i < classNames.length; i += 1) {
+        var nextName = FORM_FIELD_NAME_BY_CLASS[classNames[i]];
+        if (nextName) return nextName;
+    }
+    if (field.type === 'search') return 'search_query';
+    if (field.type === 'range') return 'range_value';
+    if (field.type === 'number') return 'numeric_value';
+    if (field.type === 'checkbox') return 'checkbox_value';
+    if (field.tagName === 'SELECT') return 'select_value';
+    if (field.tagName === 'TEXTAREA') return 'text_value';
+    return 'form_field';
+}
+
+function ensureFormFieldNames(root) {
+    if (!root || !root.querySelectorAll) return;
+    var fields = root.matches && root.matches('input, select, textarea')
+        ? [root]
+        : Array.from(root.querySelectorAll('input:not([name]):not([id]), select:not([name]):not([id]), textarea:not([name]):not([id])'));
+    fields.forEach(function(field) {
+        if (!field || field.name || field.id) return;
+        var inferred = inferFormFieldName(field);
+        formFieldNameSequence += 1;
+        field.name = inferred + '_' + formFieldNameSequence;
+    });
+}
+
+function bindFormFieldNameObserver() {
+    if (typeof document === 'undefined') return;
+    var start = function() {
+        if (!document.body || document.body.dataset.formFieldNamesBound === '1') return;
+        document.body.dataset.formFieldNamesBound = '1';
+        ensureFormFieldNames(document.body);
+        if (typeof MutationObserver !== 'function') return;
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                Array.from(mutation.addedNodes || []).forEach(function(node) {
+                    if (!node || node.nodeType !== 1) return;
+                    ensureFormFieldNames(node);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true });
+        return;
+    }
+    start();
+}
+
+bindFormFieldNameObserver();
+
 var VIEW_ICON_TABLE = '\u25A4';
 var VIEW_ICON_GRAPH = '\u25D4';
 var VIEW_ICON_TOGETHER = '\u25EB';
@@ -270,6 +337,10 @@ function handleTopNavigationClick(sectionKey, itemKey) {
 
     if (isFlatAllRolesSection(section)) {
         uiState.global_analysis_type = section;
+        if (typeof switchFromSummaryToAnalysis === 'function') {
+            switchFromSummaryToAnalysis(section);
+            return;
+        }
         scheduleTopNavigationAction(function() {
             var role = getActiveRoleContent() || document.getElementById('role-all');
             if (!role) return;
@@ -1778,7 +1849,12 @@ function renderMyResponsesContent(parentRole) {
     }
     if (!responsesWrap) return;
     responsesWrap.innerHTML = '<div class="skills-search-summary">Загрузка откликов...</div>';
-    fetchMyResponsesVacancies().then(function(vacancies) {
+    if (Array.isArray(block._data && block._data.responses)) {
+        renderMyResponsesPanels(block, parentRole, block._data.responses);
+        return;
+    }
+    if (block._responsesRequestPromise) return;
+    var responsesRequestPromise = fetchMyResponsesVacancies().then(function(vacancies) {
         var list = Array.isArray(vacancies) ? vacancies : [];
         list = applyMyResponsesGlobalFilters(parentRole, list);
         block._data = block._data || {};
@@ -1790,7 +1866,12 @@ function renderMyResponsesContent(parentRole) {
         block._data = block._data || {};
         block._data.responses = local;
         renderMyResponsesPanels(block, parentRole, local);
+    }).finally(function() {
+        if (block._responsesRequestPromise === responsesRequestPromise) {
+            block._responsesRequestPromise = null;
+        }
     });
+    block._responsesRequestPromise = responsesRequestPromise;
 }
 
 function fetchMyResponseDetails(vacancyId) {
@@ -4049,6 +4130,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     var search = document.createElement('input');
     search.type = 'text';
     search.className = 'global-filter-search';
+    search.name = 'role_selector_search';
     search.placeholder = 'Поиск роли';
     search.style.width = '100%';
     search.style.boxSizing = 'border-box';
@@ -4304,6 +4386,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         var search = document.createElement('input');
         search.type = 'text';
         search.className = 'global-filter-search';
+        search.name = filterKey === 'employer' ? 'employer_filter_search' : 'roles_filter_search';
         search.placeholder = filterKey === 'employer' ? 'Поиск работодателя' : 'Поиск роли';
         search.style.width = '100%';
         search.style.boxSizing = 'border-box';
@@ -7754,7 +7837,7 @@ function renderGlobalTotalsFiltered(parentRole) {
               '</button>'
             : '—';
         var status = '<label class="totals-ios-checkbox-wrap" title="' + (row.responded ? 'Был отклик' : 'Нет отклика') + '">' +
-            '<input type="checkbox" class="totals-ios-checkbox" ' + (row.responded ? 'checked ' : '') + 'disabled>' +
+            '<input type="checkbox" class="totals-ios-checkbox" name="vacancy_response_status" ' + (row.responded ? 'checked ' : '') + 'disabled>' +
             '<span class="totals-ios-checkbox-ui"></span>' +
         '</label>';
         return '<tr>' +
@@ -7884,6 +7967,8 @@ function renderGlobalTotalsFiltered(parentRole) {
         var rows = Array.isArray(data.items) ? data.items : [];
         var metrics = data.periodMetrics || {};
         var subsets = data.subsets || {};
+        var donutNewLabel = 'Новые';
+        var donutPublishedArchivedLabel = 'Опубл. и архивир.';
         function metricRow(label, value, extra) {
             return '<div class="donut-period-metric">' +
                 '<span class="donut-period-metric-label">' + escapeHtml(label) + '</span>' +
@@ -7920,15 +8005,15 @@ function renderGlobalTotalsFiltered(parentRole) {
         if (data.status === 'active') {
             metricsHtml = '<div class="donut-period-metrics">' +
                 metricRow('Активные на конец периода', data.total || 0) +
-                metricRow('Новые за период', metrics.newPublished || 0, totalsFormatNumber(metrics.shareNewPublished || 0) + '% от активных') +
+                metricRow(donutNewLabel, metrics.newPublished || 0, totalsFormatNumber(metrics.shareNewPublished || 0) + '% от активных') +
             '</div>';
-            secondarySectionHtml = renderDistributionSection('Новые за период', (subsets.newPublished && subsets.newPublished.total) || 0, (subsets.newPublished && subsets.newPublished.items) || []);
+            secondarySectionHtml = renderDistributionSection(donutNewLabel, (subsets.newPublished && subsets.newPublished.total) || 0, (subsets.newPublished && subsets.newPublished.items) || []);
         } else if (data.status === 'archived') {
             metricsHtml = '<div class="donut-period-metrics">' +
                 metricRow('Архивные за период', data.total || 0) +
-                metricRow('Опубл. и архив. за период', metrics.publishedAndArchived || 0, totalsFormatNumber(metrics.sharePublishedAndArchived || 0) + '% от архивных') +
+                metricRow(donutPublishedArchivedLabel, metrics.publishedAndArchived || 0, totalsFormatNumber(metrics.sharePublishedAndArchived || 0) + '% от архивных') +
             '</div>';
-            secondarySectionHtml = renderDistributionSection('Опубл. и архив. за период', (subsets.publishedAndArchived && subsets.publishedAndArchived.total) || 0, (subsets.publishedAndArchived && subsets.publishedAndArchived.items) || []);
+            secondarySectionHtml = renderDistributionSection(donutPublishedArchivedLabel, (subsets.publishedAndArchived && subsets.publishedAndArchived.total) || 0, (subsets.publishedAndArchived && subsets.publishedAndArchived.items) || []);
         }
         if (!rows.length || !data.total) {
             return '<div class="donut-drilldown-header">' +
@@ -7973,6 +8058,8 @@ function renderGlobalTotalsFiltered(parentRole) {
         var archivedGradientId = 'donut-archived-gradient-' + donutKey;
         var activeInnerGradientId = 'donut-active-inner-gradient-' + donutKey;
         var archivedInnerGradientId = 'donut-archived-inner-gradient-' + donutKey;
+        var donutNewLabel = 'Новые';
+        var donutPublishedArchivedLabel = 'Опубл. и архивир.';
         var breakdownEncoded = encodeURIComponent(JSON.stringify(breakdownData || {}));
         var interactiveAttr = interactiveEnabled ? ' data-interactive="1"' : ' data-interactive="0"';
         var activeSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active' + (interactiveEnabled ? ' is-clickable' : '');
@@ -7982,10 +8069,10 @@ function renderGlobalTotalsFiltered(parentRole) {
         var activeLegendTag = interactiveEnabled ? 'button' : 'div';
         var archivedLegendTag = interactiveEnabled ? 'button' : 'div';
         var activeLegendAttrs = interactiveEnabled
-            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false"'
+            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" data-selection-key="active" aria-pressed="false"'
             : ' class="donut-legend-item"';
         var archivedLegendAttrs = interactiveEnabled
-            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false"'
+            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" data-selection-key="archived" aria-pressed="false"'
             : ' class="donut-legend-item"';
 
         return '<div class="donut-chart-container"' + interactiveAttr + ' data-breakdown="' + breakdownEncoded + '">' +
@@ -8013,11 +8100,11 @@ function renderGlobalTotalsFiltered(parentRole) {
                         '</linearGradient>' +
                     '</defs>' +
                     '<circle class="donut-chart-track donut-chart-track-outer" stroke="rgba(148, 163, 184, 0.18)" stroke-dasharray="' + circumference + ' 0" stroke-dashoffset="0"></circle>' +
-                    '<circle class="' + activeSegmentClass + '" data-status="active" stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для открытых вакансий"></circle>' +
-                    '<circle class="' + archivedSegmentClass + '" data-status="archived" stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для архивных вакансий"></circle>' +
+                    '<circle class="' + activeSegmentClass + '" data-status="active" data-selection-key="active" stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для открытых вакансий"></circle>' +
+                    '<circle class="' + archivedSegmentClass + '" data-status="archived" data-selection-key="archived" stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для архивных вакансий"></circle>' +
                     '<circle class="donut-chart-track donut-chart-track-inner" stroke="rgba(148, 163, 184, 0.12)" stroke-dasharray="' + innerCircumference + ' 0" stroke-dashoffset="0"></circle>' +
-                    '<circle class="' + activeInnerSegmentClass + '" data-status="active" stroke="url(#' + activeInnerGradientId + ')" stroke-dasharray="' + innerActiveLen + ' ' + (innerCircumference - innerActiveLen) + '" stroke-dashoffset="' + (-innerOffset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию новых вакансий за период"></circle>' +
-                    '<circle class="' + archivedInnerSegmentClass + '" data-status="archived" stroke="url(#' + archivedInnerGradientId + ')" stroke-dasharray="' + innerArchivedLen + ' ' + (innerCircumference - innerArchivedLen) + '" stroke-dashoffset="' + (-innerOffset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию вакансий, опубликованных и архивированных за период"></circle>' +
+                    '<circle class="' + activeInnerSegmentClass + '" data-status="active" data-selection-key="new" stroke="url(#' + activeInnerGradientId + ')" stroke-dasharray="' + innerActiveLen + ' ' + (innerCircumference - innerActiveLen) + '" stroke-dashoffset="' + (-innerOffset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию новых вакансий за период"></circle>' +
+                    '<circle class="' + archivedInnerSegmentClass + '" data-status="archived" data-selection-key="published-archived" stroke="url(#' + archivedInnerGradientId + ')" stroke-dasharray="' + innerArchivedLen + ' ' + (innerCircumference - innerArchivedLen) + '" stroke-dashoffset="' + (-innerOffset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию вакансий, опубликованных и архивированных за период"></circle>' +
                 '</svg>' +
                 '<div class="donut-center-label">' +
                     '<div class="donut-center-value">' + total + '</div>' +
@@ -8030,9 +8117,9 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '<span class="donut-legend-label">Активные</span>' +
                     '<span class="donut-legend-value">' + active + '</span>' +
                 '</' + activeLegendTag + '>' +
-                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false">' +
+                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" data-selection-key="new" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-new"></span>' +
-                    '<span class="donut-legend-label">Новые за период</span>' +
+                    '<span class="donut-legend-label">' + donutNewLabel + '</span>' +
                     '<span class="donut-legend-value">' + newPublished + '</span>' +
                 '</button>' +
                 '<' + archivedLegendTag + archivedLegendAttrs + '>' +
@@ -8040,12 +8127,12 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '<span class="donut-legend-label">Архивные</span>' +
                     '<span class="donut-legend-value">' + archived + '</span>' +
                 '</' + archivedLegendTag + '>' +
-                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false">' +
+                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-published-archived" data-status="archived" data-selection-key="published-archived" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-published-archived"></span>' +
-                    '<span class="donut-legend-label">Опубл. и архив. за период</span>' +
+                    '<span class="donut-legend-label">' + donutPublishedArchivedLabel + '</span>' +
                     '<span class="donut-legend-value">' + publishedAndArchived + '</span>' +
                 '</button>' +
-                '<div class="donut-legend-item donut-legend-kpi">' +
+                '<div class="donut-legend-item donut-legend-kpi donut-legend-item-passive">' +
                     '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
                     '<span class="donut-legend-label">Ср. время жизни</span>' +
                     '<span class="donut-legend-value">' + (total > 0 ? totalsFormatNumber(avgAgeValue) + ' дн.' : '—') + '</span>' +
@@ -8502,9 +8589,9 @@ function renderGlobalTotalsFiltered(parentRole) {
     var drilldownHost = donutContainer.querySelector('.donut-drilldown');
     var actions = Array.from(donutContainer.querySelectorAll('[data-status]'));
 
-    function syncDonutSelection(status) {
+    function syncDonutSelection(selectionKey) {
         actions.forEach(function(node) {
-            var isSelected = !!status && String(node.dataset.status || '') === status;
+            var isSelected = !!selectionKey && String(node.dataset.selectionKey || '') === selectionKey;
             node.classList.toggle('is-selected', isSelected);
             if (node.classList.contains('donut-legend-action')) {
                 node.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
@@ -8512,30 +8599,36 @@ function renderGlobalTotalsFiltered(parentRole) {
         });
     }
 
-    function toggleDonutDrilldown(status) {
+    function toggleDonutDrilldown(selectionKey, status) {
+        var normalizedSelectionKey = String(selectionKey || '').trim();
         var normalizedStatus = String(status || '').trim();
-        if (!normalizedStatus || !drilldownHost) return;
-        var nextStatus = donutContainer.dataset.activeStatus === normalizedStatus ? '' : normalizedStatus;
-        donutContainer.dataset.activeStatus = nextStatus;
-        syncDonutSelection(nextStatus);
-        if (!nextStatus) {
+        if (!normalizedSelectionKey || !normalizedStatus || !drilldownHost) return;
+        var nextSelectionKey = donutContainer.dataset.activeSelectionKey === normalizedSelectionKey ? '' : normalizedSelectionKey;
+        donutContainer.dataset.activeSelectionKey = nextSelectionKey;
+        donutContainer.dataset.activeStatus = nextSelectionKey ? normalizedStatus : '';
+        syncDonutSelection(nextSelectionKey);
+        if (!nextSelectionKey) {
             drilldownHost.hidden = true;
             drilldownHost.innerHTML = '';
             return;
         }
         drilldownHost.hidden = false;
-        drilldownHost.innerHTML = buildTotalsExperienceDrilldownHtml(donutBreakdown[nextStatus]);
+        drilldownHost.innerHTML = buildTotalsExperienceDrilldownHtml(donutBreakdown[normalizedStatus]);
     }
 
     actions.forEach(function(node) {
         node.addEventListener('click', function() {
-            toggleDonutDrilldown(String(node.dataset.status || '').trim());
+            var selectionKey = String(node.dataset.selectionKey || '').trim();
+            var statusKey = String(node.dataset.status || '').trim();
+            toggleDonutDrilldown(selectionKey, statusKey);
         });
         if (node.classList.contains('donut-chart-segment')) {
             node.addEventListener('keydown', function(event) {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
-                toggleDonutDrilldown(String(node.dataset.status || '').trim());
+                var selectionKey = String(node.dataset.selectionKey || '').trim();
+                var statusKey = String(node.dataset.status || '').trim();
+                toggleDonutDrilldown(selectionKey, statusKey);
             });
         }
     });
@@ -10626,13 +10719,13 @@ function normalizeSkillsMonthlyControls(parentRole) {
         if (!multiToggle) {
             multiToggle = document.createElement('label');
             multiToggle.className = 'skills-multi-toggle';
-            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"><span class="skills-multi-toggle-label">Мультивыбор</span>';
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input" name="skills_multi_toggle"><span class="skills-multi-toggle-label">Мультивыбор</span>';
             expTabs.appendChild(multiToggle);
         } else if (multiToggle.parentElement !== expTabs) {
             expTabs.appendChild(multiToggle);
         }
         if (!multiToggle.querySelector('.skills-multi-toggle-label')) {
-            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"><span class="skills-multi-toggle-label">Мультивыбор</span>';
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input" name="skills_multi_toggle"><span class="skills-multi-toggle-label">Мультивыбор</span>';
         }
         var multiInput = multiToggle.querySelector('.skills-multi-toggle-input');
         if (!block.dataset.skillsMultiEnabled) block.dataset.skillsMultiEnabled = '0';

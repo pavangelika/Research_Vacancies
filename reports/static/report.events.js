@@ -306,20 +306,18 @@ function openResumeActionModal(payload) {
 function postSendResume(vacancyId) {
     if (!vacancyId) return Promise.resolve({ ok: false, updated: false });
     var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
-    var endpoint = apiBaseUrl + '/api/vacancies/send-resume';
-    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/send-resume';
-    var payload = JSON.stringify({ vacancy_id: String(vacancyId).trim() });
+    var vacancyKey = encodeURIComponent(String(vacancyId).trim());
+    var endpoint = apiBaseUrl + '/api/v1/vacancies/' + vacancyKey + '/resume';
+    var fallbackEndpoint = 'http://localhost:9000/api/v1/vacancies/' + vacancyKey + '/resume';
     function doPost(url) {
         return fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload
+            method: 'POST'
         }).then(function(resp) {
             return resp.json().catch(function() {
                 return {};
             }).then(function(data) {
                 if (!resp.ok) {
-                    var message = data && data.error ? String(data.error) : ('HTTP ' + resp.status);
+                    var message = data && (data.detail || data.error) ? String(data.detail || data.error) : ('HTTP ' + resp.status);
                     throw new Error(message);
                 }
                 return data;
@@ -377,6 +375,19 @@ function handleVacancyApplyAction(actionPayload, applyControl) {
                         vacancy.resume_at = nowValue;
                         vacancy.updated_at = updatedAtValue;
                     });
+                    var skillsBlock = roleContent.querySelector('.skills-search-content');
+                    if (skillsBlock && skillsBlock._data) {
+                        ['vacancies', 'currentVacancies', 'filteredVacancies'].forEach(function(key) {
+                            var list = Array.isArray(skillsBlock._data[key]) ? skillsBlock._data[key] : [];
+                            list.forEach(function(vacancy) {
+                                if (!vacancy) return;
+                                if (String(vacancy.id || '') !== String(result.vacancyId || '')) return;
+                                vacancy.send_resume = true;
+                                vacancy.resume_at = nowValue;
+                                vacancy.updated_at = updatedAtValue;
+                            });
+                        });
+                    }
                     var responsesBlock = roleContent.querySelector('.my-responses-content');
                     if (responsesBlock && responsesBlock.style.display === 'block' && typeof renderMyResponsesContent === 'function') {
                         renderMyResponsesContent(roleContent);
@@ -789,9 +800,16 @@ document.addEventListener("DOMContentLoaded", function() {
     if (typeof syncDashboardTopbarMeta === 'function') {
         syncDashboardTopbarMeta(getActiveRoleContent(), uiState.global_analysis_type || '');
     }
-    if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading && typeof fetchMyResponsesVacancies === 'function') {
+    var activeRoleForResponses = (typeof getActiveRoleContent === 'function') ? getActiveRoleContent() : null;
+    if (
+        !uiState.my_responses_cache_loaded
+        && !uiState.my_responses_cache_loading
+        && /^(my-responses|responses-calendar)$/.test(String(activeRoleForResponses && activeRoleForResponses.dataset && activeRoleForResponses.dataset.activeAnalysis || '').trim())
+        && typeof fetchResponsesListFromApi === 'function'
+    ) {
         uiState.my_responses_cache_loading = true;
-        fetchMyResponsesVacancies().then(function() {
+        var preloadResponses = fetchResponsesListFromApi(activeRoleForResponses);
+        preloadResponses.then(function() {
             var activeRole = (typeof getActiveRoleContent === 'function') ? getActiveRoleContent() : null;
             var activeAnalysis = String(activeRole && activeRole.dataset ? activeRole.dataset.activeAnalysis || '' : '').trim();
             if (activeRole && /^(skills-search|totals|my-responses|responses-calendar)$/.test(activeAnalysis) && typeof applyGlobalFiltersToActiveAnalysis === 'function') {

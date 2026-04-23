@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Анализ вакансий HH · Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23142033'/%3E%3Cpath d='M20 18h8v10h8V18h8v28h-8V36h-8v10h-8z' fill='%23ffffff'/%3E%3C/svg%3E">
     <script>
         (function() {
             if (!window.location || window.location.protocol !== 'file:') return;
@@ -14,9 +15,6 @@
             window.location.replace(targetUrl);
         })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="static/styles.css?v={{ asset_version }}">
     <script src="static/plotly-2.27.0.min.js?v={{ asset_version }}" charset="utf-8"></script>
     <script>
@@ -57,7 +55,8 @@
     {% for role in roles %}
     {% set role_index = loop.index %}
     <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}"
-         data-vacancies='{{ role.vacancies | tojson if role.vacancies else "[]" }}'>
+         data-vacancies='{{ role.vacancies | tojson if role.vacancies else "[]" }}'
+         data-vacancies-mode="{{ 'embedded' if role.embed_vacancies else 'lazy' }}">
         <!-- Вкладки выбора анализа (4) -->
         <div class="tabs analysis-tabs">
             <button class="tab-button analysis-button active"
@@ -127,7 +126,7 @@
                         <button class="tab-button monthly-skills-exp-button" onclick="openMonthlySkillsExpTab(event, 'ms-exp-{{ role_index }}-{{ month_index }}-{{ loop.index }}')">{{ exp.experience }}</button>
                         {% endfor %}
                         <label class="skills-multi-toggle">
-                            <input type="checkbox" class="skills-multi-toggle-input"> Мультивыбор
+                            <input type="checkbox" class="skills-multi-toggle-input" name="skills_multi_toggle"> Мультивыбор
                         </label>
                     </div>
 

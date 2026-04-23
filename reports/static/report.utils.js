@@ -83,7 +83,9 @@ function getReportApiBaseUrl() {
     if (window.location.protocol === 'file:') return 'http://localhost:9000';
     var origin = String(window.location.origin || '').trim().replace(/\/+$/, '');
     if (!origin) return 'http://localhost:9000';
-    if (/^https?:\/\/(?:localhost|127\.0\.0\.1):63342$/i.test(origin)) return 'http://localhost:9000';
+    if (/^https?:\/\/(?:localhost|127\.0\.0\.1):(?:9000|63342)$/i.test(origin)) {
+        return origin.replace(/:(?:9000|63342)$/i, ':8000');
+    }
     return origin;
 }
 function computeMedian(values) {

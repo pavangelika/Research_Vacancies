@@ -33,7 +33,7 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
 
 function ensureSharedFilterPanelState() {
     if (!uiState.shared_filter_panel_state || typeof uiState.shared_filter_panel_state !== 'object') {
-        uiState.shared_filter_panel_state = { collapsed: false, open: true, sections: {}, activeSection: 'roles', lastAnalysis: '' };
+        uiState.shared_filter_panel_state = { collapsed: false, open: true, sections: {}, activeSection: 'roles', lastAnalysis: '', userActivatedSectionKey: '' };
     }
     if (typeof uiState.shared_filter_panel_state.collapsed !== 'boolean') {
         uiState.shared_filter_panel_state.collapsed = false;
@@ -49,6 +49,9 @@ function ensureSharedFilterPanelState() {
     }
     if (typeof uiState.shared_filter_panel_state.lastAnalysis !== 'string') {
         uiState.shared_filter_panel_state.lastAnalysis = '';
+    }
+    if (typeof uiState.shared_filter_panel_state.userActivatedSectionKey !== 'string') {
+        uiState.shared_filter_panel_state.userActivatedSectionKey = '';
     }
     var sectionKeys = Array.isArray(SHARED_FILTER_PANEL_SECTION_META)
         ? SHARED_FILTER_PANEL_SECTION_META.map(function(section) {
@@ -291,9 +294,11 @@ function ensureSharedFilterPanel() {
                 btn.appendChild(createSharedFilterMaterialIcon(section.icon, 'shared-filter-panel-rail-icon'));
             } else {
                 var icon = document.createElement('span');
-                icon.className = 'shared-filter-panel-rail-icon material-symbols-outlined';
+                icon.className = 'shared-filter-panel-rail-icon shared-filter-local-icon';
                 icon.setAttribute('aria-hidden', 'true');
-                icon.textContent = section.icon;
+                icon.textContent = typeof getSharedFilterMaterialGlyph === 'function'
+                    ? getSharedFilterMaterialGlyph(section.icon)
+                    : '\u2022';
                 btn.appendChild(icon);
             }
             var text = document.createElement('span');
@@ -404,8 +409,7 @@ function hideSharedFilterSources(parentRole) {
         '.monthly-skills-exp-tabs',
         '.salary-month-tabs',
         '.salary-exp-tabs',
-        '.employer-period-chips',
-        '.summary-analysis-menu-legacy'
+        '.employer-period-chips'
     ].forEach(function(selector) {
         parentRole.querySelectorAll(selector).forEach(function(node) {
             node.style.display = 'none';
@@ -675,6 +679,7 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
     var switchInput = document.createElement('input');
     switchInput.type = 'checkbox';
     switchInput.className = 'totals-ios-checkbox my-responses-offer-switch';
+    switchInput.name = 'my_responses_offer_filter';
     var switchUi = document.createElement('span');
     switchUi.className = 'totals-ios-checkbox-ui';
     switchWrap.appendChild(switchInput);
@@ -720,14 +725,12 @@ function createMyResponsesFilterControl(activeRole, analysisType) {
 }
 
 function createSkillsSearchFilterControl(activeRole, analysisType) {
-    if (!activeRole) return null;
-    if (typeof initSkillsSearch === 'function') initSkillsSearch(activeRole);
-    var block = activeRole.querySelector('.skills-search-content');
-    if (!block) return null;
-
-    var state = (typeof getSkillsSearchSelections === 'function') ? getSkillsSearchSelections(block) : { includeSkills: [], excludeSkills: [], logic: 'or' };
+    var ctx = getSkillsSearchPanelContext(activeRole, analysisType);
+    if (!ctx) return null;
+    var block = ctx.block;
+    var state = ctx.selections || { includeSkills: [], excludeSkills: [], logic: 'or' };
     var searchQuery = String(uiState.skills_search_filter_query || '').trim().toLowerCase();
-    var skills = (block._data && Array.isArray(block._data.skills)) ? block._data.skills.slice() : [];
+    var skills = Array.isArray(ctx.skills) ? ctx.skills.slice() : [];
     skills.sort(function(a, b) {
         return (Number(b && b.count) || 0) - (Number(a && a.count) || 0)
             || String((a && a.skill) || '').localeCompare(String((b && b.skill) || ''), 'ru');
@@ -774,6 +777,7 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
     var searchInput = document.createElement('input');
     searchInput.type = 'search';
     searchInput.className = 'global-filter-search skills-search-top-search';
+    searchInput.name = 'skills_search_query';
     searchInput.placeholder = 'Поиск навыка';
     searchInput.value = String(uiState.skills_search_filter_query || '');
     searchInput.addEventListener('input', function() {
@@ -831,12 +835,43 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
     return wrap;
 }
 
+function getSkillsSearchPanelVacancies(activeRole, analysisType, block) {
+    if (!activeRole) return [];
+    var current = String(analysisType || activeRole.dataset && activeRole.dataset.activeAnalysis || '').trim() || 'skills-search';
+    var searchBlock = block || activeRole.querySelector('.skills-search-content');
+    if (current === 'skills-search' && typeof initSkillsSearch === 'function' && searchBlock && (!searchBlock._data || !Array.isArray(searchBlock._data.skills))) {
+        initSkillsSearch(activeRole);
+    }
+    if (current === 'skills-search' && searchBlock && searchBlock._data) {
+        var searchVacancies = Array.isArray(searchBlock._data.currentVacancies) && searchBlock._data.currentVacancies.length
+            ? searchBlock._data.currentVacancies.slice()
+            : (Array.isArray(searchBlock._data.vacancies) ? searchBlock._data.vacancies.slice() : []);
+        if (searchVacancies.length) {
+            return typeof dedupeVacanciesById === 'function' ? dedupeVacanciesById(searchVacancies) : searchVacancies;
+        }
+    }
+    if (typeof collectScopedVacancies === 'function') {
+        var scopedVacancies = collectScopedVacancies(activeRole);
+        if (Array.isArray(scopedVacancies) && scopedVacancies.length) return scopedVacancies;
+    }
+    if (typeof getFilteredVacanciesForAnalysis === 'function') {
+        var analysisVacancies = getFilteredVacanciesForAnalysis(activeRole, current);
+        if (Array.isArray(analysisVacancies) && analysisVacancies.length) return analysisVacancies;
+    }
+    return [];
+}
+
 function getSkillsSearchPanelContext(activeRole, analysisType) {
     if (!activeRole) return null;
-    if (typeof initSkillsSearch === 'function') initSkillsSearch(activeRole);
     var block = activeRole.querySelector('.skills-search-content');
     if (!block) return null;
-    var skills = (block._data && Array.isArray(block._data.skills)) ? block._data.skills.slice() : [];
+    var current = String(analysisType || activeRole.dataset && activeRole.dataset.activeAnalysis || '').trim() || 'skills-search';
+    var skills = (current === 'skills-search' && block._data && Array.isArray(block._data.skills))
+        ? block._data.skills.slice()
+        : [];
+    if (!skills.length && typeof computeSalarySkillsFromVacancies === 'function') {
+        skills = computeSalarySkillsFromVacancies(getSkillsSearchPanelVacancies(activeRole, current, block), 200);
+    }
     skills.sort(function(a, b) {
         return (Number(b && b.count) || 0) - (Number(a && a.count) || 0)
             || String((a && a.skill) || '').localeCompare(String((b && b.skill) || ''), 'ru');
@@ -898,6 +933,7 @@ function createSkillsSearchFavoritesControl(activeRole, analysisType) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
+    input.name = 'skills_search_favorite_name';
     input.placeholder = 'Сохранить фильтр';
     input.autocomplete = 'off';
     input.spellcheck = false;
@@ -1121,6 +1157,7 @@ function createMyFiltersControl(activeRole, analysisType) {
     var input = document.createElement('input');
     input.type = 'text';
     input.className = 'skills-search-favorites-panel-input';
+    input.name = 'skills_search_favorite_name';
     input.placeholder = 'Введите название';
     input.autocomplete = 'off';
     input.spellcheck = false;
@@ -1311,6 +1348,7 @@ function createSkillsSearchLogicControl(activeRole, analysisType) {
     var switchInput = document.createElement('input');
     switchInput.type = 'checkbox';
     switchInput.className = 'totals-ios-checkbox';
+    switchInput.name = 'skills_search_logic';
 
     var switchUi = document.createElement('span');
     switchUi.className = 'totals-ios-checkbox-ui';
@@ -1479,6 +1517,7 @@ function createSkillsSearchSelectionControl(activeRole, analysisType, mode) {
     var search = document.createElement('input');
     search.type = 'text';
     search.className = 'global-filter-search';
+    search.name = isExcludeMode ? 'skills_exclude_search' : 'skills_include_search';
     search.placeholder = 'Поиск навыка';
     search.style.width = '100%';
     search.style.boxSizing = 'border-box';
@@ -1656,6 +1695,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         range.step = '1';
         range.value = String(limitValue);
         range.className = 'totals-top-filter-range';
+        range.name = 'totals_top_limit_range';
         limitControls.appendChild(range);
 
         var numberInput = document.createElement('input');
@@ -1665,6 +1705,7 @@ function createTotalsTopFilterControl(activeRole, analysisType, forcedMode, cont
         numberInput.step = '1';
         numberInput.value = String(limitValue);
         numberInput.className = 'totals-top-filter-number';
+        numberInput.name = 'totals_top_limit_number';
         limitControls.appendChild(numberInput);
         limitWrap.appendChild(limitControls);
         wrap.appendChild(limitWrap);

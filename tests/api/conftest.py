@@ -5,6 +5,21 @@ import time
 import json
 from datetime import datetime
 from tests.api.utils.api_client import HHAPIClient
+from tests.api.external_gate import should_run_external_api_tests
+
+
+def pytest_collection_modifyitems(config, items):
+    if should_run_external_api_tests():
+        return
+    skip_external = pytest.mark.skip(
+        reason="External HH API tests are disabled by default. Set RUN_EXTERNAL_API_TESTS=1 to enable."
+    )
+    for item in items:
+        nodeid = str(getattr(item, "nodeid", ""))
+        if not nodeid.startswith("tests/api/") and not nodeid.startswith("tests\\api\\"):
+            continue
+        item.add_marker("external")
+        item.add_marker(skip_external)
 
 
 @pytest.fixture(scope="session")

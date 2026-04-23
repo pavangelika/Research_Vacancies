@@ -192,6 +192,1125 @@ function getAllRoleContents() {
     return Array.from(document.querySelectorAll('.role-content'))
         .filter(c => c.id !== 'role-combined' && c.id !== 'role-all');
 }
+function getAllRolesSummaryRoleContents(parentRole) {
+    var selected = parentRole && Array.isArray(parentRole.__selectedRoleContents)
+        ? parentRole.__selectedRoleContents.filter(Boolean)
+        : [];
+    return selected.length ? selected : getAllRoleContents();
+}
+function getAllRolesSummaryRoleIds(parentRole) {
+    return getAllRolesSummaryRoleContents(parentRole).map(function(roleContent) {
+        return String(roleContent && roleContent.dataset ? roleContent.dataset.roleId || '' : '').trim();
+    }).filter(Boolean);
+}
+function normalizeAnalyticsPeriodForApi(value) {
+    var text = String(value || '').trim();
+    if (!text || text === 'all') return 'summary';
+    if (typeof normalizeGlobalPeriodValue === 'function') {
+        var normalized = normalizeGlobalPeriodValue(text);
+        return normalized || 'summary';
+    }
+    return text;
+}
+function buildReportApiUrl(path, params) {
+    var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
+    var endpoint = apiBaseUrl + path;
+    var url = new URL(endpoint, apiBaseUrl || 'http://localhost:9000');
+    Object.keys(params || {}).forEach(function(key) {
+        var value = params[key];
+        if (Array.isArray(value)) {
+            value.forEach(function(item) {
+                if (item !== null && item !== undefined && String(item).trim()) {
+                    url.searchParams.append(key, String(item).trim());
+                }
+            });
+            return;
+        }
+        if (value === null || value === undefined) return;
+        var text = String(value).trim();
+        if (!text) return;
+        url.searchParams.set(key, text);
+    });
+    return url.toString();
+}
+function fetchReportApiJson(path, params) {
+    var url = buildReportApiUrl(path, params);
+    var fallbackUrl = buildReportApiUrl(path, params).replace(/^https?:\/\/[^\/]+/i, 'http://localhost:9000');
+    function doFetch(targetUrl) {
+        return fetch(targetUrl, { method: 'GET' }).then(function(resp) {
+            return resp.json().catch(function() {
+                return {};
+            }).then(function(data) {
+                if (!resp.ok) {
+                    var message = data && data.detail ? String(data.detail) : ('HTTP ' + resp.status);
+                    throw new Error(message);
+                }
+                return data;
+            });
+        });
+    }
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+        return doFetch(fallbackUrl);
+    }
+    return doFetch(url).catch(function(err) {
+        var origin = String(typeof window !== 'undefined' && window.location ? window.location.origin || '' : '');
+        if (origin.indexOf('localhost:9000') >= 0) throw err;
+        return doFetch(fallbackUrl);
+    });
+}
+function getAllRolesAnalyticsCache(parentRole) {
+    if (!parentRole) return {};
+    if (!parentRole.__analyticsApiCache || typeof parentRole.__analyticsApiCache !== 'object') {
+        parentRole.__analyticsApiCache = {};
+    }
+    return parentRole.__analyticsApiCache;
+}
+function fetchAllRolesAnalytics(parentRole, endpoint, extraParams) {
+    var cache = getAllRolesAnalyticsCache(parentRole);
+    var roleIds = getAllRolesSummaryRoleIds(parentRole);
+    var params = Object.assign({
+        scope: 'selection',
+        role_ids: roleIds
+    }, extraParams || {});
+    if (!params.role_ids || !params.role_ids.length) {
+        params.scope = 'all';
+        delete params.role_ids;
+    }
+    var cacheKey = endpoint + '::' + JSON.stringify(params);
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/analytics/' + endpoint, params).then(function(data) {
+        cache[cacheKey] = { data: data };
+        return data;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
+function adaptSkillsCostItemsForAllRoles(items) {
+    return (Array.isArray(items) ? items : []).map(function(item) {
+        var roleText = Array.isArray(item.roles) && item.roles.length
+            ? item.roles.map(function(role) {
+                var share = Number(role && role.share);
+                var suffix = isFinite(share) ? (' (' + share.toFixed(2).replace(/\.00$/, '') + '%)') : '';
+                return String(role && role.role_name || role && role.role_id || '').trim() + suffix;
+            }).filter(Boolean).join(', ')
+            : '';
+        return {
+            skill: String(item && item.skill || '').trim(),
+            mention_count: Number(item && item.mention_count) || 0,
+            avg_skill_cost: item && item.avg_skill_cost !== null && item.avg_skill_cost !== undefined ? Number(item.avg_skill_cost) : null,
+            median_skill_cost: item && item.median_skill_cost !== null && item.median_skill_cost !== undefined ? Number(item.median_skill_cost) : null,
+            roles: roleText || '—'
+        };
+    });
+}
+function adaptSalaryRangeItemsForAllRoles(items) {
+    var grouped = {};
+    (Array.isArray(items) ? items : []).forEach(function(item) {
+        var currency = String(item && item.currency || 'RUR').trim().toUpperCase() || 'RUR';
+        var roleId = String(item && item.role_id || '').trim();
+        var roleName = String(item && item.role_name || roleId || '—').trim();
+        var key = currency + '::' + roleId;
+        if (!grouped[key]) {
+            grouped[key] = {
+                role_id: roleId,
+                name: roleName,
+                currency: currency,
+                count: 0,
+                avg_salary_sum: 0,
+                avg_salary_weight: 0,
+                median_salary_sum: 0,
+                median_salary_weight: 0,
+                mode_salary_sum: 0,
+                mode_salary_weight: 0,
+                min_salary: null,
+                max_salary: null
+            };
+        }
+        var bucket = grouped[key];
+        var count = Number(item && item.count) || 0;
+        var avgSalary = item && item.avg_salary !== null && item.avg_salary !== undefined ? Number(item.avg_salary) : null;
+        var medianSalary = item && item.median_salary !== null && item.median_salary !== undefined ? Number(item.median_salary) : null;
+        var modeSalary = item && item.mode_salary !== null && item.mode_salary !== undefined ? Number(item.mode_salary) : null;
+        var minSalary = item && item.min_salary !== null && item.min_salary !== undefined ? Number(item.min_salary) : null;
+        var maxSalary = item && item.max_salary !== null && item.max_salary !== undefined ? Number(item.max_salary) : null;
+        bucket.count += count;
+        if (avgSalary !== null && isFinite(avgSalary)) {
+            bucket.avg_salary_sum += avgSalary * Math.max(count, 1);
+            bucket.avg_salary_weight += Math.max(count, 1);
+        }
+        if (medianSalary !== null && isFinite(medianSalary)) {
+            bucket.median_salary_sum += medianSalary * Math.max(count, 1);
+            bucket.median_salary_weight += Math.max(count, 1);
+        }
+        if (modeSalary !== null && isFinite(modeSalary)) {
+            bucket.mode_salary_sum += modeSalary * Math.max(count, 1);
+            bucket.mode_salary_weight += Math.max(count, 1);
+        }
+        if (minSalary !== null && isFinite(minSalary)) {
+            bucket.min_salary = bucket.min_salary === null ? minSalary : Math.min(bucket.min_salary, minSalary);
+        }
+        if (maxSalary !== null && isFinite(maxSalary)) {
+            bucket.max_salary = bucket.max_salary === null ? maxSalary : Math.max(bucket.max_salary, maxSalary);
+        }
+    });
+    var rowsByCurrency = {};
+    Object.keys(grouped).forEach(function(key) {
+        var item = grouped[key];
+        var currency = item.currency || 'RUR';
+        if (!rowsByCurrency[currency]) rowsByCurrency[currency] = [];
+        rowsByCurrency[currency].push({
+            role_id: item.role_id,
+            name: item.name,
+            count: item.count,
+            avg_salary: item.avg_salary_weight ? (item.avg_salary_sum / item.avg_salary_weight) : null,
+            median_salary: item.median_salary_weight ? (item.median_salary_sum / item.median_salary_weight) : null,
+            mode_salary: item.mode_salary_weight ? (item.mode_salary_sum / item.mode_salary_weight) : null,
+            min_salary: item.min_salary,
+            max_salary: item.max_salary
+        });
+    });
+    Object.keys(rowsByCurrency).forEach(function(currency) {
+        rowsByCurrency[currency].sort(function(left, right) {
+            return (Number(right.avg_salary) || 0) - (Number(left.avg_salary) || 0)
+                || String(left.name || '').localeCompare(String(right.name || ''));
+        });
+    });
+    var currencies = Object.keys(rowsByCurrency).sort(function(left, right) {
+        if (left === 'RUR') return -1;
+        if (right === 'RUR') return 1;
+        return left.localeCompare(right);
+    });
+    return {
+        currencies: currencies,
+        rows_by_currency: rowsByCurrency
+    };
+}
+function adaptEmployerItemsForAllRoles(items) {
+    return (Array.isArray(items) ? items : []).map(function(item) {
+        return {
+            month: String(item && item.month || '').trim(),
+            factorKey: String(item && item.factor || '').trim(),
+            valueKey: String(item && item.factor_value || '').trim(),
+            valueLabel: String(item && item.factor_value || '').trim(),
+            groupN: Number(item && item.group_n) || 0,
+            salaryCurrency: String(item && item.salary && item.salary.currency || 'RUR').trim().toUpperCase() || 'RUR',
+            salaryMetric: 'avg',
+            salaryValue: item && item.salary && item.salary.avg !== null && item.salary.avg !== undefined ? Number(item.salary.avg) : null,
+            salaryCount: Number(item && item.salary && item.salary.count) || 0
+        };
+    });
+}
+function adaptActivityRoleRowsForAllRoles(items) {
+    return (Array.isArray(items) ? items : []).map(function(item) {
+        return {
+            id: String(item && item.role_id || '').trim(),
+            name: String(item && item.name || item && item.role_id || '').trim(),
+            total: Number(item && item.total) || 0,
+            active: Number(item && item.active) || 0,
+            archived: Number(item && item.archived) || 0,
+            avg_age: item && item.avg_age !== null && item.avg_age !== undefined ? Number(item.avg_age) : null
+        };
+    }).sort(function(left, right) {
+        var leftRatio = left.active ? (left.archived / left.active) : 0;
+        var rightRatio = right.active ? (right.archived / right.active) : 0;
+        return rightRatio - leftRatio
+            || right.active - left.active
+            || String(left.name || '').localeCompare(String(right.name || ''));
+    });
+}
+function adaptWeekdayRoleRowsForAllRoles(items) {
+    return (Array.isArray(items) ? items : []).map(function(item) {
+        return {
+            id: String(item && item.role_id || '').trim(),
+            name: String(item && item.name || item && item.role_id || '').trim(),
+            avg_pub: item && item.avg_pub !== null && item.avg_pub !== undefined ? Number(item.avg_pub) : 0,
+            avg_arch: item && item.avg_arch !== null && item.avg_arch !== undefined ? Number(item.avg_arch) : 0
+        };
+    }).sort(function(left, right) {
+        return (Number(right.avg_pub) || 0) - (Number(left.avg_pub) || 0)
+            || String(left.name || '').localeCompare(String(right.name || ''));
+    });
+}
+function adaptSingleRoleActivityEntriesFromApi(data) {
+    var month = Array.isArray(data && data.months) && data.months.length ? data.months[0] : null;
+    var sourceEntries = Array.isArray(month && month.entries) ? month.entries : [];
+    var rows = sourceEntries.map(function(item) {
+        return {
+            experience: String(item && item.experience || '').trim() || 'Не указан',
+            total: Number(item && item.total) || 0,
+            active: Number(item && item.active) || 0,
+            archived: Number(item && item.archived) || 0,
+            avg_age: item && item.avg_age_days !== null && item.avg_age_days !== undefined ? Number(item.avg_age_days) : null
+        };
+    });
+    var maxArchived = 0;
+    var maxAge = null;
+    rows.forEach(function(row) {
+        if (row.archived > maxArchived) maxArchived = row.archived;
+        if (row.avg_age !== null && row.avg_age !== undefined && (maxAge === null || row.avg_age > maxAge)) {
+            maxAge = row.avg_age;
+        }
+    });
+    rows.forEach(function(row) {
+        row.is_max_archived = row.archived === maxArchived;
+        row.is_max_age = (maxAge !== null && row.avg_age === maxAge);
+    });
+    var totalRow = {
+        experience: 'Всего',
+        total: rows.reduce(function(sum, row) { return sum + (row.total || 0); }, 0),
+        active: rows.reduce(function(sum, row) { return sum + (row.active || 0); }, 0),
+        archived: rows.reduce(function(sum, row) { return sum + (row.archived || 0); }, 0),
+        avg_age: null,
+        is_max_archived: false,
+        is_max_age: false
+    };
+    var totalWeight = rows.reduce(function(sum, row) { return sum + (row.total || 0); }, 0);
+    if (totalWeight) {
+        totalRow.avg_age = rows.reduce(function(sum, row) {
+            return sum + ((row.avg_age || 0) * (row.total || 0));
+        }, 0) / totalWeight;
+    }
+    if (rows.length) rows.push(totalRow);
+    else rows = [totalRow];
+    return rows;
+}
+function adaptSingleRoleWeekdayItemsFromApi(data) {
+    return (Array.isArray(data && data.items) ? data.items : []).map(function(item) {
+        return {
+            weekday: String(item && item.weekday || '').trim(),
+            publications: Number(item && item.publications) || 0,
+            archives: Number(item && item.archives) || 0,
+            avg_pub_hour: String(item && item.avg_pub_hour || '—').trim() || '—',
+            avg_arch_hour: String(item && item.avg_arch_hour || '—').trim() || '—'
+        };
+    });
+}
+function adaptSingleRoleSalaryMonthFromApi(data, label) {
+    var items = Array.isArray(data && data.items) ? data.items : [];
+    var groupedByExperience = {};
+    items.forEach(function(item) {
+        var experience = String(item && item.experience || '').trim() || 'Не указан';
+        if (!groupedByExperience[experience]) groupedByExperience[experience] = [];
+        groupedByExperience[experience].push({
+            status: String(item && item.status || '').trim() || 'Открытая',
+            currency: String(item && item.currency || '').trim().toUpperCase() || 'RUR',
+            total_vacancies: Number(item && (item.total_vacancies !== undefined ? item.total_vacancies : item.count)) || 0,
+            vacancies_with_salary: Number(item && (item.total_vacancies !== undefined ? item.total_vacancies : item.count)) || 0,
+            salary_percentage: 100,
+            avg_salary: item && item.avg_salary !== null && item.avg_salary !== undefined ? Number(item.avg_salary) : 0,
+            median_salary: item && item.median_salary !== null && item.median_salary !== undefined ? Number(item.median_salary) : 0,
+            mode_salary: item && item.mode_salary !== null && item.mode_salary !== undefined ? Number(item.mode_salary) : 0,
+            min_salary: item && item.min_salary !== null && item.min_salary !== undefined ? Number(item.min_salary) : 0,
+            max_salary: item && item.max_salary !== null && item.max_salary !== undefined ? Number(item.max_salary) : 0,
+            top_skills: String(item && item.top_skills || '').trim()
+        });
+    });
+    var experiences = Object.keys(groupedByExperience).sort().map(function(experience) {
+        return {
+            experience: experience,
+            entries: groupedByExperience[experience]
+        };
+    });
+    if (experiences.length) {
+        var summaryBuckets = {};
+        experiences.forEach(function(exp) {
+            (exp.entries || []).forEach(function(entry) {
+                var key = String(entry.status || '') + '|' + String(entry.currency || '');
+                if (!summaryBuckets[key]) {
+                    summaryBuckets[key] = {
+                        status: entry.status,
+                        currency: entry.currency,
+                        total_vacancies: 0,
+                        vacancies_with_salary: 0,
+                        avg_salary_sum: 0,
+                        avg_salary_weight: 0,
+                        median_salary_sum: 0,
+                        median_salary_weight: 0,
+                        mode_salary_sum: 0,
+                        mode_salary_weight: 0,
+                        min_salary: null,
+                        max_salary: null,
+                        top_skills: []
+                    };
+                }
+                var bucket = summaryBuckets[key];
+                var count = Number(entry.total_vacancies) || 0;
+                bucket.total_vacancies += count;
+                bucket.vacancies_with_salary += Number(entry.vacancies_with_salary) || 0;
+                if (entry.avg_salary) {
+                    bucket.avg_salary_sum += Number(entry.avg_salary) * Math.max(count, 1);
+                    bucket.avg_salary_weight += Math.max(count, 1);
+                }
+                if (entry.median_salary) {
+                    bucket.median_salary_sum += Number(entry.median_salary) * Math.max(count, 1);
+                    bucket.median_salary_weight += Math.max(count, 1);
+                }
+                if (entry.mode_salary) {
+                    bucket.mode_salary_sum += Number(entry.mode_salary) * Math.max(count, 1);
+                    bucket.mode_salary_weight += Math.max(count, 1);
+                }
+                if (entry.min_salary || entry.min_salary === 0) {
+                    bucket.min_salary = bucket.min_salary === null ? Number(entry.min_salary) : Math.min(bucket.min_salary, Number(entry.min_salary));
+                }
+                if (entry.max_salary || entry.max_salary === 0) {
+                    bucket.max_salary = bucket.max_salary === null ? Number(entry.max_salary) : Math.max(bucket.max_salary, Number(entry.max_salary));
+                }
+                if (entry.top_skills) bucket.top_skills.push(String(entry.top_skills));
+            });
+        });
+        experiences.push({
+            experience: 'Все',
+            entries: Object.keys(summaryBuckets).map(function(key) {
+                var bucket = summaryBuckets[key];
+                return {
+                    status: bucket.status,
+                    currency: bucket.currency,
+                    total_vacancies: bucket.total_vacancies,
+                    vacancies_with_salary: bucket.vacancies_with_salary,
+                    salary_percentage: bucket.total_vacancies ? Math.round((bucket.vacancies_with_salary * 10000) / bucket.total_vacancies) / 100 : 0,
+                    avg_salary: bucket.avg_salary_weight ? bucket.avg_salary_sum / bucket.avg_salary_weight : 0,
+                    median_salary: bucket.median_salary_weight ? bucket.median_salary_sum / bucket.median_salary_weight : 0,
+                    mode_salary: bucket.mode_salary_weight ? bucket.mode_salary_sum / bucket.mode_salary_weight : 0,
+                    min_salary: bucket.min_salary,
+                    max_salary: bucket.max_salary,
+                    top_skills: bucket.top_skills.filter(Boolean).join(', ')
+                };
+            })
+        });
+    }
+    return {
+        month: String(label || '').trim() || (items[0] && items[0].month) || 'За период',
+        experiences: experiences
+    };
+}
+function adaptSingleRoleSkillsMonthFromApi(data, label) {
+    var month = (Array.isArray(data && data.months) ? data.months : [])[0] || {};
+    var expOrder = typeof getExperienceOrder === 'function' ? getExperienceOrder() : {};
+    var experiences = (Array.isArray(month.experiences) ? month.experiences : []).map(function(exp) {
+        var skills = (Array.isArray(exp && exp.skills) ? exp.skills : []).map(function(skill, idx) {
+            return {
+                skill: String(skill && skill.skill || '').trim(),
+                count: Number(skill && skill.count) || 0,
+                coverage: skill && skill.coverage !== null && skill.coverage !== undefined ? Number(skill.coverage) : 0,
+                rank: Number(skill && skill.rank) || (idx + 1)
+            };
+        });
+        skills.sort(function(a, b) { return b.count - a.count || a.skill.localeCompare(b.skill); });
+        return {
+            experience: String(exp && exp.experience || '').trim() || 'Не указан',
+            total_vacancies: Number(exp && exp.total_vacancies) || 0,
+            skills: skills
+        };
+    });
+    experiences.sort(function(a, b) {
+        return (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99);
+    });
+    return {
+        month: String(label || '').trim() || String(month.month || '').trim() || 'За период',
+        experiences: experiences
+    };
+}
+function fetchSingleRoleAnalytics(parentRole, endpoint, extraParams) {
+    if (!parentRole) return Promise.resolve({});
+    var cache = getAllRolesAnalyticsCache(parentRole);
+    var roleId = String(parentRole.dataset && parentRole.dataset.roleId || '').trim();
+    var params = Object.assign({
+        scope: 'single',
+        role_ids: roleId ? [roleId] : []
+    }, extraParams || {});
+    if (!params.role_ids || !params.role_ids.length) {
+        delete params.role_ids;
+    }
+    var cacheKey = 'single::' + endpoint + '::' + JSON.stringify(params);
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/analytics/' + endpoint, params).then(function(data) {
+        cache[cacheKey] = { data: data };
+        return data;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
+function fetchSingleRoleSalaryMonthFromApi(parentRole, period, label) {
+    return fetchSingleRoleAnalytics(parentRole, 'salary-range', {
+        period: period
+    }).then(function(data) {
+        return adaptSingleRoleSalaryMonthFromApi(data, label || period);
+    });
+}
+function fetchSingleRoleSkillsMonthFromApi(parentRole, period, label) {
+    return fetchSingleRoleAnalytics(parentRole, 'skills-cost', {
+        period: period
+    }).then(function(data) {
+        return adaptSingleRoleSkillsMonthFromApi(data, label || period);
+    });
+}
+function hydrateSingleRoleActivityPeriodFromApi(target, parentRole) {
+    if (!target || !parentRole) return Promise.resolve(null);
+    var period = normalizeAnalyticsPeriodForApi(target.dataset.apiActivityPeriod || target.dataset.period || target.dataset.month || 'summary');
+    return fetchSingleRoleAnalytics(parentRole, 'activity', {
+        period: period
+    }).then(function(data) {
+        var rows = adaptSingleRoleActivityEntriesFromApi(data);
+        target._data = target._data || {};
+        target._data.entries = rows;
+        target.dataset.entries = JSON.stringify(rows);
+        target.dataset.apiHydrated = '1';
+        var tableContainer = target.querySelector('.table-container');
+        if (tableContainer && typeof buildActivityTableHtml === 'function') {
+            tableContainer.innerHTML = buildActivityTableHtml(rows);
+        }
+        if (target.style && target.style.display === 'block' && typeof buildActivityBarChart === 'function') {
+            var monthId = String(target.id || '').trim();
+            var graphId = 'activity-graph-' + monthId.replace('month-', '');
+            buildActivityBarChart(graphId, rows);
+            if (typeof applyChartTitleContext === 'function' && typeof buildChartContextLabel === 'function') {
+                applyChartTitleContext(graphId, 'Количество вакансий по опыту', buildChartContextLabel(target.dataset.month || period, null));
+            }
+        }
+        return data;
+    });
+}
+function hydrateAllRolesActivityPeriodFromApi(target, parentRole) {
+    if (!target || !parentRole) return Promise.resolve(null);
+    var period = normalizeAnalyticsPeriodForApi(target.dataset.period || 'all');
+    return fetchAllRolesAnalytics(parentRole, 'activity', {
+        period: period
+    }).then(function(data) {
+        var rows = adaptActivityRoleRowsForAllRoles(data && data.role_rows);
+        target._data = target._data || {};
+        target._data.entries = rows;
+        target.dataset.entries = JSON.stringify(rows);
+        var tableContainer = target.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.innerHTML =
+                '<table class="activity-all-table">' +
+                    '<colgroup><col><col><col><col><col><col></colgroup>' +
+                    '<thead><tr><th>Роль</th><th>Активные</th><th>Архив</th><th>Всего</th><th>Ср. возраст</th><th>Арх/акт</th></tr></thead>' +
+                    '<tbody>' +
+                        rows.map(function(row) {
+                            var ratio = row.active ? (row.archived / row.active) : 0;
+                            return '<tr class="activity-all-row">' +
+                                '<td>' + escapeHtml(row.name) + '</td>' +
+                                '<td>' + row.active + '</td>' +
+                                '<td>' + row.archived + '</td>' +
+                                '<td>' + row.total + '</td>' +
+                                '<td>' + (row.avg_age !== null && row.avg_age !== undefined ? row.avg_age.toFixed(1) : '?') + '</td>' +
+                                '<td>' + (ratio ? ratio.toFixed(2) : '?') + '</td>' +
+                            '</tr>';
+                        }).join('') +
+                    '</tbody>' +
+                '</table>';
+        }
+        return data;
+    });
+}
+function hydrateAllRolesWeekdayPeriodFromApi(target, parentRole) {
+    if (!target || !parentRole) return Promise.resolve(null);
+    var period = normalizeAnalyticsPeriodForApi(target.dataset.period || 'all');
+    return fetchAllRolesAnalytics(parentRole, 'weekday', {
+        period: period
+    }).then(function(data) {
+        var rows = adaptWeekdayRoleRowsForAllRoles(data && data.role_rows);
+        target._data = target._data || {};
+        target._data.entries = rows;
+        target.dataset.entries = JSON.stringify(rows);
+        var tableContainer = target.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.innerHTML =
+                '<table>' +
+                    '<thead><tr><th>Роль</th><th>Ср. публикаций/день</th><th>Ср. архив/день</th></tr></thead>' +
+                    '<tbody>' +
+                        rows.map(function(row) {
+                            return '<tr><td>' + escapeHtml(row.name) + '</td><td>' + Number(row.avg_pub || 0).toFixed(1) + '</td><td>' + Number(row.avg_arch || 0).toFixed(1) + '</td></tr>';
+                        }).join('') +
+                    '</tbody>' +
+                '</table>';
+        }
+        return data;
+    });
+}
+function hydrateAllRolesSkillsPeriodFromApi(target, parentRole) {
+    if (!target || !parentRole) return Promise.resolve(null);
+    var activeCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase() || 'RUR';
+    var period = normalizeAnalyticsPeriodForApi(target.dataset.period || 'all');
+    return fetchAllRolesAnalytics(parentRole, 'skills-cost', {
+        period: period,
+        currency: activeCurrency
+    }).then(function(data) {
+        var rows = adaptSkillsCostItemsForAllRoles(data && data.items);
+        target._data = target._data || {};
+        target._data.entries = rows;
+        target._data.currencyEntries = {};
+        target._data.currencyEntries[activeCurrency] = rows;
+        target.dataset.entries = JSON.stringify(rows);
+        target.dataset.currencyEntries = JSON.stringify(target._data.currencyEntries);
+        var tableContainer = target.querySelector('.table-container');
+        if (tableContainer && typeof buildAllRolesSkillsTableHtml === 'function') {
+            tableContainer.innerHTML = buildAllRolesSkillsTableHtml(rows, activeCurrency);
+        }
+        return data;
+    });
+}
+function hydrateAllRolesSalaryPeriodFromApi(target, parentRole) {
+    if (!target || !parentRole) return Promise.resolve(null);
+    var period = normalizeAnalyticsPeriodForApi(target.dataset.period || 'all');
+    return fetchAllRolesAnalytics(parentRole, 'salary-range', {
+        period: period
+    }).then(function(data) {
+        var adapted = adaptSalaryRangeItemsForAllRoles(data && data.items);
+        var currencies = adapted.currencies.length ? adapted.currencies : ['RUR'];
+        var activeCurrency = String(target.dataset.activeCurrency || '').trim().toUpperCase();
+        if (!activeCurrency || currencies.indexOf(activeCurrency) < 0) {
+            activeCurrency = currencies.indexOf('RUR') >= 0 ? 'RUR' : currencies[0];
+        }
+        var rows = adapted.rows_by_currency[activeCurrency] || [];
+        target._data = target._data || {};
+        target._data.entries = rows;
+        target._data.currencyEntries = adapted.rows_by_currency;
+        target.dataset.entries = JSON.stringify(rows);
+        target.dataset.currencyEntries = JSON.stringify(adapted.rows_by_currency);
+        target.dataset.currencies = JSON.stringify(currencies);
+        target.dataset.activeCurrency = activeCurrency;
+        return data;
+    });
+}
+function hydrateAllRolesEmployerBlockFromApi(block, parentRole) {
+    if (!block || !parentRole) return Promise.resolve(null);
+    return fetchAllRolesAnalytics(parentRole, 'employers', {
+        period: 'summary'
+    }).then(function(data) {
+        var rows = adaptEmployerItemsForAllRoles(data && data.items);
+        block._data = block._data || {};
+        block._data.employerAnalysis = rows;
+        block.dataset.employerAnalysis = JSON.stringify(rows);
+        var tableContainer = block.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.innerHTML =
+                '<table>' +
+                    '<thead>' +
+                        '<tr>' +
+                            '<th>Месяц</th><th>Фактор</th><th>Значение фактора</th><th>Количество</th><th>Зарплата</th>' +
+                        '</tr>' +
+                    '</thead>' +
+                    '<tbody>' + (typeof buildCombinedEmployerRawRowsHtml === 'function' ? buildCombinedEmployerRawRowsHtml(rows) : '') + '</tbody>' +
+                '</table>';
+        }
+        return data;
+    });
+}
+function adaptVacancyApiItem(item) {
+    var employer = item && item.employer ? item.employer : {};
+    var location = item && item.location ? item.location : {};
+    var salary = item && item.salary ? item.salary : {};
+    var status = String(item && item.status || '').trim().toLowerCase() === 'archived' ? 'Архивная' : 'Открытая';
+    var skills = Array.isArray(item && item.skills) ? item.skills.slice() : [];
+    var experience = String(item && item.experience || '').trim();
+    return {
+        id: String(item && item.id || '').trim(),
+        name: String(item && item.name || '').trim(),
+        employer: String(employer.name || '').trim(),
+        employer_accredited: employer.accredited,
+        employer_trusted: employer.trusted,
+        employer_rating: employer.rating,
+        employer_url: employer.url,
+        city: location.city || null,
+        country: location.country || null,
+        salary_from: salary.from_value !== null && salary.from_value !== undefined ? Number(salary.from_value) : null,
+        salary_to: salary.to_value !== null && salary.to_value !== undefined ? Number(salary.to_value) : null,
+        currency: salary.currency || null,
+        salary_currency: salary.currency || null,
+        experience: experience || null,
+        _experience: experience || null,
+        _status: status,
+        status: status,
+        skills: skills.join(', '),
+        requirement: item && item.requirement || '',
+        responsibility: item && item.responsibility || '',
+        published_at: item && item.published_at || null,
+        archived_at: item && item.archived_at || null,
+        apply_alternate_url: item && item.apply_alternate_url || '',
+        send_resume: !!(item && item.send_resume)
+    };
+}
+function getSkillsSearchScopeParams(parentRole) {
+    var roleIds = getAllRolesSummaryRoleIds(parentRole);
+    if (parentRole && parentRole.id !== 'role-all') {
+        var ownRoleId = String(parentRole.dataset && parentRole.dataset.roleId || '').trim();
+        if (ownRoleId) roleIds = [ownRoleId];
+    }
+    if (parentRole && parentRole.id === 'role-combined' && Array.isArray(parentRole.__selectedRoleContents)) {
+        roleIds = parentRole.__selectedRoleContents.map(function(roleContent) {
+            return String(roleContent && roleContent.dataset ? roleContent.dataset.roleId || '' : '').trim();
+        }).filter(Boolean);
+    }
+    if (!roleIds.length) {
+        return { scope: 'all', role_ids: [] };
+    }
+    if (parentRole && parentRole.id !== 'role-all' && roleIds.length === 1) {
+        return { scope: 'single', role_ids: roleIds };
+    }
+    return { scope: 'selection', role_ids: roleIds };
+}
+function normalizeSkillsSearchStatusForApi(values) {
+    var list = Array.isArray(values) ? values.slice() : [];
+    if (list.length !== 1) return 'all';
+    var value = String(list[0] || '').trim().toLowerCase();
+    if (value === 'open' || value === 'archived') return value;
+    return 'all';
+}
+function normalizeSkillsSearchCountryForApi(values) {
+    var list = Array.isArray(values) ? values.slice() : [];
+    if (list.length !== 1) return 'all';
+    var value = String(list[0] || '').trim().toLowerCase();
+    if (value === 'ru' || value === 'not_ru') return value;
+    return 'all';
+}
+function normalizeSkillsSearchCurrencyListForApi(values) {
+    return (Array.isArray(values) ? values : []).map(function(value) {
+        var current = String(value || '').trim().toLowerCase();
+        if (current === 'rur') return 'RUR';
+        if (current === 'usd') return 'USD';
+        if (current === 'eur') return 'EUR';
+        return '';
+    }).filter(Boolean);
+}
+function collapseResolvedFilterValuesWhenAllSelected(values, options, normalizer) {
+    var selected = Array.isArray(values) ? values.slice() : [];
+    var allowed = (Array.isArray(options) ? options : []).map(function(item) {
+        return item && item.value;
+    }).filter(Boolean);
+    if (!selected.length || !allowed.length) return selected;
+    var normalize = typeof normalizer === 'function'
+        ? normalizer
+        : function(value) { return String(value || '').trim(); };
+    var selectedNorm = Array.from(new Set(selected.map(normalize).filter(Boolean)));
+    var allowedNorm = Array.from(new Set(allowed.map(normalize).filter(Boolean)));
+    if (!selectedNorm.length || selectedNorm.length !== allowedNorm.length) return selected;
+    var allSelected = allowedNorm.every(function(value) {
+        return selectedNorm.indexOf(value) >= 0;
+    });
+    return allSelected ? [] : selected;
+}
+function normalizeSkillsSearchBooleanFilterForApi(values) {
+    var list = (Array.isArray(values) ? values : []).map(function(value) {
+        return String(value || '').trim().toLowerCase();
+    }).filter(Boolean);
+    if (list.length !== 1) return 'all';
+    if (list[0] === 'true' || list[0] === 'false') return list[0];
+    return 'all';
+}
+function buildEmployerApiFilterPayload(filterKey, options, resolvedValues) {
+    var selected = Array.isArray(resolvedValues) ? resolvedValues.slice() : [];
+    if (typeof ensureGlobalFilterBucket !== 'function') {
+        return { employer: selected, employer_exclude: [] };
+    }
+    var bucket = ensureGlobalFilterBucket(filterKey);
+    var allowed = (Array.isArray(options) ? options : []).map(function(item) {
+        return item && item.value;
+    }).filter(Boolean);
+    var include = (bucket && Array.isArray(bucket.include) ? bucket.include : []).filter(function(value) {
+        return allowed.indexOf(value) >= 0;
+    });
+    var exclude = (bucket && Array.isArray(bucket.exclude) ? bucket.exclude : []).filter(function(value) {
+        return allowed.indexOf(value) >= 0;
+    });
+    if (include.length) {
+        return {
+            employer: include.filter(function(value) { return exclude.indexOf(value) < 0; }),
+            employer_exclude: []
+        };
+    }
+    return {
+        employer: [],
+        employer_exclude: exclude.slice()
+    };
+}
+function getSkillsSearchResolvedFilterValues(parentRole, filterKey) {
+    if (!parentRole || typeof getGlobalFilterOptions !== 'function' || typeof getResolvedGlobalFilterValues !== 'function') return [];
+    return getResolvedGlobalFilterValues(filterKey, getGlobalFilterOptions(parentRole, filterKey, 'skills-search'));
+}
+function fetchSkillsSearchVacanciesFromApi(parentRole, block, includeSkillFilters) {
+    if (!parentRole) return Promise.resolve(null);
+    var cache = getAllRolesAnalyticsCache(parentRole);
+    var scopeParams = getSkillsSearchScopeParams(parentRole);
+    var collapseValues = typeof collapseResolvedFilterValuesWhenAllSelected === 'function'
+        ? collapseResolvedFilterValuesWhenAllSelected
+        : function(values) {
+            return Array.isArray(values) ? values.slice() : [];
+        };
+    var selectedPeriods = getSkillsSearchResolvedFilterValues(parentRole, 'periods').map(normalizeAnalyticsPeriodForApi).filter(Boolean);
+    var experienceOptions = typeof getGlobalFilterOptions === 'function'
+        ? getGlobalFilterOptions(parentRole, 'experiences', 'skills-search')
+        : [];
+    var selectedExperiences = collapseValues(
+        getSkillsSearchResolvedFilterValues(parentRole, 'experiences'),
+        experienceOptions,
+        typeof normalizeExperience === 'function' ? normalizeExperience : null
+    );
+    var selectedStatus = getSkillsSearchResolvedFilterValues(parentRole, 'status');
+    var selectedCountry = getSkillsSearchResolvedFilterValues(parentRole, 'country');
+    var currencyOptions = typeof getGlobalFilterOptions === 'function'
+        ? getGlobalFilterOptions(parentRole, 'currency', 'skills-search')
+        : [];
+    var selectedCurrency = collapseValues(
+        getSkillsSearchResolvedFilterValues(parentRole, 'currency'),
+        currencyOptions
+    );
+    var employerOptions = typeof getGlobalFilterOptions === 'function'
+        ? getGlobalFilterOptions(parentRole, 'employer', 'skills-search')
+        : [];
+    var employerFilterPayload = buildEmployerApiFilterPayload(
+        'employer',
+        employerOptions,
+        getSkillsSearchResolvedFilterValues(parentRole, 'employer')
+    );
+    var selectedAccreditation = getSkillsSearchResolvedFilterValues(parentRole, 'accreditation');
+    var selectedCoverLetterRequired = getSkillsSearchResolvedFilterValues(parentRole, 'cover_letter_required');
+    var selectedHasTest = getSkillsSearchResolvedFilterValues(parentRole, 'has_test');
+    var selections = includeSkillFilters && block && typeof getSkillsSearchSelections === 'function'
+        ? getSkillsSearchSelections(block)
+        : { includeSkills: [], excludeSkills: [], logic: 'or' };
+    var params = {
+        scope: scopeParams.scope,
+        role_ids: scopeParams.role_ids,
+        periods: selectedPeriods,
+        experience: selectedExperiences,
+        status: normalizeSkillsSearchStatusForApi(selectedStatus),
+        country: normalizeSkillsSearchCountryForApi(selectedCountry),
+        currency: normalizeSkillsSearchCurrencyListForApi(selectedCurrency),
+        employer: employerFilterPayload.employer,
+        employer_exclude: employerFilterPayload.employer_exclude,
+        accreditation: normalizeSkillsSearchBooleanFilterForApi(selectedAccreditation),
+        cover_letter_required: normalizeSkillsSearchBooleanFilterForApi(selectedCoverLetterRequired),
+        has_test: normalizeSkillsSearchBooleanFilterForApi(selectedHasTest),
+        skills_include: includeSkillFilters ? (selections.includeSkills || []) : [],
+        skills_exclude: includeSkillFilters ? (selections.excludeSkills || []) : [],
+        skills_logic: includeSkillFilters ? (selections.logic || 'or') : 'or',
+        page: 1,
+        per_page: 1000,
+        sort: 'published_desc'
+    };
+    var cacheKey = 'skills-search::vacancies::' + JSON.stringify({
+        includeSkillFilters: !!includeSkillFilters,
+        params: params
+    });
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/vacancies', params).then(function(data) {
+        var items = (data && Array.isArray(data.items) ? data.items : []).map(adaptVacancyApiItem);
+        var payload = {
+            items: items,
+            total: items.length,
+            page: 1,
+            per_page: 1000,
+            source_total: Number(data && data.total) || items.length
+        };
+        cache[cacheKey] = { data: payload };
+        return payload;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
+function buildAnalysisVacanciesApiParams(scopeParams, filters, periodNormalizer, options) {
+    options = options || {};
+    var normalizePeriod = typeof periodNormalizer === 'function' ? periodNormalizer : function(value) {
+        return value;
+    };
+    return {
+        scope: scopeParams && scopeParams.scope || 'all',
+        role_ids: scopeParams && Array.isArray(scopeParams.role_ids) ? scopeParams.role_ids.slice() : [],
+        periods: options.skipPeriods ? [] : (filters && Array.isArray(filters.periods) ? filters.periods.map(normalizePeriod).filter(Boolean) : []),
+        experience: filters && Array.isArray(filters.experiences) ? filters.experiences.slice() : [],
+        status: normalizeSkillsSearchStatusForApi(filters && filters.status),
+        country: normalizeSkillsSearchCountryForApi(filters && filters.country),
+        currency: normalizeSkillsSearchCurrencyListForApi(filters && filters.currency),
+        employer: filters && Array.isArray(filters.employer) ? filters.employer.slice() : [],
+        employer_exclude: filters && Array.isArray(filters.employer_exclude) ? filters.employer_exclude.slice() : [],
+        accreditation: normalizeSkillsSearchBooleanFilterForApi(filters && filters.accreditation),
+        cover_letter_required: normalizeSkillsSearchBooleanFilterForApi(filters && filters.cover_letter_required),
+        has_test: normalizeSkillsSearchBooleanFilterForApi(filters && filters.has_test),
+        skills_include: options.includeSkillFilters && filters && Array.isArray(filters.skills_include) ? filters.skills_include.slice() : [],
+        skills_exclude: options.includeSkillFilters && filters && Array.isArray(filters.skills_exclude) ? filters.skills_exclude.slice() : [],
+        skills_logic: options.includeSkillFilters && filters && filters.skills_logic ? filters.skills_logic : 'or',
+        page: 1,
+        per_page: 1000,
+        sort: 'published_desc'
+    };
+}
+function buildSkillsMonthlyVacanciesApiParams(scopeParams, filters, periodNormalizer) {
+    return buildAnalysisVacanciesApiParams(scopeParams, filters, periodNormalizer, {
+        includeSkillFilters: true
+    });
+}
+function fetchTotalsDashboardFromApi(parentRole) {
+    if (!parentRole) return Promise.resolve(null);
+    var cache = getAllRolesAnalyticsCache(parentRole);
+    var scopeParams = getSkillsSearchScopeParams(parentRole);
+    var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
+    var periodOptions = getGlobalFilterOptions(parentRole, 'periods', 'totals');
+    var selectedPeriods = getResolvedGlobalFilterValues('periods', periodOptions);
+    var normalizedPeriods = (selectedPeriods || []).map(function(value) {
+        return typeof normalizeAnalyticsPeriodForApi === 'function' ? normalizeAnalyticsPeriodForApi(value) : value;
+    }).filter(Boolean);
+    var period = normalizedPeriods.length ? normalizedPeriods[0] : 'summary';
+    var params = {
+        scope: scopeParams && scopeParams.scope || 'all',
+        role_ids: scopeParams && Array.isArray(scopeParams.role_ids) ? scopeParams.role_ids.slice() : [],
+        period: period
+    };
+    if (dashboardMode === 'overview') {
+        var employerOptions = getGlobalFilterOptions(parentRole, 'employer', 'totals');
+        var employerFilterPayload = buildEmployerApiFilterPayload(
+            'employer',
+            employerOptions,
+            getResolvedGlobalFilterValues('employer', employerOptions)
+        );
+        var experienceOptions = getGlobalFilterOptions(parentRole, 'experiences', 'totals');
+        var countryOptions = getGlobalFilterOptions(parentRole, 'country', 'totals');
+        var currencyOptions = getGlobalFilterOptions(parentRole, 'currency', 'totals');
+        params.experience = collapseResolvedFilterValuesWhenAllSelected(
+            getResolvedGlobalFilterValues('experiences', experienceOptions),
+            experienceOptions,
+            typeof normalizeExperience === 'function' ? normalizeExperience : null
+        );
+        params.status = typeof normalizeSkillsSearchStatusForApi === 'function'
+            ? normalizeSkillsSearchStatusForApi(getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'totals')))
+            : 'all';
+        params.country = typeof normalizeSkillsSearchCountryForApi === 'function'
+            ? normalizeSkillsSearchCountryForApi(collapseResolvedFilterValuesWhenAllSelected(
+                getResolvedGlobalFilterValues('country', countryOptions),
+                countryOptions
+            ))
+            : 'all';
+        params.currency = typeof normalizeSkillsSearchCurrencyListForApi === 'function'
+            ? normalizeSkillsSearchCurrencyListForApi(collapseResolvedFilterValuesWhenAllSelected(
+                getResolvedGlobalFilterValues('currency', currencyOptions),
+                currencyOptions
+            ))
+            : [];
+        params.employer = employerFilterPayload.employer;
+        params.employer_exclude = employerFilterPayload.employer_exclude;
+        params.interview = getResolvedGlobalFilterValues('interview', getGlobalFilterOptions(parentRole, 'interview', 'totals'));
+        params.result = getResolvedGlobalFilterValues('result', getGlobalFilterOptions(parentRole, 'result', 'totals'));
+        params.offer = getResolvedGlobalFilterValues('offer', getGlobalFilterOptions(parentRole, 'offer', 'totals'));
+        var skillSelections = typeof getGlobalSkillsFilterSelections === 'function'
+            ? getGlobalSkillsFilterSelections()
+            : { includeSkills: [], excludeSkills: [], logic: 'or' };
+        params.skills_include = skillSelections.includeSkills || [];
+        params.skills_exclude = skillSelections.excludeSkills || [];
+        params.skills_logic = skillSelections.logic || 'or';
+        params.accreditation = normalizeSkillsSearchBooleanFilterForApi(getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'totals')));
+        params.cover_letter_required = normalizeSkillsSearchBooleanFilterForApi(getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'totals')));
+        params.has_test = normalizeSkillsSearchBooleanFilterForApi(getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'totals')));
+    } else if (dashboardMode === 'top') {
+        params.top_currency = typeof normalizeTotalsCurrency === 'function' ? normalizeTotalsCurrency(uiState.totals_top_currency || 'RUR') : String(uiState.totals_top_currency || 'RUR').trim().toUpperCase();
+        params.top_limit = typeof normalizeTotalsTopLimit === 'function' ? normalizeTotalsTopLimit(uiState.totals_top_limit || 15) : Number(uiState.totals_top_limit || 15) || 15;
+        params.vacancy_order = typeof normalizeTotalsTopOrder === 'function' ? normalizeTotalsTopOrder(uiState.totals_vacancy_order, ['high', 'low'], 'high') : (String(uiState.totals_vacancy_order || 'high').trim().toLowerCase() || 'high');
+        params.skills_order = typeof normalizeTotalsTopOrder === 'function' ? normalizeTotalsTopOrder(uiState.totals_skills_order, ['most', 'least'], 'most') : (String(uiState.totals_skills_order || 'most').trim().toLowerCase() || 'most');
+        params.company_order = typeof normalizeTotalsTopOrder === 'function' ? normalizeTotalsTopOrder(uiState.totals_company_order, ['high', 'low'], 'high') : (String(uiState.totals_company_order || 'high').trim().toLowerCase() || 'high');
+        params.closing_window = typeof normalizeTotalsClosingWindow === 'function' ? normalizeTotalsClosingWindow(uiState.totals_closing_window) : (String(uiState.totals_closing_window || 'lte_7').trim().toLowerCase() || 'lte_7');
+    } else if (dashboardMode === 'market-trends') {
+        var marketTrendsExperienceOptions = getGlobalFilterOptions(parentRole, 'experiences', 'totals');
+        params.market_trends_currency = typeof normalizeTotalsCurrency === 'function' ? normalizeTotalsCurrency(uiState.market_trends_currency || 'RUR') : String(uiState.market_trends_currency || 'RUR').trim().toUpperCase();
+        params.market_trends_salary_metric = String(uiState.market_trends_salary_metric || 'avg').trim().toLowerCase() || 'avg';
+        params.market_trends_excluded_roles = Array.isArray(uiState.market_trends_excluded_roles) ? uiState.market_trends_excluded_roles.slice() : [];
+        params.experience = collapseResolvedFilterValuesWhenAllSelected(
+            getResolvedGlobalFilterValues('experiences', marketTrendsExperienceOptions),
+            marketTrendsExperienceOptions,
+            typeof normalizeExperience === 'function' ? normalizeExperience : null
+        );
+        params.status = typeof normalizeSkillsSearchStatusForApi === 'function'
+            ? normalizeSkillsSearchStatusForApi(getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'totals')))
+            : 'all';
+    }
+    var cacheKey = 'totals::dashboard::' + JSON.stringify({ params: params });
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/analytics/dashboard', params).then(function(data) {
+        var payload = data && typeof data === 'object' ? data : null;
+        cache[cacheKey] = { data: payload };
+        return payload;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
+function fetchSkillsMonthlyFilteredVacanciesFromApi(parentRole) {
+    return fetchAnalysisFilteredVacanciesFromApi(parentRole, 'skills-monthly', {
+        includeSkillFilters: true
+    });
+}
+function fetchAnalysisFilteredVacanciesFromApi(parentRole, analysisType, options) {
+    if (!parentRole) return Promise.resolve(null);
+    options = options || {};
+    var cache = getAllRolesAnalyticsCache(parentRole);
+    var scopeParams = getSkillsSearchScopeParams(parentRole);
+    var selections = options.includeSkillFilters && typeof getGlobalSkillsFilterSelections === 'function'
+        ? getGlobalSkillsFilterSelections()
+        : { includeSkills: [], excludeSkills: [], logic: 'or' };
+    var employerOptions = getGlobalFilterOptions(parentRole, 'employer', analysisType);
+    var employerFilterPayload = buildEmployerApiFilterPayload(
+        'employer',
+        employerOptions,
+        getResolvedGlobalFilterValues('employer', employerOptions)
+    );
+    var experienceOptions = getGlobalFilterOptions(parentRole, 'experiences', analysisType);
+    var countryOptions = getGlobalFilterOptions(parentRole, 'country', analysisType);
+    var currencyOptions = getGlobalFilterOptions(parentRole, 'currency', analysisType);
+    var filters = {
+        periods: getResolvedGlobalFilterValues('periods', getGlobalFilterOptions(parentRole, 'periods', analysisType)),
+        experiences: collapseResolvedFilterValuesWhenAllSelected(
+            getResolvedGlobalFilterValues('experiences', experienceOptions),
+            experienceOptions,
+            typeof normalizeExperience === 'function' ? normalizeExperience : null
+        ),
+        status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', analysisType)),
+        country: collapseResolvedFilterValuesWhenAllSelected(
+            getResolvedGlobalFilterValues('country', countryOptions),
+            countryOptions
+        ),
+        currency: collapseResolvedFilterValuesWhenAllSelected(
+            getResolvedGlobalFilterValues('currency', currencyOptions),
+            currencyOptions
+        ),
+        employer: employerFilterPayload.employer,
+        employer_exclude: employerFilterPayload.employer_exclude,
+        accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', analysisType)),
+        cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', analysisType)),
+        has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', analysisType)),
+        skills_include: selections.includeSkills || [],
+        skills_exclude: selections.excludeSkills || [],
+        skills_logic: selections.logic || 'or'
+    };
+    var params = buildAnalysisVacanciesApiParams(scopeParams, filters, normalizeAnalyticsPeriodForApi, options);
+    var cacheKey = analysisType + '::vacancies::' + JSON.stringify({
+        params: params,
+        includeSkillFilters: !!options.includeSkillFilters,
+        skipPeriods: !!options.skipPeriods
+    });
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/vacancies', params).then(function(data) {
+        var items = (data && Array.isArray(data.items) ? data.items : []).map(adaptVacancyApiItem);
+        var payload = {
+            items: items,
+            total: Number(data && data.total) || items.length
+        };
+        cache[cacheKey] = { data: payload };
+        return payload;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
+function fetchSkillsSearchSuggestionsFromApi(parentRole) {
+    if (!parentRole) return Promise.resolve(null);
+    var cache = getAllRolesAnalyticsCache(parentRole);
+    var scopeParams = getSkillsSearchScopeParams(parentRole);
+    var collapseValues = typeof collapseResolvedFilterValuesWhenAllSelected === 'function'
+        ? collapseResolvedFilterValuesWhenAllSelected
+        : function(values) {
+            return Array.isArray(values) ? values.slice() : [];
+        };
+    var selectedPeriods = getSkillsSearchResolvedFilterValues(parentRole, 'periods').map(normalizeAnalyticsPeriodForApi).filter(Boolean);
+    var experienceOptions = typeof getGlobalFilterOptions === 'function'
+        ? getGlobalFilterOptions(parentRole, 'experiences', 'skills-search')
+        : [];
+    var selectedExperiences = collapseValues(
+        getSkillsSearchResolvedFilterValues(parentRole, 'experiences'),
+        experienceOptions,
+        typeof normalizeExperience === 'function' ? normalizeExperience : null
+    );
+    var selectedStatus = getSkillsSearchResolvedFilterValues(parentRole, 'status');
+    var selectedCountry = getSkillsSearchResolvedFilterValues(parentRole, 'country');
+    var currencyOptions = typeof getGlobalFilterOptions === 'function'
+        ? getGlobalFilterOptions(parentRole, 'currency', 'skills-search')
+        : [];
+    var selectedCurrency = collapseValues(
+        getSkillsSearchResolvedFilterValues(parentRole, 'currency'),
+        currencyOptions
+    );
+    var employerOptions = typeof getGlobalFilterOptions === 'function'
+        ? getGlobalFilterOptions(parentRole, 'employer', 'skills-search')
+        : [];
+    var employerFilterPayload = buildEmployerApiFilterPayload(
+        'employer',
+        employerOptions,
+        getSkillsSearchResolvedFilterValues(parentRole, 'employer')
+    );
+    var selectedAccreditation = getSkillsSearchResolvedFilterValues(parentRole, 'accreditation');
+    var selectedCoverLetterRequired = getSkillsSearchResolvedFilterValues(parentRole, 'cover_letter_required');
+    var selectedHasTest = getSkillsSearchResolvedFilterValues(parentRole, 'has_test');
+    var params = {
+        scope: scopeParams.scope,
+        role_ids: scopeParams.role_ids,
+        periods: selectedPeriods,
+        experience: selectedExperiences,
+        status: normalizeSkillsSearchStatusForApi(selectedStatus),
+        country: normalizeSkillsSearchCountryForApi(selectedCountry),
+        currency: normalizeSkillsSearchCurrencyListForApi(selectedCurrency),
+        employer: employerFilterPayload.employer,
+        employer_exclude: employerFilterPayload.employer_exclude,
+        accreditation: normalizeSkillsSearchBooleanFilterForApi(selectedAccreditation),
+        cover_letter_required: normalizeSkillsSearchBooleanFilterForApi(selectedCoverLetterRequired),
+        has_test: normalizeSkillsSearchBooleanFilterForApi(selectedHasTest),
+        limit: 200
+    };
+    var cacheKey = 'skills-search::suggestions::' + JSON.stringify(params);
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/vacancies/skills/suggest', params).then(function(data) {
+        var payload = {
+            items: Array.isArray(data && data.items) ? data.items.slice() : []
+        };
+        cache[cacheKey] = { data: payload };
+        return payload;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
 function getRoleSalaryData(roleContent) {
     var salaryBlock = roleContent.querySelector('.salary-content');
     if (!salaryBlock) return [];
@@ -210,6 +1329,77 @@ function getRoleSalaryData(roleContent) {
     salaryBlock._data.salary = [];
     return salaryBlock._data.salary;
 }
+function buildRoleVacanciesApiParams(roleContent) {
+    var roleId = String(roleContent && roleContent.dataset && roleContent.dataset.roleId || '').trim();
+    return {
+        scope: 'single',
+        role_ids: roleId ? [roleId] : [],
+        periods: [],
+        page: 1,
+        per_page: 1000,
+        sort: 'published_desc'
+    };
+}
+function fetchRoleVacanciesFromApi(roleContent) {
+    if (!roleContent) return Promise.resolve([]);
+    var cache = getAllRolesAnalyticsCache(roleContent);
+    var params = buildRoleVacanciesApiParams(roleContent);
+    var cacheKey = 'role::vacancies::' + JSON.stringify(params);
+    if (cache[cacheKey] && cache[cacheKey].data) {
+        return Promise.resolve(cache[cacheKey].data);
+    }
+    if (cache[cacheKey] && cache[cacheKey].promise) {
+        return cache[cacheKey].promise;
+    }
+    var request = fetchReportApiJson('/api/v1/vacancies', params).then(function(data) {
+        var roleId = String(roleContent.dataset && roleContent.dataset.roleId || '').trim();
+        var roleName = String(roleContent.dataset && roleContent.dataset.roleName || '').trim();
+        var items = (data && Array.isArray(data.items) ? data.items : []).map(adaptVacancyApiItem).map(function(vacancy) {
+            if (!vacancy || typeof vacancy !== 'object') return vacancy;
+            if (!vacancy.role_id && roleId) vacancy.role_id = roleId;
+            if (!vacancy.role_name && roleName) vacancy.role_name = roleName;
+            if (!vacancy._experience && vacancy.experience) vacancy._experience = vacancy.experience;
+            if (!vacancy._status) vacancy._status = vacancy.archived_at ? 'Архивная' : 'Открытая';
+            return vacancy;
+        });
+        cache[cacheKey] = { data: items };
+        return items;
+    }).catch(function(err) {
+        delete cache[cacheKey];
+        throw err;
+    });
+    cache[cacheKey] = { promise: request };
+    return request;
+}
+function ensureRoleVacanciesLoaded(roleContent) {
+    if (!roleContent) return Promise.resolve([]);
+    if (!roleContent._data) roleContent._data = {};
+    if (Array.isArray(roleContent._data.vacancies) && roleContent._data.vacancies.length) {
+        return Promise.resolve(roleContent._data.vacancies);
+    }
+    if (roleContent._data.vacanciesPromise) {
+        return roleContent._data.vacanciesPromise;
+    }
+    var embedded = parseJsonDataset(roleContent, 'vacancies', []);
+    if (embedded && embedded.length) {
+        roleContent._data.vacancies = embedded.map(function(vacancy) {
+            if (!vacancy || typeof vacancy !== 'object') return vacancy;
+            if (!vacancy._experience && vacancy.experience) vacancy._experience = vacancy.experience;
+            if (!vacancy._status) vacancy._status = vacancy.archived_at ? 'Архивная' : 'Открытая';
+            return vacancy;
+        });
+        return Promise.resolve(roleContent._data.vacancies);
+    }
+    roleContent._data.vacanciesPromise = fetchRoleVacanciesFromApi(roleContent).then(function(items) {
+        roleContent._data.vacancies = items || [];
+        delete roleContent._data.vacanciesPromise;
+        return roleContent._data.vacancies;
+    }).catch(function(err) {
+        delete roleContent._data.vacanciesPromise;
+        throw err;
+    });
+    return roleContent._data.vacanciesPromise;
+}
 function isSalarySummaryExperience(expName) {
     return String(expName || '').trim().toLowerCase() === 'все';
 }
@@ -217,7 +1407,16 @@ function getRoleVacancies(roleContent) {
     if (!roleContent) return [];
     if (!roleContent._data) roleContent._data = {};
     if (roleContent._data.vacancies !== undefined) return roleContent._data.vacancies;
-    roleContent._data.vacancies = parseJsonDataset(roleContent, 'vacancies', []);
+    var roleId = String(roleContent.dataset && roleContent.dataset.roleId || '').trim();
+    var roleName = String(roleContent.dataset && roleContent.dataset.roleName || '').trim();
+    roleContent._data.vacancies = parseJsonDataset(roleContent, 'vacancies', []).map(function(vacancy) {
+        if (!vacancy || typeof vacancy !== 'object') return vacancy;
+        if (!vacancy.role_id && roleId) vacancy.role_id = roleId;
+        if (!vacancy.role_name && roleName) vacancy.role_name = roleName;
+        if (!vacancy._experience && vacancy.experience) vacancy._experience = vacancy.experience;
+        if (!vacancy._status) vacancy._status = vacancy.archived_at ? 'Архивная' : 'Открытая';
+        return vacancy;
+    });
     return roleContent._data.vacancies;
 }
 function getRoleWeekdayData(roleContent) {

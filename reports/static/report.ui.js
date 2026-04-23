@@ -38,6 +38,73 @@ function updateReportLayoutScrollZones() {
     layout.style.removeProperty('--report-layout-scroll-height');
 }
 
+var FORM_FIELD_NAME_BY_CLASS = {
+    'skills-multi-toggle-input': 'skills_multi_toggle',
+    'skills-search-favorites-panel-input': 'skills_search_favorite_name',
+    'skills-search-top-search': 'skills_search_query',
+    'totals-top-filter-range': 'totals_top_limit_range',
+    'totals-top-filter-number': 'totals_top_limit_number',
+    'my-responses-offer-switch': 'my_responses_offer_filter',
+    'global-filter-search': 'filter_search_query',
+    'totals-ios-checkbox': 'boolean_toggle'
+};
+var formFieldNameSequence = 0;
+
+function inferFormFieldName(field) {
+    if (!field || !field.classList) return '';
+    var classNames = Array.from(field.classList);
+    for (var i = 0; i < classNames.length; i += 1) {
+        var nextName = FORM_FIELD_NAME_BY_CLASS[classNames[i]];
+        if (nextName) return nextName;
+    }
+    if (field.type === 'search') return 'search_query';
+    if (field.type === 'range') return 'range_value';
+    if (field.type === 'number') return 'numeric_value';
+    if (field.type === 'checkbox') return 'checkbox_value';
+    if (field.tagName === 'SELECT') return 'select_value';
+    if (field.tagName === 'TEXTAREA') return 'text_value';
+    return 'form_field';
+}
+
+function ensureFormFieldNames(root) {
+    if (!root || !root.querySelectorAll) return;
+    var fields = root.matches && root.matches('input, select, textarea')
+        ? [root]
+        : Array.from(root.querySelectorAll('input:not([name]):not([id]), select:not([name]):not([id]), textarea:not([name]):not([id])'));
+    fields.forEach(function(field) {
+        if (!field || field.name || field.id) return;
+        var inferred = inferFormFieldName(field);
+        formFieldNameSequence += 1;
+        field.name = inferred + '_' + formFieldNameSequence;
+    });
+}
+
+function bindFormFieldNameObserver() {
+    if (typeof document === 'undefined') return;
+    var start = function() {
+        if (!document.body || document.body.dataset.formFieldNamesBound === '1') return;
+        document.body.dataset.formFieldNamesBound = '1';
+        ensureFormFieldNames(document.body);
+        if (typeof MutationObserver !== 'function') return;
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                Array.from(mutation.addedNodes || []).forEach(function(node) {
+                    if (!node || node.nodeType !== 1) return;
+                    ensureFormFieldNames(node);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true });
+        return;
+    }
+    start();
+}
+
+bindFormFieldNameObserver();
+
 var VIEW_ICON_TABLE = '\u25A4';
 var VIEW_ICON_GRAPH = '\u25D4';
 var VIEW_ICON_TOGETHER = '\u25EB';
@@ -68,15 +135,26 @@ function getSharedFilterGroupIcon(sectionKey) {
     return fallbackIcons[key] || '';
 }
 
+function getSharedFilterMaterialGlyph(iconName) {
+    var name = String(iconName || '').trim();
+    var glyphs = {
+        favorite: '\u2665',
+        person: '\u25C9',
+        payments: '\u00A4',
+        mail: '\u2709',
+        format_size: '\u2263',
+        work: '\u25A3',
+        business: '\u25A4',
+        local_fire_department: '\u2726'
+    };
+    return glyphs[name] || '\u2022';
+}
+
 function createSharedFilterMaterialIcon(iconName, className) {
     var icon = document.createElement('span');
-    icon.className = 'material-symbols-outlined' + (className ? ' ' + className : '');
+    icon.className = (className ? className + ' ' : '') + 'shared-filter-local-icon';
     icon.setAttribute('aria-hidden', 'true');
     var name = String(iconName || '').trim();
-    var svgName = name.replace(/_/g, '-');
-    var svgUrl = 'https://api.iconify.design/material-symbols:' + encodeURIComponent(svgName) + '.svg';
-    var glyph = document.createElement('span');
-    glyph.className = 'shared-filter-material-icon-glyph';
     icon.dataset.icon = name;
     icon.style.display = 'inline-flex';
     icon.style.flex = '0 0 auto';
@@ -84,21 +162,10 @@ function createSharedFilterMaterialIcon(iconName, className) {
     icon.style.justifyContent = 'center';
     icon.style.width = '24px';
     icon.style.height = '24px';
-    glyph.style.display = 'inline-block';
-    glyph.style.color = 'inherit';
-    glyph.style.width = '100%';
-    glyph.style.height = '100%';
-    glyph.style.backgroundColor = 'currentColor';
-    glyph.style.webkitMaskImage = 'url("' + svgUrl + '")';
-    glyph.style.maskImage = 'url("' + svgUrl + '")';
-    glyph.style.webkitMaskRepeat = 'no-repeat';
-    glyph.style.maskRepeat = 'no-repeat';
-    glyph.style.webkitMaskPosition = 'center';
-    glyph.style.maskPosition = 'center';
-    glyph.style.webkitMaskSize = '100% 100%';
-    glyph.style.maskSize = '100% 100%';
-    icon.textContent = '';
-    icon.appendChild(glyph);
+    icon.style.lineHeight = '1';
+    icon.style.fontSize = '24px';
+    icon.style.fontFamily = 'inherit';
+    icon.textContent = getSharedFilterMaterialGlyph(name);
     return icon;
 }
 
@@ -270,6 +337,10 @@ function handleTopNavigationClick(sectionKey, itemKey) {
 
     if (isFlatAllRolesSection(section)) {
         uiState.global_analysis_type = section;
+        if (typeof switchFromSummaryToAnalysis === 'function') {
+            switchFromSummaryToAnalysis(section);
+            return;
+        }
         scheduleTopNavigationAction(function() {
             var role = getActiveRoleContent() || document.getElementById('role-all');
             if (!role) return;
@@ -1147,11 +1218,106 @@ function collectMyResponsesVacancies() {
     return filtered;
 }
 
-function fetchMyResponsesVacancies() {
-    var nonce = Date.now();
+function getResponsesScopeParams(parentRole) {
+    var roleIds = [];
+    if (parentRole && parentRole.id === 'role-combined' && Array.isArray(parentRole.__selectedRoleContents)) {
+        roleIds = parentRole.__selectedRoleContents.map(function(roleContent) {
+            return String(roleContent && roleContent.dataset ? roleContent.dataset.roleId || '' : '').trim();
+        }).filter(Boolean);
+    } else if (parentRole && parentRole.id && parentRole.id !== 'role-all') {
+        var ownRoleId = String(parentRole.dataset && parentRole.dataset.roleId || '').trim();
+        if (ownRoleId) roleIds = [ownRoleId];
+    }
+    return {
+        role_ids: roleIds
+    };
+}
+
+function normalizeMyResponsesStatusForApi(parentRole) {
+    if (!parentRole || typeof getGlobalFilterOptions !== 'function' || typeof getResolvedGlobalFilterValues !== 'function') return 'all';
+    var values = getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'my-responses'));
+    if (!Array.isArray(values) || values.length !== 1) return 'all';
+    var value = String(values[0] || '').trim().toLowerCase();
+    if (value === 'open' || value === 'archived') return value;
+    return 'all';
+}
+
+function normalizeMyResponsesCurrencyForApi(parentRole) {
+    if (!parentRole || typeof getGlobalFilterOptions !== 'function' || typeof getResolvedGlobalFilterValues !== 'function') return 'all';
+    var values = getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'my-responses'));
+    if (!Array.isArray(values) || values.length !== 1) return 'all';
+    return normalizeMyResponsesCurrencyFilter(values[0]);
+}
+
+function normalizeMyResponsesOfferForApi(parentRole) {
+    if (typeof uiState.my_responses_offer_filter !== 'undefined') {
+        return normalizeMyResponsesOfferFilter(uiState.my_responses_offer_filter);
+    }
+    if (!parentRole || typeof getGlobalFilterOptions !== 'function' || typeof getResolvedGlobalFilterValues !== 'function') return 'all';
+    var values = getResolvedGlobalFilterValues('offer', getGlobalFilterOptions(parentRole, 'offer', 'my-responses'));
+    if (!Array.isArray(values) || values.length !== 1) return 'all';
+    return normalizeMyResponsesOfferFilter(values[0]);
+}
+
+function adaptResponseApiItem(item) {
+    var vacancyId = String(item && item.vacancy_id || item && item.id || '').trim();
+    var archived = !!(item && item.archived);
+    return {
+        id: vacancyId,
+        vacancy_id: vacancyId,
+        role_id: item && item.role_id || null,
+        role_name: item && item.role_name || null,
+        name: item && item.name || '',
+        employer: item && item.employer || null,
+        city: item && item.city || null,
+        country: item && item.country || null,
+        salary_from: item && item.salary_from,
+        salary_to: item && item.salary_to,
+        currency: item && item.currency || null,
+        resume_at: item && item.resume_at || null,
+        published_at: item && item.published_at || null,
+        archived: archived,
+        archived_at: item && item.archived_at || null,
+        interview_filled: !!(item && item.interview_filled),
+        offer_salary: item && item.offer_salary || null,
+        updated_at: item && item.updated_at || null,
+        interview_date: item && item.interview_date || null,
+        result: item && item.result || null,
+        send_resume: true,
+        __is_response_item: true
+    };
+}
+
+function fetchResponsesListFromApi(parentRole) {
     var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
-    var endpoint = apiBaseUrl + '/api/vacancies/responses?_ts=' + nonce;
-    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/responses?_ts=' + nonce;
+    var scopeParams = getResponsesScopeParams(parentRole);
+    var params = {
+        role_ids: scopeParams.role_ids,
+        status: normalizeMyResponsesStatusForApi(parentRole),
+        currency: normalizeMyResponsesCurrencyForApi(parentRole),
+        offer: normalizeMyResponsesOfferForApi(parentRole),
+        page: 1,
+        per_page: 1000
+    };
+    var endpoint = apiBaseUrl + '/api/v1/responses';
+    var fallbackEndpoint = 'http://localhost:9000/api/v1/responses';
+    function buildUrl(baseUrl) {
+        var search = new URLSearchParams();
+        Object.keys(params).forEach(function(key) {
+            var value = params[key];
+            if (Array.isArray(value)) {
+                value.forEach(function(item) {
+                    if (item === null || item === undefined || String(item).trim() === '') return;
+                    search.append(key, item);
+                });
+                return;
+            }
+            if (value === null || value === undefined || String(value).trim() === '') return;
+            search.append(key, value);
+        });
+        search.append('_ts', Date.now());
+        return baseUrl + '?' + search.toString();
+    }
     function doGet(url) {
         return fetch(url, {
             method: 'GET',
@@ -1162,27 +1328,98 @@ function fetchMyResponsesVacancies() {
             return resp.json();
         }).then(function(payload) {
             var items = payload && Array.isArray(payload.items) ? payload.items : [];
-            var normalizedItems = items.map(function(item) {
-                var row = Object.assign({}, item || {});
-                var sendResumeRaw = row.send_resume;
-                var sendResumeEmpty = sendResumeRaw === null || sendResumeRaw === undefined || String(sendResumeRaw).trim() === '';
-                if (sendResumeEmpty) row.send_resume = true;
-                row.__is_response_item = true;
-                return row;
-            });
+            var normalizedItems = items.map(adaptResponseApiItem);
             syncLocalVacanciesWithResponses(normalizedItems);
             uiState.my_responses_cache = normalizedItems.slice();
             uiState.my_responses_cache_loaded = true;
             return normalizedItems;
         });
     }
-    if (window.location && window.location.protocol === 'file:') {
-        return doGet(fallbackEndpoint);
-    }
-    return doGet(endpoint).catch(function() {
+    if (window.location && window.location.protocol === 'file:') return doGet(buildUrl(fallbackEndpoint));
+    return doGet(buildUrl(endpoint)).catch(function() {
         if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('responses_api_failed');
-        return doGet(fallbackEndpoint);
+        return doGet(buildUrl(fallbackEndpoint));
     });
+}
+
+function fetchResponsesCalendarFromApi(parentRole, monthKey) {
+    var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
+    var scopeParams = getResponsesScopeParams(parentRole);
+    var params = {
+        role_ids: scopeParams.role_ids,
+        status: normalizeMyResponsesStatusForApi(parentRole),
+        currency: normalizeMyResponsesCurrencyForApi(parentRole),
+        offer: normalizeMyResponsesOfferForApi(parentRole),
+        month: monthKey
+    };
+    var endpoint = apiBaseUrl + '/api/v1/responses/calendar';
+    var fallbackEndpoint = 'http://localhost:9000/api/v1/responses/calendar';
+    function buildUrl(baseUrl) {
+        var search = new URLSearchParams();
+        Object.keys(params).forEach(function(key) {
+            var value = params[key];
+            if (Array.isArray(value)) {
+                value.forEach(function(item) {
+                    if (item === null || item === undefined || String(item).trim() === '') return;
+                    search.append(key, item);
+                });
+                return;
+            }
+            if (value === null || value === undefined || String(value).trim() === '') return;
+            search.append(key, value);
+        });
+        search.append('_ts', Date.now());
+        return baseUrl + '?' + search.toString();
+    }
+    function doGet(url) {
+        return fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            cache: 'no-store'
+        }).then(function(resp) {
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            return resp.json();
+        });
+    }
+    if (window.location && window.location.protocol === 'file:') return doGet(buildUrl(fallbackEndpoint));
+    return doGet(buildUrl(endpoint)).catch(function() {
+        if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('responses_calendar_api_failed');
+        return doGet(buildUrl(fallbackEndpoint));
+    });
+}
+
+function buildResponseCalendarEventsFromApiPayload(payload, responses) {
+    var items = Array.isArray(responses) ? responses.slice() : [];
+    var byCompositeKey = new Map();
+    var byVacancyId = new Map();
+    items.forEach(function(item) {
+        var vacancyId = resolveResponseCalendarItemVacancyId(item);
+        var interviewDate = String(item && item.interview_date || '').trim();
+        if (vacancyId) byVacancyId.set(vacancyId, item);
+        if (vacancyId && interviewDate) {
+            byCompositeKey.set(vacancyId + '|' + interviewDate, item);
+        }
+    });
+    var eventsByDay = {};
+    var days = payload && Array.isArray(payload.days) ? payload.days : [];
+    days.forEach(function(day) {
+        var dayKey = String(day && day.date || '').trim();
+        if (!dayKey) return;
+        var dayItems = Array.isArray(day && day.items) ? day.items : [];
+        eventsByDay[dayKey] = dayItems.map(function(item) {
+            var vacancyId = String(item && item.vacancy_id || '').trim();
+            var interviewDate = String(item && item.interview_date || '').trim();
+            var compositeKey = vacancyId && interviewDate ? (vacancyId + '|' + interviewDate) : '';
+            var source = (compositeKey && byCompositeKey.get(compositeKey)) || (vacancyId && byVacancyId.get(vacancyId)) || null;
+            return Object.assign({}, source || {}, item || {}, {
+                id: vacancyId || String(source && (source.id || source.vacancy_id) || '').trim(),
+                vacancy_id: vacancyId || String(source && (source.vacancy_id || source.id) || '').trim(),
+                interview_date: interviewDate || String(source && source.interview_date || '').trim() || null,
+                dayKey: dayKey
+            });
+        });
+    });
+    return eventsByDay;
 }
 
 function getMyResponseIdCandidates(item) {
@@ -1778,7 +2015,19 @@ function renderMyResponsesContent(parentRole) {
     }
     if (!responsesWrap) return;
     responsesWrap.innerHTML = '<div class="skills-search-summary">Загрузка откликов...</div>';
-    fetchMyResponsesVacancies().then(function(vacancies) {
+    if (Array.isArray(block._data && block._data.responses)) {
+        renderMyResponsesPanels(block, parentRole, block._data.responses);
+        return;
+    }
+    if (Array.isArray(uiState.my_responses_cache) && uiState.my_responses_cache.length) {
+        var cachedList = applyMyResponsesGlobalFilters(parentRole, uiState.my_responses_cache.slice());
+        block._data = block._data || {};
+        block._data.responses = cachedList;
+        renderMyResponsesPanels(block, parentRole, cachedList);
+        return;
+    }
+    if (block._responsesRequestPromise) return;
+    var responsesRequestPromise = fetchResponsesListFromApi(parentRole).then(function(vacancies) {
         var list = Array.isArray(vacancies) ? vacancies : [];
         list = applyMyResponsesGlobalFilters(parentRole, list);
         block._data = block._data || {};
@@ -1790,15 +2039,20 @@ function renderMyResponsesContent(parentRole) {
         block._data = block._data || {};
         block._data.responses = local;
         renderMyResponsesPanels(block, parentRole, local);
+    }).finally(function() {
+        if (block._responsesRequestPromise === responsesRequestPromise) {
+            block._responsesRequestPromise = null;
+        }
     });
+    block._responsesRequestPromise = responsesRequestPromise;
 }
 
 function fetchMyResponseDetails(vacancyId) {
     var id = String(vacancyId || '').trim();
     if (!id) return Promise.reject(new Error('vacancy_id_required'));
     var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
-    var endpoint = apiBaseUrl + '/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
-    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/details?vacancy_id=' + encodeURIComponent(id);
+    var endpoint = apiBaseUrl + '/api/v1/responses/' + encodeURIComponent(id);
+    var fallbackEndpoint = 'http://localhost:9000/api/v1/responses/' + encodeURIComponent(id);
     function doGet(url) {
         return fetch(url, {
             method: 'GET',
@@ -1807,11 +2061,19 @@ function fetchMyResponseDetails(vacancyId) {
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             return resp.json();
         }).then(function(payload) {
-            if (!payload || payload.ok !== true || !payload.item) throw new Error('invalid_payload');
-            return payload.item;
+            if (!payload || !payload.vacancy_id || !payload.details) throw new Error('invalid_payload');
+            return Object.assign(
+                {
+                    vacancy_id: payload.vacancy_id
+                },
+                payload.summary || {},
+                payload.details || {}
+            );
         });
     }
-    if (window.location && window.location.protocol === 'file:') return doGet(fallbackEndpoint);
+    if (window.location && window.location.protocol === 'file:') {
+        return doGet(fallbackEndpoint);
+    }
     return doGet(endpoint).catch(function() {
         if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('details_api_failed');
         return doGet(fallbackEndpoint);
@@ -1822,16 +2084,14 @@ function saveMyResponseDetails(vacancyId, fields, forceOverwrite) {
     var id = String(vacancyId || '').trim();
     if (!id) return Promise.reject(new Error('vacancy_id_required'));
     var apiBaseUrl = typeof getReportApiBaseUrl === 'function' ? getReportApiBaseUrl() : '';
-    var endpoint = apiBaseUrl + '/api/vacancies/details';
-    var fallbackEndpoint = 'http://localhost:9000/api/vacancies/details';
-    var payload = JSON.stringify({
-        vacancy_id: id,
-        fields: fields || {},
+    var endpoint = apiBaseUrl + '/api/v1/responses/' + encodeURIComponent(id);
+    var fallbackEndpoint = 'http://localhost:9000/api/v1/responses/' + encodeURIComponent(id);
+    var payload = JSON.stringify(Object.assign({}, fields || {}, {
         force_overwrite: !!forceOverwrite
-    });
-    function doPost(url) {
+    }));
+    function doPut(url) {
         return fetch(url, {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: payload
         }).then(function(resp) {
@@ -1839,10 +2099,12 @@ function saveMyResponseDetails(vacancyId, fields, forceOverwrite) {
             return resp.json();
         });
     }
-    if (window.location && window.location.protocol === 'file:') return doPost(fallbackEndpoint);
-    return doPost(endpoint).catch(function() {
+    if (window.location && window.location.protocol === 'file:') {
+        return doPut(fallbackEndpoint);
+    }
+    return doPut(endpoint).catch(function() {
         if (String(window.location && window.location.origin || '').indexOf('localhost:9000') >= 0) throw new Error('save_details_api_failed');
-        return doPost(fallbackEndpoint);
+        return doPut(fallbackEndpoint);
     });
 }
 
@@ -2409,9 +2671,10 @@ if (typeof window !== 'undefined') {
     window.submitMyResponseDetailsModal = submitMyResponseDetailsModal;
 }
 
-function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayKey) {
+function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayKey, options) {
+    options = options || {};
     var monthRange = getResponseCalendarGridRange(monthKey);
-    var eventsByDay = buildResponseCalendarEventMap(responses);
+    var eventsByDay = options.eventsByDay || buildResponseCalendarEventMap(responses);
     var effectiveSelectedDay = resolveResponseCalendarSelectedDay(parentRole, monthKey, selectedDayKey, eventsByDay);
     var monthSummary = summarizeResponseCalendarMonth(monthKey, responses, eventsByDay);
     var todayDate = new Date();
@@ -2509,11 +2772,14 @@ function renderMyResponsesCalendarContent(parentRole, options) {
     if (typeof ensureResponseCalendarTab === 'function') ensureResponseCalendarTab(parentRole);
     var block = parentRole.querySelector('.response-calendar-content');
     if (!block) return;
+    var requestId = (Number(block.dataset.responsesCalendarRequestId || 0) || 0) + 1;
+    block.dataset.responsesCalendarRequestId = String(requestId);
     if (!options.suppressLoading) {
         block.innerHTML = '<div class="skills-search-summary">Загрузка календаря...</div>';
     }
 
     var renderWithList = function(list) {
+        if (String(block.dataset.responsesCalendarRequestId || '') !== String(requestId)) return;
         block._calendarResponsesList = Array.isArray(list) ? list.slice() : [];
         var filtered = applyMyResponsesGlobalFilters(parentRole, Array.isArray(list) ? list : []);
         var currentMonthKey = uiState[getResponseCalendarMonthStateKey(parentRole)];
@@ -2522,159 +2788,188 @@ function renderMyResponsesCalendarContent(parentRole, options) {
             uiState[getResponseCalendarMonthStateKey(parentRole)] = currentMonthKey;
         }
         var selectedDayKey = uiState[getResponseCalendarSelectedDayStateKey(parentRole)] || '';
-        block.dataset.calendarMonth = currentMonthKey;
-        block.innerHTML = buildResponseCalendarHtml(parentRole, filtered, currentMonthKey, selectedDayKey);
-
-        var rerenderCalendar = function(extraOptions) {
-            var nextOptions = Object.assign({
-                useBlockCache: true,
-                suppressLoading: true
-            }, extraOptions || {});
-            renderMyResponsesCalendarContent(parentRole, nextOptions);
-        };
-        var focusCalendarDay = function(dayKey) {
-            var nextDayKey = String(dayKey || '').trim();
-            if (!nextDayKey) return;
-            uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = nextDayKey;
-            var nextDate = parseInterviewDateValue(nextDayKey);
-            if (nextDate) {
-                uiState[getResponseCalendarMonthStateKey(parentRole)] = formatCalendarMonthKey(nextDate);
-            }
-            rerenderCalendar({ focusDayKey: nextDayKey });
-        };
-        var firstMissingDateItem = getResponseCalendarUnscheduledItems(filtered)[0] || null;
-        var nearestSummary = summarizeResponseCalendarMonth(currentMonthKey, filtered, buildResponseCalendarEventMap(filtered));
-        var nearestScheduledItem = nearestSummary.nearestItem;
-        var handleCalendarAction = function(action, dataset) {
-            if (action === 'today') {
-                focusCalendarDay(formatCalendarDayKey(new Date()));
-                return;
-            }
-            if (action === 'nearest' && nearestScheduledItem) {
-                focusCalendarDay(nearestScheduledItem.dayKey);
-                return;
-            }
-            if (action === 'jump-day') {
-                focusCalendarDay(dataset && dataset.dayKey);
-                return;
-            }
-            if (action === 'open-missing') {
-                var vacancyId = String(dataset && dataset.vacancyId || '').trim() || resolveResponseCalendarItemVacancyId(firstMissingDateItem);
-                if (vacancyId) openMyResponseDetailsModal(vacancyId);
-            }
-        };
-
-        block.querySelectorAll('.response-calendar-nav-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var shift = Number(btn.dataset.shift || 0);
-                uiState[getResponseCalendarMonthStateKey(parentRole)] = shiftCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey, shift);
-                rerenderCalendar();
-            });
-        });
-        var monthPickerShell = block.querySelector('.response-calendar-month-picker-shell');
-        if (monthPickerShell) {
-            monthPickerShell.addEventListener('click', function() {
-                var openKey = getResponseCalendarMonthPickerOpenStateKey(parentRole);
-                var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
-                uiState[openKey] = !uiState[openKey];
-                if (uiState[openKey]) {
-                    var activeMonth = parseCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey) || new Date();
-                    uiState[yearKey] = activeMonth.getFullYear();
-                }
-                rerenderCalendar();
-            });
+        if (!options.useBlockCache) {
+            block._calendarApiByMonth = {};
         }
-        block.querySelectorAll('.response-calendar-month-year-btn').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
-                var currentYear = Number(uiState[yearKey]);
-                if (!isFinite(currentYear)) {
-                    var selectedMonthDate = parseCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey) || new Date();
-                    currentYear = selectedMonthDate.getFullYear();
-                }
-                uiState[yearKey] = currentYear + Number(btn.dataset.shift || 0);
-                uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = true;
-                rerenderCalendar();
+
+        var renderCalendarShell = function(eventsByDayOverride) {
+            if (String(block.dataset.responsesCalendarRequestId || '') !== String(requestId)) return;
+            block.dataset.calendarMonth = currentMonthKey;
+            block.innerHTML = buildResponseCalendarHtml(parentRole, filtered, currentMonthKey, selectedDayKey, {
+                eventsByDay: eventsByDayOverride
             });
-        });
-        block.querySelectorAll('.response-calendar-month-option').forEach(function(btn) {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                var nextMonthKey = String(btn.dataset.monthKey || '').trim();
-                if (!parseCalendarMonthKey(nextMonthKey)) return;
-                uiState[getResponseCalendarMonthStateKey(parentRole)] = nextMonthKey;
-                uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = false;
-                uiState[getResponseCalendarMonthPickerYearStateKey(parentRole)] = parseCalendarMonthKey(nextMonthKey).getFullYear();
-                rerenderCalendar();
-            });
-        });
-        if (block._responseCalendarOutsideHandler) {
-            document.removeEventListener('click', block._responseCalendarOutsideHandler, true);
-        }
-        block._responseCalendarOutsideHandler = function(event) {
-            if (!uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)]) return;
-            if (block.contains(event.target)) return;
-            uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = false;
-            renderMyResponsesCalendarContent(parentRole, { useBlockCache: true, suppressLoading: true });
-        };
-        document.addEventListener('click', block._responseCalendarOutsideHandler, true);
-        block.querySelectorAll('.response-calendar-action-btn').forEach(function(actionBtn) {
-            actionBtn.addEventListener('click', function() {
-                if (actionBtn.disabled) return;
-                handleCalendarAction(String(actionBtn.dataset.action || '').trim(), actionBtn.dataset);
-            });
-        });
-        block.querySelectorAll('.response-calendar-day').forEach(function(dayBtn) {
-            dayBtn.addEventListener('click', function(e) {
-                var eventNode = e.target.closest('.response-calendar-event-pill');
-                if (eventNode) {
-                    var previewVacancyId = String(eventNode.dataset.vacancyId || '').trim();
-                    if (previewVacancyId) openMyResponseDetailsModal(previewVacancyId);
-                    return;
-                }
-                var nextDayKey = String(dayBtn.dataset.dayKey || '').trim();
-                focusCalendarDay(nextDayKey);
-            });
-            dayBtn.addEventListener('keydown', function(e) {
-                var shifts = {
-                    ArrowLeft: -1,
-                    ArrowRight: 1,
-                    ArrowUp: -7,
-                    ArrowDown: 7
-                };
-                if (!Object.prototype.hasOwnProperty.call(shifts, e.key)) return;
-                e.preventDefault();
-                var currentDate = parseInterviewDateValue(dayBtn.dataset.dayKey);
-                if (!currentDate) return;
-                var nextDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + shifts[e.key]);
-                var nextDayKey = formatCalendarDayKey(nextDate);
+
+            var rerenderCalendar = function(extraOptions) {
+                var nextOptions = Object.assign({
+                    useBlockCache: true,
+                    suppressLoading: true
+                }, extraOptions || {});
+                renderMyResponsesCalendarContent(parentRole, nextOptions);
+            };
+            var focusCalendarDay = function(dayKey) {
+                var nextDayKey = String(dayKey || '').trim();
                 if (!nextDayKey) return;
                 uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = nextDayKey;
-                if (nextDayKey.indexOf(currentMonthKey + '-') !== 0) {
+                var nextDate = parseInterviewDateValue(nextDayKey);
+                if (nextDate) {
                     uiState[getResponseCalendarMonthStateKey(parentRole)] = formatCalendarMonthKey(nextDate);
                 }
                 rerenderCalendar({ focusDayKey: nextDayKey });
+            };
+            var activeEventsByDay = eventsByDayOverride || buildResponseCalendarEventMap(filtered);
+            var firstMissingDateItem = getResponseCalendarUnscheduledItems(filtered)[0] || null;
+            var nearestSummary = summarizeResponseCalendarMonth(currentMonthKey, filtered, activeEventsByDay);
+            var nearestScheduledItem = nearestSummary.nearestItem;
+            var handleCalendarAction = function(action, dataset) {
+                if (action === 'today') {
+                    focusCalendarDay(formatCalendarDayKey(new Date()));
+                    return;
+                }
+                if (action === 'nearest' && nearestScheduledItem) {
+                    focusCalendarDay(nearestScheduledItem.dayKey);
+                    return;
+                }
+                if (action === 'jump-day') {
+                    focusCalendarDay(dataset && dataset.dayKey);
+                    return;
+                }
+                if (action === 'open-missing') {
+                    var vacancyId = String(dataset && dataset.vacancyId || '').trim() || resolveResponseCalendarItemVacancyId(firstMissingDateItem);
+                    if (vacancyId) openMyResponseDetailsModal(vacancyId);
+                }
+            };
+
+            block.querySelectorAll('.response-calendar-nav-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var shift = Number(btn.dataset.shift || 0);
+                    uiState[getResponseCalendarMonthStateKey(parentRole)] = shiftCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey, shift);
+                    rerenderCalendar();
+                });
             });
-        });
-        block.querySelectorAll('.response-calendar-agenda-item').forEach(function(itemBtn) {
-            itemBtn.addEventListener('click', function() {
-                var vacancyId = String(itemBtn.dataset.vacancyId || '').trim();
-                if (vacancyId) openMyResponseDetailsModal(vacancyId);
+            var monthPickerShell = block.querySelector('.response-calendar-month-picker-shell');
+            if (monthPickerShell) {
+                monthPickerShell.addEventListener('click', function() {
+                    var openKey = getResponseCalendarMonthPickerOpenStateKey(parentRole);
+                    var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
+                    uiState[openKey] = !uiState[openKey];
+                    if (uiState[openKey]) {
+                        var activeMonth = parseCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey) || new Date();
+                        uiState[yearKey] = activeMonth.getFullYear();
+                    }
+                    rerenderCalendar();
+                });
+            }
+            block.querySelectorAll('.response-calendar-month-year-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var yearKey = getResponseCalendarMonthPickerYearStateKey(parentRole);
+                    var currentYear = Number(uiState[yearKey]);
+                    if (!isFinite(currentYear)) {
+                        var selectedMonthDate = parseCalendarMonthKey(uiState[getResponseCalendarMonthStateKey(parentRole)] || currentMonthKey) || new Date();
+                        currentYear = selectedMonthDate.getFullYear();
+                    }
+                    uiState[yearKey] = currentYear + Number(btn.dataset.shift || 0);
+                    uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = true;
+                    rerenderCalendar();
+                });
             });
-        });
-        var focusDayKey = String(options.focusDayKey || '').trim();
-        if (focusDayKey) {
-            var focusTarget = block.querySelector('.response-calendar-day[data-day-key="' + focusDayKey + '"]');
-            if (focusTarget) focusTarget.focus();
+            block.querySelectorAll('.response-calendar-month-option').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var nextMonthKey = String(btn.dataset.monthKey || '').trim();
+                    if (!parseCalendarMonthKey(nextMonthKey)) return;
+                    uiState[getResponseCalendarMonthStateKey(parentRole)] = nextMonthKey;
+                    uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = false;
+                    uiState[getResponseCalendarMonthPickerYearStateKey(parentRole)] = parseCalendarMonthKey(nextMonthKey).getFullYear();
+                    rerenderCalendar();
+                });
+            });
+            if (block._responseCalendarOutsideHandler) {
+                document.removeEventListener('click', block._responseCalendarOutsideHandler, true);
+            }
+            block._responseCalendarOutsideHandler = function(event) {
+                if (!uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)]) return;
+                if (block.contains(event.target)) return;
+                uiState[getResponseCalendarMonthPickerOpenStateKey(parentRole)] = false;
+                renderMyResponsesCalendarContent(parentRole, { useBlockCache: true, suppressLoading: true });
+            };
+            document.addEventListener('click', block._responseCalendarOutsideHandler, true);
+            block.querySelectorAll('.response-calendar-action-btn').forEach(function(actionBtn) {
+                actionBtn.addEventListener('click', function() {
+                    if (actionBtn.disabled) return;
+                    handleCalendarAction(String(actionBtn.dataset.action || '').trim(), actionBtn.dataset);
+                });
+            });
+            block.querySelectorAll('.response-calendar-day').forEach(function(dayBtn) {
+                dayBtn.addEventListener('click', function(e) {
+                    var eventNode = e.target.closest('.response-calendar-event-pill');
+                    if (eventNode) {
+                        var previewVacancyId = String(eventNode.dataset.vacancyId || '').trim();
+                        if (previewVacancyId) openMyResponseDetailsModal(previewVacancyId);
+                        return;
+                    }
+                    var nextDayKey = String(dayBtn.dataset.dayKey || '').trim();
+                    focusCalendarDay(nextDayKey);
+                });
+                dayBtn.addEventListener('keydown', function(e) {
+                    var shifts = {
+                        ArrowLeft: -1,
+                        ArrowRight: 1,
+                        ArrowUp: -7,
+                        ArrowDown: 7
+                    };
+                    if (!Object.prototype.hasOwnProperty.call(shifts, e.key)) return;
+                    e.preventDefault();
+                    var currentDate = parseInterviewDateValue(dayBtn.dataset.dayKey);
+                    if (!currentDate) return;
+                    var nextDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + shifts[e.key]);
+                    var nextDayKey = formatCalendarDayKey(nextDate);
+                    if (!nextDayKey) return;
+                    uiState[getResponseCalendarSelectedDayStateKey(parentRole)] = nextDayKey;
+                    if (nextDayKey.indexOf(currentMonthKey + '-') !== 0) {
+                        uiState[getResponseCalendarMonthStateKey(parentRole)] = formatCalendarMonthKey(nextDate);
+                    }
+                    rerenderCalendar({ focusDayKey: nextDayKey });
+                });
+            });
+            block.querySelectorAll('.response-calendar-agenda-item').forEach(function(itemBtn) {
+                itemBtn.addEventListener('click', function() {
+                    var vacancyId = String(itemBtn.dataset.vacancyId || '').trim();
+                    if (vacancyId) openMyResponseDetailsModal(vacancyId);
+                });
+            });
+            var focusDayKey = String(options.focusDayKey || '').trim();
+            if (focusDayKey) {
+                var focusTarget = block.querySelector('.response-calendar-day[data-day-key="' + focusDayKey + '"]');
+                if (focusTarget) focusTarget.focus();
+            }
+        };
+
+        var calendarCache = block._calendarApiByMonth || {};
+        if (calendarCache[currentMonthKey]) {
+            renderCalendarShell(calendarCache[currentMonthKey]);
+            return;
         }
+        fetchResponsesCalendarFromApi(parentRole, currentMonthKey).then(function(payload) {
+            if (String(block.dataset.responsesCalendarRequestId || '') !== String(requestId)) return;
+            block._calendarApiByMonth = block._calendarApiByMonth || {};
+            block._calendarApiByMonth[currentMonthKey] = buildResponseCalendarEventsFromApiPayload(payload, filtered);
+            renderCalendarShell(block._calendarApiByMonth[currentMonthKey]);
+        }).catch(function() {
+            if (String(block.dataset.responsesCalendarRequestId || '') !== String(requestId)) return;
+            renderCalendarShell(null);
+        });
     };
 
     if (options.useBlockCache && Array.isArray(block._calendarResponsesList)) {
         renderWithList(block._calendarResponsesList);
         return;
     }
-    fetchMyResponsesVacancies().then(renderWithList).catch(function() {
+    if (Array.isArray(uiState.my_responses_cache) && uiState.my_responses_cache.length) {
+        renderWithList(uiState.my_responses_cache.slice());
+        return;
+    }
+    fetchResponsesListFromApi(parentRole).then(renderWithList).catch(function() {
         renderWithList(collectMyResponsesVacancies());
     });
 }
@@ -2969,17 +3264,9 @@ function buildPeriodFilterOptionsFromVacancies(vacancies) {
         { value: totalLabel, label: totalLabel }
     ]));
 }
-function buildTotalsPeriodFilterOptions(vacancies, dashboardMode) {
-    return buildPeriodFilterOptionsFromVacancies(vacancies);
-}
-
 function buildUnifiedRolePeriodFilterOptions(activeRole) {
     var scopedVacancies = collectScopedVacancies(activeRole);
     return buildPeriodFilterOptionsFromVacancies(scopedVacancies);
-}
-
-function buildPeriodFilterOptionsFromResponseItems(vacancies) {
-    return buildPeriodFilterOptionsFromItems(vacancies, parseMyResponsePeriodDate);
 }
 
 function buildPeriodFilterOptionsFromCalendarItems(vacancies) {
@@ -3032,6 +3319,16 @@ function collectScopedVacancies(activeRole) {
         combined = combined.concat((getRoleVacancies(roleContent) || []).slice());
     });
     return dedupeVacanciesById(combined);
+}
+
+function getSkillsSearchScopedVacancies(activeRole) {
+    if (!activeRole) return [];
+    var searchBlock = activeRole.querySelector('.skills-search-content');
+    if (!searchBlock || !searchBlock._data) return [];
+    var baseVacancies = Array.isArray(searchBlock._data.currentVacancies) && searchBlock._data.currentVacancies.length
+        ? searchBlock._data.currentVacancies.slice()
+        : (Array.isArray(searchBlock._data.vacancies) ? searchBlock._data.vacancies.slice() : []);
+    return dedupeVacanciesById(baseVacancies);
 }
 
 function normalizeGlobalCurrencyFilterValue(value) {
@@ -3190,7 +3487,9 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             { value: 'archived', label: 'Архивная' }
         ];
     }
-    var scopedVacancies = collectScopedVacancies(activeRole);
+    var scopedVacancies = current === 'skills-search'
+        ? getSkillsSearchScopedVacancies(activeRole)
+        : collectScopedVacancies(activeRole);
     if (filterKey === 'currency') {
         return buildCurrencyFilterOptionsFromVacancies(scopedVacancies);
     }
@@ -3240,8 +3539,49 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
     return [];
 }
 
-function isGlobalFilterDisabled(filterKey, analysisType) {
-    return false;
+function shouldPrefetchRoleVacanciesForFilters(activeRole, analysisType) {
+    if (!activeRole || activeRole.id === 'role-all') return false;
+    if (activeRole._data && activeRole._data.filterVacanciesPrefetchDone) return false;
+    var current = String(analysisType || activeRole.dataset.activeAnalysis || '').trim();
+    if (!current) return false;
+    if (current === 'my-responses' || current === 'responses-calendar') return false;
+    if (typeof getRoleVacancies !== 'function') return false;
+    var vacancies = getRoleVacancies(activeRole);
+    if (Array.isArray(vacancies) && vacancies.length) return false;
+    if (current === 'totals') {
+        var panelState = uiState && uiState.shared_filter_panel_state ? uiState.shared_filter_panel_state : null;
+        if (!panelState || String(panelState.lastAnalysis || '').trim() !== current) return false;
+        var activeSection = String(
+            panelState
+            && panelState.activeSection
+            || ''
+        ).trim();
+        var userActivatedSectionKey = String(panelState && panelState.userActivatedSectionKey || '').trim();
+        if (!userActivatedSectionKey || userActivatedSectionKey !== activeSection) return false;
+        return activeSection === 'roles'
+            || activeSection === 'salary'
+            || activeSection === 'responses'
+            || activeSection === 'vacancy'
+            || activeSection === 'skills';
+    }
+    return current === 'skills-monthly'
+        || current === 'salary'
+        || current === 'activity'
+        || current === 'weekday'
+        || current === 'employer-analysis';
+}
+
+function shouldPrefetchRoleVacanciesForAnalysis(activeRole, analysisType) {
+    if (!activeRole || activeRole.id === 'role-all') return false;
+    if (activeRole._data && activeRole._data.analysisVacanciesPrefetchDone) return false;
+    var current = String(analysisType || activeRole.dataset.activeAnalysis || '').trim();
+    if (!current) return false;
+    if (current === 'my-responses' || current === 'responses-calendar') return false;
+    if (typeof getRoleVacancies !== 'function') return false;
+    var vacancies = getRoleVacancies(activeRole);
+    if (Array.isArray(vacancies) && vacancies.length) return false;
+    return current === 'salary'
+        || current === 'skills-monthly';
 }
 
 function summarizeGlobalFilterSelection(filterKey, options, disabled) {
@@ -4049,6 +4389,7 @@ function createUnifiedRolesControl(activeRole, analysisType) {
     var search = document.createElement('input');
     search.type = 'text';
     search.className = 'global-filter-search';
+    search.name = 'role_selector_search';
     search.placeholder = 'Поиск роли';
     search.style.width = '100%';
     search.style.boxSizing = 'border-box';
@@ -4304,6 +4645,7 @@ function createGlobalFilterDropdown(filterKey, title, options, disabled) {
         var search = document.createElement('input');
         search.type = 'text';
         search.className = 'global-filter-search';
+        search.name = filterKey === 'employer' ? 'employer_filter_search' : 'roles_filter_search';
         search.placeholder = filterKey === 'employer' ? 'Поиск работодателя' : 'Поиск роли';
         search.style.width = '100%';
         search.style.boxSizing = 'border-box';
@@ -5074,6 +5416,12 @@ function isSharedFilterSectionFilled(sectionKey, activeRole, analysisType) {
     return false;
 }
 
+function canUseTotalsDashboardApi(parentRole) {
+    if (!parentRole) return false;
+    var dashboardMode = String(uiState.totals_dashboard_mode || 'overview').trim();
+    return dashboardMode === 'overview' || dashboardMode === 'top' || dashboardMode === 'market-trends';
+}
+
 function filterVacanciesByCurrencySelection(vacancies, selectedCurrencies) {
     var allowed = new Set((selectedCurrencies || []).map(function(value) {
         return String(value || '').trim().toLowerCase();
@@ -5292,18 +5640,11 @@ function buildSkillsExpDataFromVacancies(vacancies, label) {
     };
 }
 
-function getSkillsSourceVacancies(parentRole) {
-    if (!parentRole) return [];
-    if (parentRole.id === 'role-combined' && parentRole._data && Array.isArray(parentRole._data.skillsVacancies)) {
-        return parentRole._data.skillsVacancies.slice();
-    }
-    return (getRoleVacancies(parentRole) || []).slice();
-}
-
 function renderGlobalSkillsFiltered(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.skills-monthly-content');
     if (!block) return;
+    block._data = block._data || {};
 
     if (typeof ensureDefaultPeriodFilterSelection === 'function') {
         ensureDefaultPeriodFilterSelection(parentRole, 'skills-monthly');
@@ -5315,9 +5656,37 @@ function renderGlobalSkillsFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'skills-monthly', {
-        sourceVacancies: getSkillsSourceVacancies(parentRole)
+    var skillsFilterSelections = typeof getGlobalSkillsFilterSelections === 'function'
+        ? getGlobalSkillsFilterSelections()
+        : { includeSkills: [], excludeSkills: [], logic: 'or' };
+    var apiFilterKey = JSON.stringify({
+        periods: selectedPeriods,
+        experiences: selectedExps,
+        status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'skills-monthly')),
+        country: getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', 'skills-monthly')),
+        currency: getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'skills-monthly')),
+        employer: getResolvedGlobalFilterValues('employer', getGlobalFilterOptions(parentRole, 'employer', 'skills-monthly')),
+        accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'skills-monthly')),
+        cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'skills-monthly')),
+        has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'skills-monthly')),
+        includeSkills: skillsFilterSelections.includeSkills || [],
+        excludeSkills: skillsFilterSelections.excludeSkills || [],
+        logic: skillsFilterSelections.logic || 'or'
     });
+    if (typeof fetchSkillsMonthlyFilteredVacanciesFromApi === 'function' && block.dataset.skillsApiKey !== apiFilterKey) {
+        block.dataset.skillsApiKey = apiFilterKey;
+        fetchSkillsMonthlyFilteredVacanciesFromApi(parentRole).then(function(payload) {
+            if (!payload || block.dataset.skillsApiKey !== apiFilterKey) return;
+            block._data.skillsFilteredApi = payload.items || [];
+            renderGlobalSkillsFiltered(parentRole);
+        }).catch(function(err) {
+            if (block.dataset.skillsApiKey !== apiFilterKey) return;
+            delete block._data.skillsFilteredApi;
+            console.error('fetchSkillsMonthlyFilteredVacanciesFromApi failed', err);
+        });
+    }
+    if (!Array.isArray(block._data.skillsFilteredApi)) return;
+    var vacancies = block._data.skillsFilteredApi.slice();
 
     Array.from(block.querySelectorAll('.monthly-skills-month-content')).forEach(function(monthDiv) {
         monthDiv.style.display = 'none';
@@ -5380,6 +5749,7 @@ function renderGlobalSalaryFiltered(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.salary-content');
     if (!block) return;
+    block._data = block._data || {};
     rebuildSalaryFromVacancies(parentRole, block);
 
     if (typeof ensureDefaultPeriodFilterSelection === 'function') {
@@ -5392,7 +5762,31 @@ function renderGlobalSalaryFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'salary');
+    var apiFilterKey = JSON.stringify({
+        periods: selectedPeriods,
+        experiences: selectedExps,
+        status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'salary')),
+        country: getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', 'salary')),
+        currency: getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'salary')),
+        employer: getResolvedGlobalFilterValues('employer', getGlobalFilterOptions(parentRole, 'employer', 'salary')),
+        accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'salary')),
+        cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'salary')),
+        has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'salary'))
+    });
+    if (typeof fetchAnalysisFilteredVacanciesFromApi === 'function' && block.dataset.salaryApiKey !== apiFilterKey) {
+        block.dataset.salaryApiKey = apiFilterKey;
+        fetchAnalysisFilteredVacanciesFromApi(parentRole, 'salary').then(function(payload) {
+            if (!payload || block.dataset.salaryApiKey !== apiFilterKey) return;
+            block._data.salaryFilteredApi = payload.items || [];
+            renderGlobalSalaryFiltered(parentRole);
+        }).catch(function(err) {
+            if (block.dataset.salaryApiKey !== apiFilterKey) return;
+            delete block._data.salaryFilteredApi;
+            console.error('fetchAnalysisFilteredVacanciesFromApi salary failed', err);
+        });
+    }
+    if (!Array.isArray(block._data.salaryFilteredApi)) return;
+    var vacancies = block._data.salaryFilteredApi.slice();
     var monthData = buildSalaryMonthFromVacancies(vacancies, periodLabel);
     var summaryExp = (monthData.experiences || []).find(function(exp) { return exp && exp.experience === 'Все'; });
     var entries = summaryExp ? (summaryExp.entries || []) : [];
@@ -5438,6 +5832,7 @@ function renderGlobalSalaryFiltered(parentRole) {
 
 function renderGlobalActivityFiltered(parentRole) {
     if (!parentRole) return;
+    parentRole._data = parentRole._data || {};
     if (typeof ensureDefaultPeriodFilterSelection === 'function') {
         ensureDefaultPeriodFilterSelection(parentRole, 'activity');
     }
@@ -5448,7 +5843,31 @@ function renderGlobalActivityFiltered(parentRole) {
     var periodLabel = summarizeSelectedPeriodsLabel(selectedPeriods);
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'activity');
+    var apiFilterKey = JSON.stringify({
+        periods: selectedPeriods,
+        experiences: selectedExps,
+        status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'activity')),
+        country: getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', 'activity')),
+        currency: getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'activity')),
+        employer: getResolvedGlobalFilterValues('employer', getGlobalFilterOptions(parentRole, 'employer', 'activity')),
+        accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'activity')),
+        cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'activity')),
+        has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'activity'))
+    });
+    if (typeof fetchAnalysisFilteredVacanciesFromApi === 'function' && parentRole.dataset.activityApiKey !== apiFilterKey) {
+        parentRole.dataset.activityApiKey = apiFilterKey;
+        fetchAnalysisFilteredVacanciesFromApi(parentRole, 'activity').then(function(payload) {
+            if (!payload || parentRole.dataset.activityApiKey !== apiFilterKey) return;
+            parentRole._data.activityFilteredApi = payload.items || [];
+            renderGlobalActivityFiltered(parentRole);
+        }).catch(function(err) {
+            if (parentRole.dataset.activityApiKey !== apiFilterKey) return;
+            delete parentRole._data.activityFilteredApi;
+            console.error('fetchAnalysisFilteredVacanciesFromApi activity failed', err);
+        });
+    }
+    if (!Array.isArray(parentRole._data.activityFilteredApi)) return;
+    var vacancies = parentRole._data.activityFilteredApi.slice();
     var entries = computeActivityEntriesFromVacancies(vacancies);
 
     Array.from(parentRole.querySelectorAll('.month-content.activity-only')).forEach(function(monthDiv) {
@@ -5482,6 +5901,7 @@ function renderGlobalWeekdayFiltered(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.weekday-content');
     if (!block) return;
+    block._data = block._data || {};
 
     if (typeof ensureDefaultPeriodFilterSelection === 'function') {
         ensureDefaultPeriodFilterSelection(parentRole, 'weekday');
@@ -5491,27 +5911,55 @@ function renderGlobalWeekdayFiltered(parentRole) {
     var expOptions = getGlobalFilterOptions(parentRole, 'experiences', 'weekday');
     var selectedExps = getResolvedGlobalFilterValues('experiences', expOptions);
     var chartExperienceLabel = resolveChartExperienceLabel(selectedExps, expOptions);
-    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'weekday');
-    var weekdays = computeWeekdayStatsFromVacancies(vacancies);
-
-    block.dataset.weekdays = JSON.stringify(weekdays || []);
-    var tableWrap = block.querySelector('.table-container');
-    if (tableWrap) tableWrap.innerHTML = buildWeekdayTableHtml(weekdays || []);
-
     var roleMatch = String(parentRole.id || '').match(/^role-(.+)$/);
     var roleSuffix = roleMatch ? roleMatch[1] : '';
     var mode = uiState.weekday_view_mode || 'together';
     var container = block.querySelector('.view-mode-container');
-    if (container) {
-        setActiveViewButton(block.querySelectorAll('.view-mode-btn'), mode);
-        applyViewMode(container, mode);
-        if (roleSuffix) {
-            var weekdayGraphId = 'weekday-graph-' + roleSuffix;
-            buildWeekdayBarChart(roleSuffix, block);
-            applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(selectedPeriods), chartExperienceLabel));
+    var apiFilterKey = JSON.stringify({
+        periods: selectedPeriods,
+        experiences: selectedExps,
+        status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'weekday')),
+        country: getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', 'weekday')),
+        currency: getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'weekday')),
+        employer: getResolvedGlobalFilterValues('employer', getGlobalFilterOptions(parentRole, 'employer', 'weekday')),
+        accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'weekday')),
+        cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'weekday')),
+        has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'weekday'))
+    });
+
+    function applyWeekdayRows(weekdays) {
+        block.dataset.weekdays = JSON.stringify(weekdays || []);
+        var tableWrap = block.querySelector('.table-container');
+        if (tableWrap) tableWrap.innerHTML = buildWeekdayTableHtml(weekdays || []);
+        if (container) {
+            setActiveViewButton(block.querySelectorAll('.view-mode-btn'), mode);
+            applyViewMode(container, mode);
+            if (roleSuffix) {
+                var weekdayGraphId = 'weekday-graph-' + roleSuffix;
+                buildWeekdayBarChart(roleSuffix, block);
+                applyChartTitleContext(weekdayGraphId, 'Распределение по дням недели', buildChartContextLabel(resolveChartPeriodLabel(selectedPeriods), chartExperienceLabel));
+            }
+            applyWeekdayModeSizing(container, mode);
         }
-        applyWeekdayModeSizing(container, mode);
     }
+
+    if (typeof fetchAnalysisFilteredVacanciesFromApi === 'function' && block.dataset.weekdayApiKey !== apiFilterKey) {
+        block.dataset.weekdayApiKey = apiFilterKey;
+        fetchAnalysisFilteredVacanciesFromApi(parentRole, 'weekday').then(function(payload) {
+            if (!payload || block.dataset.weekdayApiKey !== apiFilterKey) return;
+            block._data.weekdayFilteredApi = payload.items || [];
+            applyWeekdayRows(computeWeekdayStatsFromVacancies(block._data.weekdayFilteredApi || []));
+        }).catch(function(err) {
+            if (block.dataset.weekdayApiKey !== apiFilterKey) return;
+            delete block._data.weekdayFilteredApi;
+            console.error('fetchAnalysisFilteredVacanciesFromApi weekday failed', err);
+        });
+        return;
+    }
+
+    if (!Array.isArray(block._data.weekdayFilteredApi)) return;
+    var vacancies = block._data.weekdayFilteredApi.slice();
+    applyWeekdayRows(computeWeekdayStatsFromVacancies(vacancies));
 }
 
 function applyGlobalFiltersToSkillsSearch(parentRole) {
@@ -5519,13 +5967,13 @@ function applyGlobalFiltersToSkillsSearch(parentRole) {
     var block = parentRole.querySelector('.skills-search-content');
     if (!block) return;
     initSkillsSearch(parentRole);
-    updateSkillsSearchData(block);
 }
 
 function renderGlobalEmployerFiltered(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.employer-analysis-content');
     if (!block) return;
+    block._data = block._data || {};
     if (block.dataset.employerInited !== '1') initEmployerAnalysisFilter(block);
     if (!block.__employerData || !block.__employerData.length) return;
 
@@ -5538,9 +5986,34 @@ function renderGlobalEmployerFiltered(parentRole) {
     var chartPeriodLabel = resolveChartPeriodLabel(selectedPeriods);
     block.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, null);
     var employerFilters = getEmployerAnalysisFilters(parentRole);
-    var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'employer-analysis', {
+    var apiFilterKey = JSON.stringify({
+        periods: selectedPeriods,
+        experiences: getResolvedGlobalFilterValues('experiences', getGlobalFilterOptions(parentRole, 'experiences', 'employer-analysis')),
+        status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'employer-analysis')),
+        country: getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', 'employer-analysis')),
+        currency: getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'employer-analysis')),
+        employer: getResolvedGlobalFilterValues('employer', getGlobalFilterOptions(parentRole, 'employer', 'employer-analysis')),
+        accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'employer-analysis')),
+        cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'employer-analysis')),
+        has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'employer-analysis')),
         skipPeriods: true
     });
+    if (typeof fetchAnalysisFilteredVacanciesFromApi === 'function' && block.dataset.employerApiKey !== apiFilterKey) {
+        block.dataset.employerApiKey = apiFilterKey;
+        fetchAnalysisFilteredVacanciesFromApi(parentRole, 'employer-analysis', {
+            skipPeriods: true
+        }).then(function(payload) {
+            if (!payload || block.dataset.employerApiKey !== apiFilterKey) return;
+            block._data.employerFilteredApi = payload.items || [];
+            renderGlobalEmployerFiltered(parentRole);
+        }).catch(function(err) {
+            if (block.dataset.employerApiKey !== apiFilterKey) return;
+            delete block._data.employerFilteredApi;
+            console.error('fetchAnalysisFilteredVacanciesFromApi employer-analysis failed', err);
+        });
+    }
+    if (!Array.isArray(block._data.employerFilteredApi)) return;
+    var baseVacancies = block._data.employerFilteredApi.slice();
     var rows;
     var effectivePeriods = selectedPeriods.filter(function(label) {
         var text = String(label || '').trim();
@@ -7186,22 +7659,55 @@ function renderMarketTrends(parentRole, mountNode) {
         mode: 'Мода'
     };
     var salaryMetricLabel = salaryMetricLabelMap[salaryMetric] || 'Медиана';
+    var totalsBlock = parentRole.querySelector('.totals-content');
+    var dashboardApi = totalsBlock && totalsBlock._data && totalsBlock._data.totalsDashboardApi && typeof totalsBlock._data.totalsDashboardApi === 'object'
+        ? totalsBlock._data.totalsDashboardApi
+        : null;
+    var marketTrendsApi = canUseTotalsDashboardApi(parentRole) && dashboardApi && dashboardApi.market_trends
+        ? dashboardApi.market_trends
+        : null;
+    var recentDays = 7;
+    var baselineDays = 7;
+    var recentStartLabel = '';
+    var recentEndLabel = '';
+    var prevStartLabel = '';
+    var prevEndLabel = '';
+    var metrics = [];
+    var focusMetrics = null;
+    var hasSalaryForCurrency = false;
+    var showRoleExperience = !hasExplicitExperienceFilter;
+    var focusRoleContent = null;
+    var roleContents = [];
+    var periodFilteredVacancies = [];
+    var useSalaryFallback = false;
+    var salaryFallbackNote = '';
+    if (marketTrendsApi) {
+        recentDays = Number(marketTrendsApi.recent_days) || 7;
+        baselineDays = Number(marketTrendsApi.baseline_days) || recentDays;
+        recentStartLabel = String(marketTrendsApi.recent_start_label || '').trim();
+        recentEndLabel = String(marketTrendsApi.recent_end_label || '').trim();
+        prevStartLabel = String(marketTrendsApi.prev_start_label || '').trim();
+        prevEndLabel = String(marketTrendsApi.prev_end_label || '').trim();
+        metrics = Array.isArray(marketTrendsApi.metrics) ? marketTrendsApi.metrics.slice() : [];
+        focusMetrics = marketTrendsApi.focus_metrics || null;
+        hasSalaryForCurrency = !!marketTrendsApi.has_salary_for_currency;
+        periodFilteredVacancies = metrics.length ? [{}] : [];
+    }
     var baseRoleContents = [];
-    if (parentRole && parentRole.id === 'role-all' && Array.isArray(parentRole.__selectedRoleContents) && parentRole.__selectedRoleContents.length) {
+    if (!marketTrendsApi && parentRole && parentRole.id === 'role-all' && Array.isArray(parentRole.__selectedRoleContents) && parentRole.__selectedRoleContents.length) {
         baseRoleContents = parentRole.__selectedRoleContents.slice();
-    } else if (typeof getAllRoleContents === 'function') {
+    } else if (!marketTrendsApi && typeof getAllRoleContents === 'function') {
         baseRoleContents = getAllRoleContents();
     }
     var roleMetaByIndex = (typeof getRoleMetaList === 'function' ? getRoleMetaList() : []).reduce(function(map, item) {
         map[String(item && item.index || '')] = item || null;
         return map;
     }, {});
-    var focusRoleContent = null;
-    if (parentRole && parentRole.id !== 'role-all') {
+    if (!marketTrendsApi && parentRole && parentRole.id !== 'role-all') {
         focusRoleContent = parentRole;
-    } else if (baseRoleContents.length === 1) {
+    } else if (!marketTrendsApi && baseRoleContents.length === 1) {
         focusRoleContent = baseRoleContents[0];
-    } else {
+    } else if (!marketTrendsApi) {
         var includedRoleIds = uiState && uiState.global_filters && uiState.global_filters.roles && Array.isArray(uiState.global_filters.roles.include)
             ? uiState.global_filters.roles.include.map(function(value) { return String(value || '').trim(); }).filter(Boolean)
             : [];
@@ -7213,7 +7719,7 @@ function renderMarketTrends(parentRole, mountNode) {
             }) || null;
         }
     }
-    var roleContents = baseRoleContents.slice();
+    roleContents = baseRoleContents.slice();
     var excludedTrendRoleIds = Array.isArray(uiState.market_trends_excluded_roles)
         ? uiState.market_trends_excluded_roles.map(function(value) {
             var key = String(value || '').trim();
@@ -7221,41 +7727,49 @@ function renderMarketTrends(parentRole, mountNode) {
             return meta ? String(meta.id || '').trim() : key;
         }).filter(Boolean)
         : [];
-    if (excludedTrendRoleIds.length) {
+    if (!marketTrendsApi && excludedTrendRoleIds.length) {
         roleContents = roleContents.filter(function(rc) {
             var roleId = rc && rc.dataset ? String(rc.dataset.roleId || '').trim() : '';
             return excludedTrendRoleIds.indexOf(roleId) < 0;
         });
     }
     var allVacancies = [];
-    roleContents.forEach(function(rc) {
-        allVacancies = allVacancies.concat(getFilteredVacanciesForAnalysis(rc, 'totals', {
-            skipPeriods: true
-        }));
-    });
-    allVacancies = dedupeVacanciesById(allVacancies || []);
-    var periodFilteredVacancies = hasExplicitGlobalFilterSelection('periods')
-        ? filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends)
-        : allVacancies.slice();
-    if (!periodFilteredVacancies.length) {
-        block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
-        return;
-    }
-    var windowCfg = resolveMarketTrendsWindow(selectedPeriodsForTrends, allVacancies);
-    var recentDays = Math.max(1, Number(windowCfg.days) || 7);
-    var baselineDays = recentDays;
-    var anchor = getLatestPublishedAtDate(periodFilteredVacancies);
-    if (!anchor) {
-        block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
-        return;
-    }
-    var anchorTs = anchor.getTime();
+    var anchorTs = null;
     var dayMs = 24 * 60 * 60 * 1000;
-    var recentStartTs = anchorTs - ((recentDays - 1) * dayMs);
-    var prevEndTs = recentStartTs - dayMs;
-    var prevStartTs = prevEndTs - ((baselineDays - 1) * dayMs);
-    var useSalaryFallback = false;
-    var salaryFallbackNote = '';
+    var recentStartTs = null;
+    var prevEndTs = null;
+    var prevStartTs = null;
+    if (!marketTrendsApi) {
+        roleContents.forEach(function(rc) {
+            allVacancies = allVacancies.concat(getFilteredVacanciesForAnalysis(rc, 'totals', {
+                skipPeriods: true
+            }));
+        });
+        allVacancies = dedupeVacanciesById(allVacancies || []);
+        periodFilteredVacancies = hasExplicitGlobalFilterSelection('periods')
+            ? filterVacanciesBySelectedPeriods(allVacancies, selectedPeriodsForTrends)
+            : allVacancies.slice();
+        if (!periodFilteredVacancies.length) {
+            block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
+            return;
+        }
+        var windowCfg = resolveMarketTrendsWindow(selectedPeriodsForTrends, allVacancies);
+        recentDays = Math.max(1, Number(windowCfg.days) || 7);
+        baselineDays = recentDays;
+        var anchor = getLatestPublishedAtDate(periodFilteredVacancies);
+        if (!anchor) {
+            block.innerHTML = '<div class="skills-search-hint">Нет данных за выбранный период</div>';
+            return;
+        }
+        anchorTs = anchor.getTime();
+        recentStartTs = anchorTs - ((recentDays - 1) * dayMs);
+        prevEndTs = recentStartTs - dayMs;
+        prevStartTs = prevEndTs - ((baselineDays - 1) * dayMs);
+        recentStartLabel = fmtDate(recentStartTs);
+        recentEndLabel = fmtDate(anchorTs);
+        prevStartLabel = fmtDate(prevStartTs);
+        prevEndLabel = fmtDate(prevEndTs);
+    }
     function fmtDate(ts) {
         var d = new Date(ts);
         var dd = String(d.getDate()).padStart(2, '0');
@@ -7263,7 +7777,6 @@ function renderMarketTrends(parentRole, mountNode) {
         var yyyy = d.getFullYear();
         return dd + '.' + mm + '.' + yyyy;
     }
-
     function collectMetricsByWindows(recentStart, recentEnd, prevStart, prevEnd) {
         var rows = [];
         roleContents.forEach(function(rc) {
@@ -7309,8 +7822,9 @@ function renderMarketTrends(parentRole, mountNode) {
             return (row.recentCount > 0 || row.prevCount > 0 || hasSalary);
         });
     }
-
-    var metrics = collectMetricsByWindows(recentStartTs, anchorTs, prevStartTs, prevEndTs);
+    if (!marketTrendsApi) {
+        metrics = collectMetricsByWindows(recentStartTs, anchorTs, prevStartTs, prevEndTs);
+    }
 
     function getRecentSalaryMetric(row) {
         return row && row.recentSalary ? row.recentSalary[salaryMetric] : null;
@@ -7351,7 +7865,7 @@ function renderMarketTrends(parentRole, mountNode) {
     var chartLimit = 10;
     var segments = buildSegments(metrics);
 
-    if (!segments.salaryUp.length && !segments.salaryDown.length) {
+    if (!marketTrendsApi && !segments.salaryUp.length && !segments.salaryDown.length) {
         var fallbackSource = periodFilteredVacancies.length ? periodFilteredVacancies : allVacancies;
         var minTs = null;
         var maxTs = null;
@@ -7397,15 +7911,14 @@ function renderMarketTrends(parentRole, mountNode) {
     var paysLess = segments.paysLess;
     var salaryUp = segments.salaryUp;
     var salaryDown = segments.salaryDown;
-    var hasSalaryForCurrency = segments.hasSalaryForCurrency;
-    var focusMetrics = null;
-    if (focusRoleContent) {
+    if (!marketTrendsApi) hasSalaryForCurrency = segments.hasSalaryForCurrency;
+    if (!marketTrendsApi && focusRoleContent) {
         var focusRoleId = focusRoleContent && focusRoleContent.dataset ? String(focusRoleContent.dataset.roleId || '').trim() : '';
         if (focusRoleId && excludedTrendRoleIds.indexOf(focusRoleId) >= 0) {
             focusRoleContent = null;
         }
     }
-    if (focusRoleContent) {
+    if (!marketTrendsApi && focusRoleContent) {
         var focusVacancies = getFilteredVacanciesForAnalysis(focusRoleContent, 'totals', {
             skipPeriods: true
         });
@@ -7482,7 +7995,7 @@ function renderMarketTrends(parentRole, mountNode) {
         '<div class="market-trends-layout">' +
             '<div class="market-trends-head">' +
                 '<div class="market-trends-context">' +
-                    '<span class="market-trends-context-text">Сравнение: ' + recentDays + ' дн (' + fmtDate(recentStartTs) + ' - ' + fmtDate(anchorTs) + ') против ' + baselineDays + ' дн (' + fmtDate(prevStartTs) + ' - ' + fmtDate(prevEndTs) + ')</span>' +
+                    '<span class="market-trends-context-text">Сравнение: ' + recentDays + ' дн (' + recentStartLabel + ' - ' + recentEndLabel + ') против ' + baselineDays + ' дн (' + prevStartLabel + ' - ' + prevEndLabel + ')</span>' +
                     (!hasSalaryForCurrency ? '<span class="totals-warning market-trends-inline-warning">По валюте ' + escapeHtml(currency) + ' нет данных по зарплате в выбранном периоде/опыте.</span>' : '') +
                 '</div>' +
             '</div>' +
@@ -7604,6 +8117,7 @@ function renderGlobalTotalsFiltered(parentRole) {
     if (!block) return;
     var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
     if (!roleSuffix) return;
+    var current = String((parentRole.dataset && parentRole.dataset.activeAnalysis) || '').trim();
 
     if (typeof ensureDefaultPeriodFilterSelection === 'function') {
         ensureDefaultPeriodFilterSelection(parentRole, 'totals');
@@ -7617,16 +8131,90 @@ function renderGlobalTotalsFiltered(parentRole) {
     var periodLabel = resolveChartPeriodLabel(selectedPeriods);
     var expLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var contextText = buildChartContextLabel(periodLabel, expLabel);
+    block._data = block._data || {};
 
-    var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals');
-    var vacancyKpiVacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals', {
+    var useDashboardApi = typeof fetchTotalsDashboardFromApi === 'function' && canUseTotalsDashboardApi(parentRole);
+    var dashboardApi = block._data.totalsDashboardApi && typeof block._data.totalsDashboardApi === 'object'
+        ? Object.assign({}, block._data.totalsDashboardApi)
+        : null;
+    var dashboardModeForKey = String(uiState.totals_dashboard_mode || 'overview').trim();
+    var dashboardEmployerOptions = getGlobalFilterOptions(parentRole, 'employer', 'totals');
+    var dashboardEmployerFilterPayload = typeof buildEmployerApiFilterPayload === 'function'
+        ? buildEmployerApiFilterPayload(
+            'employer',
+            dashboardEmployerOptions,
+            getResolvedGlobalFilterValues('employer', dashboardEmployerOptions)
+        )
+        : {
+            employer: getResolvedGlobalFilterValues('employer', dashboardEmployerOptions),
+            employer_exclude: []
+        };
+    var totalsDashboardKey = JSON.stringify({
+        role: roleSuffix,
+        periods: selectedPeriods,
+        experiences: selectedExps,
+        status: selectedStatuses,
+        dashboardMode: dashboardModeForKey,
+        overview: dashboardModeForKey === 'overview' ? {
+            country: getResolvedGlobalFilterValues('country', getGlobalFilterOptions(parentRole, 'country', 'totals')),
+            currency: getResolvedGlobalFilterValues('currency', getGlobalFilterOptions(parentRole, 'currency', 'totals')),
+            employer: dashboardEmployerFilterPayload.employer,
+            employer_exclude: dashboardEmployerFilterPayload.employer_exclude,
+            interview: getResolvedGlobalFilterValues('interview', getGlobalFilterOptions(parentRole, 'interview', 'totals')),
+            result: getResolvedGlobalFilterValues('result', getGlobalFilterOptions(parentRole, 'result', 'totals')),
+            offer: getResolvedGlobalFilterValues('offer', getGlobalFilterOptions(parentRole, 'offer', 'totals')),
+            skills: typeof getGlobalSkillsFilterSelections === 'function'
+                ? getGlobalSkillsFilterSelections()
+                : { includeSkills: [], excludeSkills: [], logic: 'or' },
+            accreditation: getResolvedGlobalFilterValues('accreditation', getGlobalFilterOptions(parentRole, 'accreditation', 'totals')),
+            cover_letter_required: getResolvedGlobalFilterValues('cover_letter_required', getGlobalFilterOptions(parentRole, 'cover_letter_required', 'totals')),
+            has_test: getResolvedGlobalFilterValues('has_test', getGlobalFilterOptions(parentRole, 'has_test', 'totals'))
+        } : null,
+        top: dashboardModeForKey === 'top' ? {
+            currency: normalizeTotalsCurrency(uiState.totals_top_currency || 'RUR'),
+            limit: normalizeTotalsTopLimit(uiState.totals_top_limit || 15),
+            vacancy_order: normalizeTotalsTopOrder(uiState.totals_vacancy_order, ['high', 'low'], 'high'),
+            skills_order: normalizeTotalsTopOrder(uiState.totals_skills_order, ['most', 'least'], 'most'),
+            company_order: normalizeTotalsTopOrder(uiState.totals_company_order, ['high', 'low'], 'high'),
+            closing_window: normalizeTotalsClosingWindow(uiState.totals_closing_window)
+        } : null,
+        marketTrends: dashboardModeForKey === 'market-trends' ? {
+            experience: getResolvedGlobalFilterValues('experiences', getGlobalFilterOptions(parentRole, 'experiences', 'totals')),
+            status: getResolvedGlobalFilterValues('status', getGlobalFilterOptions(parentRole, 'status', 'totals')),
+            currency: normalizeTotalsCurrency(uiState.market_trends_currency || 'RUR'),
+            salary_metric: String(uiState.market_trends_salary_metric || 'avg').toLowerCase(),
+            excluded_roles: Array.isArray(uiState.market_trends_excluded_roles) ? uiState.market_trends_excluded_roles.slice() : []
+        } : null
+    });
+    if (useDashboardApi && block.dataset.totalsDashboardApiKey !== totalsDashboardKey) {
+        block.dataset.totalsDashboardApiKey = totalsDashboardKey;
+        delete block._data.totalsDashboardApi;
+        fetchTotalsDashboardFromApi(parentRole).then(function(payload) {
+            if (!block.isConnected) return;
+            if (block.dataset.totalsDashboardApiKey !== totalsDashboardKey) return;
+            block._data.totalsDashboardApi = payload && typeof payload === 'object' ? payload : null;
+            renderGlobalTotalsFiltered(parentRole);
+        }).catch(function(err) {
+            if (block.isConnected) console.error('fetchTotalsDashboardFromApi failed', err);
+        });
+    }
+    if (useDashboardApi && !dashboardApi) {
+        block.innerHTML = '<div class="skills-search-hint">Загрузка сводной аналитики...</div>';
+        return;
+    }
+    var vacancies = dashboardApi ? [] : getFilteredVacanciesForAnalysis(parentRole, 'totals');
+    var vacancyKpiVacancies = dashboardApi ? [] : getFilteredVacanciesForAnalysis(parentRole, 'totals', {
         skipPeriods: true
     });
     vacancyKpiVacancies = dedupeVacanciesById(vacancyKpiVacancies || []);
     vacancies = dedupeVacanciesById(vacancies || []);
 
-    var salaryRows = totalsComputeSalaryByCurrency(vacancies);
-    var salaryMonthData = buildSalaryMonthFromVacancies(vacancies, periodLabel || 'За период');
+    var salaryRows = dashboardApi && Array.isArray(dashboardApi.salary_rows)
+        ? dashboardApi.salary_rows.slice()
+        : totalsComputeSalaryByCurrency(vacancies);
+    var salaryMonthData = dashboardApi && dashboardApi.salary_month_data
+        ? dashboardApi.salary_month_data
+        : buildSalaryMonthFromVacancies(vacancies, periodLabel || 'За период');
     var salarySelectedExperience = Array.isArray(selectedExps) && selectedExps.length === 1 ? String(selectedExps[0] || '').trim() : '';
     var salaryOverviewModel = buildSalaryOverviewChartModel({
         month: contextText,
@@ -7675,7 +8263,9 @@ function renderGlobalTotalsFiltered(parentRole) {
                 return !maxValue || item.end > maxValue ? item.end : maxValue;
             }, null)
         };
-    var periodStats = totalsComputePeriodVacancyStats(vacancyKpiVacancies || [], summaryWindow);
+    var periodStats = dashboardApi && dashboardApi.period_stats
+        ? Object.assign({ breakdown: {} }, dashboardApi.period_stats)
+        : totalsComputePeriodVacancyStats(vacancyKpiVacancies || [], summaryWindow);
     var burnupUseFullPeriod = (selectedPeriods || []).some(function(label) {
         return isSummaryMonth(String(label || '').trim());
     });
@@ -7685,7 +8275,9 @@ function renderGlobalTotalsFiltered(parentRole) {
     var burnupPeriodLabel = burnupUseFullPeriod
         ? buildTotalsBurnupPeriodLabel(burnupPeriodWindows)
         : (periodLabel || 'За период');
-    var burnupSeries = totalsBuildBurnupSeries(vacancyKpiVacancies || [], burnupPeriodWindows);
+    var burnupSeries = dashboardApi && dashboardApi.burnup_series
+        ? dashboardApi.burnup_series
+        : totalsBuildBurnupSeries(vacancyKpiVacancies || [], burnupPeriodWindows);
     var totalCount = periodStats.total || 0;
     var archivedCount = periodStats.archived || 0;
     var activeCount = periodStats.active || 0;
@@ -7693,10 +8285,18 @@ function renderGlobalTotalsFiltered(parentRole) {
     var donutInteractive = true;
     var donutExperienceBreakdown = buildTotalsExperienceBreakdown(periodStats.breakdown || {});
 
-    var skillsRows = totalsSortSkillsRows(totalsComputeSkillsCost(vacancies || [], topCurrency), skillsOrder);
-    var companyRows = totalsComputeCompanySalaryLeaders(vacancies || [], topCurrency, companyOrder);
-    var closingRows = totalsComputeEmployerClosingSpeed(vacancies || [], closingWindow);
-    var topVacancies = totalsComputeTopVacanciesBySalary(vacancies || [], topCurrency, vacancyOrder).slice(0, topLimit);
+    var skillsRows = dashboardApi && Array.isArray(dashboardApi.skills_rows)
+        ? dashboardApi.skills_rows.slice()
+        : totalsSortSkillsRows(totalsComputeSkillsCost(vacancies || [], topCurrency), skillsOrder);
+    var companyRows = dashboardApi && Array.isArray(dashboardApi.company_rows)
+        ? dashboardApi.company_rows.slice()
+        : totalsComputeCompanySalaryLeaders(vacancies || [], topCurrency, companyOrder);
+    var closingRows = dashboardApi && Array.isArray(dashboardApi.closing_rows)
+        ? dashboardApi.closing_rows.slice()
+        : totalsComputeEmployerClosingSpeed(vacancies || [], closingWindow);
+    var topVacancies = dashboardApi && Array.isArray(dashboardApi.top_vacancies)
+        ? dashboardApi.top_vacancies.slice(0, topLimit)
+        : totalsComputeTopVacanciesBySalary(vacancies || [], topCurrency, vacancyOrder).slice(0, topLimit);
     var topSkills = skillsRows.slice(0, topLimit);
     var topCompanies = companyRows.slice(0, topLimit);
     var topClosingCompanies = closingRows.slice(0, topLimit);
@@ -7709,14 +8309,22 @@ function renderGlobalTotalsFiltered(parentRole) {
         allRoleVacancies = vacancies.slice();
     }
     allRoleVacancies = dedupeVacanciesById(allRoleVacancies || []);
-    var responseRows = applyMyResponsesGlobalFilters(parentRole, getMergedMyResponseFilterSource(parentRole));
-    var responseInterview = responseRows.filter(function(v) {
-        return hasScheduledInterview(v);
-    }).length;
-    var responseResult = responseRows.filter(function(v) { return hasResultContent(v); }).length;
-    var responseOffer = responseRows.filter(function(v) {
-        return hasOfferContent(v);
-    }).length;
+    var responseRows = dashboardApi && dashboardApi.response_funnel
+        ? []
+        : applyMyResponsesGlobalFilters(parentRole, getMergedMyResponseFilterSource(parentRole));
+    var responseInterview = dashboardApi && dashboardApi.response_funnel
+        ? Number(dashboardApi.response_funnel.interview) || 0
+        : responseRows.filter(function(v) {
+            return hasScheduledInterview(v);
+        }).length;
+    var responseResult = dashboardApi && dashboardApi.response_funnel
+        ? Number(dashboardApi.response_funnel.result) || 0
+        : responseRows.filter(function(v) { return hasResultContent(v); }).length;
+    var responseOffer = dashboardApi && dashboardApi.response_funnel
+        ? Number(dashboardApi.response_funnel.offer) || 0
+        : responseRows.filter(function(v) {
+            return hasOfferContent(v);
+        }).length;
 
     function buildSwitchRow(stateKey, values, currentValue, extraClass) {
         var switchClass = 'tabs month-tabs totals-switch' + (extraClass ? ' ' + extraClass : '');
@@ -7754,7 +8362,7 @@ function renderGlobalTotalsFiltered(parentRole) {
               '</button>'
             : '—';
         var status = '<label class="totals-ios-checkbox-wrap" title="' + (row.responded ? 'Был отклик' : 'Нет отклика') + '">' +
-            '<input type="checkbox" class="totals-ios-checkbox" ' + (row.responded ? 'checked ' : '') + 'disabled>' +
+            '<input type="checkbox" class="totals-ios-checkbox" name="vacancy_response_status" ' + (row.responded ? 'checked ' : '') + 'disabled>' +
             '<span class="totals-ios-checkbox-ui"></span>' +
         '</label>';
         return '<tr>' +
@@ -7884,6 +8492,8 @@ function renderGlobalTotalsFiltered(parentRole) {
         var rows = Array.isArray(data.items) ? data.items : [];
         var metrics = data.periodMetrics || {};
         var subsets = data.subsets || {};
+        var donutNewLabel = 'Новые';
+        var donutPublishedArchivedLabel = 'Опубл. и архивир.';
         function metricRow(label, value, extra) {
             return '<div class="donut-period-metric">' +
                 '<span class="donut-period-metric-label">' + escapeHtml(label) + '</span>' +
@@ -7920,15 +8530,15 @@ function renderGlobalTotalsFiltered(parentRole) {
         if (data.status === 'active') {
             metricsHtml = '<div class="donut-period-metrics">' +
                 metricRow('Активные на конец периода', data.total || 0) +
-                metricRow('Новые за период', metrics.newPublished || 0, totalsFormatNumber(metrics.shareNewPublished || 0) + '% от активных') +
+                metricRow(donutNewLabel, metrics.newPublished || 0, totalsFormatNumber(metrics.shareNewPublished || 0) + '% от активных') +
             '</div>';
-            secondarySectionHtml = renderDistributionSection('Новые за период', (subsets.newPublished && subsets.newPublished.total) || 0, (subsets.newPublished && subsets.newPublished.items) || []);
+            secondarySectionHtml = renderDistributionSection(donutNewLabel, (subsets.newPublished && subsets.newPublished.total) || 0, (subsets.newPublished && subsets.newPublished.items) || []);
         } else if (data.status === 'archived') {
             metricsHtml = '<div class="donut-period-metrics">' +
                 metricRow('Архивные за период', data.total || 0) +
-                metricRow('Опубл. и архив. за период', metrics.publishedAndArchived || 0, totalsFormatNumber(metrics.sharePublishedAndArchived || 0) + '% от архивных') +
+                metricRow(donutPublishedArchivedLabel, metrics.publishedAndArchived || 0, totalsFormatNumber(metrics.sharePublishedAndArchived || 0) + '% от архивных') +
             '</div>';
-            secondarySectionHtml = renderDistributionSection('Опубл. и архив. за период', (subsets.publishedAndArchived && subsets.publishedAndArchived.total) || 0, (subsets.publishedAndArchived && subsets.publishedAndArchived.items) || []);
+            secondarySectionHtml = renderDistributionSection(donutPublishedArchivedLabel, (subsets.publishedAndArchived && subsets.publishedAndArchived.total) || 0, (subsets.publishedAndArchived && subsets.publishedAndArchived.items) || []);
         }
         if (!rows.length || !data.total) {
             return '<div class="donut-drilldown-header">' +
@@ -7973,6 +8583,8 @@ function renderGlobalTotalsFiltered(parentRole) {
         var archivedGradientId = 'donut-archived-gradient-' + donutKey;
         var activeInnerGradientId = 'donut-active-inner-gradient-' + donutKey;
         var archivedInnerGradientId = 'donut-archived-inner-gradient-' + donutKey;
+        var donutNewLabel = 'Новые';
+        var donutPublishedArchivedLabel = 'Опубл. и архивир.';
         var breakdownEncoded = encodeURIComponent(JSON.stringify(breakdownData || {}));
         var interactiveAttr = interactiveEnabled ? ' data-interactive="1"' : ' data-interactive="0"';
         var activeSegmentClass = 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active' + (interactiveEnabled ? ' is-clickable' : '');
@@ -7982,10 +8594,10 @@ function renderGlobalTotalsFiltered(parentRole) {
         var activeLegendTag = interactiveEnabled ? 'button' : 'div';
         var archivedLegendTag = interactiveEnabled ? 'button' : 'div';
         var activeLegendAttrs = interactiveEnabled
-            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false"'
+            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" data-selection-key="active" aria-pressed="false"'
             : ' class="donut-legend-item"';
         var archivedLegendAttrs = interactiveEnabled
-            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false"'
+            ? ' type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" data-selection-key="archived" aria-pressed="false"'
             : ' class="donut-legend-item"';
 
         return '<div class="donut-chart-container"' + interactiveAttr + ' data-breakdown="' + breakdownEncoded + '">' +
@@ -8013,11 +8625,11 @@ function renderGlobalTotalsFiltered(parentRole) {
                         '</linearGradient>' +
                     '</defs>' +
                     '<circle class="donut-chart-track donut-chart-track-outer" stroke="rgba(148, 163, 184, 0.18)" stroke-dasharray="' + circumference + ' 0" stroke-dashoffset="0"></circle>' +
-                    '<circle class="' + activeSegmentClass + '" data-status="active" stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для открытых вакансий"></circle>' +
-                    '<circle class="' + archivedSegmentClass + '" data-status="archived" stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для архивных вакансий"></circle>' +
+                    '<circle class="' + activeSegmentClass + '" data-status="active" data-selection-key="active" stroke="url(#' + activeGradientId + ')" stroke-dasharray="' + activeLen + ' ' + (circumference - activeLen) + '" stroke-dashoffset="' + (-offset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для открытых вакансий"></circle>' +
+                    '<circle class="' + archivedSegmentClass + '" data-status="archived" data-selection-key="archived" stroke="url(#' + archivedGradientId + ')" stroke-dasharray="' + archivedLen + ' ' + (circumference - archivedLen) + '" stroke-dashoffset="' + (-offset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть распределение по опыту для архивных вакансий"></circle>' +
                     '<circle class="donut-chart-track donut-chart-track-inner" stroke="rgba(148, 163, 184, 0.12)" stroke-dasharray="' + innerCircumference + ' 0" stroke-dashoffset="0"></circle>' +
-                    '<circle class="' + activeInnerSegmentClass + '" data-status="active" stroke="url(#' + activeInnerGradientId + ')" stroke-dasharray="' + innerActiveLen + ' ' + (innerCircumference - innerActiveLen) + '" stroke-dashoffset="' + (-innerOffset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию новых вакансий за период"></circle>' +
-                    '<circle class="' + archivedInnerSegmentClass + '" data-status="archived" stroke="url(#' + archivedInnerGradientId + ')" stroke-dasharray="' + innerArchivedLen + ' ' + (innerCircumference - innerArchivedLen) + '" stroke-dashoffset="' + (-innerOffset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию вакансий, опубликованных и архивированных за период"></circle>' +
+                    '<circle class="' + activeInnerSegmentClass + '" data-status="active" data-selection-key="new" stroke="url(#' + activeInnerGradientId + ')" stroke-dasharray="' + innerActiveLen + ' ' + (innerCircumference - innerActiveLen) + '" stroke-dashoffset="' + (-innerOffset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию новых вакансий за период"></circle>' +
+                    '<circle class="' + archivedInnerSegmentClass + '" data-status="archived" data-selection-key="published-archived" stroke="url(#' + archivedInnerGradientId + ')" stroke-dasharray="' + innerArchivedLen + ' ' + (innerCircumference - innerArchivedLen) + '" stroke-dashoffset="' + (-innerOffset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию вакансий, опубликованных и архивированных за период"></circle>' +
                 '</svg>' +
                 '<div class="donut-center-label">' +
                     '<div class="donut-center-value">' + total + '</div>' +
@@ -8030,9 +8642,9 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '<span class="donut-legend-label">Активные</span>' +
                     '<span class="donut-legend-value">' + active + '</span>' +
                 '</' + activeLegendTag + '>' +
-                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" aria-pressed="false">' +
+                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" data-selection-key="new" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-new"></span>' +
-                    '<span class="donut-legend-label">Новые за период</span>' +
+                    '<span class="donut-legend-label">' + donutNewLabel + '</span>' +
                     '<span class="donut-legend-value">' + newPublished + '</span>' +
                 '</button>' +
                 '<' + archivedLegendTag + archivedLegendAttrs + '>' +
@@ -8040,12 +8652,12 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '<span class="donut-legend-label">Архивные</span>' +
                     '<span class="donut-legend-value">' + archived + '</span>' +
                 '</' + archivedLegendTag + '>' +
-                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-archived" data-status="archived" aria-pressed="false">' +
+                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-published-archived" data-status="archived" data-selection-key="published-archived" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-published-archived"></span>' +
-                    '<span class="donut-legend-label">Опубл. и архив. за период</span>' +
+                    '<span class="donut-legend-label">' + donutPublishedArchivedLabel + '</span>' +
                     '<span class="donut-legend-value">' + publishedAndArchived + '</span>' +
                 '</button>' +
-                '<div class="donut-legend-item donut-legend-kpi">' +
+                '<div class="donut-legend-item donut-legend-kpi donut-legend-item-passive">' +
                     '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
                     '<span class="donut-legend-label">Ср. время жизни</span>' +
                     '<span class="donut-legend-value">' + (total > 0 ? totalsFormatNumber(avgAgeValue) + ' дн.' : '—') + '</span>' +
@@ -8270,7 +8882,11 @@ function renderGlobalTotalsFiltered(parentRole) {
         );
         var currentCurrency = resolvedEmployerFilters.currency;
         var currentMetric = resolvedEmployerFilters.metric;
-        var model = buildEmployerOverviewChartModel(vacancies || [], currentCurrency, currentMetric);
+        var model = dashboardApi && dashboardApi.employer_overview
+            ? dashboardApi.employer_overview
+            : buildEmployerOverviewChartModel(vacancies || [], currentCurrency, currentMetric);
+        currentCurrency = String(model && model.currency || currentCurrency || '').trim() || currentCurrency;
+        currentMetric = String(model && model.metric || currentMetric || '').trim() || currentMetric;
         var currentContext = '';
         var points = model.labels.map(function(label, index) {
             return { label: label, value: model.values[index] };
@@ -8338,11 +8954,16 @@ function renderGlobalTotalsFiltered(parentRole) {
             '</div>' +
             '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
-                buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
+                buildFunnelChartHtml(
+                    dashboardApi && dashboardApi.response_funnel ? (Number(dashboardApi.response_funnel.responses) || 0) : responseRows.length,
+                    responseInterview,
+                    responseResult,
+                    responseOffer
+                ) +
             '</div>' +
             '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Покрытие зарплат</h3>' +
-                buildSalaryCoverageChartHtml(totalsComputeSalaryCoverage(vacancies)) +
+                buildSalaryCoverageChartHtml(dashboardApi && dashboardApi.salary_coverage ? dashboardApi.salary_coverage : totalsComputeSalaryCoverage(vacancies)) +
             '</div>' +
             '<div class="dashboard-card">' +
                 '<h3 class="dashboard-card-title">Зарплаты</h3>' +
@@ -8435,9 +9056,18 @@ function renderGlobalTotalsFiltered(parentRole) {
             renderGlobalTotalsFiltered(parentRole);
         });
     });
-    if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading) {
+    if (
+        !uiState.my_responses_cache_loaded
+        && !uiState.my_responses_cache_loading
+        && /^(my-responses|responses-calendar)$/.test(String(current || '').trim())
+    ) {
         uiState.my_responses_cache_loading = true;
-        fetchMyResponsesVacancies().then(function() {
+        var preloadResponses = typeof fetchResponsesListFromApi === 'function'
+            ? fetchResponsesListFromApi(parentRole).catch(function() {
+                return collectMyResponsesVacancies();
+            })
+            : Promise.resolve(collectMyResponsesVacancies());
+        preloadResponses.then(function() {
             if (parentRole && parentRole.isConnected) renderGlobalTotalsFiltered(parentRole);
         }).catch(function() {
         }).finally(function() {
@@ -8502,9 +9132,9 @@ function renderGlobalTotalsFiltered(parentRole) {
     var drilldownHost = donutContainer.querySelector('.donut-drilldown');
     var actions = Array.from(donutContainer.querySelectorAll('[data-status]'));
 
-    function syncDonutSelection(status) {
+    function syncDonutSelection(selectionKey) {
         actions.forEach(function(node) {
-            var isSelected = !!status && String(node.dataset.status || '') === status;
+            var isSelected = !!selectionKey && String(node.dataset.selectionKey || '') === selectionKey;
             node.classList.toggle('is-selected', isSelected);
             if (node.classList.contains('donut-legend-action')) {
                 node.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
@@ -8512,30 +9142,36 @@ function renderGlobalTotalsFiltered(parentRole) {
         });
     }
 
-    function toggleDonutDrilldown(status) {
+    function toggleDonutDrilldown(selectionKey, status) {
+        var normalizedSelectionKey = String(selectionKey || '').trim();
         var normalizedStatus = String(status || '').trim();
-        if (!normalizedStatus || !drilldownHost) return;
-        var nextStatus = donutContainer.dataset.activeStatus === normalizedStatus ? '' : normalizedStatus;
-        donutContainer.dataset.activeStatus = nextStatus;
-        syncDonutSelection(nextStatus);
-        if (!nextStatus) {
+        if (!normalizedSelectionKey || !normalizedStatus || !drilldownHost) return;
+        var nextSelectionKey = donutContainer.dataset.activeSelectionKey === normalizedSelectionKey ? '' : normalizedSelectionKey;
+        donutContainer.dataset.activeSelectionKey = nextSelectionKey;
+        donutContainer.dataset.activeStatus = nextSelectionKey ? normalizedStatus : '';
+        syncDonutSelection(nextSelectionKey);
+        if (!nextSelectionKey) {
             drilldownHost.hidden = true;
             drilldownHost.innerHTML = '';
             return;
         }
         drilldownHost.hidden = false;
-        drilldownHost.innerHTML = buildTotalsExperienceDrilldownHtml(donutBreakdown[nextStatus]);
+        drilldownHost.innerHTML = buildTotalsExperienceDrilldownHtml(donutBreakdown[normalizedStatus]);
     }
 
     actions.forEach(function(node) {
         node.addEventListener('click', function() {
-            toggleDonutDrilldown(String(node.dataset.status || '').trim());
+            var selectionKey = String(node.dataset.selectionKey || '').trim();
+            var statusKey = String(node.dataset.status || '').trim();
+            toggleDonutDrilldown(selectionKey, statusKey);
         });
         if (node.classList.contains('donut-chart-segment')) {
             node.addEventListener('keydown', function(event) {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
-                toggleDonutDrilldown(String(node.dataset.status || '').trim());
+                var selectionKey = String(node.dataset.selectionKey || '').trim();
+                var statusKey = String(node.dataset.status || '').trim();
+                toggleDonutDrilldown(selectionKey, statusKey);
             });
         }
     });
@@ -8549,6 +9185,24 @@ function applyGlobalFiltersToActiveAnalysis(parentRole, analysisType) {
         return;
     }
     var current = analysisType || parentRole.dataset.activeAnalysis || '';
+    if (typeof ensureRoleVacanciesLoaded === 'function' && shouldPrefetchRoleVacanciesForAnalysis(parentRole, current)) {
+        parentRole._data = parentRole._data || {};
+        if (!parentRole._data.analysisVacanciesPrefetchStarted) {
+            parentRole._data.analysisVacanciesPrefetchStarted = true;
+            ensureRoleVacanciesLoaded(parentRole).then(function() {
+                parentRole._data.analysisVacanciesPrefetchStarted = false;
+                parentRole._data.analysisVacanciesPrefetchDone = true;
+                if (!parentRole.isConnected) return;
+                applyGlobalFiltersToActiveAnalysis(parentRole, current);
+            }).catch(function(err) {
+                parentRole._data.analysisVacanciesPrefetchStarted = false;
+                parentRole._data.analysisVacanciesPrefetchDone = true;
+                if (!parentRole.isConnected) return;
+                applyGlobalFiltersToActiveAnalysis(parentRole, current);
+            });
+        }
+        return;
+    }
     if (current === 'skills-monthly') renderGlobalSkillsFiltered(parentRole);
     else if (current === 'salary') renderGlobalSalaryFiltered(parentRole);
     else if (current === 'activity') renderGlobalActivityFiltered(parentRole);
@@ -8686,12 +9340,14 @@ function setSharedFilterPanelSectionOpen(sectionKey, open) {
             uiState.shared_filter_panel_state.sections[groupKey] = groupKey === key;
         });
         uiState.shared_filter_panel_state.activeSection = key;
+        uiState.shared_filter_panel_state.userActivatedSectionKey = key;
     } else if (!nextOpen && uiState.shared_filter_panel_state.activeSection !== key) {
         uiState.shared_filter_panel_state.sections[key] = false;
     } else {
         nextOpen = true;
         uiState.shared_filter_panel_state.sections[key] = true;
         uiState.shared_filter_panel_state.activeSection = key;
+        uiState.shared_filter_panel_state.userActivatedSectionKey = key;
     }
     if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
     if (!panel) return;
@@ -8746,12 +9402,38 @@ function syncSharedFilterPanel(parentRole, analysisType, skipActiveApply) {
         : { open: true, sections: {} };
     var current = analysisType || (activeRole ? (activeRole.dataset.activeAnalysis || '') : '');
     var currentForFilters = current;
+    if (activeRole && typeof ensureRoleVacanciesLoaded === 'function' && shouldPrefetchRoleVacanciesForFilters(activeRole, currentForFilters)) {
+        activeRole._data = activeRole._data || {};
+        if (!activeRole._data.filterVacanciesPrefetchStarted) {
+            activeRole._data.filterVacanciesPrefetchStarted = true;
+            if (body) {
+                body.innerHTML = '<div class="shared-filter-panel-loading" style="padding: 12px 10px; color: var(--text-secondary);">Загрузка фильтров...</div>';
+            }
+            ensureRoleVacanciesLoaded(activeRole).then(function() {
+                activeRole._data.filterVacanciesPrefetchStarted = false;
+                activeRole._data.filterVacanciesPrefetchDone = true;
+                if (!activeRole.isConnected) return;
+                syncSharedFilterPanel(activeRole, currentForFilters, skipActiveApply);
+            }).catch(function(err) {
+                activeRole._data.filterVacanciesPrefetchStarted = false;
+                activeRole._data.filterVacanciesPrefetchDone = true;
+                if (!activeRole.isConnected) return;
+                syncSharedFilterPanel(activeRole, currentForFilters, skipActiveApply);
+            });
+        }
+        return;
+    }
     if (typeof syncDashboardTopbarMeta === 'function') {
         syncDashboardTopbarMeta(activeRole, current);
+    }
+    if (String(panelState.lastAnalysis || '').trim() !== String(current || '').trim()) {
+        panelState.userActivatedSectionKey = '';
     }
     panel.dataset.panelOpen = panelState.open === false ? '0' : '1';
     panel.dataset.activeAnalysis = current;
     panel.dataset.activeSection = panelState.activeSection || getSharedFilterPanelSectionKeyForAnalysis(current);
+    panelState.lastAnalysis = String(current || '').trim();
+    if (typeof persistSharedFilterPanelState === 'function') persistSharedFilterPanelState();
     body.style.display = panelState.open === false ? 'none' : 'flex';
     if (activeRole && activeRole.id === 'role-all') syncAllRolesSharedFilterButtons(activeRole, currentForFilters);
     if (activeRole && activeRole.id === 'role-all') syncAllRolesPeriodStateFromGlobalFilter(activeRole, currentForFilters);
@@ -8957,6 +9639,17 @@ function buildSalaryMonthsFromVacancies(vacancies) {
 function rebuildSalaryFromVacancies(parentRole, block) {
     if (!parentRole || !block || block.dataset.salaryBuiltFromVacancies === '1') return;
     var vacancies = getRoleVacancies(parentRole);
+    if ((!vacancies || !vacancies.length) && typeof ensureRoleVacanciesLoaded === 'function' && block.dataset.salaryLoadRequested !== '1') {
+        block.dataset.salaryLoadRequested = '1';
+        ensureRoleVacanciesLoaded(parentRole).then(function() {
+            block.dataset.salaryLoadRequested = '0';
+            if (!parentRole.isConnected || !block.isConnected) return;
+            rebuildSalaryFromVacancies(parentRole, block);
+        }).catch(function(err) {
+            block.dataset.salaryLoadRequested = '0';
+        });
+        return;
+    }
     if (!vacancies || !vacancies.length) return;
 
     var salaryMonths = buildSalaryMonthsFromVacancies(vacancies);
@@ -9104,31 +9797,40 @@ function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
 
 function ensureSalaryQuickFilters(parentRole, block, monthTabs) {
     if (!parentRole || !block || !monthTabs || block.dataset.salaryFiltersReady === '1') return;
+    var canUseSalaryApi = typeof fetchSingleRoleSalaryMonthFromApi === 'function';
 
-    var vacancies = getRoleVacancies(parentRole);
-    if (!vacancies || !vacancies.length) {
-        var salaryMonths = getRoleSalaryData(parentRole);
-        vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-    }
-
-    function filterVacanciesByDays(days) {
-        return filterVacanciesByRecentDays(vacancies || [], days);
-    }
-
-    function addQuickButton(label, suffix, list) {
-        var monthData = buildSalaryMonthFromVacancies(list, label);
-        var monthId = buildSalaryMonthBlock(block, monthData, suffix, parentRole.id);
+    function addQuickButton(label, suffix, apiPeriod) {
         var btn = document.createElement('button');
         btn.className = 'tab-button salary-month-button salary-quick-filter';
         btn.textContent = label;
-        btn.addEventListener('click', function(e) { openSalaryMonthTab(e, monthId); });
+        btn.addEventListener('click', function(e) {
+            var existingTargetId = String(btn.dataset.targetId || '').trim();
+            if (existingTargetId && document.getElementById(existingTargetId)) {
+                openSalaryMonthTab(e, existingTargetId);
+                return;
+            }
+            if (apiPeriod && canUseSalaryApi) {
+                if (btn.dataset.loading === '1') return;
+                btn.dataset.loading = '1';
+                fetchSingleRoleSalaryMonthFromApi(parentRole, apiPeriod, label).then(function(monthData) {
+                    var monthId = buildSalaryMonthBlock(block, monthData, suffix, parentRole.id);
+                    btn.dataset.targetId = monthId;
+                    btn.dataset.loading = '0';
+                    openSalaryMonthTab(e, monthId);
+                }).catch(function(err) {
+                    btn.dataset.loading = '0';
+                    console.error('fetchSingleRoleSalaryMonthFromApi failed', err);
+                });
+                return;
+            }
+        });
         monthTabs.insertBefore(btn, monthTabs.firstChild);
     }
 
-    addQuickButton('За 14 дней', '14d', filterVacanciesByDays(14));
-    addQuickButton('За 7 дней', '7d', filterVacanciesByDays(7));
-    addQuickButton('За 3 дня', '3d', filterVacanciesByDays(3));
-    addQuickButton('Сегодня', 'today', filterVacanciesByLatestDay(vacancies || []));
+    addQuickButton('За 14 дней', '14d', 'last_14');
+    addQuickButton('За 7 дней', '7d', 'last_7');
+    addQuickButton('За 3 дня', '3d', 'last_3');
+    addQuickButton('Сегодня', 'today', 'today');
 
     block.dataset.salaryFiltersReady = '1';
 }
@@ -9152,6 +9854,9 @@ function initSkillsSearch(parentRole) {
     if (!parentRole) return;
     var block = parentRole.querySelector('.skills-search-content');
     if (!block) return;
+    if (typeof ensureDefaultPeriodFilterSelection === 'function') {
+        ensureDefaultPeriodFilterSelection(parentRole, 'skills-search');
+    }
 
     if (!block._data) {
         var salaryMonths = getRoleSalaryData(parentRole);
@@ -9552,7 +10257,7 @@ function clearSkillsSearchSkillState(block, rawSkill, mode) {
     applySkillsSearchSkillState(block, include, exclude, selections.logic);
 }
 
-function updateSkillsSearchData(block) {
+function applyLegacySkillsSearchData(block) {
     if (!block || !block._data) return;
     var parentRole = block.closest('.role-content');
     var baseVacancies = getFilteredVacanciesForAnalysis(parentRole, 'skills-search', {
@@ -9560,11 +10265,68 @@ function updateSkillsSearchData(block) {
         skipSkills: true
     });
     baseVacancies = dedupeVacanciesById(baseVacancies);
-
     block._data.currentVacancies = baseVacancies;
-    var skills = computeSalarySkillsFromVacancies(baseVacancies, 50);
-    block._data.skills = skills;
-    updateSkillsSearchResults(block);
+    block._data.currentVacanciesTotal = baseVacancies.length;
+    block._data.skills = computeSalarySkillsFromVacancies(baseVacancies, 50);
+}
+
+function renderSkillsSearchVacancyResults(block, vacancies, total) {
+    if (!block) return;
+    var results = block.querySelector('.skills-search-results');
+    if (!results) return;
+    var list = Array.isArray(vacancies) ? vacancies : [];
+    var totalValue = Number(total);
+    if (!isFinite(totalValue)) totalValue = list.length;
+    var summary = '<div class="skills-search-summary">Найдено вакансий: ' + totalValue + '</div>';
+    results.innerHTML = summary + buildVacancyTableHtml(list);
+}
+
+function updateSkillsSearchData(block) {
+    if (!block || !block._data) return;
+    var parentRole = block.closest('.role-content');
+    var requestId = (Number(block.dataset.skillsSearchRequestId || 0) || 0) + 1;
+    block.dataset.skillsSearchRequestId = String(requestId);
+    var results = block.querySelector('.skills-search-results');
+    if (results) {
+        results.innerHTML = '<div class="skills-search-hint">Загрузка вакансий...</div>';
+    }
+    if (!parentRole || typeof fetchSkillsSearchVacanciesFromApi !== 'function') {
+        applyLegacySkillsSearchData(block);
+        updateSkillsSearchResults(block);
+        return;
+    }
+    fetchSkillsSearchVacanciesFromApi(parentRole, block, false).then(function(payload) {
+        if (String(block.dataset.skillsSearchRequestId || '') !== String(requestId)) return;
+        if (!payload) throw new Error('empty_payload');
+        block._data.currentVacancies = Array.isArray(payload.items) ? payload.items.slice() : [];
+        block._data.currentVacanciesTotal = Number(payload.total) || block._data.currentVacancies.length;
+        block._data.vacancies = block._data.currentVacancies.slice();
+        if (typeof fetchSkillsSearchSuggestionsFromApi !== 'function') {
+            block._data.skills = computeSalarySkillsFromVacancies(block._data.currentVacancies, 50);
+            updateSkillsSearchResults(block);
+            return;
+        }
+        fetchSkillsSearchSuggestionsFromApi(parentRole).then(function(suggestionsPayload) {
+            if (String(block.dataset.skillsSearchRequestId || '') !== String(requestId)) return;
+            var suggestionItems = Array.isArray(suggestionsPayload && suggestionsPayload.items)
+                ? suggestionsPayload.items.slice()
+                : [];
+            block._data.skills = suggestionItems.length
+                ? suggestionItems
+                : computeSalarySkillsFromVacancies(block._data.currentVacancies, 50);
+            updateSkillsSearchResults(block);
+        }).catch(function(err) {
+            console.error('fetchSkillsSearchSuggestionsFromApi failed', err);
+            if (String(block.dataset.skillsSearchRequestId || '') !== String(requestId)) return;
+            block._data.skills = computeSalarySkillsFromVacancies(block._data.currentVacancies, 50);
+            updateSkillsSearchResults(block);
+        });
+    }).catch(function(err) {
+        console.error('fetchSkillsSearchVacanciesFromApi failed', err);
+        if (String(block.dataset.skillsSearchRequestId || '') !== String(requestId)) return;
+        applyLegacySkillsSearchData(block);
+        updateSkillsSearchResults(block);
+    });
 }
 
 function updateSkillsSearchResults(block) {
@@ -9579,18 +10341,43 @@ function updateSkillsSearchResults(block) {
 
     if (!selected.length && !excluded.length) {
         var baseList = (block._data && block._data.currentVacancies) ? block._data.currentVacancies : allVacancies;
-        var summary = '<div class="skills-search-summary">Найдено вакансий: ' + baseList.length + '</div>';
-        results.innerHTML = summary + buildVacancyTableHtml(baseList);
+        var baseTotal = (block._data && block._data.currentVacanciesTotal !== undefined) ? block._data.currentVacanciesTotal : baseList.length;
+        renderSkillsSearchVacancyResults(block, baseList, baseTotal);
         updateSkillsSearchSummaryLine(block);
         saveSkillsSearchState(block);
+        return;
+    }
+
+    var parentRole = block.closest('.role-content');
+    if (parentRole && typeof fetchSkillsSearchVacanciesFromApi === 'function') {
+        var requestId = (Number(block.dataset.skillsSearchResultsRequestId || 0) || 0) + 1;
+        block.dataset.skillsSearchResultsRequestId = String(requestId);
+        results.innerHTML = '<div class="skills-search-hint">Загрузка вакансий...</div>';
+        fetchSkillsSearchVacanciesFromApi(parentRole, block, true).then(function(payload) {
+            if (String(block.dataset.skillsSearchResultsRequestId || '') !== String(requestId)) return;
+            if (!payload) throw new Error('empty_payload');
+            block._data.filteredVacancies = Array.isArray(payload.items) ? payload.items.slice() : [];
+            block._data.filteredVacanciesTotal = Number(payload.total) || block._data.filteredVacancies.length;
+            renderSkillsSearchVacancyResults(block, block._data.filteredVacancies, block._data.filteredVacanciesTotal);
+            updateSkillsSearchSummaryLine(block);
+            saveSkillsSearchState(block);
+        }).catch(function(err) {
+            console.error('fetchSkillsSearchVacanciesFromApi with skills failed', err);
+            if (String(block.dataset.skillsSearchResultsRequestId || '') !== String(requestId)) return;
+            var vacanciesFallback = (block._data && block._data.currentVacancies) ? block._data.currentVacancies : allVacancies;
+            var logicFallback = selections.logic;
+            var filteredFallback = filterVacanciesBySkills(vacanciesFallback, selected, excluded, logicFallback);
+            renderSkillsSearchVacancyResults(block, filteredFallback, filteredFallback.length);
+            updateSkillsSearchSummaryLine(block);
+            saveSkillsSearchState(block);
+        });
         return;
     }
 
     var vacancies = (block._data && block._data.currentVacancies) ? block._data.currentVacancies : allVacancies;
     var logicVal = selections.logic;
     var filtered = filterVacanciesBySkills(vacancies, selected, excluded, logicVal);
-    var summary = '<div class="skills-search-summary">Найдено вакансий: ' + filtered.length + '</div>';
-    results.innerHTML = summary + buildVacancyTableHtml(filtered);
+    renderSkillsSearchVacancyResults(block, filtered, filtered.length);
     updateSkillsSearchSummaryLine(block);
     saveSkillsSearchState(block);
 }
@@ -10400,37 +11187,45 @@ function ensureActivityQuickFilters(parentRole, controlRow) {
     var summaryBlock = monthBlocks.find(function(b) {
         return isSummaryMonth(b.dataset.month);
     }) || null;
+    var canUseActivityApi = typeof hydrateSingleRoleActivityPeriodFromApi === 'function';
+    var apiHydrators = [];
 
-    function addFilter(label, block, suffix, entries) {
+    function addFilter(label, block, suffix, entries, apiPeriod) {
         var target = block;
         if (!target) {
             target = buildActivityBlock(parentRole, 'month-' + parentRole.id + '-filter-' + suffix, label, entries || []);
             monthByLabel[label] = target;
+        }
+        if (apiPeriod) {
+            target.dataset.apiActivityPeriod = apiPeriod;
+            if (canUseActivityApi) {
+                target.dataset.apiHydrated = '0';
+                apiHydrators.push(function() {
+                    return hydrateSingleRoleActivityPeriodFromApi(target, parentRole).catch(function(err) {
+                        console.error('hydrateSingleRoleActivityPeriodFromApi failed', err);
+                    });
+                });
+            }
         }
         var btn = document.createElement('button');
         btn.className = 'tab-button month-button activity-filter-button activity-quick-filter';
         btn.textContent = label;
         btn.addEventListener('click', function(e) {
             openMonthTab(e, target.id);
+            if (apiPeriod && canUseActivityApi && target.dataset.apiHydrated !== '1') {
+                hydrateSingleRoleActivityPeriodFromApi(target, parentRole).catch(function(err) {
+                    console.error('hydrateSingleRoleActivityPeriodFromApi failed', err);
+                });
+            }
         });
         monthTabs.insertBefore(btn, monthTabs.firstChild);
     }
 
-    var vacancies = getRoleVacancies(parentRole);
-    function filterVacanciesByDays(days) {
-        return filterVacanciesByRecentDays(vacancies || [], days);
-    }
-
-    var entriesToday = computeActivityEntriesFromVacancies(filterVacanciesByLatestDay(vacancies || []));
-    var entries3 = computeActivityEntriesFromVacancies(filterVacanciesByDays(3));
-    var entries7 = computeActivityEntriesFromVacancies(filterVacanciesByDays(7));
-    var entries14 = computeActivityEntriesFromVacancies(filterVacanciesByDays(14));
-    addFilter('Сегодня', monthByLabel['Сегодня'], 'today', entriesToday);
-    addFilter('За 14 дней', monthByLabel['За 14 дней'], '14d', entries14);
-    addFilter('За 7 дней', monthByLabel['За 7 дней'], '7d', entries7);
-    addFilter('За 3 дня', monthByLabel['За 3 дня'], '3d', entries3);
-
     var emptyEntries = computeActivityEntriesFromVacancies([]);
+    addFilter('Сегодня', monthByLabel['Сегодня'], 'today', emptyEntries, canUseActivityApi ? 'today' : null);
+    addFilter('За 14 дней', monthByLabel['За 14 дней'], '14d', emptyEntries, canUseActivityApi ? 'last_14' : null);
+    addFilter('За 7 дней', monthByLabel['За 7 дней'], '7d', emptyEntries, canUseActivityApi ? 'last_7' : null);
+    addFilter('За 3 дня', monthByLabel['За 3 дня'], '3d', emptyEntries, canUseActivityApi ? 'last_3' : null);
     var summaryLabel = null;
     var summaryTarget = summaryBlock;
     var summaryEntries = summaryBlock ? parseJsonDataset(summaryBlock, 'entries', []) : null;
@@ -10462,6 +11257,7 @@ function ensureActivityQuickFilters(parentRole, controlRow) {
     }
 
     parentRole.dataset.activityFiltersReady = '1';
+    apiHydrators.forEach(function(run) { run(); });
 }
 
 function normalizeActivityControls(parentRole) {
@@ -10626,13 +11422,13 @@ function normalizeSkillsMonthlyControls(parentRole) {
         if (!multiToggle) {
             multiToggle = document.createElement('label');
             multiToggle.className = 'skills-multi-toggle';
-            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"><span class="skills-multi-toggle-label">Мультивыбор</span>';
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input" name="skills_multi_toggle"><span class="skills-multi-toggle-label">Мультивыбор</span>';
             expTabs.appendChild(multiToggle);
         } else if (multiToggle.parentElement !== expTabs) {
             expTabs.appendChild(multiToggle);
         }
         if (!multiToggle.querySelector('.skills-multi-toggle-label')) {
-            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input"><span class="skills-multi-toggle-label">Мультивыбор</span>';
+            multiToggle.innerHTML = '<input type="checkbox" class="skills-multi-toggle-input" name="skills_multi_toggle"><span class="skills-multi-toggle-label">Мультивыбор</span>';
         }
         var multiInput = multiToggle.querySelector('.skills-multi-toggle-input');
         if (!block.dataset.skillsMultiEnabled) block.dataset.skillsMultiEnabled = '0';
@@ -10765,11 +11561,7 @@ function renderSkillsExpContent(expDiv, expData) {
 function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
     if (!parentRole || !block || !monthTabs || block.dataset.skillsFiltersReady === '1') return;
 
-    var vacancies = getSkillsSourceVacancies(parentRole);
-    if (!vacancies || !vacancies.length) {
-        var salaryMonths = getRoleSalaryData(parentRole);
-        vacancies = collectVacanciesFromSalaryMonths(salaryMonths);
-    }
+    var canUseSkillsApi = typeof fetchSingleRoleSkillsMonthFromApi === 'function';
     block.querySelectorAll('.monthly-skills-exp-content').forEach(function(expDiv) {
         var expData = (expDiv._data && expDiv._data.exp) ? expDiv._data.exp : parseJsonDataset(expDiv, 'exp', null);
         if (!expData || !Array.isArray(expData.skills)) return;
@@ -10777,39 +11569,6 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
             registerSkillDisplayName(s && s.skill ? s.skill : '');
         });
     });
-
-    function filterVacanciesByDays(days) {
-        return filterVacanciesByRecentDays(vacancies || [], days);
-    }
-
-    function buildSkillsMonthFromVacancies(list, label) {
-        var labels = getExperienceLabels();
-        var expMap = {};
-        (list || []).forEach(function(v) {
-            if (!v || !v.skills) return;
-            var exp = normalizeExperience(v._experience || v.experience || '') || 'Не указан';
-            var bucket = expMap[exp] || { experience: exp, total_vacancies: 0, skills: new Map() };
-            bucket.total_vacancies += 1;
-            String(v.skills).split(',').map(s => s.trim()).filter(Boolean).forEach(raw => {
-                var key = normalizeSkillName(raw);
-                if (!key) return;
-                bucket.skills.set(key, (bucket.skills.get(key) || 0) + 1);
-            });
-            expMap[exp] = bucket;
-        });
-
-        var expOrder = getExperienceOrder();
-        var exps = Object.values(expMap).map(function(b) {
-            var skills = Array.from(b.skills.entries()).map(function(pair) {
-                return { skill: getSkillDisplayName(pair[0]), count: pair[1], coverage: b.total_vacancies ? Math.round((pair[1] * 10000) / b.total_vacancies) / 100 : 0, rank: 0 };
-            });
-            skills.sort((a, b) => b.count - a.count || a.skill.localeCompare(b.skill));
-            skills = skills.slice(0, 30).map(function(s, i) { s.rank = i + 1; return s; });
-            return { experience: b.experience, total_vacancies: b.total_vacancies, skills: skills };
-        });
-        exps.sort((a, b) => (expOrder[normalizeExperience(a.experience)] || 99) - (expOrder[normalizeExperience(b.experience)] || 99));
-        return { month: label, experiences: exps };
-    }
 
     function buildSkillsMonthBlock(monthData, suffix) {
         var monthId = 'ms-month-' + parentRole.id + '-filter-' + suffix;
@@ -10869,20 +11628,37 @@ function ensureSkillsMonthlyQuickFilters(parentRole, block, monthTabs) {
         return monthId;
     }
 
-    function addQuickButton(label, suffix, list) {
-        var monthData = buildSkillsMonthFromVacancies(list, label);
-        var monthId = buildSkillsMonthBlock(monthData, suffix);
+    function addQuickButton(label, suffix, apiPeriod) {
         var btn = document.createElement('button');
         btn.className = 'tab-button monthly-skills-month-button skills-quick-filter';
         btn.textContent = label;
-        btn.addEventListener('click', function(e) { openMonthlySkillsMonthTab(e, monthId); });
+        btn.addEventListener('click', function(e) {
+            if (btn.dataset.targetId && document.getElementById(btn.dataset.targetId)) {
+                openMonthlySkillsMonthTab(e, btn.dataset.targetId);
+                return;
+            }
+            if (apiPeriod && canUseSkillsApi) {
+                if (btn.dataset.loading === '1') return;
+                btn.dataset.loading = '1';
+                fetchSingleRoleSkillsMonthFromApi(parentRole, apiPeriod, label).then(function(monthData) {
+                    var monthId = buildSkillsMonthBlock(monthData, suffix);
+                    btn.dataset.targetId = monthId;
+                    btn.dataset.loading = '0';
+                    openMonthlySkillsMonthTab(e, monthId);
+                }).catch(function(err) {
+                    btn.dataset.loading = '0';
+                    console.error('fetchSingleRoleSkillsMonthFromApi failed', err);
+                });
+                return;
+            }
+        });
         monthTabs.insertBefore(btn, monthTabs.firstChild);
     }
 
-    addQuickButton('За 14 дней', '14d', filterVacanciesByDays(14));
-    addQuickButton('За 7 дней', '7d', filterVacanciesByDays(7));
-    addQuickButton('За 3 дня', '3d', filterVacanciesByDays(3));
-    addQuickButton('Сегодня', 'today', filterVacanciesByLatestDay(vacancies || []));
+    addQuickButton('За 14 дней', '14d', 'last_14');
+    addQuickButton('За 7 дней', '7d', 'last_7');
+    addQuickButton('За 3 дня', '3d', 'last_3');
+    addQuickButton('Сегодня', 'today', 'today');
 
     block.dataset.skillsFiltersReady = '1';
 }
@@ -11631,6 +12407,72 @@ function getAllRolesSalaryRowsByCurrency(target) {
     target._data.currencyEntries = parsed || {};
     return target._data.currencyEntries;
 }
+function renderAllRolesSalaryChartFromRows(target, graphId, contextText) {
+    if (!target || !graphId) return;
+    var graphEl = document.getElementById(graphId);
+    if (!graphEl) return;
+    var rowsByCurrency = getAllRolesSalaryRowsByCurrency(target);
+    var activeCurrency = String(target.dataset.activeCurrency || 'RUR').trim().toUpperCase() || 'RUR';
+    var rows = Array.isArray(rowsByCurrency[activeCurrency]) ? rowsByCurrency[activeCurrency] : [];
+    if (!rows.length) {
+        graphEl.dataset.plotSignature = '';
+        graphEl.dataset.plotReady = '';
+        graphEl.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">Нет данных для графика</div>';
+        return;
+    }
+    if (typeof Plotly === 'undefined') {
+        graphEl.innerHTML = '<div style="padding:12px;color:var(--text-secondary);text-align:center;">График недоступен</div>';
+        return;
+    }
+    var labels = rows.map(function(row) { return String(row && row.name || '—').trim(); });
+    var avgValues = rows.map(function(row) {
+        return row && row.avg_salary !== null && row.avg_salary !== undefined ? Number(row.avg_salary) : 0;
+    });
+    var signature = activeCurrency + '|' + rows.map(function(row) {
+        return [row && row.name || '', row && row.count || 0, row && row.avg_salary || '', row && row.max_salary || ''].join(':');
+    }).join('|') + '|' + String(contextText || '').trim();
+    var data = [{
+        x: labels,
+        y: avgValues,
+        type: 'bar',
+        marker: { color: CHART_COLORS.medium },
+        hovertemplate: '<b>%{x}</b><br>Средняя зарплата: %{y:.2f} ' + escapeHtml(activeCurrency) + '<extra></extra>'
+    }];
+    var layout = {
+        title: 'Средняя зарплата по ролям' + (contextText ? ' · ' + contextText : ''),
+        margin: { t: 56, b: 120, l: 60, r: 20 },
+        height: 420,
+        showlegend: false,
+        xaxis: { tickangle: -35 },
+        yaxis: { title: 'Средняя зарплата (' + activeCurrency + ')' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+    };
+    plotIfChangedById(graphId, signature, data, layout);
+}
+function renderAllRolesSalaryPeriodContent(target, period) {
+    if (!target) return;
+    var rowsByCurrency = getAllRolesSalaryRowsByCurrency(target);
+    var currencies = parseJsonDataset(target, 'currencies', []);
+    var activeCurrency = String(target.dataset.activeCurrency || '').trim().toUpperCase();
+    if (!activeCurrency || !rowsByCurrency[activeCurrency]) {
+        activeCurrency = currencies.indexOf('RUR') >= 0 ? 'RUR' : (currencies[0] || 'RUR');
+        target.dataset.activeCurrency = activeCurrency;
+    }
+    var rows = Array.isArray(rowsByCurrency[activeCurrency]) ? rowsByCurrency[activeCurrency] : [];
+    var tableContainer = target.querySelector('.table-container');
+    if (tableContainer && typeof buildAllRolesSalaryTableHtml === 'function') {
+        tableContainer.innerHTML = buildAllRolesSalaryTableHtml(rows, activeCurrency);
+    }
+    var mode = applyAllRolesViewMode(target, 'salary');
+    if (mode !== 'table') {
+        renderAllRolesSalaryChartFromRows(
+            target,
+            target.dataset.graphId || '',
+            String(formatPeriodSelectionValue(period || target.dataset.period || '') || period || '').trim()
+        );
+    }
+}
 
 function renderAllRolesSkillsChartFromTable(target, graphId, contextText, attempt) {
     if (!target || !graphId) return;
@@ -11929,29 +12771,65 @@ function openAllRolesPeriodTab(evt, contentId, analysisType) {
 
     if (analysisType === 'activity' && target) {
         var mode = applyAllRolesViewMode(target, analysisType);
-        var rows = parseJsonDataset(target, 'entries', []);
-        var mainId = target.dataset.graphMain;
-        var ageId = target.dataset.graphAge;
-        var allRolesContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        if (mainId && ageId) {
-            buildAllRolesActivityChart(rows, mainId, ageId);
-            applyChartTitleContext(mainId, 'Открытые и архивные вакансии по ролям', allRolesContext);
-            applyChartTitleContext(ageId, 'Ср. возраст (дни) по ролям', allRolesContext);
+        var renderActivityPeriod = function() {
+            var rows = parseJsonDataset(target, 'entries', []);
+            var mainId = target.dataset.graphMain;
+            var ageId = target.dataset.graphAge;
+            var allRolesContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
+            if (mode !== 'table' && mainId && ageId) {
+                buildAllRolesActivityChart(rows, mainId, ageId);
+                applyChartTitleContext(mainId, 'Открытые и архивные вакансии по ролям', allRolesContext);
+                applyChartTitleContext(ageId, 'Ср. возраст (дни) по ролям', allRolesContext);
+            }
+        };
+        if (parentRole && typeof hydrateAllRolesActivityPeriodFromApi === 'function') {
+            hydrateAllRolesActivityPeriodFromApi(target, parentRole).then(renderActivityPeriod).catch(function(err) {
+                console.error('hydrateAllRolesActivityPeriodFromApi failed', err);
+                renderActivityPeriod();
+            });
+        } else {
+            renderActivityPeriod();
         }
     } else if (analysisType === 'weekday' && target) {
         normalizeWeekdayControls(target.closest('.role-content'));
         var mode = applyAllRolesViewMode(target, analysisType);
-        var rows = parseJsonDataset(target, 'entries', []);
-        var graphId = target.dataset.graphId;
-        var allRolesWeekdayContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
-        if (mode !== 'table' && graphId) {
-            buildAllRolesWeekdayChart(rows, graphId);
-            applyChartTitleContext(graphId, 'Публикации и архивы по ролям', allRolesWeekdayContext);
+        var renderWeekdayPeriod = function() {
+            var rows = parseJsonDataset(target, 'entries', []);
+            var graphId = target.dataset.graphId;
+            var allRolesWeekdayContext = buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null);
+            if (mode !== 'table' && graphId) {
+                buildAllRolesWeekdayChart(rows, graphId);
+                applyChartTitleContext(graphId, 'Публикации и архивы по ролям', allRolesWeekdayContext);
+            }
+        };
+        if (parentRole && typeof hydrateAllRolesWeekdayPeriodFromApi === 'function') {
+            hydrateAllRolesWeekdayPeriodFromApi(target, parentRole).then(renderWeekdayPeriod).catch(function(err) {
+                console.error('hydrateAllRolesWeekdayPeriodFromApi failed', err);
+                renderWeekdayPeriod();
+            });
+        } else {
+            renderWeekdayPeriod();
         }
     } else if (analysisType === 'skills' && target) {
         applyAllRolesViewMode(target, analysisType);
+        if (parentRole && typeof hydrateAllRolesSkillsPeriodFromApi === 'function') {
+            hydrateAllRolesSkillsPeriodFromApi(target, parentRole).then(function() {
+                var graphId = target.dataset.graphId;
+                if (!graphId) return;
+                renderAllRolesSkillsChartFromTable(target, graphId, buildChartContextLabel((evt.currentTarget.textContent || '').trim(), null));
+            }).catch(function(err) {
+                console.error('hydrateAllRolesSkillsPeriodFromApi failed', err);
+            });
+        }
     } else if (analysisType === 'salary' && target) {
         applyAllRolesViewMode(target, analysisType);
+        if (parentRole && typeof hydrateAllRolesSalaryPeriodFromApi === 'function') {
+            hydrateAllRolesSalaryPeriodFromApi(target, parentRole).then(function() {
+                renderAllRolesSalaryPeriodContent(target, String(target.dataset.period || '').trim() || 'all');
+            }).catch(function(err) {
+                console.error('hydrateAllRolesSalaryPeriodFromApi failed', err);
+            });
+        }
     }
 }
 
