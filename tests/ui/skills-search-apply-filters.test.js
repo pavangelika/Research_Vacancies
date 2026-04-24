@@ -34,14 +34,25 @@ function runTest(name, fn) {
 }
 
 runTest('applyGlobalFiltersToSkillsSearch delegates to initSkillsSearch without double refresh', () => {
-  const script = extractFunctionSource('applyGlobalFiltersToSkillsSearch') + '\nmodule.exports = { applyGlobalFiltersToSkillsSearch };';
+  const script = [
+    extractFunctionSource('getSkillsSearchContentBlock'),
+    extractFunctionSource('applyGlobalFiltersToSkillsSearch'),
+    'module.exports = { applyGlobalFiltersToSkillsSearch };'
+  ].join('\n\n');
   let initCalls = 0;
   let updateCalls = 0;
   const block = { marker: 'skills-search-block' };
   const parentRole = {
+    id: 'role-1',
     querySelector(selector) {
-      assert.equal(selector, '.skills-search-content');
-      return block;
+      if (selector === '.skills-search-content[data-analysis="skills-search"]') return null;
+      if (selector === '.skills-search-content[data-analysis="skills-search-1"]') return block;
+      if (selector === '.skills-search-content[data-analysis="skills-search-all"]') return null;
+      if (selector === '.skills-search-content[data-analysis="skills-search-combined"]') return null;
+      if (selector === '.skills-search-content[data-analysis^="skills-search-"]') return block;
+      if (selector === '.skills-search-content[data-analysis^="skills-search"]') return block;
+      if (selector === '.skills-search-content') return { marker: 'wrong-block' };
+      throw new Error(`Unexpected selector ${selector}`);
     }
   };
   const sandbox = {

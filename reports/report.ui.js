@@ -1822,19 +1822,52 @@ function buildMyResponsesTableHtml(vacancies) {
 
 function renderMyResponsesPanels(block, parentRole, list) {
     if (!block) return;
+    block.querySelectorAll('.my-responses-mode-tabs, .my-responses-efficiency').forEach(function(node) {
+        node.remove();
+    });
     var responsesWrap = block.querySelector('.skills-search-results');
     if (!responsesWrap) return;
     responsesWrap.style.display = 'block';
     responsesWrap.innerHTML = '<div class="skills-search-summary">Найдено откликов: ' + list.length + '</div>' + buildMyResponsesTableHtml(list);
+    clearAnalysisLoadingOverlay(block);
+}
+
+function ensureAnalysisLoadingOverlay(container, message) {
+    if (!container) return null;
+    var overlay = container.querySelector('.analysis-loading-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'analysis-loading-overlay';
+        overlay.innerHTML =
+            '<div class="analysis-loading-overlay-card">' +
+                '<span class="analysis-loading-overlay-spinner" aria-hidden="true"></span>' +
+                '<span class="analysis-loading-overlay-text"></span>' +
+            '</div>';
+        container.appendChild(overlay);
+    }
+    container.classList.add('analysis-loading-shell');
+    var text = overlay.querySelector('.analysis-loading-overlay-text');
+    if (text) text.textContent = String(message || 'Загрузка...');
+    return overlay;
+}
+function hasRenderableAnalysisContent(container) {
+    if (!container) return false;
+    var text = String(container.innerText || '').trim();
+    if (!text) return false;
+    return !/^Загрузка(?:\s|$)/.test(text);
+}
+
+function clearAnalysisLoadingOverlay(container) {
+    if (!container) return;
+    container.classList.remove('analysis-loading-shell');
+    var overlay = container.querySelector('.analysis-loading-overlay');
+    if (overlay) overlay.remove();
 }
 function renderMyResponsesContent(parentRole) {
     if (!parentRole) return;
     if (typeof ensureMyResponsesTab === 'function') ensureMyResponsesTab(parentRole);
     var block = parentRole.querySelector('.my-responses-content');
     if (!block) return;
-    block.querySelectorAll('.my-responses-mode-tabs, .my-responses-efficiency').forEach(function(node) {
-        node.remove();
-    });
     var responsesWrap = block.querySelector('.skills-search-results');
     if (!responsesWrap) {
         block.insertAdjacentHTML('beforeend',
@@ -1842,7 +1875,7 @@ function renderMyResponsesContent(parentRole) {
         responsesWrap = block.querySelector('.skills-search-results');
     }
     if (!responsesWrap) return;
-    responsesWrap.innerHTML = '<div class="skills-search-summary">Загрузка откликов...</div>';
+    if (!hasRenderableAnalysisContent(block)) ensureAnalysisLoadingOverlay(block, 'Загрузка откликов...');
     if (Array.isArray(block._data && block._data.responses)) {
         renderMyResponsesPanels(block, parentRole, block._data.responses);
         return;
@@ -2585,7 +2618,7 @@ function renderMyResponsesCalendarContent(parentRole, options) {
     var block = parentRole.querySelector('.response-calendar-content');
     if (!block) return;
     if (!options.suppressLoading) {
-        block.innerHTML = '<div class="skills-search-summary">Загрузка календаря...</div>';
+        if (!hasRenderableAnalysisContent(block)) ensureAnalysisLoadingOverlay(block, 'Загрузка календаря...');
     }
 
     var renderWithList = function(list) {
@@ -2599,6 +2632,7 @@ function renderMyResponsesCalendarContent(parentRole, options) {
         var selectedDayKey = uiState[getResponseCalendarSelectedDayStateKey(parentRole)] || '';
         block.dataset.calendarMonth = currentMonthKey;
         block.innerHTML = buildResponseCalendarHtml(parentRole, filtered, currentMonthKey, selectedDayKey);
+        clearAnalysisLoadingOverlay(block);
 
         var rerenderCalendar = function(extraOptions) {
             var nextOptions = Object.assign({
@@ -3171,6 +3205,28 @@ function collectScopedVacancies(activeRole) {
     return dedupeVacanciesById(combined);
 }
 
+function getSkillsSearchContentBlock(parentRole, analysisType) {
+    if (!parentRole || typeof parentRole.querySelector !== 'function') return null;
+    var current = String(analysisType || (parentRole.dataset && parentRole.dataset.activeAnalysis) || '').trim();
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '').trim();
+    var selectors = [];
+    if (current.indexOf('skills-search') === 0) {
+        selectors.push('.skills-search-content[data-analysis="' + current + '"]');
+    } else if (current === 'skills-search' && roleSuffix) {
+        selectors.push('.skills-search-content[data-analysis="skills-search-' + roleSuffix + '"]');
+    }
+    if (roleSuffix) selectors.push('.skills-search-content[data-analysis="skills-search-' + roleSuffix + '"]');
+    selectors.push('.skills-search-content[data-analysis="skills-search-all"]');
+    selectors.push('.skills-search-content[data-analysis="skills-search-combined"]');
+    selectors.push('.skills-search-content[data-analysis^="skills-search-"]');
+    for (var i = 0; i < selectors.length; i++) {
+        var block = parentRole.querySelector(selectors[i]);
+        if (block) return block;
+    }
+    return parentRole.querySelector('.skills-search-content[data-analysis^="skills-search"]')
+        || parentRole.querySelector('.skills-search-content');
+}
+
 function normalizeGlobalCurrencyFilterValue(value) {
     var current = normalizeTotalsCurrency(value || '');
     if (!current) return 'none';
@@ -3359,7 +3415,7 @@ function getGlobalFilterOptions(activeRole, filterKey, analysisType) {
             return sortExperienceFilterOptions(dedupeFilterOptions(salaryButtons.map(function(btn) { return { value: (btn.textContent || '').trim(), label: (btn.textContent || '').trim() }; }).filter(function(item) { return !!item.value; })));
         }
         if (current === 'skills-search') {
-            var searchBlock2 = activeRole.querySelector('.skills-search-content');
+            var searchBlock2 = getSkillsSearchContentBlock(activeRole, current);
             var searchVacancies = (searchBlock2 && searchBlock2._data && Array.isArray(searchBlock2._data.vacancies)) ? searchBlock2._data.vacancies : [];
             return sortExperienceFilterOptions(dedupeFilterOptions(searchVacancies.map(function(vacancy) {
                 var value = String(vacancy && (vacancy._experience || vacancy.experience) || '').trim();
@@ -3843,9 +3899,12 @@ function refreshExistingGlobalFilterUi(parentRole, analysisType) {
     var rolesWrap = panel.querySelector('.global-filter-dropdown[data-filter-key="roles"]');
     if (rolesWrap) {
         var rolesBucket = ensureGlobalFilterBucket('roles');
+        var visibleRoleOptions = getVisibleRoleOptionsForPrimarySelector(getGlobalFilterOptions(activeRole, 'roles', current), rolesBucket);
+        var visibleRoleValues = visibleRoleOptions.map(function(item) { return String(item && item.value || '').trim(); });
         rolesWrap.querySelectorAll('.skills-search-dropdown-item[data-role-value]').forEach(function(row) {
             var roleValue = row.dataset.roleValue || '';
             var label = row.querySelector('div');
+            row.style.display = visibleRoleValues.indexOf(String(roleValue || '').trim()) >= 0 ? 'grid' : 'none';
             applyRoleFilterOptionVisualState(row, label, rolesBucket, roleValue);
         });
         if (uiState.keep_roles_filter_open) {
@@ -3911,7 +3970,10 @@ function applyGlobalRoleFilter() {
     if (include.length) next = include.filter(function(v) { return exclude.indexOf(v) < 0; });
     else if (exclude.length) next = allIds.filter(function(v) { return exclude.indexOf(v) < 0; });
     else next = [];
-    if (isSummaryModeActive() && !isGlobalFilterMultiEnabled('roles') && next.length <= 1 && typeof ctx.exitAllRolesMode === 'function') {
+    var keepSummaryForSingleRole = isSummaryModeActive()
+        && next.length === 1
+        && /^(activity|weekday|skills-monthly|salary|employer-analysis)$/.test(currentAnalysis);
+    if (isSummaryModeActive() && !isGlobalFilterMultiEnabled('roles') && next.length <= 1 && !keepSummaryForSingleRole && typeof ctx.exitAllRolesMode === 'function') {
         ctx.exitAllRolesMode(new Set(next), next);
         return;
     }
@@ -3922,6 +3984,20 @@ function isRoleFilterOptionExcluded(bucket, optionValue) {
     var exclude = (bucket && Array.isArray(bucket.exclude)) ? bucket.exclude : [];
     return exclude.some(function(value) {
         return isSameGlobalFilterValue('roles', value, optionValue);
+    });
+}
+
+function getVisibleRoleOptionsForPrimarySelector(options, bucket) {
+    var list = Array.isArray(options) ? options.slice() : [];
+    var excludedFromTrendFilter = Array.isArray(uiState && uiState.market_trends_excluded_roles)
+        ? uiState.market_trends_excluded_roles.map(function(value) {
+            return String(value || '').trim();
+        }).filter(Boolean)
+        : [];
+    return list.filter(function(option) {
+        var optionValue = String(option && option.value || '').trim();
+        return !isRoleFilterOptionExcluded(bucket, optionValue)
+            && excludedFromTrendFilter.indexOf(optionValue) < 0;
     });
 }
 
@@ -3968,7 +4044,7 @@ function updateGlobalFilterSelection(filterKey, value, action, skipPanelRefresh)
         }
     } else if (action === 'all') {
         if (filterKey === 'roles') {
-            bucket.include = getGlobalFilterOptions(null, 'roles', null).map(function(item) { return item.value; });
+            bucket.include = getVisibleRoleOptionsForPrimarySelector(getGlobalFilterOptions(null, 'roles', null), bucket).map(function(item) { return item.value; });
             bucket.exclude = [];
         } else {
             bucket.include = [];
@@ -4069,6 +4145,7 @@ function createActiveRoleFilterChip(filterKey, value, labelText, state) {
 function createUnifiedRolesControl(activeRole, analysisType) {
     var options = getGlobalFilterOptions(activeRole, 'roles', analysisType);
     var bucket = ensureGlobalFilterBucket('roles');
+    var visibleOptions = getVisibleRoleOptionsForPrimarySelector(options, bucket);
     var wrap = document.createElement('div');
     wrap.className = 'global-filter-dropdown skills-search-dropdown';
     wrap.dataset.filterKey = 'roles';
@@ -4235,12 +4312,13 @@ function createUnifiedRolesControl(activeRole, analysisType) {
         menu.querySelectorAll('.skills-search-dropdown-item[data-role-value]').forEach(function(node) {
             var roleValue = node.dataset.roleValue || '';
             var labelNode = node.querySelector('div');
+            node.style.display = isRoleFilterOptionExcluded(bucket, roleValue) ? 'none' : 'grid';
             applyRoleFilterOptionVisualState(node, labelNode, bucket, roleValue);
         });
         reorderRoleRows();
     }
 
-    options.forEach(function(option) {
+    visibleOptions.forEach(function(option) {
         var row = document.createElement('div');
         row.className = 'skills-search-dropdown-item';
         row.dataset.roleValue = option.value;
@@ -5680,7 +5758,7 @@ function renderGlobalWeekdayFiltered(parentRole) {
 
 function applyGlobalFiltersToSkillsSearch(parentRole) {
     if (!parentRole) return;
-    var block = parentRole.querySelector('.skills-search-content');
+    var block = getSkillsSearchContentBlock(parentRole, 'skills-search');
     if (!block) return;
     initSkillsSearch(parentRole);
     updateSkillsSearchData(block);
@@ -8584,6 +8662,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             ? '<div class="market-trends-content market-trends-embedded"></div>'
             : (dashboardMode === 'top' ? topHtml : overviewHtml)
     );
+    clearAnalysisLoadingOverlay(block);
 
     block.querySelectorAll('.totals-switch-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -9343,7 +9422,7 @@ function sortSalaryMonths(monthTabs) {
 
 function initSkillsSearch(parentRole) {
     if (!parentRole) return;
-    var block = parentRole.querySelector('.skills-search-content');
+    var block = getSkillsSearchContentBlock(parentRole, 'skills-search');
     if (!block) return;
 
     if (!block._data) {
@@ -9926,7 +10005,7 @@ function getSharedFilterSnapshot(activeRole, analysisType) {
         };
     });
     if (activeRole && String(analysisType || '') === 'skills-search') {
-        snapshot.skills_search_global = getSkillsSearchStateSnapshot(activeRole.querySelector('.skills-search-content'));
+        snapshot.skills_search_global = getSkillsSearchStateSnapshot(getSkillsSearchContentBlock(activeRole, 'skills-search'));
     }
     return snapshot;
 }
@@ -10011,7 +10090,7 @@ function applySharedFilterSnapshot(snapshot, activeRole, analysisType) {
         uiState.skills_search_skill_pick_mode = String(snapshot.skills_search_skill_pick_mode || 'include') === 'exclude' ? 'exclude' : 'include';
     }
     if (activeRole && String(analysisType || activeRole.dataset.activeAnalysis || '') === 'skills-search') {
-        var block = activeRole.querySelector('.skills-search-content');
+        var block = getSkillsSearchContentBlock(activeRole, 'skills-search');
         if (block && uiState.skills_search_global) {
             applySkillsSearchState(block, uiState.skills_search_global);
         }

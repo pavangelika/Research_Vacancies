@@ -5,6 +5,8 @@ const vm = require('node:vm');
 
 const RENDER_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.render.js');
 const RENDER_SOURCE = fs.readFileSync(RENDER_SOURCE_PATH, 'utf8');
+const ANALYSIS_SWITCH_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.analysis-switch.js');
+const ANALYSIS_SWITCH_SOURCE = fs.readFileSync(ANALYSIS_SWITCH_SOURCE_PATH, 'utf8');
 
 function extractFunctionSource(content, name) {
   const marker = `function ${name}(`;
@@ -137,4 +139,64 @@ runTest('summary top navigation exits comparative mode before opening flat secti
   );
   assert.equal(clicked, false, 'summary top navigation should not try to click a flat section inside role-all');
   assert.equal(synced, false, 'summary top navigation should not only resync topbar without leaving comparative mode');
+});
+
+runTest('switchFromSummaryToAnalysis reapplies filters to the resolved target role instead of stale active role lookup', () => {
+  const script = [
+    extractFunctionSource(ANALYSIS_SWITCH_SOURCE, 'switchFromSummaryToAnalysis'),
+    'module.exports = { switchFromSummaryToAnalysis };'
+  ].join('\n\n');
+
+  const targetRole = {
+    id: 'role-1',
+    dataset: { activeAnalysis: 'skills-search' },
+    querySelectorAll(selector) {
+      assert.equal(selector, '.analysis-button');
+      return [targetButton];
+    }
+  };
+  const targetButton = {
+    dataset: { analysisId: 'skills-search-1' },
+    classList: { contains() { return false; } },
+    click() {
+      clicked = true;
+    }
+  };
+  const staleActiveRole = { id: 'role-all', dataset: { activeAnalysis: 'activity' } };
+  let activeRoleCalls = 0;
+  let clicked = false;
+  let appliedRole = null;
+  let appliedType = null;
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    console,
+    uiState: {
+      roleSelectionContext: {
+        getOrder() { return ['1']; },
+        getSelected() { return new Set(['1']); },
+        applySelection() {}
+      }
+    },
+    setSummaryModeActive() {},
+    getActiveRoleContent() {
+      activeRoleCalls += 1;
+      return activeRoleCalls === 1 ? targetRole : staleActiveRole;
+    },
+    applyGlobalFiltersToActiveAnalysis(role, type) {
+      appliedRole = role;
+      appliedType = type;
+    }
+  };
+
+  vm.runInNewContext(script, sandbox, { filename: 'top-navigation-summary-target-role.vm.js' });
+  const { switchFromSummaryToAnalysis } = sandbox.module.exports;
+
+  sandbox.uiState.roleSelectionContext.applySelection = function() {};
+  switchFromSummaryToAnalysis.call(sandbox, 'skills-search');
+
+  assert.equal(clicked, true, 'expected resolved flat-section button click');
+  assert.equal(appliedRole, targetRole, 'filters should be applied to the role that owns the clicked analysis button');
+  assert.equal(appliedType, 'skills-search');
 });

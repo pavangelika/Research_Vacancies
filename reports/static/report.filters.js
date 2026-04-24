@@ -838,7 +838,9 @@ function createSkillsSearchFilterControl(activeRole, analysisType) {
 function getSkillsSearchPanelVacancies(activeRole, analysisType, block) {
     if (!activeRole) return [];
     var current = String(analysisType || activeRole.dataset && activeRole.dataset.activeAnalysis || '').trim() || 'skills-search';
-    var searchBlock = block || activeRole.querySelector('.skills-search-content');
+    var searchBlock = block || (typeof getSkillsSearchContentBlock === 'function'
+        ? getSkillsSearchContentBlock(activeRole, current)
+        : activeRole.querySelector('.skills-search-content'));
     if (current === 'skills-search' && typeof initSkillsSearch === 'function' && searchBlock && (!searchBlock._data || !Array.isArray(searchBlock._data.skills))) {
         initSkillsSearch(activeRole);
     }
@@ -863,7 +865,9 @@ function getSkillsSearchPanelVacancies(activeRole, analysisType, block) {
 
 function getSkillsSearchPanelContext(activeRole, analysisType) {
     if (!activeRole) return null;
-    var block = activeRole.querySelector('.skills-search-content');
+    var block = typeof getSkillsSearchContentBlock === 'function'
+        ? getSkillsSearchContentBlock(activeRole, analysisType)
+        : activeRole.querySelector('.skills-search-content');
     if (!block) return null;
     var current = String(analysisType || activeRole.dataset && activeRole.dataset.activeAnalysis || '').trim() || 'skills-search';
     var skills = (current === 'skills-search' && block._data && Array.isArray(block._data.skills))
@@ -2222,7 +2226,47 @@ function createMarketTrendsExcludedRolesControl(activeRole, analysisType, forceV
         unbindOutsideClose();
         if (uiState.market_trends_excluded_roles_pending_apply) {
             uiState.market_trends_excluded_roles_pending_apply = false;
+            if (typeof ensureGlobalFilterBucket === 'function' && typeof getVisibleRoleOptionsForPrimarySelector === 'function' && typeof getGlobalFilterOptions === 'function') {
+                var rolesBucket = ensureGlobalFilterBucket('roles');
+                var allowedRoleValues = getVisibleRoleOptionsForPrimarySelector(getGlobalFilterOptions(null, 'roles', null), rolesBucket).map(function(item) {
+                    return String(item && item.value || '').trim();
+                }).filter(Boolean);
+                rolesBucket.include = (rolesBucket.include || []).filter(function(value) {
+                    return allowedRoleValues.indexOf(String(value || '').trim()) >= 0;
+                });
+                rolesBucket.exclude = (rolesBucket.exclude || []).filter(function(value) {
+                    return allowedRoleValues.indexOf(String(value || '').trim()) >= 0;
+                });
+                if (uiState.roleSelectionContext && typeof uiState.roleSelectionContext.getSelected === 'function' && typeof uiState.roleSelectionContext.getOrder === 'function' && typeof uiState.roleSelectionContext.applySelection === 'function') {
+                    var currentSelected = Array.from(uiState.roleSelectionContext.getSelected() || []).map(function(value) {
+                        return String(value || '').trim();
+                    }).filter(Boolean);
+                    var currentOrder = uiState.roleSelectionContext.getOrder().map(function(value) {
+                        return String(value || '').trim();
+                    }).filter(Boolean);
+                    var nextOrder = currentOrder.filter(function(value) {
+                        return allowedRoleValues.indexOf(value) >= 0;
+                    });
+                    var nextSelected = currentSelected.filter(function(value) {
+                        return allowedRoleValues.indexOf(value) >= 0;
+                    });
+                    if (!nextSelected.length && allowedRoleValues.length) {
+                        nextSelected = [allowedRoleValues[0]];
+                        nextOrder = [allowedRoleValues[0]];
+                    } else if (!nextOrder.length && nextSelected.length) {
+                        nextOrder = nextSelected.slice();
+                    }
+                    var selectionChanged = nextSelected.length !== currentSelected.length
+                        || nextSelected.some(function(value, index) { return value !== currentSelected[index]; })
+                        || nextOrder.length !== currentOrder.length
+                        || nextOrder.some(function(value, index) { return value !== currentOrder[index]; });
+                    if (selectionChanged) {
+                        uiState.roleSelectionContext.applySelection(new Set(nextSelected), nextOrder);
+                    }
+                }
+            }
             if (typeof renderGlobalTotalsFiltered === 'function') renderGlobalTotalsFiltered(activeRole);
+            if (typeof refreshExistingGlobalFilterUi === 'function') refreshExistingGlobalFilterUi(activeRole, activeRole && activeRole.dataset ? activeRole.dataset.activeAnalysis || '' : '');
         }
     }
 
@@ -2416,9 +2460,7 @@ function ensureGlobalFilterBucket(filterKey) {
             includeSeen.add(normalized);
             return true;
         });
-        var excludeSeen = new Set(uiState.global_filters[filterKey].include.map(function(value) {
-            return String(value || '').trim();
-        }));
+        var excludeSeen = new Set();
         uiState.global_filters[filterKey].exclude = uiState.global_filters[filterKey].exclude.filter(function(value) {
             var normalized = String(value || '').trim();
             if (!normalized || excludeSeen.has(normalized)) return false;

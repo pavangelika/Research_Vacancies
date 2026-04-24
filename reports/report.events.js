@@ -755,7 +755,15 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!uiState.global_filters) return;
         if (!uiState.global_filters.roles) uiState.global_filters.roles = { include: [], exclude: [] };
         var selectedList = Array.from(selected);
+        var allowedRoleIndices = buttons.map(function(btn) {
+            return String(btn && btn.dataset ? btn.dataset.roleIndex || '' : '').trim();
+        }).filter(Boolean);
         uiState.global_filters.roles.include = selectedList;
+        uiState.global_filters.roles.exclude = Array.isArray(uiState.global_filters.roles.exclude)
+            ? uiState.global_filters.roles.exclude.filter(function(value) {
+                return allowedRoleIndices.indexOf(String(value || '').trim()) >= 0;
+            })
+            : [];
     }
     function commitSelection(nextSelected, nextOrder) {
         selected = new Set(nextSelected);

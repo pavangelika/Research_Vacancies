@@ -215,19 +215,33 @@ function handleMyResponsesAnalysisSwitch(ctx) {
     var myResponsesBlock = ctx.blocks.myResponsesBlock;
     if (!myResponsesBlock) return;
     myResponsesBlock.style.display = 'block';
+    seedAnalysisBlockFromSibling(myResponsesBlock, '.my-responses-content[data-analysis^="my-responses-"]', /^(Нет откликов|Загрузка откликов\.\.\.)$/);
     renderMyResponsesContent(ctx.parentRole);
 }
 function handleResponsesCalendarAnalysisSwitch(ctx) {
     var calendarBlock = ctx.blocks.responsesCalendarBlock;
     if (!calendarBlock) return;
     calendarBlock.style.display = 'block';
+    seedAnalysisBlockFromSibling(calendarBlock, '.response-calendar-content[data-analysis^="responses-calendar-"]', /^Загрузка календаря\.\.\.$/);
     renderMyResponsesCalendarContent(ctx.parentRole);
+}
+function seedAnalysisBlockFromSibling(targetBlock, selector, placeholderPattern) {
+    if (!targetBlock || !selector) return;
+    var currentText = String(targetBlock.innerText || '').trim();
+    if (currentText && !(placeholderPattern && placeholderPattern.test(currentText))) return;
+    var donor = Array.from(document.querySelectorAll(selector)).find(function(block) {
+        if (!block || block === targetBlock) return false;
+        var text = String(block.innerText || '').trim();
+        if (!text) return false;
+        return !(placeholderPattern && placeholderPattern.test(text));
+    });
+    if (donor) targetBlock.innerHTML = donor.innerHTML;
 }
 function handleTotalsAnalysisSwitch(ctx) {
     var totalsBlock = ctx.blocks.totalsBlock;
     if (!totalsBlock) return;
     totalsBlock.style.display = 'block';
-    totalsBlock.innerHTML = '<div class="skills-search-hint">Загрузка итогов...</div>';
+    seedAnalysisBlockFromSibling(totalsBlock, '.totals-content[data-analysis^="totals-"]', /^Загрузка итогов\.\.\.$/);
     requestAnimationFrame(function() {
         try {
             renderGlobalTotalsFiltered(ctx.parentRole);
@@ -403,8 +417,11 @@ function switchFromSummaryToAnalysis(analysisType) {
     if (targetButton) {
         targetButton.click();
         if (typeof applyGlobalFiltersToActiveAnalysis === 'function') {
-            var activeRole = getActiveRoleContent();
-            if (activeRole) applyGlobalFiltersToActiveAnalysis(activeRole, analysisType);
+            var targetAnalysisRole = (targetButton && typeof targetButton.closest === 'function')
+                ? targetButton.closest('.role-content')
+                : null;
+            if (!targetAnalysisRole) targetAnalysisRole = targetRole;
+            if (targetAnalysisRole) applyGlobalFiltersToActiveAnalysis(targetAnalysisRole, analysisType);
         }
     }
 }

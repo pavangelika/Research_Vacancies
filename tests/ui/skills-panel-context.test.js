@@ -45,16 +45,27 @@ runTest('getSkillsSearchPanelContext does not init hidden skills-search for tota
     _data: null
   };
   const parentRole = {
+    id: 'role-1',
     dataset: { activeAnalysis: 'totals' },
     querySelector(selector) {
-      assert.equal(selector, '.skills-search-content');
-      return block;
+      if (selector === '.skills-search-content[data-analysis="skills-search-1"]') return block;
+      if (selector === '.skills-search-content[data-analysis="skills-search-all"]') return null;
+      if (selector === '.skills-search-content[data-analysis="skills-search-combined"]') return null;
+      if (selector === '.skills-search-content[data-analysis^="skills-search-"]') return block;
+      if (selector === '.skills-search-content[data-analysis^="skills-search"]') return block;
+      if (selector === '.skills-search-content') return { _data: { skills: [{ skill: 'wrong', count: 99 }] } };
+      throw new Error(`Unexpected selector ${selector}`);
     }
   };
   const sandbox = {
     module: { exports: {} },
     exports: {},
     console,
+    getSkillsSearchContentBlock(role, analysisType) {
+      assert.equal(role, parentRole);
+      assert.equal(analysisType, 'totals');
+      return block;
+    },
     initSkillsSearch() {
       initCalls += 1;
     },

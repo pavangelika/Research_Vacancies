@@ -34,17 +34,29 @@ function runTest(name, fn) {
 }
 
 runTest('initSkillsSearch applies default period before the first API-driven refresh', () => {
-  const script = extractFunctionSource('initSkillsSearch') + '\nmodule.exports = { initSkillsSearch };';
+  const script = [
+    extractFunctionSource('getSkillsSearchContentBlock'),
+    extractFunctionSource('initSkillsSearch'),
+    'module.exports = { initSkillsSearch };'
+  ].join('\n\n');
   const events = [];
   const block = {
     _data: null,
     dataset: {},
     isConnected: true
   };
+  const wrongBlock = { marker: 'wrong-block', _data: { fullVacancies: true } };
   const parentRole = {
+    id: 'role-1',
     querySelector(selector) {
-      assert.equal(selector, '.skills-search-content');
-      return block;
+      if (selector === '.skills-search-content[data-analysis="skills-search"]') return null;
+      if (selector === '.skills-search-content[data-analysis="skills-search-1"]') return block;
+      if (selector === '.skills-search-content[data-analysis="skills-search-all"]') return null;
+      if (selector === '.skills-search-content[data-analysis="skills-search-combined"]') return null;
+      if (selector === '.skills-search-content[data-analysis^="skills-search-"]') return block;
+      if (selector === '.skills-search-content[data-analysis^="skills-search"]') return block;
+      if (selector === '.skills-search-content') return wrongBlock;
+      throw new Error(`Unexpected selector ${selector}`);
     }
   };
   const sandbox = {

@@ -238,6 +238,45 @@ function buildCombinedEmployerRawRowsHtml(rows) {
         '</tr>';
     }).join('');
 }
+function getCombinedSeedAnalysisHtml(analysisType) {
+    var activeRole = typeof getActiveRoleContent === 'function' ? getActiveRoleContent() : null;
+    if (!activeRole || activeRole.id === 'role-all' || activeRole.id === 'role-combined') return '';
+    var normalized = String(analysisType || '').trim();
+    var selectors = {
+        totals: '.totals-content[data-analysis^="totals-"]',
+        'my-responses': '.my-responses-content[data-analysis^="my-responses-"]',
+        'responses-calendar': '.response-calendar-content[data-analysis^="responses-calendar-"]'
+    };
+    var selector = selectors[normalized];
+    if (!selector) return '';
+    var block = activeRole.querySelector(selector);
+    var html = block && typeof block.innerHTML === 'string' ? block.innerHTML.trim() : '';
+    return html || '';
+}
+function getCombinedSeedAnalysisHtml(analysisType) {
+    var activeRole = typeof getActiveRoleContent === 'function' ? getActiveRoleContent() : null;
+    if (!activeRole || activeRole.id === 'role-all' || activeRole.id === 'role-combined') return '';
+    var normalized = String(analysisType || '').trim();
+    var selectors = {
+        totals: '.totals-content[data-analysis^="totals-"]',
+        'my-responses': '.my-responses-content[data-analysis^="my-responses-"]',
+        'responses-calendar': '.response-calendar-content[data-analysis^="responses-calendar-"]'
+    };
+    var selector = selectors[normalized];
+    if (!selector) return '';
+    var block = activeRole.querySelector(selector);
+    var html = block && typeof block.innerHTML === 'string' ? block.innerHTML.trim() : '';
+    return html || '';
+}
+function buildUpperTextTabButtonHtml(label, className, attrs) {
+    var buttonClass = ['analysis-text-tab'];
+    String(className || '').split(/\s+/).forEach(function(token) {
+        if (token) buttonClass.push(token);
+    });
+    return '<button type="button" class="' + escapeHtml(buttonClass.join(' ')) + '"' + (attrs ? ' ' + attrs : '') + '>' +
+        '<span class="shared-filter-group-title-label">' + escapeHtml(label) + '</span>' +
+    '</button>';
+}
 function renderAllRolesContainer(container, roleContents) {
     if (!container) return;
     if (container.__renderingAllRoles) return;
@@ -770,16 +809,6 @@ function renderAllRolesContainer(container, roleContents) {
     ) : '<p>Нет данных анализа работодателей для выбранных ролей</p>') +
     '</div>';
 
-    function buildUpperTextTabButtonHtml(label, className, attrs) {
-        var buttonClass = ['analysis-text-tab'];
-        String(className || '').split(/\s+/).forEach(function(token) {
-            if (token) buttonClass.push(token);
-        });
-        return '<button type="button" class="' + escapeHtml(buttonClass.join(' ')) + '"' + (attrs ? ' ' + attrs : '') + '>' +
-            '<span class="shared-filter-group-title-label">' + escapeHtml(label) + '</span>' +
-        '</button>';
-    }
-
     var summaryReturnTabs = Array.isArray(uiState.summary_return_tabs) ? uiState.summary_return_tabs.slice() : [];
     if (!summaryReturnTabs.length) {
         summaryReturnTabs = [
@@ -924,6 +953,9 @@ function addSummaryTabs(root) {
     });
 }
 function renderCombinedContainer(container, roleContents) {
+    var combinedSeedTotalsHtml = getCombinedSeedAnalysisHtml('totals');
+    var combinedSeedResponsesHtml = getCombinedSeedAnalysisHtml('my-responses');
+    var combinedSeedCalendarHtml = getCombinedSeedAnalysisHtml('responses-calendar');
     var combinedVacanciesRaw = [];
 
     roleContents.forEach(function(roleContent) {
@@ -1099,6 +1131,21 @@ function renderCombinedContainer(container, roleContents) {
             '</div>' +
         '</div>'
     );
+    var totalsBlock = (
+        '<div class="totals-content" data-analysis="totals-all" style="display: none;">' +
+            combinedSeedTotalsHtml +
+        '</div>'
+    );
+    var myResponsesBlock = (
+        '<div class="my-responses-content skills-search-content" data-analysis="my-responses-all" style="display: none;">' +
+            (combinedSeedResponsesHtml || '<div class="skills-search-results my-responses-results"><div class="skills-search-hint">Нет откликов</div></div>') +
+        '</div>'
+    );
+    var responsesCalendarBlock = (
+        '<div class="response-calendar-content" data-analysis="responses-calendar-all" style="display: none;">' +
+            combinedSeedCalendarHtml +
+        '</div>'
+    );
 
     var salaryBlock = (
         '<div class="salary-content" data-analysis="salary-all" style="display: none;" data-salary="">' +
@@ -1163,16 +1210,22 @@ function renderCombinedContainer(container, roleContents) {
     container.innerHTML =
         '<div class="role-period-label">Период публикации: ' + period + '</div>' +
         '<div class="tabs analysis-tabs">' +
+            buildUpperTextTabButtonHtml('Дашборд', 'analysis-button', 'data-analysis-id="totals-all" onclick="switchAnalysis(event, \'totals-all\')"') +
             buildUpperTextTabButtonHtml('Динамика по ролям', 'analysis-button active', 'data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')"') +
             buildUpperTextTabButtonHtml('Лидер публикаций', 'analysis-button', 'data-analysis-id="weekday-all" onclick="switchAnalysis(event, \'weekday-all\')"') +
             buildUpperTextTabButtonHtml('Стоимость навыков', 'analysis-button', 'data-analysis-id="skills-monthly-all" onclick="switchAnalysis(event, \'skills-monthly-all\')"') +
             buildUpperTextTabButtonHtml('Поиск вакансий', 'analysis-button', 'data-analysis-id="skills-search-all" onclick="switchAnalysis(event, \'skills-search-all\')"') +
+            buildUpperTextTabButtonHtml('Мои отклики', 'analysis-button', 'data-analysis-id="my-responses-all" onclick="switchAnalysis(event, \'my-responses-all\')"') +
+            buildUpperTextTabButtonHtml('Календарь', 'analysis-button', 'data-analysis-id="responses-calendar-all" onclick="switchAnalysis(event, \'responses-calendar-all\')"') +
             buildUpperTextTabButtonHtml('Вилка по ролям', 'analysis-button', 'data-analysis-id="salary-all" onclick="switchAnalysis(event, \'salary-all\')"') +
         '</div>' +
+        totalsBlock +
         activityBlocks +
         weekdayBlock +
         skillsBlock +
         skillsSearchBlock +
+        myResponsesBlock +
+        responsesCalendarBlock +
         salaryBlock +
         employerBlock;
 
@@ -1272,7 +1325,7 @@ function showSingleRole(idx) {
     roleContent.style.display = 'block';
     var savedType = normalizeAnalysisTypeForButtonLookup(uiState.global_analysis_type || uiState[getAnalysisStateKey(targetId)]);
     if (savedType) {
-        var targetButton = roleContent.querySelector(".analysis-button[data-analysis-id='" + savedType + '-' + idx + "']");
+        var targetButton = findAnalysisButtonByType(roleContent, savedType);
         if (targetButton) {
             targetButton.click();
             updateRoleSelectionUI(new Set([String(idx)]));
@@ -1327,10 +1380,19 @@ function findAnalysisButtonByType(container, analysisType) {
     if (!container) return null;
     var targetType = normalizeAnalysisTypeForButtonLookup(analysisType);
     if (!targetType) return null;
-    return Array.from(container.querySelectorAll('.analysis-button[data-analysis-id]')).find(function(btn) {
+    var buttons = Array.from(container.querySelectorAll('.analysis-button[data-analysis-id]'));
+    var exactButton = buttons.find(function(btn) {
         var id = String((btn.dataset && btn.dataset.analysisId) || '');
         return id.indexOf(targetType + '-') === 0;
     }) || null;
+    if (exactButton) return exactButton;
+    if (/^(activity|weekday|skills-monthly|salary|employer-analysis)$/.test(targetType)) {
+        return buttons.find(function(btn) {
+            var id = String((btn.dataset && btn.dataset.analysisId) || '');
+            return id.indexOf('detail-') === 0;
+        }) || null;
+    }
+    return null;
 }
 function getActiveRoleContainerForContext(context) {
     if (!context) return null;
@@ -1356,12 +1418,7 @@ function buildAllRolesRenderSignature(selectedIndices) {
 function getUnifiedRoleStrategies() {
     return {
         all: function(context) {
-            context.roleContents.forEach(function(content) {
-                content.style.display = 'none';
-            });
-            if (context.combined) context.combined.style.display = 'none';
             if (!context.allRoles) return;
-            context.allRoles.style.display = 'block';
             var selectedContents = context.selectedRoleContents.length ? context.selectedRoleContents : getAllRoleContents();
             if (typeof ensureDefaultPeriodFilterSelection === 'function') {
                 ensureDefaultPeriodFilterSelection(context.allRoles, normalizeAnalysisTypeForButtonLookup(context.allRoles.dataset.activeAnalysis || uiState.global_analysis_type || 'activity'));
@@ -1370,12 +1427,17 @@ function getUnifiedRoleStrategies() {
             if (context.allRoles.dataset.renderSignature !== renderSignature) {
                 renderAllRolesContainer(context.allRoles, selectedContents);
                 context.allRoles.dataset.renderSignature = renderSignature;
-                return;
+            } else {
+                var preferred = normalizeAnalysisTypeForButtonLookup(context.allRoles.dataset.activeAnalysis || uiState.global_analysis_type || 'activity');
+                var targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
+                if (!targetButton) targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="activity-all"]');
+                if (targetButton) targetButton.click();
             }
-            var preferred = normalizeAnalysisTypeForButtonLookup(context.allRoles.dataset.activeAnalysis || uiState.global_analysis_type || 'activity');
-            var targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="' + preferred + '-all"]');
-            if (!targetButton) targetButton = context.allRoles.querySelector('.analysis-button[data-analysis-id="activity-all"]');
-            if (targetButton) targetButton.click();
+            context.roleContents.forEach(function(content) {
+                content.style.display = 'none';
+            });
+            if (context.combined) context.combined.style.display = 'none';
+            context.allRoles.style.display = 'block';
         },
         empty: function(context) {
             context.roleContents.forEach(function(content) {
@@ -1392,12 +1454,12 @@ function getUnifiedRoleStrategies() {
             showSingleRole(idx);
         },
         combined: function(context) {
+            if (!context.combined) return;
+            renderCombinedContainer(context.combined, context.selectedRoleContents);
             context.roleContents.forEach(function(content) {
                 content.style.display = 'none';
             });
-            if (!context.combined) return;
             context.combined.style.display = 'block';
-            renderCombinedContainer(context.combined, context.selectedRoleContents);
         }
     };
 }

@@ -949,29 +949,15 @@ function fetchSkillsSearchVacanciesFromApi(parentRole, block, includeSkillFilter
     if (!parentRole) return Promise.resolve(null);
     var cache = getAllRolesAnalyticsCache(parentRole);
     var scopeParams = getSkillsSearchScopeParams(parentRole);
-    var collapseValues = typeof collapseResolvedFilterValuesWhenAllSelected === 'function'
-        ? collapseResolvedFilterValuesWhenAllSelected
-        : function(values) {
-            return Array.isArray(values) ? values.slice() : [];
-        };
     var selectedPeriods = getSkillsSearchResolvedFilterValues(parentRole, 'periods').map(normalizeAnalyticsPeriodForApi).filter(Boolean);
-    var experienceOptions = typeof getGlobalFilterOptions === 'function'
-        ? getGlobalFilterOptions(parentRole, 'experiences', 'skills-search')
+    var selectedExperiences = (typeof hasExplicitGlobalFilterSelection === 'function' && hasExplicitGlobalFilterSelection('experiences'))
+        ? getSkillsSearchResolvedFilterValues(parentRole, 'experiences')
         : [];
-    var selectedExperiences = collapseValues(
-        getSkillsSearchResolvedFilterValues(parentRole, 'experiences'),
-        experienceOptions,
-        typeof normalizeExperience === 'function' ? normalizeExperience : null
-    );
     var selectedStatus = getSkillsSearchResolvedFilterValues(parentRole, 'status');
     var selectedCountry = getSkillsSearchResolvedFilterValues(parentRole, 'country');
-    var currencyOptions = typeof getGlobalFilterOptions === 'function'
-        ? getGlobalFilterOptions(parentRole, 'currency', 'skills-search')
+    var selectedCurrency = (typeof hasExplicitGlobalFilterSelection === 'function' && hasExplicitGlobalFilterSelection('currency'))
+        ? getSkillsSearchResolvedFilterValues(parentRole, 'currency')
         : [];
-    var selectedCurrency = collapseValues(
-        getSkillsSearchResolvedFilterValues(parentRole, 'currency'),
-        currencyOptions
-    );
     var employerOptions = typeof getGlobalFilterOptions === 'function'
         ? getGlobalFilterOptions(parentRole, 'employer', 'skills-search')
         : [];
@@ -1018,12 +1004,13 @@ function fetchSkillsSearchVacanciesFromApi(parentRole, block, includeSkillFilter
     }
     var request = fetchReportApiJson('/api/v1/vacancies', params).then(function(data) {
         var items = (data && Array.isArray(data.items) ? data.items : []).map(adaptVacancyApiItem);
+        var sourceTotal = Number(data && data.total);
         var payload = {
             items: items,
-            total: items.length,
+            total: isFinite(sourceTotal) && sourceTotal >= 0 ? sourceTotal : items.length,
             page: 1,
             per_page: 1000,
-            source_total: Number(data && data.total) || items.length
+            source_total: isFinite(sourceTotal) && sourceTotal >= 0 ? sourceTotal : items.length
         };
         cache[cacheKey] = { data: payload };
         return payload;
@@ -1242,29 +1229,11 @@ function fetchSkillsSearchSuggestionsFromApi(parentRole) {
     if (!parentRole) return Promise.resolve(null);
     var cache = getAllRolesAnalyticsCache(parentRole);
     var scopeParams = getSkillsSearchScopeParams(parentRole);
-    var collapseValues = typeof collapseResolvedFilterValuesWhenAllSelected === 'function'
-        ? collapseResolvedFilterValuesWhenAllSelected
-        : function(values) {
-            return Array.isArray(values) ? values.slice() : [];
-        };
     var selectedPeriods = getSkillsSearchResolvedFilterValues(parentRole, 'periods').map(normalizeAnalyticsPeriodForApi).filter(Boolean);
-    var experienceOptions = typeof getGlobalFilterOptions === 'function'
-        ? getGlobalFilterOptions(parentRole, 'experiences', 'skills-search')
-        : [];
-    var selectedExperiences = collapseValues(
-        getSkillsSearchResolvedFilterValues(parentRole, 'experiences'),
-        experienceOptions,
-        typeof normalizeExperience === 'function' ? normalizeExperience : null
-    );
+    var selectedExperiences = getSkillsSearchResolvedFilterValues(parentRole, 'experiences');
     var selectedStatus = getSkillsSearchResolvedFilterValues(parentRole, 'status');
     var selectedCountry = getSkillsSearchResolvedFilterValues(parentRole, 'country');
-    var currencyOptions = typeof getGlobalFilterOptions === 'function'
-        ? getGlobalFilterOptions(parentRole, 'currency', 'skills-search')
-        : [];
-    var selectedCurrency = collapseValues(
-        getSkillsSearchResolvedFilterValues(parentRole, 'currency'),
-        currencyOptions
-    );
+    var selectedCurrency = getSkillsSearchResolvedFilterValues(parentRole, 'currency');
     var employerOptions = typeof getGlobalFilterOptions === 'function'
         ? getGlobalFilterOptions(parentRole, 'employer', 'skills-search')
         : [];

@@ -92,6 +92,16 @@ runTest('report stylesheet highlights only shared filter icons, not labels', () 
     /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-icon/,
     'report stylesheet should keep icon-only highlight rules for collapsed shared filters'
   );
+  assert.match(
+    source,
+    /body\.report-dashboard\s+#global-shared-filter-panel\[data-panel-open="0"\]\s+\.shared-filter-panel-rail-button\.filled[\s\S]*?\{[\s\S]*?background:\s*#36474f|body\.report-dashboard\s+#global-shared-filter-panel\.is-collapsed\s+\.shared-filter-panel-rail-button\.filled[\s\S]*?\{[\s\S]*?background:\s*#36474f/,
+    'report stylesheet should keep the collapsed filled shared-filter button background neutral'
+  );
+  assert.match(
+    source,
+    /body\.report-dashboard\s+#global-shared-filter-panel\[data-panel-open="0"\]\s+\.shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*?background-image:\s*linear-gradient[\s\S]*?-webkit-text-fill-color:\s*transparent|body\.report-dashboard\s+#global-shared-filter-panel\.is-collapsed\s+\.shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*?background-image:\s*linear-gradient[\s\S]*?-webkit-text-fill-color:\s*transparent/,
+    'report stylesheet should move the collapsed filled shared-filter highlight onto the icon'
+  );
 });
 
 runTest('static stylesheet highlights only shared filter icons, not labels', () => {
@@ -110,6 +120,16 @@ runTest('static stylesheet highlights only shared filter icons, not labels', () 
     source,
     /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-icon/,
     'static stylesheet should keep icon-only highlight rules for collapsed shared filters'
+  );
+  assert.match(
+    source,
+    /body\.report-dashboard\s+#global-shared-filter-panel\[data-panel-open="0"\]\s+\.shared-filter-panel-rail-button\.filled[\s\S]*?\{[\s\S]*?background:\s*#36474f|body\.report-dashboard\s+#global-shared-filter-panel\.is-collapsed\s+\.shared-filter-panel-rail-button\.filled[\s\S]*?\{[\s\S]*?background:\s*#36474f/,
+    'static stylesheet should keep the collapsed filled shared-filter button background neutral'
+  );
+  assert.match(
+    source,
+    /body\.report-dashboard\s+#global-shared-filter-panel\[data-panel-open="0"\]\s+\.shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*?background-image:\s*linear-gradient[\s\S]*?-webkit-text-fill-color:\s*transparent|body\.report-dashboard\s+#global-shared-filter-panel\.is-collapsed\s+\.shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-icon[\s\S]*?background-image:\s*linear-gradient[\s\S]*?-webkit-text-fill-color:\s*transparent/,
+    'static stylesheet should move the collapsed filled shared-filter highlight onto the icon'
   );
 });
 
