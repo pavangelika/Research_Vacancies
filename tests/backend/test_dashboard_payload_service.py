@@ -43,6 +43,113 @@ def test_get_dashboard_payload_returns_totals_sections():
     assert result["market_trends"]["focus_metrics"]["id"] == "96"
 
 
+class CompensationAvailabilityVacanciesRepository:
+    def list_vacancies(self, *, include_details=True):
+        return [
+            {
+                "id": "1",
+                "role_id": "96",
+                "name": "Remote with salary",
+                "employer_name": "Acme",
+                "currency": "RUR",
+                "salary_from": 200000,
+                "salary_to": None,
+                "work_format": "REMOTE",
+                "experience": "Нет опыта",
+                "skills_raw": "Python",
+                "published_at": "2026-04-21T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+            {
+                "id": "2",
+                "role_id": "96",
+                "name": "Remote without salary",
+                "employer_name": "Acme",
+                "currency": "RUR",
+                "salary_from": None,
+                "salary_to": None,
+                "work_format": "REMOTE",
+                "experience": "Нет опыта",
+                "skills_raw": "Python",
+                "published_at": "2026-04-20T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+            {
+                "id": "3",
+                "role_id": "96",
+                "name": "Onsite with salary",
+                "employer_name": "Acme",
+                "currency": "RUR",
+                "salary_from": 180000,
+                "salary_to": None,
+                "work_format": "ONSITE",
+                "experience": "Нет опыта",
+                "skills_raw": "Python",
+                "published_at": "2026-04-19T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+            {
+                "id": "4",
+                "role_id": "96",
+                "name": "Onsite without salary",
+                "employer_name": "Acme",
+                "currency": "RUR",
+                "salary_from": None,
+                "salary_to": None,
+                "work_format": "ONSITE",
+                "experience": "Нет опыта",
+                "skills_raw": "Python",
+                "published_at": "2026-04-18T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+        ]
+
+
+def test_get_dashboard_payload_includes_compensation_availability_summary():
+    service = AnalyticsService(
+        repository=StubAnalyticsRepository(),
+        vacancies_repository=CompensationAvailabilityVacanciesRepository(),
+        responses_service=StubResponsesService(),
+    )
+
+    result = service.get_dashboard_payload(scope="single", role_ids=["96"], period="2026-04")
+
+    assert result["compensation_availability"] == {
+        "total": 4,
+        "with_salary": 2,
+        "without_salary": 2,
+        "coverage_percent": 50.0,
+        "remote": {
+            "total": 2,
+            "with_salary": 1,
+            "without_salary": 1,
+            "coverage_percent": 50.0,
+            "with_salary_currencies": {
+                "RUR": {"count": 1, "share": 100.0},
+                "USD": {"count": 0, "share": 0.0},
+                "EUR": {"count": 0, "share": 0.0},
+                "OTHER": {"count": 0, "share": 0.0},
+            },
+        },
+        "non_remote": {
+            "total": 2,
+            "with_salary": 1,
+            "without_salary": 1,
+            "coverage_percent": 50.0,
+            "with_salary_currencies": {
+                "RUR": {"count": 1, "share": 100.0},
+                "USD": {"count": 0, "share": 0.0},
+                "EUR": {"count": 0, "share": 0.0},
+                "OTHER": {"count": 0, "share": 0.0},
+            },
+        },
+    }
+
+
 class TopModeVacanciesRepository:
     def list_vacancies(self, *, include_details=True):
         return [

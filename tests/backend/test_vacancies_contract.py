@@ -41,6 +41,7 @@ def test_vacancies_list_contract(monkeypatch):
                     "archived_at": None,
                     "apply_alternate_url": "https://example.com/apply",
                     "send_resume": False,
+                    "work_format": "REMOTE",
                 }
             ],
             "page": 1,
@@ -54,6 +55,7 @@ def test_vacancies_list_contract(monkeypatch):
     payload = response.json()
     assert payload["total"] == 1
     assert payload["items"][0]["id"] == "123"
+    assert payload["items"][0]["work_format"] == "REMOTE"
 
 
 def test_vacancy_details_contract(monkeypatch):
@@ -81,6 +83,7 @@ def test_vacancy_details_contract(monkeypatch):
             "archived_at": None,
             "apply_alternate_url": "https://example.com/apply",
             "send_resume": False,
+            "work_format": "REMOTE",
         },
     )
 
@@ -89,6 +92,7 @@ def test_vacancy_details_contract(monkeypatch):
     payload = response.json()
     assert payload["id"] == "123"
     assert payload["employer"]["name"] == "Acme"
+    assert payload["work_format"] == "REMOTE"
 
 
 def test_skill_suggestions_contract(monkeypatch):

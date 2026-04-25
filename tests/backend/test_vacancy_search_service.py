@@ -57,6 +57,7 @@ def make_repo_items():
             "employer_url": "https://example.com/acme",
             "cover_letter_required": True,
             "has_test": False,
+            "work_format": "REMOTE",
         },
         {
             "id": "2",
@@ -83,6 +84,7 @@ def make_repo_items():
             "employer_url": "https://example.com/beta",
             "cover_letter_required": False,
             "has_test": True,
+            "work_format": "HYBRID",
         },
     ]
 
@@ -163,3 +165,12 @@ def test_skill_suggestions_respect_core_search_filters():
     assert "FastAPI" in skills
     assert "Pandas" not in skills
 
+
+def test_list_vacancies_exposes_work_format_in_normalized_payload():
+    service = VacancySearchService(repository=StubVacanciesRepository(make_repo_items()))
+
+    result = service.list_vacancies(role_ids=["96"])
+
+    assert result["total"] == 2
+    assert result["items"][0]["work_format"] == "REMOTE"
+    assert result["items"][1]["work_format"] == "HYBRID"

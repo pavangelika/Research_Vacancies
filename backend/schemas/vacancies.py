@@ -35,6 +35,7 @@ class VacancyItemDto(BaseModel):
     archived_at: str | None = None
     apply_alternate_url: str | None = None
     send_resume: bool = False
+    work_format: str | None = None
 
 
 class VacancyListResponseDto(BaseModel):

@@ -63,16 +63,21 @@ function assertUiSourceContracts(source, label) {
   assert.match(donutFn, /data-selection-key="published-archived"/);
   assert.match(donutFn, /donut-legend-label">' \+ donutNewLabel \+ '<\/span>/);
   assert.match(donutFn, /donut-legend-label">' \+ donutPublishedArchivedLabel \+ '<\/span>/);
+  assert.match(donutFn, /<div class="donut-chart-shell">/);
+  assert.match(donutFn, /<div class="donut-drilldown" hidden><\/div>/);
 
   assert.match(drilldownFn, /metricRow\(donutNewLabel,/);
   assert.match(drilldownFn, /renderDistributionSection\(donutNewLabel,/);
   assert.match(drilldownFn, /metricRow\(donutPublishedArchivedLabel,/);
   assert.match(drilldownFn, /renderDistributionSection\(donutPublishedArchivedLabel,/);
 
-  assert.match(interactivitySection, /String\(node\.dataset\.selectionKey \|\| ''\) === selectionKey/);
+  assert.match(interactivitySection, /String\(node\.dataset\.selectionKey \|\| ''\) === String\(selectionKey \|\| ''\)/);
   assert.match(interactivitySection, /var selectionKey = String\(node\.dataset\.selectionKey \|\| ''\)\.trim\(\);/);
   assert.match(interactivitySection, /var statusKey = String\(node\.dataset\.status \|\| ''\)\.trim\(\);/);
   assert.match(interactivitySection, /toggleDonutDrilldown\(selectionKey, statusKey\);/);
+  assert.match(interactivitySection, /node\.classList\.toggle\('is-active', isSelected\);/);
+  assert.match(interactivitySection, /node\.classList\.toggle\('is-muted', !!selectionKey && !isSelected\);/);
+  assert.doesNotMatch(interactivitySection, /node\.classList\.toggle\('is-selected', isSelected\);/);
 
   assert.doesNotMatch(salarySection, /Новые за период/);
   assert.doesNotMatch(salarySection, /Опубл\. и архив\. за период/);
@@ -94,9 +99,12 @@ function assertStyleContracts(source, label) {
   const salaryLabelCss = extractSection(source, '.salary-summary-chart-label {', '.salary-summary-chart-points .salary-summary-chart-row {');
   const salaryCompactLabelCss = extractSection(source, '.salary-summary-chart-compact .salary-summary-chart-label {', '.salary-summary-chart-compact .salary-summary-chart-line {');
 
-  assert.match(donutCss, /\.donut-chart-container\s*\{[\s\S]*flex-wrap:\s*nowrap;/);
-  assert.match(donutCss, /\.donut-chart-container\s*\{[\s\S]*gap:\s*16px;/);
-  assert.match(donutCss, /\.donut-legend\s*\{[\s\S]*flex:\s*0 1 186px;/);
+  assert.match(donutCss, /\.donut-chart-container\s*\{[\s\S]*flex-direction:\s*column;/);
+  assert.match(donutCss, /\.donut-chart-container\s*\{[\s\S]*gap:\s*18px;/);
+  assert.match(donutCss, /\.donut-chart-shell\s*\{[\s\S]*display:\s*grid;/);
+  assert.match(donutCss, /\.donut-chart-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(240px,\s*1\.15fr\)\s*minmax\(220px,\s*0\.85fr\);/);
+  assert.match(donutCss, /\.donut-chart\s*\{[\s\S]*width:\s*clamp\(220px,\s*28vw,\s*320px\);[\s\S]*aspect-ratio:\s*1\s*\/\s*1;/);
+  assert.match(donutCss, /\.donut-center-label\s*\{[\s\S]*inset:\s*50%\s+auto\s+auto\s+50%;/);
   assert.match(donutCss, /\.donut-legend-item\s*\{[\s\S]*width:\s*100%;/);
   assert.match(donutCss, /\.donut-legend-item\s*\{[\s\S]*min-width:\s*0;/);
   assert.match(donutCss, /\.donut-legend-item-passive\s*\{/);
@@ -105,6 +113,10 @@ function assertStyleContracts(source, label) {
   assert.match(donutCss, /\.donut-legend-kpi\s*\{[\s\S]*background:\s*var\(--surface-variant\);/);
   assert.match(donutCss, /\.donut-legend-kpi\s*\{[\s\S]*border:\s*1px solid rgba\(148, 163, 184, 0\.16\);/);
   assert.match(donutCss, /\.donut-legend-action\s*\{[\s\S]*font:\s*inherit;/);
+  assert.match(donutCss, /\.donut-chart-segment\s*\{[\s\S]*transform:\s*none;/);
+  assert.match(donutCss, /\.donut-chart-segment\.is-active\s*\{/);
+  assert.match(donutCss, /\.donut-chart-segment\.is-muted\s*\{/);
+  assert.doesNotMatch(donutCss, /translateY\(-1px\)/);
   assert.doesNotMatch(
     donutCss,
     /\.donut-legend-color-kpi\s*\{[\s\S]*background:\s*linear-gradient\(135deg, #efc3ff 0%, #b58cff 100%\);/
@@ -116,8 +128,7 @@ function assertStyleContracts(source, label) {
   assert.match(salaryCompactLabelCss, /\.salary-summary-chart-compact \.salary-summary-chart-label\s*\{[\s\S]*font-size:\s*0\.78rem;/);
   assert.match(salaryCompactLabelCss, /\.salary-summary-chart-compact \.salary-summary-chart-label\s*\{[\s\S]*color:\s*var\(--text-secondary\);/);
 
-  assert.match(donutMedia, /\.donut-chart-container\s*\{[\s\S]*flex-direction:\s*column;/);
-  assert.match(donutMedia, /\.donut-chart-container\s*\{[\s\S]*flex-wrap:\s*wrap;/);
+  assert.match(donutMedia, /\.donut-chart-shell\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*justify-items:\s*center;/);
   assert.match(donutMedia, /\.donut-legend-item\s*\{[\s\S]*min-width:\s*0;/);
 
   assert.ok(

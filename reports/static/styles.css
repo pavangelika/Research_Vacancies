@@ -67,6 +67,9 @@
     --chart-subtitle-overlap: -4px;
     --chart-subtitle-bottom-gap: 14px;
     --chart-controls-gap: 12px;
+    --dashboard-chart-grid-color: rgba(148, 163, 184, 0.16);
+    --dashboard-chart-axis-color: #64748b;
+    --dashboard-chart-title-color: #334155;
 
     /* Анализ */
     --analysis-layout-max-width: 100%;
@@ -8293,9 +8296,21 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 /* Контейнер дашборда: левая колонка (вакансии + воронка), правая (зарплаты) */
 .dashboard-overview {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px;
     padding: 24px;
+    align-items: start;
+}
+
+.dashboard-overview-columns {
+    display: contents;
+}
+
+.dashboard-overview-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
 }
 
 @media (max-width: 900px) {
@@ -8314,10 +8329,10 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 
 /* Карточка дашборда */
 .dashboard-card {
-    background: var(--surface);
-    border-radius: 16px;
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-card);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 253, 0.94) 100%);
+    border-radius: 24px;
+    border: 1px solid rgba(226, 232, 240, 0.88);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
     padding: 20px;
     display: flex;
     flex-direction: column;
@@ -8326,8 +8341,12 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     overflow: hidden;
 }
 
+.dashboard-card-body {
+    padding: 18px 20px 20px;
+}
+
 .totals-employer-overview-card {
-    grid-column: 1 / -1;
+    grid-column: auto;
 }
 
 .totals-employer-overview-controls {
@@ -8349,26 +8368,116 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     min-height: 420px;
 }
 
+.dashboard-chart-host-funnel {
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+
 .dashboard-card-title {
     font-size: 1rem;
     font-weight: 700;
-    color: var(--text-primary);
+    color: var(--dashboard-chart-title-color);
     margin: 0;
+}
+
+.dashboard-work-format-card {
+    min-width: 0;
+}
+
+.dashboard-work-format-card .dashboard-card-body {
+    padding: 18px 20px 20px;
+}
+
+.dashboard-work-format-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.dashboard-work-format-column {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.dashboard-work-format-column-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dashboard-chart-title-color);
+}
+
+.dashboard-work-format-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.dashboard-work-format-tile {
+    border-radius: 16px;
+    padding: 12px 12px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+    display: grid;
+    gap: 4px;
+}
+
+.dashboard-work-format-tile.is-accent {
+    background: linear-gradient(180deg, rgba(224, 242, 254, 0.98), rgba(219, 234, 254, 0.95));
+    border-color: rgba(96, 165, 250, 0.28);
+}
+
+.dashboard-work-format-tile.is-neutral,
+.dashboard-work-format-tile.is-currency {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+}
+
+.dashboard-work-format-tile-label,
+.dashboard-work-format-tile-note {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+}
+
+.dashboard-work-format-tile-label {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.dashboard-work-format-tile-value {
+    font-size: clamp(1.08rem, 1.8vw, 1.45rem);
+    line-height: 1;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.dashboard-work-format-tile-note {
+    font-size: 0.74rem;
+    line-height: 1.35;
 }
 
 /* Круговая диаграмма */
 .donut-chart-container {
     display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.donut-chart-shell {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.15fr) minmax(220px, 0.85fr);
+    gap: 18px;
     align-items: center;
-    justify-content: center;
-    gap: 16px;
-    flex-wrap: nowrap;
 }
 
 .donut-chart {
     position: relative;
-    width: 200px;
-    height: 200px;
+    width: clamp(220px, 28vw, 320px);
+    aspect-ratio: 1 / 1;
+    height: auto;
     flex-shrink: 0;
 }
 
@@ -8400,8 +8509,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 
 .donut-center-label {
     position: absolute;
-    top: 50%;
-    left: 50%;
+    inset: 50% auto auto 50%;
     transform: translate(-50%, -50%);
     text-align: center;
 }
@@ -8425,7 +8533,6 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     display: flex;
     flex-direction: column;
     gap: 10px;
-    flex: 0 1 186px;
 }
 
 .donut-legend-item {
@@ -8445,18 +8552,20 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     text-align: left;
     font: inherit;
     color: inherit;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
 }
 .donut-legend-action:hover {
-    transform: translateY(-1px);
     border-color: rgba(59, 130, 246, 0.24);
     background: rgba(255, 255, 255, 0.96);
     box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
-.donut-legend-action.is-selected {
+.donut-legend-action.is-active {
     border-color: rgba(59, 130, 246, 0.3);
     background: rgba(239, 246, 255, 0.95);
     box-shadow: 0 10px 24px rgba(59, 130, 246, 0.12);
+}
+.donut-legend-action.is-muted {
+    opacity: 0.58;
 }
 .donut-legend-action:focus-visible {
     outline: 2px solid rgba(59, 130, 246, 0.35);
@@ -8512,15 +8621,20 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 }
 .donut-chart-segment {
     transition: opacity 0.18s ease, stroke-width 0.18s ease, filter 0.18s ease;
+    transform: none;
 }
 .donut-chart-segment.is-clickable {
     cursor: pointer;
 }
 .donut-chart-segment.is-clickable:hover,
-.donut-chart-segment.is-selected {
+.donut-chart-segment.is-active {
     opacity: 0.95;
     stroke-width: 22;
     filter: drop-shadow(0 8px 20px rgba(15, 23, 42, 0.16));
+}
+.donut-chart-segment.is-muted {
+    opacity: 0.28;
+    filter: none;
 }
 .donut-chart-segment:focus-visible {
     outline: none;
@@ -8639,48 +8753,60 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     color: var(--text-secondary);
 }
 
-.employer-analysis-donut-chart {
-    display: flex;
-    flex-direction: column;
+.employer-analysis-ranked-chart {
+    display: grid;
     gap: 10px;
     min-width: 0;
 }
 
-.employer-analysis-donut-chart-title {
+.employer-analysis-ranked-chart-title {
     text-align: center;
     font-size: 0.92rem;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.employer-analysis-donut-chart svg {
-    width: 100%;
-    height: auto;
-    overflow: visible;
+.employer-analysis-ranked-row {
+    display: grid;
+    gap: 6px;
 }
 
-.employer-analysis-donut-label,
-.employer-analysis-donut-value,
-.employer-analysis-donut-axis-tick text {
+.employer-analysis-ranked-row-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.employer-analysis-ranked-label {
+    min-width: 0;
+    color: var(--text-primary);
     font-family: var(--chart-font-family);
     font-size: var(--chart-secondary-font-size);
-    font-weight: var(--chart-secondary-font-weight);
+    font-weight: 600;
     line-height: var(--chart-secondary-line-height);
 }
 
-.employer-analysis-donut-label {
-    fill: var(--text-primary);
+.employer-analysis-ranked-value {
+    color: var(--text-secondary);
+    font-family: var(--chart-font-family);
+    font-size: var(--chart-secondary-font-size);
+    font-weight: 700;
+    line-height: var(--chart-secondary-line-height);
+    white-space: nowrap;
 }
 
-.employer-analysis-donut-value,
-.employer-analysis-donut-axis-tick text {
-    fill: var(--text-secondary);
+.employer-analysis-ranked-track {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+    overflow: hidden;
 }
 
-.employer-analysis-donut-axis-line,
-.employer-analysis-donut-axis-tick line {
-    stroke: rgba(148, 163, 184, 0.22);
-    stroke-width: 1.5;
+.employer-analysis-ranked-track-fill {
+    height: 100%;
+    min-width: 10px;
+    border-radius: inherit;
 }
 
 /* Воронка */
@@ -8690,20 +8816,11 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     gap: 4px;
     min-width: 0;
 }
-.totals-burnup-card {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-}
-.totals-burnup-meta {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
 .totals-burnup-graph {
     min-height: 280px;
+    width: 100%;
 }
-.totals-burnup-card .unified-chart-heading {
+.totals-burnup-graph .unified-chart-heading {
     display: none !important;
 }
 
@@ -9015,100 +9132,119 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     gap: 18px;
 }
 
-.salary-overview-chart {
-    padding: 0;
+.salary-module {
+    display: grid;
+    gap: 14px;
 }
 
-.salary-overview-legend {
+.salary-module-head {
+    display: grid;
+    gap: 12px;
+}
+
+.salary-module-legend {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
     gap: 6px 10px;
     margin-top: 2px;
 }
 
-.salary-overview-legend-label {
-    display: inline-flex;
+.salary-module-legend-item {
     align-items: center;
-    padding: 4px 10px;
+    width: auto;
+    min-width: 0;
+}
+
+.salary-module-legend-color {
     border-radius: 999px;
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    font-family: inherit;
+}
+
+.salary-module-legend-text {
     font-size: 0.73rem;
     font-weight: 700;
 }
 
-.salary-overview-legend-label.is-gradient {
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
-    text-shadow: none;
-    font-weight: 800;
+.salary-module-body {
+    display: grid;
+    gap: 10px;
 }
 
-.salary-overview-currencies {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 10px;
-}
-
-.salary-overview-currency-section {
-    border-radius: 16px;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(255, 255, 255, 0.78);
-    overflow: hidden;
-}
-
-.salary-overview-currency-button {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
+.salary-module-currency-panel {
+    display: grid;
     gap: 12px;
-    padding: 10px 14px;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.82);
+    padding: 14px;
 }
 
-.salary-overview-currency-button:hover {
-    background: rgba(241, 245, 249, 0.9);
-}
-
-.salary-overview-currency-title {
-    font-size: 0.86rem;
-    font-weight: 700;
+.salary-module-currency-summary-badge {
+    display: inline-flex;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(241, 245, 249, 0.92);
+    font-size: 0.8rem;
+    font-weight: 800;
     color: var(--text-primary);
 }
 
-.salary-overview-currency-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 0 14px 8px;
-    border-top: 1px solid rgba(148, 163, 184, 0.12);
+.salary-module-status-list {
+    display: grid;
+    gap: 10px;
 }
 
-.salary-overview-status-row {
+.salary-module-status-row {
     display: grid;
     grid-template-columns: 94px minmax(0, 1fr);
     align-items: end;
     gap: 6px;
 }
 
-.salary-overview-status-label {
+.salary-module-status-row.is-parent {
+    align-items: start;
+}
+
+.salary-module-status-row.is-child {
+    padding-left: 18px;
+}
+
+.salary-module-status-label {
     font-size: 0.74rem;
     font-weight: 600;
     color: var(--text-secondary);
 }
 
-.salary-overview-track {
+.salary-module-status-row.is-child .salary-module-status-label {
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+}
+
+.salary-module-status-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: fit-content;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.salary-module-status-toggle .salary-module-status-label {
+    font: inherit;
+    color: inherit;
+}
+
+.salary-module-track {
     position: relative;
     min-height: 38px;
 }
 
-.salary-overview-track-line {
+.salary-module-track-line {
     position: absolute;
     top: 24px;
     left: 0;
@@ -9118,7 +9254,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     background: rgba(148, 163, 184, 0.28);
 }
 
-.salary-overview-track-point {
+.salary-module-track-point {
     position: absolute;
     top: 0;
     transform: translateX(-50%);
@@ -9126,7 +9262,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     min-width: 44px;
 }
 
-.salary-overview-track-point-dot {
+.salary-module-track-point-dot {
     position: absolute;
     top: 18px;
     left: 50%;
@@ -9138,12 +9274,12 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
 }
 
-.salary-overview-track-point-dot.is-gradient {
+.salary-module-track-point-dot.is-gradient {
     background-size: 100% 100%;
     background-repeat: no-repeat;
 }
 
-.salary-overview-track-point-value {
+.salary-module-track-point-value {
     position: absolute;
     left: 50%;
     bottom: calc(14px + (10px * var(--salary-point-row, 0)));
@@ -9154,22 +9290,26 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     white-space: nowrap;
 }
 
-.salary-overview-track-point-value {
+.salary-module-track-point-value {
     color: var(--text-primary);
     font-weight: 700;
 }
 
-.salary-overview-track-point-value.is-gradient {
+.salary-module-track-point-value.is-gradient {
     color: #0f172a !important;
     background-image: none !important;
     -webkit-text-fill-color: #0f172a;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.92);
 }
 
-.salary-overview-empty {
-    margin-top: 14px;
+.salary-module-empty {
     font-size: 0.82rem;
     color: var(--text-secondary);
+}
+
+.totals-employer-overview-graph {
+    min-height: 420px;
+    width: 100%;
 }
 
 .salary-summary-chart,
@@ -9488,8 +9628,8 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     }
 
     .donut-chart {
-        width: 160px;
-        height: 160px;
+        width: min(100%, 240px);
+        height: auto;
     }
 
     .donut-chart-track-outer,
@@ -9522,22 +9662,33 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     .donut-drilldown-meta {
         white-space: normal;
     }
+    .donut-chart-shell {
+        grid-template-columns: 1fr;
+        justify-items: center;
+    }
+    .donut-chart {
+        justify-self: center;
+    }
     .dashboard-overview {
         grid-template-columns: 1fr;
     }
-    .salary-coverage-currencies {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .dashboard-overview-columns {
+        display: block;
+    }
+    .dashboard-work-format-columns,
+    .dashboard-work-format-grid {
+        grid-template-columns: 1fr;
     }
     .salary-summary-chart-row,
     .salary-summary-chart-row-bars,
     .salary-progress-status-item,
-    .salary-overview-status-row {
+    .salary-module-status-row {
         grid-template-columns: 1fr;
     }
     .salary-summary-chart-line {
         min-height: 98px;
     }
-    .salary-overview-track {
+    .salary-module-track {
         min-height: 48px;
     }
     .funnel-stage {

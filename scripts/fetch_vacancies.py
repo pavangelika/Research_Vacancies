@@ -125,7 +125,6 @@ def get_vacancies(
         per_page: int = 100,
         period: int = 1,
         order_by: str = "salary_desc",
-        work_format: str = "REMOTE",
         timeout: int = 10,
         vacancy_delay: float = 1.2
 ) -> List[Dict]:
@@ -151,7 +150,6 @@ def get_vacancies(
                 "period": period,
                 "order_by": order_by,
                 "professional_role": role,
-                "work_format": work_format,
             }
 
             try:
@@ -246,6 +244,7 @@ def get_vacancies(
                         "id": vacancy_id,
                         "url": item.get("url", ""),
                         "professional_role": role,
+                        "work_format": item.get("work_format"),
                         "name": item.get("name", ""),
                         "employer": employer_name,
                         "employer_id": employer_id,

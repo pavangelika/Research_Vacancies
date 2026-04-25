@@ -181,6 +181,23 @@ class DashboardSalaryCoverageDto(BaseModel):
     currencies: dict[str, DashboardCurrencyCoverageDto]
 
 
+class DashboardCompensationAvailabilityBucketDto(BaseModel):
+    total: int
+    with_salary: int
+    without_salary: int
+    coverage_percent: float
+    with_salary_currencies: dict[str, DashboardCurrencyCoverageDto]
+
+
+class DashboardCompensationAvailabilityDto(BaseModel):
+    total: int
+    with_salary: int
+    without_salary: int
+    coverage_percent: float
+    remote: DashboardCompensationAvailabilityBucketDto
+    non_remote: DashboardCompensationAvailabilityBucketDto
+
+
 class DashboardPeriodStatsDto(BaseModel):
     total: int
     active: int
@@ -313,6 +330,7 @@ class DashboardResponseDto(BaseModel):
     metrics: list[DashboardMetricDto]
     salary_rows: list[DashboardSalaryRowDto] = []
     salary_coverage: DashboardSalaryCoverageDto | None = None
+    compensation_availability: DashboardCompensationAvailabilityDto | None = None
     period_stats: DashboardPeriodStatsDto | None = None
     response_funnel: DashboardResponseFunnelDto | None = None
     burnup_series: DashboardBurnupSeriesDto | None = None

@@ -14,7 +14,7 @@ from backend.api import analytics as analytics_api
 client = TestClient(app)
 
 
-def test_dashboard_contract(monkeypatch):
+def test_dashboard_contract_includes_compensation_availability(monkeypatch):
     monkeypatch.setattr(
         analytics_api.service,
         "get_dashboard_payload",
@@ -28,6 +28,36 @@ def test_dashboard_contract(monkeypatch):
             ],
             "salary_rows": [],
             "salary_coverage": None,
+            "compensation_availability": {
+                "total": 120,
+                "with_salary": 70,
+                "without_salary": 50,
+                "coverage_percent": 58.33,
+                "remote": {
+                    "total": 20,
+                    "with_salary": 15,
+                    "without_salary": 5,
+                    "coverage_percent": 75.0,
+                    "with_salary_currencies": {
+                        "RUR": {"count": 10, "share": 66.67},
+                        "USD": {"count": 3, "share": 20.0},
+                        "EUR": {"count": 2, "share": 13.33},
+                        "OTHER": {"count": 0, "share": 0.0},
+                    },
+                },
+                "non_remote": {
+                    "total": 100,
+                    "with_salary": 55,
+                    "without_salary": 45,
+                    "coverage_percent": 55.0,
+                    "with_salary_currencies": {
+                        "RUR": {"count": 40, "share": 72.73},
+                        "USD": {"count": 10, "share": 18.18},
+                        "EUR": {"count": 5, "share": 9.09},
+                        "OTHER": {"count": 0, "share": 0.0},
+                    },
+                },
+            },
             "period_stats": None,
             "response_funnel": {"responses": 4, "interview": 3, "result": 1, "offer": 0},
             "burnup_series": None,
@@ -56,6 +86,9 @@ def test_dashboard_contract(monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["metrics"][0]["key"] == "roles"
+    assert payload["compensation_availability"]["remote"]["with_salary"] == 15
+    assert payload["compensation_availability"]["non_remote"]["without_salary"] == 45
+    assert payload["compensation_availability"]["remote"]["with_salary_currencies"]["RUR"]["count"] == 10
 
 
 def test_dashboard_contract_forwards_top_query_params(monkeypatch):

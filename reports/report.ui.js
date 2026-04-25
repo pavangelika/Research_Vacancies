@@ -6348,7 +6348,10 @@ function buildTotalsSalaryOverviewSectionHtml(summaryChart, progressPanels) {
 }
 function buildSalaryOverviewChartHtml(model) {
     var data = model || {};
-    var currencies = Array.isArray(data.currencies) ? data.currencies : [];
+    var currencies = (Array.isArray(data.currencies) ? data.currencies : []).filter(function(currencyRow) {
+        var currency = String(currencyRow && currencyRow.currency || '').trim();
+        return currency && currency !== 'Другая' && currency !== 'OTHER';
+    });
     function colorToTint(color, alpha) {
         var current = String(color || '').trim();
         var match = current.match(/^#([0-9a-f]{6})$/i);
@@ -6362,62 +6365,140 @@ function buildSalaryOverviewChartHtml(model) {
     function buildLegendHtml() {
         var legend = Array.isArray(data.legend) ? data.legend : [];
         if (!legend.length) return '';
-        return '<div class="salary-overview-legend">' + legend.map(function(item) {
+        return '<div class="donut-legend salary-module-legend">' + legend.map(function(item) {
             var color = String(item && item.color || '#94a3b8');
-            var gradient = String(item && item.gradient || '').trim();
-            var chipStyle = gradient
-                ? 'background-image:' + escapeHtml(gradient) + ';background-color:rgba(255,255,255,0.18);background-blend-mode:screen;border-color:transparent;color:#0f172a;'
-                : 'color:' + escapeHtml(color) + ';background:' + escapeHtml(colorToTint(color, 0.14)) + ';border-color:' + escapeHtml(colorToTint(color, 0.28)) + ';';
-            return '<span class="salary-overview-legend-label' + (gradient ? ' is-gradient' : '') + '" style="' + chipStyle + '">' + escapeHtml(item && item.label || '—') + '</span>';
+            var colorStyle = 'background:' + escapeHtml(color) + ';';
+            return '<div class="donut-legend-item donut-legend-item-passive salary-module-legend-item">' +
+                '<span class="donut-legend-color salary-module-legend-color" style="' + colorStyle + '"></span>' +
+                '<span class="donut-legend-label salary-module-legend-text">' + escapeHtml(item && item.label || '—') + '</span>' +
+            '</div>';
         }).join('') + '</div>';
+    }
+    function buildCurrencyTabsHtml() {
+        return '';
+    }
+    function orderSalaryStatusRows(statuses) {
+        var statusOrder = ['open', 'new', 'archived', 'period_archived'];
+        return statusOrder.map(function(statusKey) {
+            return (Array.isArray(statuses) ? statuses : []).find(function(statusRow) {
+                return String(statusRow && statusRow.statusKey || '') === statusKey;
+            }) || null;
+        }).filter(function(statusRow) {
+            return !!statusRow;
+        });
+    }
+    function buildTrackHtml(statusRow) {
+        var points = Array.isArray(statusRow && statusRow.points) ? statusRow.points : [];
+        return '<div class="salary-module-track">' +
+            '<div class="salary-module-track-line"></div>' +
+            points.map(function(point) {
+                var color = String(point && point.color || '#94a3b8');
+                var gradient = String(point && point.gradient || '').trim();
+                var dotStyle = gradient
+                    ? 'background-image:' + escapeHtml(gradient) + ';background-color:' + escapeHtml(color) + ';'
+                    : 'background:' + escapeHtml(color) + ';';
+                var valueStyle = gradient
+                    ? 'color:#0f172a;'
+                    : 'color:' + escapeHtml(color) + ';';
+                return '<div class="salary-module-track-point" style="left:' + escapeHtml(String(point && point.leftPct || 0)) + '%;--salary-point-row:' + escapeHtml(String(point && point.pointRow || 0)) + ';">' +
+                    '<span class="salary-module-track-point-dot' + (gradient ? ' is-gradient' : '') + '" style="' + dotStyle + '"></span>' +
+                    '<span class="salary-module-track-point-value' + (gradient ? ' is-gradient' : '') + '" style="' + valueStyle + '">' + escapeHtml(point && point.valueLabel || '—') + '</span>' +
+                '</div>';
+            }).join('') +
+        '</div>';
+    }
+    function hasPoints(statusRow) {
+        return !!(statusRow && Array.isArray(statusRow.points) && statusRow.points.length > 0);
+    }
+    function buildParentChildRows(statuses) {
+        var ordered = orderSalaryStatusRows(statuses);
+        var byKey = {};
+        ordered.forEach(function(statusRow) {
+            byKey[String(statusRow && statusRow.statusKey || '')] = statusRow;
+        });
+        var parentRows = [];
+        if (hasPoints(byKey.open)) {
+            parentRows.push({
+                parent: byKey.open,
+                child: hasPoints(byKey.new) ? byKey.new : null,
+                childKey: 'new'
+            });
+        }
+        if (hasPoints(byKey.archived)) {
+            parentRows.push({
+                parent: byKey.archived,
+                child: hasPoints(byKey.period_archived) ? byKey.period_archived : null,
+                childKey: 'period_archived'
+            });
+        }
+        return parentRows;
     }
     function buildCurrencySectionHtml(currencyRow) {
         var currency = String(currencyRow && currencyRow.currency || '—');
-        var statuses = Array.isArray(currencyRow && currencyRow.statuses) ? currencyRow.statuses : [];
+        var rows = buildParentChildRows(currencyRow && currencyRow.statuses);
         var expanded = !!(currencyRow && currencyRow.expanded);
-        return '<section class="salary-overview-currency-section' + (expanded ? ' is-expanded' : '') + '" data-currency="' + escapeHtml(currency) + '">' +
-            '<button type="button" class="salary-overview-currency-button" data-currency="' + escapeHtml(currency) + '" aria-expanded="' + (expanded ? 'true' : 'false') + '">' +
-                '<span class="salary-overview-currency-title">' + escapeHtml(currency) + '</span>' +
-            '</button>' +
-            '<div class="salary-overview-currency-panel"' + (expanded ? '' : ' hidden') + '>' +
-                statuses.map(function(statusRow) {
-                    var points = Array.isArray(statusRow && statusRow.points) ? statusRow.points : [];
-                    return '<div class="salary-overview-status-row">' +
-                        '<div class="salary-overview-status-label">' + escapeHtml(statusRow && statusRow.statusLabel || '—') + '</div>' +
-                        '<div class="salary-overview-track">' +
-                            '<div class="salary-overview-track-line"></div>' +
-                            points.map(function(point) {
-                                var color = String(point && point.color || '#94a3b8');
-                                var gradient = String(point && point.gradient || '').trim();
-                                var textColor = String(point && point.textColor || color || '#94a3b8');
-                                var dotStyle = gradient
-                                    ? 'background-image:' + escapeHtml(gradient) + ';background-color:' + escapeHtml(color) + ';'
-                                    : 'background:' + escapeHtml(color) + ';';
-                                var valueStyle = gradient
-                                    ? 'color:#0f172a;'
-                                    : 'color:' + escapeHtml(color) + ';';
-                                return '<div class="salary-overview-track-point" style="left:' + escapeHtml(String(point && point.leftPct || 0)) + '%;--salary-point-row:' + escapeHtml(String(point && point.pointRow || 0)) + ';">' +
-                                    '<span class="salary-overview-track-point-dot' + (gradient ? ' is-gradient' : '') + '" style="' + dotStyle + '"></span>' +
-                                    '<span class="salary-overview-track-point-value' + (gradient ? ' is-gradient' : '') + '" style="' + valueStyle + '">' + escapeHtml(point && point.valueLabel || '—') + '</span>' +
-                                '</div>';
-                            }).join('') +
-                        '</div>' +
-                    '</div>';
+        return '<section class="salary-module-currency-panel' + (expanded ? ' is-expanded' : '') + '" data-currency="' + escapeHtml(currency) + '"' + (expanded ? '' : ' hidden') + '>' +
+            '<div class="salary-module-currency-summary">' +
+                '<span class="salary-module-currency-summary-badge">' + escapeHtml(currency) + '</span>' +
+            '</div>' +
+            '<div class="salary-module-status-list">' +
+                rows.map(function(rowGroup) {
+                    var parent = rowGroup.parent;
+                    var child = rowGroup.child;
+                    var childKey = String(rowGroup.childKey || '').trim();
+                    var isCollapsible = !!child;
+                    var childHtml = child
+                        ? '<div class="salary-module-status-row is-child" data-child-key="' + escapeHtml(childKey) + '" hidden>' +
+                            '<div class="salary-module-status-label">' + escapeHtml(child && child.statusLabel || '—') + '</div>' +
+                            buildTrackHtml(child) +
+                        '</div>'
+                        : '';
+                    return '<div class="salary-module-status-row is-parent' + (isCollapsible ? ' is-collapsible' : '') + '" data-status-key="' + escapeHtml(parent && parent.statusKey || '') + '">' +
+                        (isCollapsible
+                            ? '<button type="button" class="salary-module-status-toggle" data-toggle-child="' + escapeHtml(childKey) + '" aria-expanded="false">' +
+                                '<span class="salary-module-status-label">' + escapeHtml(parent && parent.statusLabel || '—') + '</span>' +
+                            '</button>'
+                            : '<div class="salary-module-status-label">' + escapeHtml(parent && parent.statusLabel || '—') + '</div>') +
+                        buildTrackHtml(parent) +
+                    '</div>' +
+                    childHtml;
                 }).join('') +
             '</div>' +
         '</section>';
     }
     if (!currencies.length) {
-        return '<div class="salary-overview-chart">' +
-            '<div class="salary-overview-empty">Нет данных по зарплате для выбранных фильтров</div>' +
+        return '<div class="salary-module">' +
+            '<div class="salary-module-empty">Нет данных по зарплате для выбранных фильтров</div>' +
         '</div>';
     }
-    return '<div class="salary-overview-chart">' +
-        buildLegendHtml() +
-        '<div class="salary-overview-currencies">' +
+    return '<div class="salary-module">' +
+        '<div class="salary-module-head">' +
+            buildLegendHtml() +
+            buildCurrencyTabsHtml() +
+        '</div>' +
+        '<div class="salary-module-body">' +
             currencies.map(buildCurrencySectionHtml).join('') +
         '</div>' +
     '</div>';
+}
+function bindSalaryOverviewInteractions(container) {
+    if (!container || !container.querySelectorAll) return;
+    container.querySelectorAll('.salary-module-status-toggle').forEach(function(toggle) {
+        if (toggle.dataset.bound === '1') return;
+        toggle.dataset.bound = '1';
+        toggle.addEventListener('click', function() {
+            var parentRow = toggle.closest('.salary-module-status-row.is-parent');
+            var currencyPanel = toggle.closest('.salary-module-currency-panel');
+            var childKey = String(toggle.dataset.toggleChild || '').trim();
+            if (!parentRow || !currencyPanel || !childKey) return;
+            var childRow = currencyPanel.querySelector('.salary-module-status-row.is-child[data-child-key="' + childKey + '"]');
+            if (!childRow) return;
+            var nextExpanded = childRow.hasAttribute('hidden');
+            childRow.toggleAttribute('hidden', !nextExpanded);
+            parentRow.classList.toggle('is-expanded', nextExpanded);
+            toggle.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+        });
+    });
 }
 function normalizeTotalsTopLimit(value) {
     var num = Number(value);
@@ -7864,8 +7945,10 @@ function renderGlobalTotalsFiltered(parentRole) {
     var vacancyKpiVacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals', {
         skipPeriods: true
     });
+    var compensationFallbackVacancies = vacancies;
     vacancyKpiVacancies = dedupeVacanciesById(vacancyKpiVacancies || []);
     vacancies = dedupeVacanciesById(vacancies || []);
+    compensationFallbackVacancies = dedupeVacanciesById(compensationFallbackVacancies || []);
 
     var salaryRows = totalsComputeSalaryByCurrency(vacancies);
     var salaryMonthData = buildSalaryMonthFromVacancies(vacancies, periodLabel || 'За период');
@@ -8235,8 +8318,9 @@ function renderGlobalTotalsFiltered(parentRole) {
             : ' class="donut-legend-item"';
 
         return '<div class="donut-chart-container"' + interactiveAttr + ' data-breakdown="' + breakdownEncoded + '">' +
-            '<div class="donut-chart">' +
-                '<svg viewBox="0 0 200 200">' +
+            '<div class="donut-chart-shell">' +
+                '<div class="donut-chart">' +
+                    '<svg viewBox="0 0 200 200">' +
                     '<defs>' +
                         '<linearGradient id="' + activeGradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' +
                             '<stop offset="0%" stop-color="' + CHART_COLORS.selectedStart + '"></stop>' +
@@ -8264,37 +8348,38 @@ function renderGlobalTotalsFiltered(parentRole) {
                     '<circle class="donut-chart-track donut-chart-track-inner" stroke="rgba(148, 163, 184, 0.12)" stroke-dasharray="' + innerCircumference + ' 0" stroke-dashoffset="0"></circle>' +
                     '<circle class="' + activeInnerSegmentClass + '" data-status="active" data-selection-key="new" stroke="url(#' + activeInnerGradientId + ')" stroke-dasharray="' + innerActiveLen + ' ' + (innerCircumference - innerActiveLen) + '" stroke-dashoffset="' + (-innerOffset1) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию новых вакансий за период"></circle>' +
                     '<circle class="' + archivedInnerSegmentClass + '" data-status="archived" data-selection-key="published-archived" stroke="url(#' + archivedInnerGradientId + ')" stroke-dasharray="' + innerArchivedLen + ' ' + (innerCircumference - innerArchivedLen) + '" stroke-dashoffset="' + (-innerOffset2) + '" role="' + (interactiveEnabled ? 'button' : 'presentation') + '" tabindex="' + (interactiveEnabled ? '0' : '-1') + '" aria-label="Открыть детализацию вакансий, опубликованных и архивированных за период"></circle>' +
-                '</svg>' +
-                '<div class="donut-center-label">' +
-                    '<div class="donut-center-value">' + total + '</div>' +
-                    '<div class="donut-center-text">всего</div>' +
+                    '</svg>' +
+                    '<div class="donut-center-label">' +
+                        '<div class="donut-center-value">' + total + '</div>' +
+                        '<div class="donut-center-text">всего</div>' +
+                    '</div>' +
                 '</div>' +
-            '</div>' +
-            '<div class="donut-legend">' +
-                '<' + activeLegendTag + activeLegendAttrs + '>' +
+                '<div class="donut-legend">' +
+                    '<' + activeLegendTag + activeLegendAttrs + '>' +
                     '<span class="donut-legend-color donut-legend-color-active"></span>' +
                     '<span class="donut-legend-label">Активные</span>' +
                     '<span class="donut-legend-value">' + active + '</span>' +
-                '</' + activeLegendTag + '>' +
-                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" data-selection-key="new" aria-pressed="false">' +
+                    '</' + activeLegendTag + '>' +
+                    '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-active" data-status="active" data-selection-key="new" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-new"></span>' +
                     '<span class="donut-legend-label">' + donutNewLabel + '</span>' +
                     '<span class="donut-legend-value">' + newPublished + '</span>' +
-                '</button>' +
-                '<' + archivedLegendTag + archivedLegendAttrs + '>' +
+                    '</button>' +
+                    '<' + archivedLegendTag + archivedLegendAttrs + '>' +
                     '<span class="donut-legend-color donut-legend-color-archived"></span>' +
                     '<span class="donut-legend-label">Архивные</span>' +
                     '<span class="donut-legend-value">' + archived + '</span>' +
-                '</' + archivedLegendTag + '>' +
-                '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-published-archived" data-status="archived" data-selection-key="published-archived" aria-pressed="false">' +
+                    '</' + archivedLegendTag + '>' +
+                    '<button type="button" class="donut-legend-item donut-legend-action donut-legend-action-published-archived" data-status="archived" data-selection-key="published-archived" aria-pressed="false">' +
                     '<span class="donut-legend-color donut-legend-color-published-archived"></span>' +
                     '<span class="donut-legend-label">' + donutPublishedArchivedLabel + '</span>' +
                     '<span class="donut-legend-value">' + publishedAndArchived + '</span>' +
-                '</button>' +
-                '<div class="donut-legend-item donut-legend-kpi donut-legend-item-passive">' +
+                    '</button>' +
+                    '<div class="donut-legend-item donut-legend-kpi donut-legend-item-passive">' +
                     '<span class="donut-legend-color donut-legend-color-kpi"></span>' +
                     '<span class="donut-legend-label">Ср. время жизни</span>' +
                     '<span class="donut-legend-value">' + (total > 0 ? totalsFormatNumber(avgAgeValue) + ' дн.' : '—') + '</span>' +
+                    '</div>' +
                 '</div>' +
             '</div>' +
             '<div class="donut-drilldown" hidden></div>' +
@@ -8324,13 +8409,11 @@ function renderGlobalTotalsFiltered(parentRole) {
             '</div>';
         }).join('');
 
-        return '<div class="funnel-chart">' + funnelHtml + '</div>';
+        return '<div class="dashboard-chart-host dashboard-chart-host-funnel"><div class="funnel-chart">' + funnelHtml + '</div></div>';
     }
 
     function buildBurnupChartHtml(graphId) {
-        return '<div class="totals-burnup-card">' +
-            '<div class="plotly-graph totals-burnup-graph" id="' + escapeHtml(graphId) + '"></div>' +
-        '</div>';
+        return '<div class="plotly-graph totals-burnup-graph" id="' + escapeHtml(graphId) + '"></div>';
     }
 
     // ===== Диаграмма зарплат (прогресс-бар с точками) =====
@@ -8464,26 +8547,90 @@ function renderGlobalTotalsFiltered(parentRole) {
 
         return '<div class="salary-chart-container">' + html + '</div>';
     }
-    function buildSalaryCoverageChartHtml(coverageStats) {
-        var stats = coverageStats || totalsComputeSalaryCoverage([]);
-        function coverageItem(label, count, share, cls) {
-            return '<div class="salary-coverage-item ' + cls + '">' +
-                '<div class="salary-coverage-item-label">' + escapeHtml(label) + '</div>' +
-                '<div class="salary-coverage-item-value">' + (count || 0) + '</div>' +
-                '<div class="salary-coverage-item-share">' + totalsFormatNumber(share || 0) + '%</div>' +
+    function totalsComputeCompensationAvailability(vacanciesList) {
+        var items = Array.isArray(vacanciesList) ? vacanciesList : [];
+        function hasSalary(vacancy) {
+            return !!(vacancy && (vacancy.salary_from !== null && vacancy.salary_from !== undefined || vacancy.salary_to !== null && vacancy.salary_to !== undefined));
+        }
+        function isRemote(vacancy) {
+            return String(vacancy && vacancy.work_format || '').trim().toUpperCase() === 'REMOTE';
+        }
+        function normalizeCurrency(vacancy) {
+            var current = String(vacancy && vacancy.currency || '').trim().toUpperCase();
+            if (current === 'RUR' || current === 'USD' || current === 'EUR') return current;
+            return 'OTHER';
+        }
+        function summarize(rows) {
+            var total = rows.length;
+            var withSalaryRows = rows.filter(hasSalary);
+            var withSalary = withSalaryRows.length;
+            var withoutSalary = total - withSalary;
+            var currencies = {
+                'RUR': { count: 0, share: 0 },
+                'USD': { count: 0, share: 0 },
+                'EUR': { count: 0, share: 0 },
+                'OTHER': { count: 0, share: 0 }
+            };
+            withSalaryRows.forEach(function(vacancy) {
+                currencies[normalizeCurrency(vacancy)].count += 1;
+            });
+            if (withSalary) {
+                Object.keys(currencies).forEach(function(currencyKey) {
+                    currencies[currencyKey].share = Math.round(currencies[currencyKey].count * 10000 / withSalary) / 100;
+                });
+            }
+            return {
+                total: total,
+                with_salary: withSalary,
+                without_salary: withoutSalary,
+                coverage_percent: total ? Math.round(withSalary * 10000 / total) / 100 : 0,
+                with_salary_currencies: currencies
+            };
+        }
+        var summary = summarize(items);
+        summary.remote = summarize(items.filter(isRemote));
+        summary.non_remote = summarize(items.filter(function(vacancy) { return !isRemote(vacancy); }));
+        return summary;
+    }
+    function buildDashboardCompensationAvailabilityHtml(summary) {
+        var stats = summary || totalsComputeCompensationAvailability([]);
+        var remote = stats.remote || { total: 0, with_salary: 0, without_salary: 0, coverage_percent: 0, with_salary_currencies: {} };
+        var nonRemote = stats.non_remote || { total: 0, with_salary: 0, without_salary: 0, coverage_percent: 0, with_salary_currencies: {} };
+        function formatBucketCurrencyName(currencyKey) {
+            return currencyKey === 'OTHER' ? 'Другая' : currencyKey;
+        }
+        function resolveCurrencyStats(bucketStats, currencyKey) {
+            var currencies = bucketStats && bucketStats.with_salary_currencies ? bucketStats.with_salary_currencies : {};
+            return currencies[currencyKey] || { count: 0, share: 0 };
+        }
+        function tile(label, value, meta, cls) {
+            return '<div class="dashboard-work-format-tile' + (cls ? ' ' + cls : '') + '">' +
+                '<div class="dashboard-work-format-tile-label">' + escapeHtml(label) + '</div>' +
+                '<div class="dashboard-work-format-tile-value">' + escapeHtml(String(value || 0)) + '</div>' +
+                '<div class="dashboard-work-format-tile-note">' + escapeHtml(meta || '—') + '</div>' +
             '</div>';
         }
-        return '<div class="salary-coverage-card">' +
-            '<div class="salary-coverage-main">' +
-                coverageItem('С з/п', stats.withSalary || 0, stats.withSalaryShare || 0, 'is-with-salary') +
-                coverageItem('Без з/п', stats.withoutSalary || 0, stats.withoutSalaryShare || 0, 'is-without-salary') +
-            '</div>' +
-            '<div class="salary-coverage-subtitle">Из вакансий с зарплатой</div>' +
-            '<div class="salary-coverage-currencies">' +
-                coverageItem('RUR', stats.currencies.RUR.count || 0, stats.currencies.RUR.share || 0, 'is-rur') +
-                coverageItem('USD', stats.currencies.USD.count || 0, stats.currencies.USD.share || 0, 'is-usd') +
-                coverageItem('EUR', stats.currencies.EUR.count || 0, stats.currencies.EUR.share || 0, 'is-eur') +
-                coverageItem('Другая', stats.currencies.other.count || 0, stats.currencies.other.share || 0, 'is-other') +
+        function column(title, bucketStats, cls) {
+            var totalShare = stats.total ? totalsFormatNumber(((bucketStats.total || 0) * 100) / stats.total) : '0';
+            return '<section class="dashboard-work-format-column' + (cls ? ' ' + cls : '') + '">' +
+                '<div class="dashboard-work-format-column-title">' + escapeHtml(title) + '</div>' +
+                '<div class="dashboard-work-format-grid">' +
+                    tile('Всего', bucketStats.total || 0, totalShare + '% от всех', 'is-neutral') +
+                    tile('С з/п', bucketStats.with_salary || 0, totalsFormatNumber(bucketStats.coverage_percent || 0) + '% внутри группы', 'is-accent') +
+                    tile('RUR', resolveCurrencyStats(bucketStats, 'RUR').count || 0, totalsFormatNumber(resolveCurrencyStats(bucketStats, 'RUR').share || 0) + '% с з/п', 'is-currency') +
+                    tile('USD', resolveCurrencyStats(bucketStats, 'USD').count || 0, totalsFormatNumber(resolveCurrencyStats(bucketStats, 'USD').share || 0) + '% с з/п', 'is-currency') +
+                    tile('EUR', resolveCurrencyStats(bucketStats, 'EUR').count || 0, totalsFormatNumber(resolveCurrencyStats(bucketStats, 'EUR').share || 0) + '% с з/п', 'is-currency') +
+                    tile(formatBucketCurrencyName('OTHER'), resolveCurrencyStats(bucketStats, 'OTHER').count || 0, totalsFormatNumber(resolveCurrencyStats(bucketStats, 'OTHER').share || 0) + '% с з/п', 'is-currency') +
+                '</div>' +
+            '</section>';
+        }
+        return '<div class="dashboard-card dashboard-card-compensation dashboard-work-format-card">' +
+            '<h3 class="dashboard-card-title">Формат работы</h3>' +
+            '<div class="dashboard-card-body">' +
+                '<div class="dashboard-work-format-columns">' +
+                    column('ONLINE', remote, 'is-remote') +
+                    column('OFFLINE or HYBRID', nonRemote, 'is-non-remote') +
+                '</div>' +
             '</div>' +
         '</div>';
     }
@@ -8499,7 +8646,7 @@ function renderGlobalTotalsFiltered(parentRole) {
         return String(num);
     }
     function buildEmployerOverviewCardHtml(graphId) {
-        return '<div class="dashboard-card totals-employer-overview-card">' +
+        return '<div class="dashboard-card dashboard-card-employers totals-employer-overview-card">' +
             '<h3 class="dashboard-card-title">Анализ работодателей</h3>' +
             '<div class="plotly-graph totals-employer-overview-graph" id="' + graphId + '"></div>' +
         '</div>';
@@ -8535,9 +8682,9 @@ function renderGlobalTotalsFiltered(parentRole) {
         var values = points.map(function(item) { return item.value; });
         var signature = currentCurrency + '|' + currentMetric + '|' + values.join('|') + '|' + labels.join('|') + '|' + currentContext;
         var colors = labels.map(function(label) {
-            if (label.indexOf(': Да') >= 0) return CHART_COLORS.light;
-            if (label.indexOf(': Нет') >= 0) return CHART_COLORS.dark;
-            return CHART_COLORS.medium;
+            if (label.indexOf(': Да') >= 0) return CHART_COLORS.selectedStart;
+            if (label.indexOf(': Нет') >= 0) return CHART_COLORS.selectedMid;
+            return CHART_COLORS.selectedEnd;
         });
         plotIfChangedById(graphId, signature, [{
             type: 'bar',
@@ -8572,29 +8719,35 @@ function renderGlobalTotalsFiltered(parentRole) {
         resizePlotlyScope(graphEl);
     }
 
+    var compensationAvailability = dashboardApi && dashboardApi.compensation_availability
+        ? dashboardApi.compensation_availability
+        : totalsComputeCompensationAvailability(compensationFallbackVacancies);
     var overviewHtml =
         '<div class="dashboard-overview">' +
-            '<div class="dashboard-card">' +
-                '<h3 class="dashboard-card-title">Вакансии</h3>' +
-                buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
+            '<div class="dashboard-overview-columns">' +
+                '<div class="dashboard-overview-column">' +
+                    '<div class="dashboard-card dashboard-card-primary">' +
+                        '<h3 class="dashboard-card-title">Вакансии</h3>' +
+                        buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
+                    '</div>' +
+                    buildDashboardCompensationAvailabilityHtml(compensationAvailability) +
+                    '<div class="dashboard-card dashboard-card-salary">' +
+                        '<h3 class="dashboard-card-title">Зарплаты</h3>' +
+                        buildTotalsSalaryOverviewSectionHtml(salaryOverviewModel) +
+                    '</div>' +
+                '</div>' +
+                '<div class="dashboard-overview-column">' +
+                    '<div class="dashboard-card dashboard-card-burnup">' +
+                        '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
+                        buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
+                    '</div>' +
+                    '<div class="dashboard-card dashboard-card-funnel">' +
+                        '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
+                        buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
+                    '</div>' +
+                    buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
+                '</div>' +
             '</div>' +
-            '<div class="dashboard-card">' +
-                '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
-                buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
-            '</div>' +
-            '<div class="dashboard-card">' +
-                '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
-                buildFunnelChartHtml(responseRows.length, responseInterview, responseResult, responseOffer) +
-            '</div>' +
-            '<div class="dashboard-card">' +
-                '<h3 class="dashboard-card-title">Покрытие зарплат</h3>' +
-                buildSalaryCoverageChartHtml(totalsComputeSalaryCoverage(vacancies)) +
-            '</div>' +
-            '<div class="dashboard-card">' +
-                '<h3 class="dashboard-card-title">Зарплаты</h3>' +
-                buildTotalsSalaryOverviewSectionHtml(salaryOverviewModel) +
-            '</div>' +
-            buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
         '</div>';
     var topTitlePrefix = 'Топ-' + topLimit;
     var topHtml =
@@ -8674,7 +8827,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             if (key === 'totals_dashboard_mode') syncSharedFilterPanel(parentRole, 'totals', true);
         });
     });
-    block.querySelectorAll('.salary-overview-currency-button').forEach(function(btn) {
+    block.querySelectorAll('.salary-module-currency-button').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var currency = String(btn.dataset.currency || '').trim();
             if (!currency) return;
@@ -8682,6 +8835,7 @@ function renderGlobalTotalsFiltered(parentRole) {
             renderGlobalTotalsFiltered(parentRole);
         });
     });
+    bindSalaryOverviewInteractions(block);
     if (!uiState.my_responses_cache_loaded && !uiState.my_responses_cache_loading) {
         uiState.my_responses_cache_loading = true;
         fetchMyResponsesVacancies().then(function() {
@@ -8751,8 +8905,9 @@ function renderGlobalTotalsFiltered(parentRole) {
 
     function syncDonutSelection(selectionKey) {
         actions.forEach(function(node) {
-            var isSelected = !!selectionKey && String(node.dataset.selectionKey || '') === selectionKey;
-            node.classList.toggle('is-selected', isSelected);
+            var isSelected = !!selectionKey && String(node.dataset.selectionKey || '') === String(selectionKey || '');
+            node.classList.toggle('is-active', isSelected);
+            node.classList.toggle('is-muted', !!selectionKey && !isSelected);
             if (node.classList.contains('donut-legend-action')) {
                 node.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
             }
@@ -11302,7 +11457,7 @@ function renderEmployerAnalysisChart(block) {
     graph.style.height = 'auto';
     graph.style.display = 'block';
     graph.style.overflow = 'visible';
-    graph.__chartHostEl.innerHTML = buildEmployerAnalysisDonutChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature);
+    graph.__chartHostEl.innerHTML = buildEmployerAnalysisRankedChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature);
     graph.dataset.plotSignature = signature;
     graph.dataset.plotReady = '1';
 }
@@ -11357,68 +11512,43 @@ function getEmployerAnalysisDonutGradientMeta(factorKey) {
     return { key: 'active', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active', trackClass: 'donut-chart-track donut-chart-track-outer' };
 }
 
-function buildEmployerAnalysisDonutChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature) {
+function getDonutGradientCssByKey(gradientKey) {
+    return 'linear-gradient(135deg, ' + getDonutGradientStopsByKey(gradientKey).join(', ') + ')';
+}
+
+function buildEmployerAnalysisRankedChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature) {
     var chartTitle = composeChartTitle('Анализ работодателей · ' + metricLabel + ' зарплата (' + currencyLabel + ')', chartContext);
-    var maxValue = values.reduce(function(max, value) {
-        return value > max ? value : max;
-    }, 0) || 1;
-    var chartWidth = 960;
-    var leftPad = 290;
-    var rightPad = 84;
-    var topPad = 18;
-    var rowGap = 52;
-    var bottomPad = 48;
-    var trackStart = leftPad;
-    var trackEnd = chartWidth - rightPad;
-    var trackWidth = trackEnd - trackStart;
-    var chartHeight = topPad + labels.length * rowGap + bottomPad;
-    var baseId = String(signature || 'employer-analysis')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(-48) || 'employer-analysis';
-    var defsHtml = factorKeys.map(function(factorKey, index) {
-        var meta = getEmployerAnalysisDonutGradientMeta(factorKey);
-        var stops = getDonutGradientStopsByKey(meta.key);
-        var gradientId = 'employer-analysis-gradient-' + baseId + '-' + factorKey + '-' + index;
-        var stopsHtml = stops.map(function(color, stopIndex) {
-            var offset = stopIndex === 0 ? '0%' : stopIndex === stops.length - 1 ? '100%' : '55%';
-            return '<stop offset="' + offset + '" stop-color="' + color + '"></stop>';
-        }).join('');
-        return '<linearGradient id="' + gradientId + '" x1="0%" y1="0%" x2="100%" y2="100%">' + stopsHtml + '</linearGradient>';
-    }).join('');
-    var ticks = [0, 0.25, 0.5, 0.75, 1].map(function(part, index) {
-        var x = trackStart + trackWidth * part;
-        var value = maxValue * part;
-        return '<g class="employer-analysis-donut-axis-tick">' +
-            '<line x1="' + x + '" y1="' + (chartHeight - bottomPad + 4) + '" x2="' + x + '" y2="' + (chartHeight - bottomPad + 10) + '"></line>' +
-            '<text x="' + x + '" y="' + (chartHeight - bottomPad + 28) + '" text-anchor="' + (index === 0 ? 'start' : index === 4 ? 'end' : 'middle') + '">' + escapeHtml(totalsFormatSalaryPointValue(value, currencyLabel === 'Другая валюта' ? '' : currencyLabel)) + '</text>' +
-        '</g>';
-    }).join('');
-    var rowsHtml = labels.map(function(label, index) {
+    var rows = (labels || []).map(function(label, index) {
         var factorKey = factorKeys[index] || 'accreditation';
+        var rawValue = Number(values[index] || 0);
         var meta = getEmployerAnalysisDonutGradientMeta(factorKey);
-        var gradientId = 'employer-analysis-gradient-' + baseId + '-' + factorKey + '-' + index;
-        var y = topPad + index * rowGap + 22;
-        var value = values[index] || 0;
-        var ratio = maxValue > 0 ? value / maxValue : 0;
-        var x2 = trackStart + trackWidth * ratio;
-        var valueLabel = totalsFormatSalaryPointValue(value, currencyLabel === 'Другая валюта' ? '' : currencyLabel);
-        return '<g class="employer-analysis-donut-row">' +
-            '<text class="employer-analysis-donut-label" x="' + (leftPad - 18) + '" y="' + (y + 5) + '" text-anchor="end">' + escapeHtml(label) + '</text>' +
-            '<line class="' + meta.trackClass + '" x1="' + trackStart + '" y1="' + y + '" x2="' + trackEnd + '" y2="' + y + '" stroke-linecap="round"></line>' +
-            '<line class="' + meta.segmentClass + '" x1="' + trackStart + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="url(#' + gradientId + ')" stroke-linecap="round"></line>' +
-            '<text class="employer-analysis-donut-value" x="' + (trackEnd + 14) + '" y="' + (y + 5) + '" text-anchor="start">' + escapeHtml(valueLabel) + '</text>' +
-        '</g>';
-    }).join('');
-    return '<div class="employer-analysis-donut-chart">' +
-        '<div class="employer-analysis-donut-chart-title">' + escapeHtml(chartTitle) + '</div>' +
-        '<svg viewBox="0 0 ' + chartWidth + ' ' + chartHeight + '" preserveAspectRatio="xMidYMin meet">' +
-            '<defs>' + defsHtml + '</defs>' +
-            rowsHtml +
-            '<line class="employer-analysis-donut-axis-line" x1="' + trackStart + '" y1="' + (chartHeight - bottomPad) + '" x2="' + trackEnd + '" y2="' + (chartHeight - bottomPad) + '"></line>' +
-            ticks +
-        '</svg>' +
+        return {
+            key: factorKey,
+            label: String(label || '—'),
+            value: rawValue,
+            valueLabel: totalsFormatSalaryPointValue(rawValue, currencyLabel === 'Другая валюта' ? '' : currencyLabel),
+            gradient: getDonutGradientCssByKey(meta.key)
+        };
+    }).sort(function(a, b) {
+        return b.value - a.value;
+    });
+    var maxValue = rows.reduce(function(max, row) {
+        return row.value > max ? row.value : max;
+    }, 0) || 1;
+    return '<div class="employer-analysis-ranked-chart" data-chart-signature="' + escapeHtml(String(signature || 'employer-analysis')) + '">' +
+        '<div class="employer-analysis-ranked-chart-title">' + escapeHtml(chartTitle) + '</div>' +
+        rows.map(function(row) {
+            var ratio = maxValue > 0 ? row.value / maxValue : 0;
+            return '<div class="employer-analysis-ranked-row">' +
+                '<div class="employer-analysis-ranked-row-head">' +
+                    '<div class="employer-analysis-ranked-label">' + escapeHtml(row.label) + '</div>' +
+                    '<div class="employer-analysis-ranked-value">' + escapeHtml(row.valueLabel) + '</div>' +
+                '</div>' +
+                '<div class="employer-analysis-ranked-track">' +
+                    '<div class="employer-analysis-ranked-track-fill" style="width:' + escapeHtml(String(ratio * 100)) + '%;background:' + escapeHtml(row.gradient) + ';"></div>' +
+                '</div>' +
+            '</div>';
+        }).join('') +
     '</div>';
 }
 

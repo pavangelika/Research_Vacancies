@@ -194,6 +194,7 @@ class VacancySearchService:
             "archived_at": item.get("archived_at"),
             "apply_alternate_url": item.get("apply_alternate_url"),
             "send_resume": bool(item.get("send_resume")),
+            "work_format": item.get("work_format"),
             "role_id": item.get("role_id"),
             "cover_letter_required": bool(item.get("cover_letter_required")),
             "has_test": bool(item.get("has_test")),

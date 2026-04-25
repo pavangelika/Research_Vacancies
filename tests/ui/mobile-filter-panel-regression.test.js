@@ -204,3 +204,14 @@ runTest('adaptive filter panel scale removes targeted rigid px sizing from share
     });
   });
 });
+
+runTest('mobile dashboard keeps card column layout isolated from filter overlay state', () => {
+  FILES.forEach((filePath) => {
+    const source = read(filePath);
+    assert.match(
+      source,
+      /\.dashboard-overview-column\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/,
+      `${path.basename(filePath)} should keep dashboard cards grouped into dedicated columns`
+    );
+  });
+});

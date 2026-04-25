@@ -123,6 +123,7 @@ def init_table():
                 name TEXT,
                 employer TEXT,
                 city TEXT,
+                work_format TEXT,
                 salary_from INTEGER,
                 salary_to INTEGER,
                 currency TEXT,
@@ -163,6 +164,12 @@ def ensure_get_vacancies_tracking_columns(cur) -> None:
         """
         ALTER TABLE get_vacancies
         ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+        """
+    )
+    cur.execute(
+        """
+        ALTER TABLE get_vacancies
+        ADD COLUMN IF NOT EXISTS work_format TEXT
         """
     )
 
@@ -444,6 +451,7 @@ def save_vacancies(vacancies: list[dict]):
                     """
                     INSERT INTO get_vacancies (
                         id, url, professional_role, name, employer, city,
+                        work_format,
                         salary_from, salary_to, currency,
                         requirement, responsibility, skills, schedule,
                         experience, description, published_at, created_at, 
@@ -451,6 +459,7 @@ def save_vacancies(vacancies: list[dict]):
                     )
                     VALUES (
                         %(id)s, %(url)s, %(professional_role)s, %(name)s, %(employer)s, %(city)s,
+                        %(work_format)s,
                         %(salary_from)s, %(salary_to)s, %(currency)s,
                         %(requirement)s, %(responsibility)s, %(skills)s, %(schedule)s,
                         %(experience)s, %(description)s, %(published_at)s, %(created_at)s,

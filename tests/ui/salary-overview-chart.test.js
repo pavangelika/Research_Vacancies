@@ -108,9 +108,9 @@ runTest('buildSalaryOverviewChartModel builds experience legend, filters empty s
   assert.deepEqual(Array.from(model.currencies.map((item) => item.currency)), ['RUR', 'USD', 'EUR']);
   assert.equal(model.currencies[0].expanded, true);
   assert.equal(model.currencies[1].expanded, false);
-  assert.deepEqual(Array.from(model.currencies[0].statuses.map((item) => item.statusKey)), ['open', 'archived', 'period_archived']);
+  assert.deepEqual(Array.from(model.currencies[0].statuses.map((item) => item.statusKey)), ['open', 'archived', 'new', 'period_archived']);
   assert.deepEqual(Array.from(model.currencies[0].statuses[0].points.map((point) => point.label)), ['Нет опыта', 'От 1 года до 3 лет']);
-  assert.equal(model.currencies[1].statuses.length, 1);
+  assert.deepEqual(Array.from(model.currencies[1].statuses.map((item) => item.statusKey)), ['open', 'archived', 'new', 'period_archived']);
 });
 
 runTest('buildSalaryOverviewChartModel switches to metric mode for selected experience and keeps requested currency expanded', () => {
@@ -181,6 +181,7 @@ runTest('buildSalaryOverviewChartModel switches to metric mode for selected expe
   assert.equal(model.currencies[1].currency, 'USD');
   assert.equal(model.currencies[0].expanded, false);
   assert.equal(model.currencies[1].expanded, true);
+  assert.deepEqual(Array.from(model.currencies[0].statuses.map((item) => item.statusKey)), ['open', 'archived', 'new', 'period_archived']);
   assert.deepEqual(Array.from(model.currencies[1].statuses[0].points.map((point) => point.label)), ['Мин, Мода', 'Медиана', 'Среднее', 'Макс']);
 });
 
@@ -215,11 +216,32 @@ runTest('buildSalaryOverviewChartHtml renders compact rows without duplicated po
         expanded: true,
         statuses: [
           {
+            statusKey: 'period_archived',
+            statusLabel: 'РћРїСѓР±Р». Рё Р°СЂС…РёРІРёСЂ.',
+            points: [
+              { label: 'РќРµС‚ РѕРїС‹С‚Р°', color: '#00C3D3', valueLabel: '40K', leftPct: 15, pointRow: 0 }
+            ]
+          },
+          {
             statusKey: 'open',
             statusLabel: 'Активные',
             points: [
               { label: 'Нет опыта', color: '#00C3D3', valueLabel: '50K', leftPct: 0, pointRow: 0 },
               { label: 'От 1 года до 3 лет', color: '#00AADF', valueLabel: '96K', leftPct: 100, pointRow: 0 }
+            ]
+          },
+          {
+            statusKey: 'new',
+            statusLabel: 'New',
+            points: [
+              { label: 'No experience', color: '#00C3D3', valueLabel: '20K', leftPct: 10, pointRow: 0 }
+            ]
+          },
+          {
+            statusKey: 'archived',
+            statusLabel: 'Archived',
+            points: [
+              { label: 'No experience', color: '#00C3D3', valueLabel: '15K', leftPct: 5, pointRow: 0 }
             ]
           }
         ]
@@ -236,30 +258,115 @@ runTest('buildSalaryOverviewChartHtml renders compact rows without duplicated po
             ]
           }
         ]
+      },
+      {
+        currency: 'Другая',
+        expanded: false,
+        statuses: [
+          {
+            statusKey: 'open',
+            statusLabel: 'Активные',
+            points: [
+              { label: 'Нет опыта', color: '#00C3D3', valueLabel: '999K', leftPct: 50, pointRow: 0 }
+            ]
+          }
+        ]
       }
     ]
   });
 
-  assert.match(html, /salary-overview-chart/);
-  assert.match(html, /salary-overview-currency-button/);
-  assert.match(html, /salary-overview-currency-panel/);
-  assert.match(html, /salary-overview-status-row/);
-  assert.match(html, /salary-overview-track-point/);
-  assert.match(html, /salary-overview-track-point-value/);
-  assert.match(html, /salary-overview-legend-label/);
+  assert.match(html, /salary-module/);
+  assert.match(html, /salary-module-status-row/);
+  assert.match(html, /salary-module-track-point/);
+  assert.match(html, /salary-module-track-point-value/);
+  assert.match(html, /donut-legend salary-module-legend/);
+  assert.match(html, /donut-legend-item donut-legend-item-passive salary-module-legend-item/);
+  assert.match(html, /donut-legend-color/);
+  assert.match(html, /donut-legend-label/);
   assert.match(html, /data-currency="RUR"/);
-  assert.match(html, /aria-expanded="true"/);
-  assert.match(html, /aria-expanded="false"/);
+  assert.match(html, /salary-module-status-row is-parent is-collapsible/);
+  assert.match(html, /salary-module-status-toggle/);
+  assert.match(html, /salary-module-status-row is-child/);
+  assert.match(html, /50K[\s\S]*15K/);
+  assert.match(html, /data-child-key="new" hidden/);
+  assert.match(html, /data-child-key="period_archived" hidden/);
+  assert.doesNotMatch(html, /salary-module-legend-item is-gradient/);
+  assert.doesNotMatch(html, /background-image:/);
+  assert.doesNotMatch(html, /salary-module-currency-tabs/);
+  assert.doesNotMatch(html, /salary-module-currency-button/);
+  assert.doesNotMatch(html, /salary-overview-currencies/);
   assert.doesNotMatch(html, /salary-progress-panels/);
   assert.doesNotMatch(html, /salary-summary-chart/);
-  assert.doesNotMatch(html, /salary-overview-chart-title/);
-  assert.doesNotMatch(html, /salary-overview-chart-subtitle/);
-  assert.doesNotMatch(html, /salary-overview-chart-context/);
-  assert.doesNotMatch(html, /salary-overview-track-point-label/);
-  assert.doesNotMatch(html, /salary-overview-legend-dot/);
-  assert.doesNotMatch(html, /salary-overview-legend-item/);
-  assert.match(html, /salary-overview-track-point-value" style="color:#00C3D3;/);
+  assert.doesNotMatch(html, /data-currency="Другая"/);
+  assert.doesNotMatch(html, /999K/);
+  assert.doesNotMatch(html, /salary-module-track-point-label/);
+  assert.match(html, /salary-module-track-point-value" style="color:#00C3D3;/);
+  assert.doesNotMatch(html, /salary-module-legend-label/);
   assert.doesNotMatch(html, /2 стат\./);
+});
+
+runTest('buildSalaryOverviewChartHtml hides child rows by default and omits empty parent rows', () => {
+  const script = [
+    extractFunctionSourceFrom(UI_SOURCE, 'buildSalaryOverviewChartHtml')
+  ].join('\n\n') + '\nmodule.exports = { buildSalaryOverviewChartHtml };';
+
+  const sandbox = {
+    module: { exports: {} },
+    exports: {},
+    console,
+    Math,
+    isFinite,
+    escapeHtml(value) {
+      return String(value);
+    }
+  };
+  vm.runInNewContext(script, sandbox, { filename: 'salary-overview-html-optional-rows.vm.js' });
+  const { buildSalaryOverviewChartHtml } = sandbox.module.exports;
+
+  const html = buildSalaryOverviewChartHtml({
+    title: 'Salaries',
+    subtitle: 'By experience',
+    legend: [
+      { label: 'No experience', color: '#00C3D3' }
+    ],
+    currencies: [
+      {
+        currency: 'RUR',
+        expanded: true,
+        statuses: [
+          {
+            statusKey: 'new',
+            statusLabel: 'New',
+            points: []
+          },
+          {
+            statusKey: 'open',
+            statusLabel: 'Open',
+            points: [
+              { label: 'No experience', color: '#00C3D3', valueLabel: '50K', leftPct: 0, pointRow: 0 }
+            ]
+          },
+          {
+            statusKey: 'period_archived',
+            statusLabel: 'Period archived',
+            points: []
+          },
+          {
+            statusKey: 'archived',
+            statusLabel: 'Archived',
+            points: []
+          }
+        ]
+      }
+    ]
+  });
+
+  assert.match(html, /Open/);
+  assert.match(html, /data-status-key="open"/);
+  assert.doesNotMatch(html, /data-child-key="new"/);
+  assert.doesNotMatch(html, /salary-module-status-row is-parent is-collapsible/);
+  assert.doesNotMatch(html, /data-status-key="archived"/);
+  assert.doesNotMatch(html, /Period archived/);
 });
 
 runTest('buildTotalsSalaryOverviewSectionHtml renders only the new overview chart root', () => {
@@ -274,7 +381,7 @@ runTest('buildTotalsSalaryOverviewSectionHtml renders only the new overview char
     Math,
     isFinite,
     buildSalaryOverviewChartHtml() {
-      return '<div class="salary-overview-chart">chart</div>';
+      return '<div class="salary-module">chart</div>';
     }
   };
   vm.runInNewContext(script, sandbox, { filename: 'salary-overview-section.vm.js' });
@@ -282,7 +389,7 @@ runTest('buildTotalsSalaryOverviewSectionHtml renders only the new overview char
 
   const html = buildTotalsSalaryOverviewSectionHtml({ currencies: [] });
   assert.match(html, /salary-overview-stack/);
-  assert.match(html, /salary-overview-chart/);
+  assert.match(html, /salary-module/);
   assert.doesNotMatch(html, /salary-progress-panels/);
   assert.doesNotMatch(html, /salary-summary-chart/);
 });

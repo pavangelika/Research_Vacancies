@@ -356,6 +356,7 @@ class AnalyticsService:
             ],
             "salary_rows": salary_rows,
             "salary_coverage": self._compute_dashboard_salary_coverage(filtered_vacancies),
+            "compensation_availability": self._compute_dashboard_compensation_availability(filtered_vacancies),
             "period_stats": self._compute_dashboard_period_stats(filtered_vacancies),
             "response_funnel": self._build_dashboard_response_funnel(role_ids=activity["role_ids"]),
             "burnup_series": self._compute_dashboard_burnup_series(filtered_vacancies if period != "summary" else kpi_vacancies),
@@ -846,6 +847,51 @@ class AnalyticsService:
             for key in stats["currencies"]:
                 stats["currencies"][key]["share"] = round((stats["currencies"][key]["count"] * 10000.0) / stats["withSalary"]) / 100.0
         return stats
+
+    def _compute_dashboard_compensation_availability(self, vacancies: list[dict]) -> dict:
+        def has_salary(vacancy: dict) -> bool:
+            return vacancy.get("salary_from") is not None or vacancy.get("salary_to") is not None
+
+        def is_remote(vacancy: dict) -> bool:
+            return str(vacancy.get("work_format") or "").strip().upper() == "REMOTE"
+
+        def normalize_currency(vacancy: dict) -> str:
+            current = str(vacancy.get("currency") or "").strip().upper()
+            if current in {"RUR", "USD", "EUR"}:
+                return current
+            return "OTHER"
+
+        def summarize(items: list[dict]) -> dict:
+            total = len(items)
+            with_salary_items = [item for item in items if has_salary(item)]
+            with_salary = len(with_salary_items)
+            without_salary = total - with_salary
+            currencies = {
+                "RUR": {"count": 0, "share": 0.0},
+                "USD": {"count": 0, "share": 0.0},
+                "EUR": {"count": 0, "share": 0.0},
+                "OTHER": {"count": 0, "share": 0.0},
+            }
+            for item in with_salary_items:
+                currencies[normalize_currency(item)]["count"] += 1
+            if with_salary:
+                for currency_key in currencies:
+                    currencies[currency_key]["share"] = round((currencies[currency_key]["count"] * 10000.0) / with_salary) / 100.0
+            return {
+                "total": total,
+                "with_salary": with_salary,
+                "without_salary": without_salary,
+                "coverage_percent": round((with_salary * 10000.0) / total) / 100.0 if total else 0.0,
+                "with_salary_currencies": currencies,
+            }
+
+        remote_items = [vacancy for vacancy in vacancies if is_remote(vacancy)]
+        non_remote_items = [vacancy for vacancy in vacancies if not is_remote(vacancy)]
+        summary = summarize(vacancies)
+        summary.pop("with_salary_currencies", None)
+        summary["remote"] = summarize(remote_items)
+        summary["non_remote"] = summarize(non_remote_items)
+        return summary
 
     def _compute_dashboard_period_stats(self, vacancies: list[dict]) -> dict:
         total = len(vacancies)

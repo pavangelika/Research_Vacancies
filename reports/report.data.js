@@ -967,8 +967,6 @@ function buildSalaryOverviewChartModel(payload) {
                 statusLabel: statusDef.label,
                 points: mergePoints(statusMapByCurrency[currency][statusDef.key] || [])
             };
-        }).filter(function(statusRow) {
-            return Array.isArray(statusRow.points) && statusRow.points.length > 0;
         });
         return {
             currency: currency,
