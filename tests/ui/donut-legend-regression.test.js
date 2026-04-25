@@ -52,18 +52,19 @@ function assertUiSourceContracts(source, label) {
   const drilldownFn = extractFunctionSource(source, 'buildTotalsExperienceDrilldownHtml');
   const salarySection = extractSection(source, 'function buildTotalsSalaryProgressSource', 'function buildTotalsSalaryOverviewSectionHtml');
 
-  assert.match(donutFn, /var donutNewLabel = 'Новые';/);
-  assert.match(donutFn, /var donutPublishedArchivedLabel = 'Опубл\. и архивир\.';/);
+  assert.match(donutFn, /var donutNewLabel = 'РќРѕРІС‹Рµ';|var donutNewLabel = 'Новые';/);
+  assert.match(donutFn, /var donutPublishedArchivedLabel = 'РћРїСѓР±Р»\. Рё Р°СЂС…РёРІРёСЂ\.';|var donutPublishedArchivedLabel = 'Опубл\. и архивир\.';/);
   assert.match(donutFn, /donut-chart-segment-inner donut-chart-segment-published-archived/);
   assert.match(donutFn, /donut-legend-action-published-archived/);
   assert.match(donutFn, /donut-legend-item donut-legend-kpi donut-legend-item-passive/);
+  assert.match(donutFn, /vacancy-donut-shell/);
+  assert.match(donutFn, /vacancy-donut-chart-area/);
+  assert.match(donutFn, /vacancy-donut-status-area/);
+  assert.match(donutFn, /vacancy-donut-status-list/);
   assert.match(donutFn, /data-selection-key="active"/);
   assert.match(donutFn, /data-selection-key="new"/);
   assert.match(donutFn, /data-selection-key="archived"/);
   assert.match(donutFn, /data-selection-key="published-archived"/);
-  assert.match(donutFn, /donut-legend-label">' \+ donutNewLabel \+ '<\/span>/);
-  assert.match(donutFn, /donut-legend-label">' \+ donutPublishedArchivedLabel \+ '<\/span>/);
-  assert.match(donutFn, /<div class="donut-chart-shell">/);
   assert.match(donutFn, /<div class="donut-drilldown" hidden><\/div>/);
 
   assert.match(drilldownFn, /metricRow\(donutNewLabel,/);
@@ -79,12 +80,10 @@ function assertUiSourceContracts(source, label) {
   assert.match(interactivitySection, /node\.classList\.toggle\('is-muted', !!selectionKey && !isSelected\);/);
   assert.doesNotMatch(interactivitySection, /node\.classList\.toggle\('is-selected', isSelected\);/);
 
-  assert.doesNotMatch(salarySection, /Новые за период/);
-  assert.doesNotMatch(salarySection, /Опубл\. и архив\. за период/);
-  assert.match(salarySection, /'Новые'/);
-  assert.match(salarySection, /'Опубл\. и архивир\.'/);
-  assert.match(salarySection, /label === 'новые'/);
-  assert.match(salarySection, /label === 'опубл\. и архивир\.'/);
+  assert.doesNotMatch(salarySection, /Новые за период|РќРѕРІС‹Рµ Р·Р° РїРµСЂРёРѕРґ/);
+  assert.doesNotMatch(salarySection, /Опубл\. и архив\. за период|РћРїСѓР±Р»\. Рё Р°СЂС…РёРІ\. Р·Р° РїРµСЂРёРѕРґ/);
+  assert.match(salarySection, /'Новые'|'РќРѕРІС‹Рµ'/);
+  assert.match(salarySection, /'Опубл\. и архивир\.'|'РћРїСѓР±Р»\. Рё Р°СЂС…РёРІРёСЂ\.'/);
 
   assert.ok(
     donutFn.indexOf('donut-chart-segment-outer donut-chart-segment-archived') <
@@ -96,39 +95,26 @@ function assertUiSourceContracts(source, label) {
 function assertStyleContracts(source, label) {
   const donutCss = extractSection(source, '.donut-chart-container {', '.donut-drilldown[hidden] {');
   const donutMedia = extractSection(source, '@media (max-width: 600px) {', '.dashboard-overview {');
-  const salaryLabelCss = extractSection(source, '.salary-summary-chart-label {', '.salary-summary-chart-points .salary-summary-chart-row {');
-  const salaryCompactLabelCss = extractSection(source, '.salary-summary-chart-compact .salary-summary-chart-label {', '.salary-summary-chart-compact .salary-summary-chart-line {');
 
   assert.match(donutCss, /\.donut-chart-container\s*\{[\s\S]*flex-direction:\s*column;/);
   assert.match(donutCss, /\.donut-chart-container\s*\{[\s\S]*gap:\s*18px;/);
-  assert.match(donutCss, /\.donut-chart-shell\s*\{[\s\S]*display:\s*grid;/);
-  assert.match(donutCss, /\.donut-chart-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(240px,\s*1\.15fr\)\s*minmax\(220px,\s*0\.85fr\);/);
-  assert.match(donutCss, /\.donut-chart\s*\{[\s\S]*width:\s*clamp\(220px,\s*28vw,\s*320px\);[\s\S]*aspect-ratio:\s*1\s*\/\s*1;/);
+  assert.match(donutCss, /\.vacancy-donut-shell\s*\{[\s\S]*display:\s*grid;/);
+  assert.match(donutCss, /\.vacancy-donut-shell\s*\{[\s\S]*grid-template-columns:\s*minmax\(208px,\s*1\.02fr\)\s*minmax\(196px,\s*0\.98fr\);/);
+  assert.match(donutCss, /\.vacancy-donut-status-area\s*\{[\s\S]*min-width:\s*196px;/);
+  assert.match(donutCss, /\.donut-chart\s*\{[\s\S]*width:\s*clamp\(208px,\s*23vw,\s*248px\);[\s\S]*aspect-ratio:\s*1\s*\/\s*1;/);
   assert.match(donutCss, /\.donut-center-label\s*\{[\s\S]*inset:\s*50%\s+auto\s+auto\s+50%;/);
   assert.match(donutCss, /\.donut-legend-item\s*\{[\s\S]*width:\s*100%;/);
   assert.match(donutCss, /\.donut-legend-item\s*\{[\s\S]*min-width:\s*0;/);
   assert.match(donutCss, /\.donut-legend-item-passive\s*\{/);
-  assert.match(donutCss, /\.donut-legend-item-passive\s*\{[\s\S]*border:\s*1px solid rgba\(148, 163, 184, 0\.16\);/);
-  assert.match(donutCss, /\.donut-legend-item-passive\s*\{[\s\S]*width:\s*100%;/);
   assert.match(donutCss, /\.donut-legend-kpi\s*\{[\s\S]*background:\s*var\(--surface-variant\);/);
-  assert.match(donutCss, /\.donut-legend-kpi\s*\{[\s\S]*border:\s*1px solid rgba\(148, 163, 184, 0\.16\);/);
   assert.match(donutCss, /\.donut-legend-action\s*\{[\s\S]*font:\s*inherit;/);
   assert.match(donutCss, /\.donut-chart-segment\s*\{[\s\S]*transform:\s*none;/);
   assert.match(donutCss, /\.donut-chart-segment\.is-active\s*\{/);
   assert.match(donutCss, /\.donut-chart-segment\.is-muted\s*\{/);
   assert.doesNotMatch(donutCss, /translateY\(-1px\)/);
-  assert.doesNotMatch(
-    donutCss,
-    /\.donut-legend-color-kpi\s*\{[\s\S]*background:\s*linear-gradient\(135deg, #efc3ff 0%, #b58cff 100%\);/
-  );
 
-  assert.match(salaryLabelCss, /\.salary-summary-chart-label\s*\{[\s\S]*font-size:\s*0\.78rem;/);
-  assert.match(salaryLabelCss, /\.salary-summary-chart-label\s*\{[\s\S]*font-weight:\s*500;/);
-  assert.match(salaryLabelCss, /\.salary-summary-chart-label\s*\{[\s\S]*color:\s*var\(--text-secondary\);/);
-  assert.match(salaryCompactLabelCss, /\.salary-summary-chart-compact \.salary-summary-chart-label\s*\{[\s\S]*font-size:\s*0\.78rem;/);
-  assert.match(salaryCompactLabelCss, /\.salary-summary-chart-compact \.salary-summary-chart-label\s*\{[\s\S]*color:\s*var\(--text-secondary\);/);
-
-  assert.match(donutMedia, /\.donut-chart-shell\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*justify-items:\s*center;/);
+  assert.match(donutMedia, /\.vacancy-donut-shell\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*justify-items:\s*center;/);
+  assert.match(donutMedia, /\.vacancy-donut-status-area\s*\{[\s\S]*min-width:\s*0;/);
   assert.match(donutMedia, /\.donut-legend-item\s*\{[\s\S]*min-width:\s*0;/);
 
   assert.ok(

@@ -483,7 +483,7 @@ function buildSalaryExperienceProgressPanelsModel(payload) {
     var data = payload || {};
     var experiences = Array.isArray(data.experiences) ? data.experiences.slice() : [];
     var selectedExperience = String(data.selectedExperience || '').trim();
-    var preferredCurrencies = ['RUR', 'USD', 'EUR', 'Другая', 'Не заполнена'];
+    var preferredCurrencies = ['RUR', 'USD', 'EUR'];
     var metricOrder = [
         { key: 'min_salary', label: 'Мин' },
         { key: 'mode_salary', label: 'Мода' },
@@ -719,7 +719,7 @@ function buildSalaryOverviewChartModel(payload) {
     var selectedExperience = String(data.selectedExperience || '').trim();
     var selectedCurrency = String(data.selectedCurrency || '').trim().toUpperCase();
     var experiences = Array.isArray(data.experiences) ? data.experiences.slice() : [];
-    var preferredCurrencies = ['RUR', 'USD', 'EUR', 'Другая', 'Не заполнена'];
+    var preferredCurrencies = ['RUR', 'USD', 'EUR'];
     var experiencePalette = ['#49c8f2', '#007AD8', '#d79cfb', '#8b5cf6', '#00C3D3'];
     var metricDefs = [
         { key: 'min_salary', label: 'Мин', color: experiencePalette[0] },
@@ -772,6 +772,12 @@ function buildSalaryOverviewChartModel(payload) {
         if (normalized === 'опубл. и архив. за период' || normalized === 'опубл. и архив.' || normalized === 'опубл. и архивир.' || normalized === 'опубликована и архивирована') return 'period_archived';
         return normalized || 'other';
     }
+    function isSupportedSalaryCurrency(currency) {
+        return preferredCurrencies.indexOf(String(currency || '').trim()) >= 0;
+    }
+    function isSupportedSalaryExperience(experience) {
+        return String(experience || '').trim() !== 'Не указан';
+    }
     function hasSalaryData(entry) {
         if (!entry) return false;
         if (Number(entry.vacancies_with_salary) > 0) return true;
@@ -798,7 +804,7 @@ function buildSalaryOverviewChartModel(payload) {
         }).map(function(item) {
             return normalizeExperience(item.experience);
         }).filter(function(value, index, list) {
-            return value && list.indexOf(value) === index;
+            return value && isSupportedSalaryExperience(value) && list.indexOf(value) === index;
         }).sort(function(a, b) {
             return (Object.prototype.hasOwnProperty.call(order, a) ? Number(order[a]) : 999)
                 - (Object.prototype.hasOwnProperty.call(order, b) ? Number(order[b]) : 999);
@@ -914,6 +920,7 @@ function buildSalaryOverviewChartModel(payload) {
     var filteredExperiences = experiences.filter(function(item) {
         if (!item) return false;
         if (typeof isSalarySummaryExperience === 'function' && isSalarySummaryExperience(item.experience)) return false;
+        if (!isSupportedSalaryExperience(normalizeExperience(item.experience))) return false;
         return true;
     });
     if (selectedExperience) {
@@ -927,6 +934,7 @@ function buildSalaryOverviewChartModel(payload) {
         (experienceRow.entries || []).forEach(function(entry) {
             if (!hasSalaryData(entry)) return;
             var currency = normalizeCurrency(entry.currency);
+            if (!isSupportedSalaryCurrency(currency)) return;
             var statusKey = normalizeStatusKey(entry.status);
             if (statusDefs.map(function(item) { return item.key; }).indexOf(statusKey) === -1) return;
             statusMapByCurrency[currency] = statusMapByCurrency[currency] || {};

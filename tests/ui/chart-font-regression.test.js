@@ -47,13 +47,15 @@ runTest('static Plotly defaults use donut legend font stack', () => {
 
 runTest('report salary module legend directly reuses donut legend classes', () => {
   const source = read(FILES.reportStyles);
-  assert.match(source, /\.salary-module-legend-item\s*\{/);
+  assert.match(source, /\.salary-module-legend\s*\{/);
+  assert.doesNotMatch(source, /\.salary-module-legend-item\s*\{/);
   assert.doesNotMatch(source, /\.salary-module-legend-label\s*\{/);
 });
 
 runTest('static salary module legend directly reuses donut legend classes', () => {
   const source = read(FILES.staticReportStyles);
-  assert.match(source, /\.salary-module-legend-item\s*\{/);
+  assert.match(source, /\.salary-module-legend\s*\{/);
+  assert.doesNotMatch(source, /\.salary-module-legend-item\s*\{/);
   assert.doesNotMatch(source, /\.salary-module-legend-label\s*\{/);
 });
 
@@ -139,10 +141,11 @@ function assertEmployerAnalysisGradientConfig(source) {
   assert.match(source, /function buildEmployerAnalysisRankedChartHtml\(labels,\s*values,\s*factorKeys,\s*metricLabel,\s*currencyLabel,\s*chartContext,\s*signature\)/);
   assert.match(source, /graph\.__chartHostEl\.innerHTML = buildEmployerAnalysisRankedChartHtml\(labels,\s*values,\s*factorKeys,\s*metricLabel,\s*currencyLabel,\s*chartContext,\s*signature\);/);
   assert.match(source, /function getEmployerAnalysisDonutGradientMeta\(factorKey\)/);
-  assert.match(source, /composeChartTitle\('Анализ работодателей · ' \+ metricLabel \+ ' зарплата \(' \+ currencyLabel \+ '\)', chartContext\)/);
-  assert.match(source, /employer-analysis-ranked-chart/);
-  assert.match(source, /employer-analysis-ranked-row/);
-  assert.match(source, /employer-analysis-ranked-track-fill/);
+  assert.match(source, /composeChartTitle\('Анализ работодателей · ' \+ metricLabel \+ ' зарплата \(' \+ currencyLabel \+ '\)', chartContext\)|composeChartTitle\('РђРЅР°Р»РёР· СЂР°Р±РѕС‚РѕРґР°С‚РµР»РµР№ · ' \+ metricLabel \+ ' Р·Р°СЂРїР»Р°С‚Р° \(' \+ currencyLabel \+ '\)', chartContext\)/);
+  assert.match(source, /employer-funnel-stack/);
+  assert.match(source, /employer-funnel-bar/);
+  assert.match(source, /employer-funnel-label/);
+  assert.match(source, /employer-funnel-value/);
   assert.match(source, /getDonutGradientCssByKey\(meta\.key\)/);
   assert.doesNotMatch(source, /employer-analysis-donut-axis-line/);
   assert.doesNotMatch(source, /employer-analysis-donut-axis-tick/);
@@ -151,14 +154,14 @@ function assertEmployerAnalysisGradientConfig(source) {
 runTest('report employer analysis fully reuses donut svg styling', () => {
   const source = read(FILES.reportUi);
   assertEmployerAnalysisGradientConfig(source);
-  assert.match(source, /<div class="plotly-graph totals-employer-overview-graph" id="/);
+  assert.match(source, /<div class="totals-employer-overview-graph" id="/);
   assert.doesNotMatch(source, /<div class="dashboard-chart-host">[\s\S]*totals-employer-overview-graph/);
 });
 
 runTest('static employer analysis fully reuses donut svg styling', () => {
   const source = read(FILES.staticReportUi);
   assertEmployerAnalysisGradientConfig(source);
-  assert.match(source, /<div class="plotly-graph totals-employer-overview-graph" id="/);
+  assert.match(source, /<div class="totals-employer-overview-graph" id="/);
   assert.doesNotMatch(source, /<div class="dashboard-chart-host">[\s\S]*totals-employer-overview-graph/);
 });
 
@@ -176,19 +179,19 @@ runTest('static burnup chart renders directly inside the card', () => {
   assert.doesNotMatch(source, /<div class="dashboard-chart-host">[\s\S]*totals-burnup-graph/);
 });
 
-runTest('report stylesheet defines employer analysis ranked chart styles', () => {
+runTest('report stylesheet defines employer analysis funnel-bar styles', () => {
   const source = read(FILES.reportStyles);
-  assert.match(source, /\.employer-analysis-ranked-chart\s*\{/);
-  assert.match(source, /\.employer-analysis-ranked-chart-title\s*\{/);
-  assert.match(source, /\.employer-analysis-ranked-track-fill\s*\{/);
+  assert.match(source, /\.employer-funnel-stack\s*\{/);
+  assert.match(source, /\.employer-funnel-bar\s*\{/);
+  assert.match(source, /\.employer-funnel-label\s*\{/);
   assert.doesNotMatch(source, /\.employer-analysis-donut-axis-line,\s*[\s\S]*\.employer-analysis-donut-axis-tick line\s*\{/);
 });
 
-runTest('static stylesheet defines employer analysis ranked chart styles', () => {
+runTest('static stylesheet defines employer analysis funnel-bar styles', () => {
   const source = read(FILES.staticReportStyles);
-  assert.match(source, /\.employer-analysis-ranked-chart\s*\{/);
-  assert.match(source, /\.employer-analysis-ranked-chart-title\s*\{/);
-  assert.match(source, /\.employer-analysis-ranked-track-fill\s*\{/);
+  assert.match(source, /\.employer-funnel-stack\s*\{/);
+  assert.match(source, /\.employer-funnel-bar\s*\{/);
+  assert.match(source, /\.employer-funnel-label\s*\{/);
   assert.doesNotMatch(source, /\.employer-analysis-donut-axis-line,\s*[\s\S]*\.employer-analysis-donut-axis-tick line\s*\{/);
 });
 
