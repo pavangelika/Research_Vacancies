@@ -570,12 +570,12 @@ class AnalyticsService:
                 month_name = str(month.get("month") or "").strip()
                 if period != "summary" and month_name != period:
                     continue
-                if period == "summary" and not month_name.startswith("Р—Р° "):
+                if period == "summary" and not month_name.startswith("За "):
                     continue
-                if period != "summary" and month_name.startswith("Р—Р° "):
+                if period != "summary" and month_name.startswith("За "):
                     continue
                 for exp in month.get("experiences", []):
-                    experience = str(exp.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
+                    experience = str(exp.get("experience") or "").strip() or "Не указан"
                     bucket = month_buckets[month_name].get(experience)
                     if bucket is None:
                         bucket = {
@@ -608,7 +608,7 @@ class AnalyticsService:
             raw_skills = str(vacancy.get("skills_raw") or "").strip()
             if not raw_skills:
                 continue
-            experience = str(vacancy.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
+            experience = str(vacancy.get("experience") or "").strip() or "Не указан"
             bucket = grouped.get(experience)
             if bucket is None:
                 bucket = {

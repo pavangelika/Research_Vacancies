@@ -3,6 +3,8 @@ FROM python:3.13-slim
 WORKDIR /app
 
 ENV TZ=Asia/Yekaterinburg
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # Системные зависимости для psycopg2
 RUN apt-get update &&  \

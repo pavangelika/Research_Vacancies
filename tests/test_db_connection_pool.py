@@ -253,5 +253,54 @@ def test_update_archived_status_releases_initial_connection_before_http(monkeypa
 
     assert select_conn.commit_calls == 0
     assert delete_conn.commit_calls == 0
-    assert any("SELECT id FROM get_vacancies WHERE id NOT IN" in query for query, _ in select_conn.cursor_obj.executed)
+    assert any("SELECT id FROM get_vacancies WHERE archived = FALSE AND id NOT IN" in query for query, _ in select_conn.cursor_obj.executed)
     assert any("DELETE FROM get_vacancies WHERE id = %s;" in query for query, _ in delete_conn.cursor_obj.executed)
+
+
+def test_save_vacancies_uses_upsert_for_existing_rows(monkeypatch):
+    db = importlib.import_module("scripts.db")
+    db = importlib.reload(db)
+
+    save_conn = _UpdateConnection([])
+
+    class _ConnectionManager:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def __enter__(self):
+            return self.conn
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr(db, "get_db_connection", lambda: _ConnectionManager(save_conn))
+
+    db.save_vacancies(
+        [
+            {
+                "id": "vac-1",
+                "url": "https://api.hh.ru/vacancies/1",
+                "professional_role": "96",
+                "name": "Python Developer",
+                "employer": "Acme",
+                "city": "Moscow",
+                "work_format": "REMOTE",
+                "salary_from": 100000,
+                "salary_to": 200000,
+                "currency": "RUR",
+                "requirement": "Python",
+                "responsibility": "APIs",
+                "skills": "Python, SQL",
+                "schedule": "remote",
+                "experience": "1-3 years",
+                "description": "Build services",
+                "published_at": "2026-04-25T10:00:00+00:00",
+                "created_at": "2026-04-26T10:00:00+00:00",
+                "has_test": False,
+                "response_letter_required": False,
+                "apply_alternate_url": "https://hh.ru/applicant/vacancy_response?vacancyId=1",
+            }
+        ]
+    )
+
+    assert any("ON CONFLICT (id) DO UPDATE SET" in query for query, _ in save_conn.cursor_obj.executed)

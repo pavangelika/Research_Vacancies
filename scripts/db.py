@@ -3,13 +3,14 @@ import logging
 import time
 import socket
 from contextlib import contextmanager
+from typing import Any
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -35,7 +36,7 @@ def get_resolved_db_host() -> str:
         socket.gethostbyname(host)
         return host
     except OSError:
-        logger.warning("DB_HOST=%s РЅРµРґРѕСЃС‚СѓРїРµРЅ, РёСЃРїРѕР»СЊР·СѓРµРј localhost", host)
+        logger.warning("DB_HOST=%s недоступен, используем localhost", host)
         return "127.0.0.1"
 
 
@@ -74,21 +75,21 @@ def get_db_connection():
 
 
 def create_database():
-    # РџРѕРґРєР»СЋС‡Р°РµРјСЃСЏ Рє СЃРµСЂРІРµСЂСѓ PostgreSQL (Рє Р±Р°Р·Рµ РґР°РЅРЅС‹С… РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ)
+    # Подключаемся к серверу PostgreSQL (к базе данных по умолчанию)
     conn = psycopg2.connect(
         host=get_resolved_db_host(),
         port=DB_PORT,
         user=DB_USER,
         password=DB_PASS,
-        database="postgres"  # РџРѕРґРєР»СЋС‡Р°РµРјСЃСЏ Рє СЃРёСЃС‚РµРјРЅРѕР№ Р‘Р”
+        database="postgres"  # Подключаемся к системной БД
     )
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
     cursor = conn.cursor()
 
-    logger.info("РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє Р‘Р” РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ СѓСЃРїРµС€РЅРѕ")
+    logger.info("Подключение к БД по умолчанию успешно")
 
-    # РџСЂРѕРІРµСЂСЏРµРј, СЃСѓС‰РµСЃС‚РІСѓРµС‚ Р»Рё Р±Р°Р·Р° РґР°РЅРЅС‹С…
+    # Проверяем, существует ли база данных
     cursor.execute(
         "SELECT 1 FROM pg_database WHERE datname = %s",
         (DB_NAME,)
@@ -97,22 +98,22 @@ def create_database():
     exists = cursor.fetchone()
 
     if not exists:
-        logger.info(f"Р‘Р” {DB_NAME} РЅРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚")
+        logger.info(f"БД {DB_NAME} не существует")
         try:
-            # РЎРѕР·РґР°РµРј РЅРѕРІСѓСЋ Р±Р°Р·Сѓ РґР°РЅРЅС‹С…
+            # Создаем новую базу данных
             cursor.execute(f"CREATE DATABASE {DB_NAME}")
-            logger.info(f"Р‘Р°Р·Р° РґР°РЅРЅС‹С… {DB_NAME} СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅР°")
+            logger.info(f"База данных {DB_NAME} успешно создана")
         except Exception as e:
-            logger.info(f"РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё Р±Р°Р·С‹ РґР°РЅРЅС‹С…: {e}")
+            logger.info(f"Ошибка при создании базы данных: {e}")
     else:
-        logger.info(f"Р‘Р°Р·Р° РґР°РЅРЅС‹С… {DB_NAME} СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚")
+        logger.info(f"База данных {DB_NAME} уже существует")
 
     cursor.close()
     conn.close()
 
 
 def init_table():
-    logger.info("РџСЂРѕРІРµСЂРєР° С‚Р°Р±Р»РёС†С‹ get_vacancies...")
+    logger.info("Проверка таблицы get_vacancies...")
     with get_db_connection() as conn, conn.cursor() as cur:
         cur.execute(
             """
@@ -156,7 +157,16 @@ def init_table():
             """
         )
         ensure_get_vacancies_tracking_columns(cur)
-        logger.info("вњ… РўР°Р±Р»РёС†Р° get_vacancies РіРѕС‚РѕРІР°")
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ingestion_state (
+                state_key TEXT PRIMARY KEY,
+                state_value TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+            """
+        )
+        logger.info("✅ Таблица get_vacancies готова")
 
 
 def ensure_get_vacancies_tracking_columns(cur) -> None:
@@ -441,12 +451,15 @@ def save_vacancy_details(vacancy_id: str, fields: dict | None, force_overwrite: 
 
 
 def save_vacancies(vacancies: list[dict]):
-    logger.info("РЎРѕС…СЂР°РЅРµРЅРёРµ РІР°РєР°РЅСЃРёР№ РІ Р‘Р”...")
+    logger.info("Сохранение вакансий в БД...")
 
     with get_db_connection() as conn, conn.cursor() as cur:
 
         for v in vacancies:
             try:
+                vacancy_payload = dict(v)
+                vacancy_payload.setdefault("archived", False)
+                vacancy_payload.setdefault("archived_at", None)
                 cur.execute(
                     """
                     INSERT INTO get_vacancies (
@@ -454,7 +467,8 @@ def save_vacancies(vacancies: list[dict]):
                         work_format,
                         salary_from, salary_to, currency,
                         requirement, responsibility, skills, schedule,
-                        experience, description, published_at, created_at, 
+                        experience, description, published_at, created_at,
+                        archived, archived_at,
                         has_test, response_letter_required, apply_alternate_url
                     )
                     VALUES (
@@ -463,18 +477,40 @@ def save_vacancies(vacancies: list[dict]):
                         %(salary_from)s, %(salary_to)s, %(currency)s,
                         %(requirement)s, %(responsibility)s, %(skills)s, %(schedule)s,
                         %(experience)s, %(description)s, %(published_at)s, %(created_at)s,
+                        %(archived)s, %(archived_at)s,
                         %(has_test)s, %(response_letter_required)s, %(apply_alternate_url)s
                     )
-                    ON CONFLICT (id) DO NOTHING;
+                    ON CONFLICT (id) DO UPDATE SET
+                        url = EXCLUDED.url,
+                        professional_role = EXCLUDED.professional_role,
+                        name = EXCLUDED.name,
+                        employer = EXCLUDED.employer,
+                        city = EXCLUDED.city,
+                        work_format = EXCLUDED.work_format,
+                        salary_from = EXCLUDED.salary_from,
+                        salary_to = EXCLUDED.salary_to,
+                        currency = EXCLUDED.currency,
+                        requirement = EXCLUDED.requirement,
+                        responsibility = EXCLUDED.responsibility,
+                        skills = EXCLUDED.skills,
+                        schedule = EXCLUDED.schedule,
+                        experience = EXCLUDED.experience,
+                        description = EXCLUDED.description,
+                        published_at = EXCLUDED.published_at,
+                        archived = EXCLUDED.archived,
+                        archived_at = EXCLUDED.archived_at,
+                        has_test = EXCLUDED.has_test,
+                        response_letter_required = EXCLUDED.response_letter_required,
+                        apply_alternate_url = EXCLUDED.apply_alternate_url;
                     """,
-                    v
+                    vacancy_payload
                 )
             except Exception as e:
-                logger.warning(f"РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ РІР°РєР°РЅСЃРёРё {v.get('id')}: {e}")
+                logger.warning(f"Ошибка сохранения вакансии {v.get('id')}: {e}")
 
         conn.commit()
 
-    logger.info("вњ… РЎРѕС…СЂР°РЅРµРЅРёРµ РІР°РєР°РЅСЃРёР№ Р·Р°РІРµСЂС€РµРЅРѕ")
+    logger.info("✅ Сохранение вакансий завершено")
 
 
 def _update_archived_status_legacy(
@@ -507,7 +543,8 @@ def _update_archived_status_legacy(
             """
             SELECT id
             FROM get_vacancies
-            WHERE id NOT IN %s
+            WHERE archived = FALSE
+              AND id NOT IN %s
             """,
             (tuple(current_vacancy_ids) if current_vacancy_ids else ('',),)
         )
@@ -617,7 +654,8 @@ def update_archived_status(
             """
             SELECT id
             FROM get_vacancies
-            WHERE id NOT IN %s
+            WHERE archived = FALSE
+              AND id NOT IN %s
             """,
             (tuple(current_vacancy_ids) if current_vacancy_ids else ('',),)
         )
@@ -710,8 +748,168 @@ def update_archived_status(
     logger.info("Проверка статуса вакансий завершена. Обработано %s вакансий", total_missing)
 
 
+def get_existing_vacancy_details_map(vacancy_ids: list[str]) -> dict[str, dict[str, Any]]:
+    if not vacancy_ids:
+        return {}
+
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, skills, description, experience
+            FROM get_vacancies
+            WHERE id = ANY(%s)
+            """,
+            (vacancy_ids,),
+        )
+        rows = cur.fetchall()
+
+    return {
+        str(row[0]): {
+            "skills": row[1] or "",
+            "description": row[2] or "",
+            "experience": row[3],
+        }
+        for row in rows
+    }
+
+
+def get_role_batch_offset() -> int:
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT state_value
+            FROM ingestion_state
+            WHERE state_key = %s
+            """,
+            ("role_batch_offset",),
+        )
+        row = cur.fetchone()
+
+    if not row or row[0] is None:
+        return 0
+
+    try:
+        return max(0, int(row[0]))
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_role_batch_offset(offset: int) -> None:
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO ingestion_state (state_key, state_value, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (state_key) DO UPDATE SET
+                state_value = EXCLUDED.state_value,
+                updated_at = NOW()
+            """,
+            ("role_batch_offset", str(max(0, int(offset)))),
+        )
+
+
+def get_hh_search_cooldown_until() -> datetime | None:
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT state_value
+            FROM ingestion_state
+            WHERE state_key = %s
+            """,
+            ("hh_search_cooldown_until",),
+        )
+        row = cur.fetchone()
+
+    if not row or not row[0]:
+        return None
+
+    try:
+        cooldown_until = datetime.fromisoformat(str(row[0]))
+    except (TypeError, ValueError):
+        return None
+
+    if cooldown_until.tzinfo is None:
+        return cooldown_until.replace(tzinfo=timezone.utc)
+
+    return cooldown_until.astimezone(timezone.utc)
+
+
+def set_hh_search_cooldown_until(cooldown_until: datetime) -> None:
+    if cooldown_until.tzinfo is None:
+        normalized = cooldown_until.replace(tzinfo=timezone.utc)
+    else:
+        normalized = cooldown_until.astimezone(timezone.utc)
+
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO ingestion_state (state_key, state_value, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (state_key) DO UPDATE SET
+                state_value = EXCLUDED.state_value,
+                updated_at = NOW()
+            """,
+            ("hh_search_cooldown_until", normalized.isoformat()),
+        )
+
+
+def clear_hh_search_cooldown() -> None:
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            DELETE FROM ingestion_state
+            WHERE state_key IN (%s, %s)
+            """,
+            ("hh_search_cooldown_until", "hh_search_cooldown_failure_count"),
+        )
+
+
+def get_hh_search_cooldown_failure_count() -> int:
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT state_value
+            FROM ingestion_state
+            WHERE state_key = %s
+            """,
+            ("hh_search_cooldown_failure_count",),
+        )
+        row = cur.fetchone()
+
+    if not row or row[0] is None:
+        return 0
+
+    try:
+        return max(0, int(row[0]))
+    except (TypeError, ValueError):
+        return 0
+
+
+def set_hh_search_cooldown_state(cooldown_until: datetime, failure_count: int) -> None:
+    if cooldown_until.tzinfo is None:
+        normalized = cooldown_until.replace(tzinfo=timezone.utc)
+    else:
+        normalized = cooldown_until.astimezone(timezone.utc)
+
+    normalized_count = max(0, int(failure_count))
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.executemany(
+            """
+            INSERT INTO ingestion_state (state_key, state_value, updated_at)
+            VALUES (%s, %s, NOW())
+            ON CONFLICT (state_key) DO UPDATE SET
+                state_value = EXCLUDED.state_value,
+                updated_at = NOW()
+            """,
+            [
+                ("hh_search_cooldown_until", normalized.isoformat()),
+                ("hh_search_cooldown_failure_count", str(normalized_count)),
+            ],
+        )
+
+
 def init_employers():
-    logger.info("РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚Р°Р±Р»РёС†С‹ employers...")
+    logger.info("Инициализация таблицы employers...")
 
     with get_db_connection() as conn, conn.cursor() as cur:
 
@@ -741,17 +939,17 @@ def init_employers():
 
         conn.commit()
 
-    logger.info("вњ… РўР°Р±Р»РёС†Р° employers СЃРѕР·РґР°РЅР° Рё Р·Р°РїРѕР»РЅРµРЅР°")
+    logger.info("✅ Таблица employers создана и заполнена")
 
 
 def update_employers(vacancies: list[dict]):
     """
     РћР±РЅРѕРІР»СЏРµС‚ С‚Р°Р±Р»РёС†Сѓ employers РґР°РЅРЅС‹РјРё РёР· РїРѕР»СѓС‡РµРЅРЅС‹С… РІР°РєР°РЅСЃРёР№ СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј UPSERT.
     """
-    logger.info("РћР±РЅРѕРІР»РµРЅРёРµ С‚Р°Р±Р»РёС†С‹ employers (UPSERT)...")
+    logger.info("Обновление таблицы employers (UPSERT)...")
 
     if not vacancies:
-        logger.info("РќРµС‚ РІР°РєР°РЅСЃРёР№ РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ СЂР°Р±РѕС‚РѕРґР°С‚РµР»РµР№")
+        logger.info("Нет вакансий для обновления работодателей")
         return
 
     with get_db_connection() as conn, conn.cursor() as cur:
@@ -799,8 +997,8 @@ def update_employers(vacancies: list[dict]):
                 updated_count += 1
 
             except Exception as e:
-                logger.warning(f"РћС€РёР±РєР° РїСЂРё РѕР±РЅРѕРІР»РµРЅРёРё СЂР°Р±РѕС‚РѕРґР°С‚РµР»СЏ {vacancy.get('employer')}: {e}")
+                logger.warning(f"Ошибка при обновлении работодателя {vacancy.get('employer')}: {e}")
 
         conn.commit()
 
-        logger.info(f"вњ… РўР°Р±Р»РёС†Р° employers РѕР±РЅРѕРІР»РµРЅР°: РѕР±СЂР°Р±РѕС‚Р°РЅРѕ {updated_count} Р·Р°РїРёСЃРµР№")
+        logger.info(f"✅ Таблица employers обновлена: обработано {updated_count} записей")
