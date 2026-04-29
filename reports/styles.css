@@ -18,6 +18,14 @@
     --palette-purple: #D149EF;
     --palette-green: #00AD00;
     --palette-red: #FF6262;
+    --palette-cyan-strong: #00ABCB;
+    --palette-pink-soft: #D47CEA;
+    --palette-magenta-strong: #F10096;
+    --palette-blue-strong: #007EDE;
+    --palette-green-strong: #00BD00;
+    --palette-violet-strong: #9C41E5;
+    --palette-purple-strong: #D24DEE;
+    --palette-orange-strong: #FF9200;
 
     /* Устаревшие переменные для обратной совместимости */
     --primary: #007AD8;
@@ -8318,6 +8326,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     .dashboard-overview {
         grid-template-columns: 1fr;
     }
+
 }
 
 /* Левая колонка: вертикальный стек вакансий + воронки */
@@ -8561,6 +8570,7 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     align-items: center;
     gap: 10px;
     padding: 8px 12px;
+    box-sizing: border-box;
     border-radius: 10px;
     background: var(--surface-variant);
     width: 100%;
@@ -9188,9 +9198,21 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
     margin-top: 2px;
     margin-bottom: 14px;
+    overflow: visible;
+}
+
+.salary-module-legend .donut-legend-item {
+    width: auto;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+.salary-module-legend .donut-legend-label {
+    white-space: nowrap;
 }
 
 .salary-module-body {
@@ -9220,12 +9242,12 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 .salary-module-status-row {
     display: grid;
     grid-template-columns: 94px minmax(0, 1fr);
-    align-items: end;
+    align-items: center;
     gap: 6px;
 }
 
 .salary-module-status-row.is-parent {
-    align-items: start;
+    align-items: center;
 }
 
 .salary-module-status-row.is-child {
@@ -9304,18 +9326,21 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 
 .salary-module-track-point-label {
     position: absolute;
-    top: calc(2px + (20px * var(--salary-label-slot, 0)));
+    left: 50%;
+    bottom: calc(100% + 3px);
+    transform: translateX(-50%);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     white-space: nowrap;
+    pointer-events: none;
 }
 
-.salary-module-track-point-label.is-side-right {
-    left: calc(50% + 12px);
-}
-
-.salary-module-track-point-label.is-side-left {
-    right: calc(50% + 12px);
+.salary-module-track-point-label.is-centered-above {
+    left: 50%;
+    right: auto;
+    bottom: calc(100% + 3px);
+    transform: translateX(-50%);
 }
 
 .salary-module-track-point-value {
@@ -9331,10 +9356,10 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 }
 
 .salary-module-track-point-value.is-gradient {
-    color: #0f172a !important;
+    color: inherit !important;
     background-image: none !important;
-    -webkit-text-fill-color: #0f172a;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.92);
+    -webkit-text-fill-color: currentColor;
+    text-shadow: none;
 }
 
 .salary-module-empty {
@@ -9345,6 +9370,35 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
 .totals-employer-overview-graph {
     min-height: 380px;
     width: 100%;
+    overflow: hidden;
+}
+
+.employer-analysis-ranked-chart {
+    gap: 10px;
+    overflow: hidden;
+}
+
+.employer-funnel-bar {
+    color: #fff;
+    box-sizing: border-box;
+    max-width: 100%;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+}
+
+.employer-funnel-label,
+.employer-funnel-value {
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.28);
+}
+
+.vacancy-donut-status-list .donut-legend-item {
+    max-width: 100%;
+}
+
+.vacancy-donut-status-list .donut-legend-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .salary-summary-chart,
@@ -9720,9 +9774,19 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
     }
     .salary-summary-chart-row,
     .salary-summary-chart-row-bars,
-    .salary-progress-status-item,
-    .salary-module-status-row {
+    .salary-progress-status-item {
         grid-template-columns: 1fr;
+    }
+    .salary-module-status-row {
+        grid-template-columns: 88px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+    }
+    .salary-module-status-row.is-parent {
+        align-items: center;
+    }
+    .salary-module-status-row.is-child {
+        padding-left: 10px;
     }
     .salary-summary-chart-line {
         min-height: 98px;

@@ -343,8 +343,7 @@ runTest('buildSalaryOverviewChartHtml renders flat currency sections and side la
   assert.match(html, /salary-module-currency-section/);
   assert.match(html, /salary-module-currency-heading/);
   assert.match(html, /salary-module-track-point-label/);
-  assert.match(html, /salary-module-track-point-label is-side-right/);
-  assert.match(html, /salary-module-track-point-label is-side-left/);
+  assert.match(html, /salary-module-track-point-label is-centered-above/);
   assert.match(html, /data-label-slot="0"/);
   assert.match(html, /salary-module-track-point-value/);
   assert.match(html, /donut-legend salary-module-legend/);
@@ -372,6 +371,9 @@ runTest('buildSalaryOverviewChartHtml renders flat currency sections and side la
   assert.doesNotMatch(html, /data-currency="Другая"/);
   assert.doesNotMatch(html, /999K/);
   assert.match(html, /salary-module-track-point-value" style="color:#00C3D3;/);
+  assert.doesNotMatch(html, /salary-module-track-point-label is-side-right/);
+  assert.doesNotMatch(html, /salary-module-track-point-label is-side-left/);
+  assert.doesNotMatch(html, /data-label-side=/);
   assert.doesNotMatch(html, /salary-module-legend-label/);
   assert.doesNotMatch(html, /2 стат\./);
 });

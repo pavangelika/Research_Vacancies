@@ -6764,29 +6764,16 @@ function buildSalaryOverviewChartHtml(model) {
     }
     function buildTrackHtml(statusRow) {
         var points = Array.isArray(statusRow && statusRow.points) ? statusRow.points : [];
-        function getPointLabelPlacement(index, pointCount) {
-            if ((pointCount || 0) <= 1) return { sideClass: 'is-side-right', slot: 0 };
-            return {
-                sideClass: index % 2 === 0 ? 'is-side-right' : 'is-side-left',
-                slot: pointCount > 2 ? index : Math.floor(index / 2)
-            };
-        }
         return '<div class="salary-module-track">' +
             '<div class="salary-module-track-line"></div>' +
             points.map(function(point, index) {
                 var color = String(point && point.color || '#94a3b8');
-                var gradient = String(point && point.gradient || '').trim();
-                var placement = getPointLabelPlacement(index, points.length);
-                var dotStyle = gradient
-                    ? 'background-image:' + escapeHtml(gradient) + ';background-color:' + escapeHtml(color) + ';'
-                    : 'background:' + escapeHtml(color) + ';';
-                var valueStyle = gradient
-                    ? 'color:#0f172a;'
-                    : 'color:' + escapeHtml(color) + ';';
-                return '<div class="salary-module-track-point" style="left:' + escapeHtml(String(point && point.leftPct || 0)) + '%;--salary-point-row:' + escapeHtml(String(point && point.pointRow || 0)) + ';--salary-label-slot:' + escapeHtml(String(placement.slot || 0)) + ';">' +
-                    '<span class="salary-module-track-point-dot' + (gradient ? ' is-gradient' : '') + '" style="' + dotStyle + '"></span>' +
-                    '<span class="salary-module-track-point-label ' + placement.sideClass + '" data-label-slot="' + escapeHtml(String(placement.slot || 0)) + '" data-label-side="' + escapeHtml(placement.sideClass) + '">' +
-                        '<span class="salary-module-track-point-value' + (gradient ? ' is-gradient' : '') + '" style="' + valueStyle + '">' + escapeHtml(point && point.valueLabel || '—') + '</span>' +
+                var dotStyle = 'background:' + escapeHtml(color) + ';';
+                var valueStyle = 'color:' + escapeHtml(color) + ';';
+                return '<div class="salary-module-track-point" style="left:' + escapeHtml(String(point && point.leftPct || 0)) + '%;--salary-point-row:' + escapeHtml(String(point && point.pointRow || 0)) + ';--salary-label-slot:0;">' +
+                    '<span class="salary-module-track-point-dot" style="' + dotStyle + '"></span>' +
+                    '<span class="salary-module-track-point-label is-centered-above" data-label-slot="0">' +
+                        '<span class="salary-module-track-point-value" style="' + valueStyle + '">' + escapeHtml(point && point.valueLabel || '—') + '</span>' +
                     '</span>' +
                 '</div>';
             }).join('') +
@@ -6882,6 +6869,7 @@ function bindSalaryOverviewInteractions(container) {
         });
     });
 }
+
 function normalizeTotalsTopLimit(value) {
     var num = Number(value);
     if (!isFinite(num)) num = 15;
@@ -8932,20 +8920,21 @@ function renderGlobalTotalsFiltered(parentRole) {
     // ===== Воронка для откликов =====
     function buildFunnelChartHtml(responseCount, interviewCount, resultCount, offerCount) {
         var stages = [
-            { label: 'Отклики', value: responseCount, filterKey: null, filterValue: null },
-            { label: 'Собес назначен', value: interviewCount, filterKey: 'interview', filterValue: 'yes' },
-            { label: 'Результат указан', value: resultCount, filterKey: 'result', filterValue: 'yes' },
-            { label: 'Оффер', value: offerCount, filterKey: 'offer', filterValue: 'yes' }
+            { label: 'Отклики', value: responseCount, filterKey: null, filterValue: null, paletteKey: 'palette-cyan-strong' },
+            { label: 'Собес назначен', value: interviewCount, filterKey: 'interview', filterValue: 'yes', paletteKey: 'palette-blue-strong' },
+            { label: 'Результат указан', value: resultCount, filterKey: 'result', filterValue: 'yes', paletteKey: 'palette-violet-strong' },
+            { label: 'Оффер', value: offerCount, filterKey: 'offer', filterValue: 'yes', paletteKey: 'palette-orange-strong' }
         ];
 
         var maxValue = responseCount || 1;
         var funnelHtml = stages.map(function(stage, index) {
             var widthPct = Math.max(40, (stage.value / maxValue) * 100);
             var percentText = responseCount > 0 ? Math.round(stage.value * 100 / responseCount) : 0;
+            var stageColor = getDashboardPaletteColor(stage.paletteKey);
             var clickHandler = (stage.filterKey && stage.filterValue)
                 ? ' onclick="handleFunnelClick(\'' + escapeHtml(stage.filterKey) + '\', \'' + escapeHtml(stage.filterValue) + '\', ' + roleSuffix + ')"'
                 : '';
-            return '<div class="funnel-stage funnel-stage-' + index + '" style="width:' + widthPct + '%;margin:0 auto;"' + clickHandler + '>' +
+            return '<div class="funnel-stage funnel-stage-' + index + '" style="width:' + widthPct + '%;margin:0 auto;background:' + escapeHtml(stageColor) + ';"' + clickHandler + '>' +
                 '<span class="funnel-stage-label">' + escapeHtml(stage.label) + '</span>' +
                 '<span class="funnel-stage-value">' + stage.value + '</span>' +
                 '<span class="funnel-stage-percent">' + percentText + '%</span>' +
@@ -8957,6 +8946,12 @@ function renderGlobalTotalsFiltered(parentRole) {
 
     function buildBurnupChartHtml(graphId) {
         return '<div class="plotly-graph totals-burnup-graph" id="' + escapeHtml(graphId) + '"></div>';
+    }
+
+    function getDashboardPaletteColor(paletteKey) {
+        var key = String(paletteKey || '').trim();
+        if (!key) return 'var(--palette-blue)';
+        return 'var(--' + key + ')';
     }
 
     // ===== Диаграмма зарплат (прогресс-бар с точками) =====
@@ -9073,7 +9068,7 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '</div>';
             });
 
-            var fillStyle = 'background:' + CHART_COLORS.selectedGradient + ';';
+            var fillStyle = 'background:#0f766e;';
 
             html += '<div class="salary-chart-row">' +
                 '<div class="salary-chart-header">' +
@@ -9276,16 +9271,6 @@ function renderGlobalTotalsFiltered(parentRole) {
                         buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
                     '</div>' +
                     buildDashboardCompensationAvailabilityHtml(compensationAvailability) +
-                    '<div class="dashboard-card dashboard-card-salary">' +
-                        '<h3 class="dashboard-card-title">Зарплаты</h3>' +
-                        buildTotalsSalaryOverviewSectionHtml(salaryOverviewModel) +
-                    '</div>' +
-                '</div>' +
-                '<div class="dashboard-overview-column">' +
-                    '<div class="dashboard-card dashboard-card-burnup">' +
-                        '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
-                        buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
-                    '</div>' +
                     '<div class="dashboard-card dashboard-card-funnel">' +
                         '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
                         buildFunnelChartHtml(
@@ -9294,6 +9279,16 @@ function renderGlobalTotalsFiltered(parentRole) {
                             responseResult,
                             responseOffer
                         ) +
+                    '</div>' +
+                '</div>' +
+                '<div class="dashboard-overview-column">' +
+                    '<div class="dashboard-card dashboard-card-burnup">' +
+                        '<h3 class="dashboard-card-title">Сгорание вакансий</h3>' +
+                        buildBurnupChartHtml('totals-burnup-graph-' + roleSuffix) +
+                    '</div>' +
+                    '<div class="dashboard-card dashboard-card-salary">' +
+                        '<h3 class="dashboard-card-title">Зарплаты</h3>' +
+                        buildTotalsSalaryOverviewSectionHtml(salaryOverviewModel) +
                     '</div>' +
                     buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
                 '</div>' +
@@ -12145,12 +12140,18 @@ function renderEmployerAnalysisChart(block) {
 
 function getEmployerFactorOrder(factorKey) {
     var order = {
-        'rating_bucket': 1,
-        'accreditation': 2,
+        'accreditation': 1,
+        'cover_letter_required': 2,
         'has_test': 3,
-        'cover_letter_required': 4
+        'rating_bucket': 4
     };
     return order[factorKey] || 99;
+}
+
+function getDashboardPaletteColor(paletteKey) {
+    var key = String(paletteKey || '').trim();
+    if (!key) return 'var(--palette-blue)';
+    return 'var(--' + key + ')';
 }
 
 function getEmployerRatingOrder(valueKey) {
@@ -12165,36 +12166,16 @@ function getEmployerRatingOrder(valueKey) {
     return (order[valueKey] !== undefined) ? order[valueKey] : 99;
 }
 
-function getEmployerAnalysisGradientStops(factorKey) {
-    if (factorKey === 'accreditation') return getDonutGradientStopsByKey('active');
-    if (factorKey === 'cover_letter_required') return getDonutGradientStopsByKey('new');
-    if (factorKey === 'has_test') return getDonutGradientStopsByKey('archived');
-    if (factorKey === 'rating_bucket') return getDonutGradientStopsByKey('published-archived');
-    return getDonutGradientStopsByKey('active');
+function getEmployerAnalysisColor(factorKey) {
+    if (factorKey === 'accreditation') return getDashboardPaletteColor('palette-cyan-strong');
+    if (factorKey === 'cover_letter_required') return getDashboardPaletteColor('palette-blue-strong');
+    if (factorKey === 'has_test') return getDashboardPaletteColor('palette-violet-strong');
+    if (factorKey === 'rating_bucket') return getDashboardPaletteColor('palette-orange-strong');
+    return getDashboardPaletteColor('palette-blue');
 }
 
 function getEmployerAnalysisGradientFallbackColor(factorKey) {
-    return getEmployerAnalysisGradientStops(factorKey)[1];
-}
-
-function getEmployerAnalysisDonutGradientMeta(factorKey) {
-    if (factorKey === 'accreditation') {
-        return { key: 'active', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active', trackClass: 'donut-chart-track donut-chart-track-outer' };
-    }
-    if (factorKey === 'cover_letter_required') {
-        return { key: 'new', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-new', trackClass: 'donut-chart-track donut-chart-track-inner' };
-    }
-    if (factorKey === 'has_test') {
-        return { key: 'archived', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-archived', trackClass: 'donut-chart-track donut-chart-track-outer' };
-    }
-    if (factorKey === 'rating_bucket') {
-        return { key: 'published-archived', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-inner donut-chart-segment-published-archived', trackClass: 'donut-chart-track donut-chart-track-inner' };
-    }
-    return { key: 'active', segmentClass: 'donut-segment donut-chart-segment donut-chart-segment-outer donut-chart-segment-active', trackClass: 'donut-chart-track donut-chart-track-outer' };
-}
-
-function getDonutGradientCssByKey(gradientKey) {
-    return 'linear-gradient(135deg, ' + getDonutGradientStopsByKey(gradientKey).join(', ') + ')';
+    return getEmployerAnalysisColor(factorKey);
 }
 
 function buildEmployerAnalysisRankedChartHtml(labels, values, factorKeys, metricLabel, currencyLabel, chartContext, signature) {
@@ -12202,27 +12183,28 @@ function buildEmployerAnalysisRankedChartHtml(labels, values, factorKeys, metric
     var rows = (labels || []).map(function(label, index) {
         var factorKey = factorKeys[index] || 'accreditation';
         var rawValue = Number(values[index] || 0);
-        var meta = getEmployerAnalysisDonutGradientMeta(factorKey);
         return {
             key: factorKey,
             label: String(label || '—'),
             value: rawValue,
             valueLabel: totalsFormatSalaryPointValue(rawValue, currencyLabel === 'Другая валюта' ? '' : currencyLabel),
-            gradient: getDonutGradientCssByKey(meta.key)
+            color: getEmployerAnalysisColor(factorKey)
         };
     }).sort(function(a, b) {
-        return b.value - a.value;
+        var factorOrderDelta = getEmployerFactorOrder(a.key) - getEmployerFactorOrder(b.key);
+        if (factorOrderDelta !== 0) return factorOrderDelta;
+        return String(a.label).localeCompare(String(b.label), 'ru');
     });
+    void chartTitle;
     var maxValue = rows.reduce(function(max, row) {
         return row.value > max ? row.value : max;
     }, 0) || 1;
     return '<div class="employer-funnel-stack employer-analysis-ranked-chart" data-chart-signature="' + escapeHtml(String(signature || 'employer-analysis')) + '">' +
-        '<div class="employer-funnel-chart-title employer-analysis-ranked-chart-title">' + escapeHtml(chartTitle) + '</div>' +
         rows.map(function(row) {
             var ratio = maxValue > 0 ? row.value / maxValue : 0;
             var widthPct = Math.max(44, Math.round(ratio * 10000) / 100);
             var compactClass = widthPct < 62 ? ' is-compact' : '';
-            return '<div class="employer-funnel-bar' + compactClass + '" style="--bar-width:' + escapeHtml(String(widthPct)) + '%;background:' + escapeHtml(row.gradient) + ';">' +
+            return '<div class="employer-funnel-bar' + compactClass + '" style="--bar-width:' + escapeHtml(String(widthPct)) + '%;background:' + escapeHtml(row.color) + ';">' +
                 '<span class="employer-funnel-label">' + escapeHtml(row.label) + '</span>' +
                 '<span class="employer-funnel-value">' + escapeHtml(row.valueLabel) + '</span>' +
             '</div>';
