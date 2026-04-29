@@ -9271,15 +9271,7 @@ function renderGlobalTotalsFiltered(parentRole) {
                         buildDonutChartHtml(totalCount, activeCount, archivedCount, avgAge, donutExperienceBreakdown, donutInteractive) +
                     '</div>' +
                     buildDashboardCompensationAvailabilityHtml(compensationAvailability) +
-                    '<div class="dashboard-card dashboard-card-funnel">' +
-                        '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
-                        buildFunnelChartHtml(
-                            dashboardApi && dashboardApi.response_funnel ? (Number(dashboardApi.response_funnel.responses) || 0) : responseRows.length,
-                            responseInterview,
-                            responseResult,
-                            responseOffer
-                        ) +
-                    '</div>' +
+                    buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
                 '</div>' +
                 '<div class="dashboard-overview-column">' +
                     '<div class="dashboard-card dashboard-card-burnup">' +
@@ -9290,7 +9282,15 @@ function renderGlobalTotalsFiltered(parentRole) {
                         '<h3 class="dashboard-card-title">Зарплаты</h3>' +
                         buildTotalsSalaryOverviewSectionHtml(salaryOverviewModel) +
                     '</div>' +
-                    buildEmployerOverviewCardHtml('totals-employer-overview-graph-' + roleSuffix) +
+                    '<div class="dashboard-card dashboard-card-funnel">' +
+                        '<h3 class="dashboard-card-title">Воронка откликов</h3>' +
+                        buildFunnelChartHtml(
+                            dashboardApi && dashboardApi.response_funnel ? (Number(dashboardApi.response_funnel.responses) || 0) : responseRows.length,
+                            responseInterview,
+                            responseResult,
+                            responseOffer
+                        ) +
+                    '</div>' +
                 '</div>' +
             '</div>' +
         '</div>';
