@@ -195,3 +195,21 @@ def test_render_report_omits_role_vacancies_in_lazy_mode(monkeypatch):
 
     assert "data-vacancies='[]'" in html
     assert 'data-vacancies-mode="lazy"' in html
+
+
+def test_render_report_exposes_full_role_period_range_attribute(monkeypatch):
+    monkeypatch.setenv("REPORT_EMBED_VACANCIES", "0")
+
+    html = generate_report.render_report(
+        roles_data=[{"id": "124", "name": "Тестировщик", "months": []}],
+        weekday_data=[],
+        skills_monthly_data=[],
+        salary_data=[],
+        employer_analysis_data=[],
+        vacancies_by_role={"124": [
+            {"id": "1", "name": "QA Engineer", "published_at": "2026-01-19T16:45:48"},
+            {"id": "2", "name": "QA Lead", "published_at": "2026-04-16T07:30:06"},
+        ]},
+    )
+
+    assert 'data-period-range="19.01.2026 - 16.04.2026"' in html

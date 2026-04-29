@@ -56,6 +56,7 @@
     {% for role in roles %}
     {% set role_index = loop.index %}
     <div id="role-{{ role_index }}" class="role-content" data-role-id="{{ role.id }}" data-role-name="{{ role.name }}"
+         data-period-range="{{ role.period_range or '' }}"
          data-vacancies='{{ role.vacancies | tojson if role.vacancies else "[]" }}'
          data-vacancies-mode="{{ 'embedded' if role.embed_vacancies else 'lazy' }}">
         <!-- Вкладки выбора анализа (4) -->

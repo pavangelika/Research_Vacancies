@@ -109,6 +109,26 @@ def build_embedded_vacancy_obj(
         vacancy[key] = value
     return vacancy
 
+
+def compute_role_period_range(vacancies_by_role: list[dict] | None) -> str | None:
+    min_dt = None
+    max_dt = None
+    for vacancy in vacancies_by_role or []:
+        published_at = vacancy.get("published_at") if isinstance(vacancy, dict) else None
+        if not published_at:
+            continue
+        try:
+            current = datetime.fromisoformat(str(published_at))
+        except ValueError:
+            continue
+        if min_dt is None or current < min_dt:
+            min_dt = current
+        if max_dt is None or current > max_dt:
+            max_dt = current
+    if min_dt is None or max_dt is None:
+        return None
+    return f"{min_dt:%d.%m.%Y} - {max_dt:%d.%m.%Y}"
+
 def load_roles_mapping(json_path):
     """Загружает JSON и возвращает словарь {id: name}."""
     with open(json_path, 'r', encoding='utf-8') as f:
@@ -1670,7 +1690,9 @@ def render_report(roles_data, weekday_data, skills_monthly_data, salary_data, em
 
     for role in roles_data:
         role_id = role['id']
-        role['vacancies'] = vacancies_by_role.get(role_id, []) if embed_vacancies else []
+        role_items = vacancies_by_role.get(role_id, [])
+        role['period_range'] = compute_role_period_range(role_items)
+        role['vacancies'] = role_items if embed_vacancies else []
         role['embed_vacancies'] = embed_vacancies
 
     return template.render(roles=roles_data, weekday_roles=weekday_data,

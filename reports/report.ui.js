@@ -7947,6 +7947,26 @@ function renderGlobalTotalsFiltered(parentRole) {
     var periodLabel = resolveChartPeriodLabel(selectedPeriods);
     var expLabel = resolveChartExperienceLabel(selectedExps, expOptions);
     var contextText = buildChartContextLabel(periodLabel, expLabel);
+    var totalsPeriodVacancies = [];
+    if (parentRole.id === 'role-all' && typeof getAllRoleContents === 'function') {
+        getAllRoleContents().forEach(function(roleContent) {
+            totalsPeriodVacancies = totalsPeriodVacancies.concat(getRoleVacancies(roleContent) || []);
+        });
+    } else if (parentRole.id === 'role-combined' && Array.isArray(parentRole.__selectedRoleContents)) {
+        parentRole.__selectedRoleContents.forEach(function(roleContent) {
+            totalsPeriodVacancies = totalsPeriodVacancies.concat(getRoleVacancies(roleContent) || []);
+        });
+    } else {
+        if (String(parentRole.dataset.periodRange || '').trim()) {
+            totalsPeriodVacancies = [];
+        }
+        totalsPeriodVacancies = (getRoleVacancies(parentRole) || []).slice();
+        if (!totalsPeriodVacancies.length && typeof getRoleSalaryData === 'function' && typeof collectVacanciesFromSalaryMonths === 'function') {
+            totalsPeriodVacancies = collectVacanciesFromSalaryMonths(getRoleSalaryData(parentRole) || []);
+        }
+    }
+    totalsPeriodVacancies = dedupeVacanciesById(totalsPeriodVacancies || []);
+    var totalsPeriodRangeLabel = String(parentRole.dataset.periodRange || '').trim() || computePublicationPeriod(totalsPeriodVacancies) || periodLabel || 'За период';
 
     var vacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals');
     var vacancyKpiVacancies = getFilteredVacanciesForAnalysis(parentRole, 'totals', {
@@ -8819,7 +8839,8 @@ function renderGlobalTotalsFiltered(parentRole) {
                 '</div>' +
             '</div>' +
         '</div>';
-    block.innerHTML = buildDashboardModeSwitchRow(dashboardMode) + (
+    var totalsPeriodLabelHtml = '<div class="role-period-label">Период сбора вакансий: ' + escapeHtml(totalsPeriodRangeLabel) + '</div>';
+    block.innerHTML = totalsPeriodLabelHtml + buildDashboardModeSwitchRow(dashboardMode) + (
         dashboardMode === 'market-trends'
             ? '<div class="market-trends-content market-trends-embedded"></div>'
             : (dashboardMode === 'top' ? topHtml : overviewHtml)

@@ -853,7 +853,7 @@ function renderAllRolesContainer(container, roleContents) {
     '</div>';
 
     container.innerHTML =
-        '<div class="role-period-label">Период публикации: ' + allRolesPeriod + '</div>' +
+        '<div class="role-period-label">Период сбора вакансий: ' + allRolesPeriod + '</div>' +
         summaryReturnTabsHtml +
         '<div class="tabs analysis-tabs">' +
             buildUpperTextTabButtonHtml('Динамика по ролям', 'analysis-button active', 'data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')"') +
@@ -1222,7 +1222,7 @@ function renderCombinedContainer(container, roleContents) {
     var employerBlock = '';
 
     container.innerHTML =
-        '<div class="role-period-label">Период публикации: ' + period + '</div>' +
+        '<div class="role-period-label">Период сбора вакансий: ' + period + '</div>' +
         '<div class="tabs analysis-tabs">' +
             buildUpperTextTabButtonHtml('Дашборд', 'analysis-button', 'data-analysis-id="totals-all" onclick="switchAnalysis(event, \'totals-all\')"') +
             buildUpperTextTabButtonHtml('Динамика по ролям', 'analysis-button active', 'data-analysis-id="activity-all" onclick="switchAnalysis(event, \'activity-all\')"') +
@@ -1319,7 +1319,7 @@ function showSingleRole(idx) {
         var salaryMonths = getRoleSalaryData(roleContent);
         allVacancies = collectVacanciesFromSalaryMonths(salaryMonths);
     }
-    var period = computePublicationPeriod(allVacancies) || '';
+    var period = String(roleContent.dataset.periodRange || '').trim() || computePublicationPeriod(allVacancies) || '';
     var h2 = roleContent.querySelector('h2');
     var periodNode = roleContent.querySelector('.role-period-label');
     if (period) {
@@ -1329,7 +1329,7 @@ function showSingleRole(idx) {
             if (h2) h2.insertAdjacentElement('afterend', periodNode);
             else roleContent.insertAdjacentElement('afterbegin', periodNode);
         }
-        if (periodNode) periodNode.textContent = 'Период публикации: ' + period;
+        if (periodNode) periodNode.textContent = 'Период сбора вакансий: ' + period;
     } else if (periodNode && periodNode.parentElement) {
         periodNode.parentElement.removeChild(periodNode);
     }
