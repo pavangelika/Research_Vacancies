@@ -1,5 +1,6 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import re
 
 from backend.repositories.analytics_repo import AnalyticsRepository
 from backend.repositories.vacancies_repo import VacanciesRepository
@@ -295,9 +296,9 @@ class AnalyticsService:
         market_trends_salary_metric: str = "avg",
         market_trends_excluded_roles: list[str] | None = None,
     ) -> dict:
-        filtered_vacancies = self._get_filtered_vacancies(
+        summary_vacancies = self._get_filtered_vacancies(
             role_ids=role_ids,
-            period=period,
+            period="summary",
             experience=experience,
             status=status,
             country=country,
@@ -314,9 +315,9 @@ class AnalyticsService:
             cover_letter_required=cover_letter_required,
             has_test=has_test,
         )
-        kpi_vacancies = self._get_filtered_vacancies(
+        filtered_vacancies = self._get_filtered_vacancies(
             role_ids=role_ids,
-            period="summary",
+            period=period,
             experience=experience,
             status=status,
             country=country,
@@ -357,9 +358,9 @@ class AnalyticsService:
             "salary_rows": salary_rows,
             "salary_coverage": self._compute_dashboard_salary_coverage(filtered_vacancies),
             "compensation_availability": self._compute_dashboard_compensation_availability(filtered_vacancies),
-            "period_stats": self._compute_dashboard_period_stats(filtered_vacancies),
+            "period_stats": self._compute_dashboard_period_stats(summary_vacancies, period=period),
             "response_funnel": self._build_dashboard_response_funnel(role_ids=activity["role_ids"]),
-            "burnup_series": self._compute_dashboard_burnup_series(filtered_vacancies if period != "summary" else kpi_vacancies),
+            "burnup_series": self._compute_dashboard_burnup_series(summary_vacancies, period=period),
             "skills_rows": self._compute_dashboard_skills_rows(filtered_vacancies, top_currency, skills_order, top_limit),
             "company_rows": self._compute_dashboard_company_rows(filtered_vacancies, top_currency, company_order, top_limit),
             "closing_rows": self._compute_dashboard_closing_rows(filtered_vacancies, closing_window, top_limit),
@@ -893,55 +894,293 @@ class AnalyticsService:
         summary["non_remote"] = summarize(non_remote_items)
         return summary
 
-    def _compute_dashboard_period_stats(self, vacancies: list[dict]) -> dict:
-        total = len(vacancies)
+    def _normalize_dashboard_datetime(self, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    def _start_of_day(self, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return datetime(value.year, value.month, value.day)
+
+    def _end_of_day(self, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return datetime(value.year, value.month, value.day, 23, 59, 59, 999000)
+
+    def _add_days(self, value: datetime | None, days: int) -> datetime | None:
+        if value is None:
+            return None
+        return value + timedelta(days=int(days))
+
+    def _build_dashboard_period_window(self, period: str, vacancies: list[dict]) -> dict[str, datetime | None]:
+        current = str(period or "summary").strip().lower()
+        rows = []
+        reference = None
+        min_dt = None
+        max_dt = None
+        for vacancy in vacancies:
+            published_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_published_dt") or vacancy.get("published_at")))
+            archived_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_archived_dt") or vacancy.get("archived_at")))
+            rows.append((published_dt, archived_dt))
+            for value in (published_dt, archived_dt):
+                if value is None:
+                    continue
+                if min_dt is None or value < min_dt:
+                    min_dt = value
+                if max_dt is None or value > max_dt:
+                    max_dt = value
+                if reference is None or value > reference:
+                    reference = value
+
+        if reference is None:
+            reference = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+        if current in {"summary", "all"}:
+            if min_dt is None or max_dt is None:
+                fallback = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+                return {"label": period, "start": self._start_of_day(fallback), "end": self._end_of_day(fallback)}
+            return {"label": period, "start": self._start_of_day(min_dt), "end": self._end_of_day(max_dt)}
+
+        if current == "today":
+            return {"label": period, "start": self._start_of_day(reference), "end": self._end_of_day(reference)}
+
+        if current.startswith("last_"):
+            quick = current.replace("last_", "")
+            if quick.isdigit() and reference is not None:
+                span = int(quick)
+                return {
+                    "label": period,
+                    "start": self._start_of_day(self._add_days(reference, -span)),
+                    "end": self._end_of_day(reference),
+                }
+
+        month_match = re.match(r"^(\d{4})-(\d{2})$", current)
+        if month_match:
+            year = int(month_match.group(1))
+            month = int(month_match.group(2))
+            if 1 <= month <= 12:
+                start = datetime(year, month, 1)
+                month_end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+                month_end = self._add_days(month_end, -1)
+                return {"label": period, "start": self._start_of_day(start), "end": self._end_of_day(month_end)}
+
+        quick = re.match(r"^(\d+)[d_]?$", current)
+        if quick and quick.group(1).isdigit():
+            span = int(quick.group(1))
+            if reference is not None:
+                return {
+                    "label": period,
+                    "start": self._start_of_day(self._add_days(reference, -span)),
+                    "end": self._end_of_day(reference),
+                }
+
+        if min_dt is None or max_dt is None:
+            fallback = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+            return {"label": period, "start": self._start_of_day(fallback), "end": self._end_of_day(fallback)}
+        return {"label": period, "start": self._start_of_day(min_dt), "end": self._end_of_day(max_dt)}
+
+    def _classify_vacancy_for_dashboard_period(
+        self,
+        vacancy: dict,
+        period_window: dict[str, datetime | None],
+        now: datetime | None = None,
+    ) -> dict[str, bool | int | None | str]:
+        start = period_window.get("start") if isinstance(period_window, dict) else None
+        end = period_window.get("end") if isinstance(period_window, dict) else None
+        if start is None or end is None:
+            return {
+                "included": False,
+                "active": False,
+                "archived": False,
+                "newPublished": False,
+                "publishedAndArchived": False,
+                "lifetimeDays": None,
+            }
+        published = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_published_dt") or vacancy.get("published_at")))
+        if published is None:
+            return {
+                "included": False,
+                "active": False,
+                "archived": False,
+                "newPublished": False,
+                "publishedAndArchived": False,
+                "lifetimeDays": None,
+            }
+        archived_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_archived_dt") or vacancy.get("archived_at")))
+        is_archived = bool(vacancy.get("archived") or archived_dt)
+        new_published = start <= published <= end
+        archived_in_period = archived_dt is not None and start <= archived_dt <= end
+        alive_at_end = published <= end and (not is_archived or archived_dt is None or archived_dt > end)
+        included = new_published or archived_in_period or alive_at_end
+        published_and_archived = new_published and archived_in_period
+
+        reference_now = self._normalize_dashboard_datetime(now) or self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+        effective_lifetime_end = archived_dt
+        if effective_lifetime_end is None:
+            effective_lifetime_end = end if end < reference_now else self._start_of_day(reference_now)
+
+        lifetime_days = None
+        if new_published and effective_lifetime_end is not None:
+            delta = effective_lifetime_end - published
+            if delta.total_seconds() >= 0:
+                lifetime_days = int(delta.total_seconds() // (60 * 60 * 24))
+
+        return {
+            "included": included,
+            "active": alive_at_end,
+            "archived": archived_in_period,
+            "newPublished": new_published,
+            "publishedAndArchived": published_and_archived,
+            "lifetimeDays": lifetime_days,
+            "experience": str(vacancy.get("experience") or vacancy.get("_experience") or "?? ??????"),
+        }
+
+    def _compute_dashboard_period_stats(self, vacancies: list[dict], period: str = "summary") -> dict:
+        period_window = self._build_dashboard_period_window(period, list(vacancies or []))
+        total = 0
         active = 0
         archived = 0
-        age_values = []
-        for vacancy in vacancies:
-            if vacancy.get("archived") or vacancy.get("archived_at"):
-                archived += 1
-            else:
-                active += 1
-            age = self._compute_age_days(vacancy.get("_published_dt") or vacancy.get("published_at"), vacancy.get("_archived_dt") or vacancy.get("archived_at"))
-            if age is not None:
-                age_values.append(float(age))
-        return {"total": total, "active": active, "archived": archived, "avgLifetimeDays": round(sum(age_values) / len(age_values), 1) if age_values else None}
+        new_published = 0
+        published_and_archived = 0
+        active_new_published = 0
+        lifetime_values = []
+        active_experience_items = {}
+        archived_experience_items = {}
+        active_new_published_items = {}
+        published_and_archived_items = {}
+        now = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
 
-    def _compute_dashboard_burnup_series(self, vacancies: list[dict]) -> dict:
+        for vacancy in list(vacancies or []):
+            entry = self._classify_vacancy_for_dashboard_period(vacancy, period_window, now=now)
+            if not entry["included"]:
+                continue
+
+            experience = str(entry.get("experience") or "?? ??????")
+            total += 1
+            if entry["active"]:
+                active += 1
+                active_experience_items[experience] = active_experience_items.get(experience, 0) + 1
+                if entry["newPublished"]:
+                    active_new_published += 1
+                    active_new_published_items[experience] = active_new_published_items.get(experience, 0) + 1
+
+            if entry["archived"]:
+                archived += 1
+                archived_experience_items[experience] = archived_experience_items.get(experience, 0) + 1
+                if entry["publishedAndArchived"]:
+                    published_and_archived_items[experience] = published_and_archived_items.get(experience, 0) + 1
+
+            if entry["newPublished"]:
+                new_published += 1
+
+            if entry["publishedAndArchived"]:
+                published_and_archived += 1
+
+            lifetime_days = entry.get("lifetimeDays")
+            if isinstance(lifetime_days, int) and lifetime_days >= 0:
+                lifetime_values.append(float(lifetime_days))
+
+        avg_lifetime = round((sum(lifetime_values) / len(lifetime_values)), 1) if lifetime_values else None
+        return {
+            "total": total,
+            "active": active,
+            "archived": archived,
+            "newPublished": new_published,
+            "publishedAndArchived": published_and_archived,
+            "activeNewPublished": active_new_published,
+            "avgLifetimeDays": avg_lifetime,
+            "breakdown": {
+                "active": {
+                    "total": active,
+                    "items": active_experience_items,
+                    "periodMetrics": {
+                        "total": active,
+                        "newPublished": active_new_published,
+                        "shareNewPublished": active and (active_new_published * 100.0 / active) or 0,
+                    },
+                    "subsets": {
+                        "newPublished": {
+                            "total": active_new_published,
+                            "items": active_new_published_items,
+                        },
+                    },
+                },
+                "archived": {
+                    "total": archived,
+                    "items": archived_experience_items,
+                    "periodMetrics": {
+                        "total": archived,
+                        "publishedAndArchived": published_and_archived,
+                        "sharePublishedAndArchived": archived and (published_and_archived * 100.0 / archived) or 0,
+                    },
+                    "subsets": {
+                        "publishedAndArchived": {
+                            "total": published_and_archived,
+                            "items": published_and_archived_items,
+                        },
+                    },
+                },
+            },
+        }
+
+    def _compute_dashboard_burnup_series(self, vacancies: list[dict], period: str = "summary") -> dict:
         rows = list(vacancies or [])
-        if not rows:
+        period_window = self._build_dashboard_period_window(period, rows)
+        start = period_window.get("start")
+        end = period_window.get("end")
+        if not rows or start is None or end is None:
             return {"labels": [], "newPublished": [], "archived": [], "publishedAndArchived": [], "active": []}
-        latest = max((vacancy.get("_published_dt") or self._parse_dt(vacancy.get("published_at")) for vacancy in rows if (vacancy.get("_published_dt") or self._parse_dt(vacancy.get("published_at"))) is not None), default=None)
-        if latest is None:
-            return {"labels": [], "newPublished": [], "archived": [], "publishedAndArchived": [], "active": []}
-        labels, new_published, archived_vals, both_vals, active_vals = [], [], [], [], []
-        start = latest - timedelta(days=13)
-        for idx in range(14):
-            day_start = datetime(start.year, start.month, start.day, tzinfo=start.tzinfo) + timedelta(days=idx)
-            day_end = day_start + timedelta(days=1)
-            total_new = total_archived = total_both = total_active = 0
+
+        span_days = int(round((end - start).total_seconds() / (60 * 60 * 24)))
+        windows = []
+        if span_days <= 31:
+            cursor = self._start_of_day(start)
+            while cursor <= self._end_of_day(end):
+                windows.append({"label": cursor.strftime("%d.%m"), "start": cursor, "end": self._end_of_day(cursor)})
+                cursor = self._add_days(cursor, 1)
+        else:
+            windows.append(period_window)
+
+        now = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+        labels = []
+        new_published = []
+        archived_vals = []
+        both_vals = []
+        active_vals = []
+
+        for window in windows:
+            stat_new = 0
+            stat_arch = 0
+            stat_both = 0
+            stat_active = 0
             for vacancy in rows:
-                published = vacancy.get("_published_dt") or self._parse_dt(vacancy.get("published_at"))
-                archived_dt = vacancy.get("_archived_dt") or self._parse_dt(vacancy.get("archived_at"))
-                is_archived = bool(vacancy.get("archived") or archived_dt)
-                new_flag = published is not None and day_start <= published < day_end
-                arch_flag = archived_dt is not None and day_start <= archived_dt < day_end
-                active_flag = published is not None and published < day_end and (not is_archived or archived_dt is None or archived_dt >= day_end)
-                if new_flag:
-                    total_new += 1
-                if arch_flag:
-                    total_archived += 1
-                if new_flag and arch_flag:
-                    total_both += 1
-                if active_flag:
-                    total_active += 1
-            labels.append(day_start.strftime("%d.%m"))
-            new_published.append(total_new)
-            archived_vals.append(total_archived)
-            both_vals.append(total_both)
-            active_vals.append(total_active)
-        return {"labels": labels, "newPublished": new_published, "archived": archived_vals, "publishedAndArchived": both_vals, "active": active_vals}
+                entry = self._classify_vacancy_for_dashboard_period(vacancy, window, now=now)
+                if not entry["included"]:
+                    continue
+                if entry["newPublished"]:
+                    stat_new += 1
+                if entry["archived"]:
+                    stat_arch += 1
+                if entry["publishedAndArchived"]:
+                    stat_both += 1
+                if entry["active"]:
+                    stat_active += 1
+            labels.append(window.get("label") or "")
+            new_published.append(stat_new)
+            archived_vals.append(stat_arch)
+            both_vals.append(stat_both)
+            active_vals.append(stat_active)
+
+        return {
+            "labels": labels,
+            "newPublished": new_published,
+            "archived": archived_vals,
+            "publishedAndArchived": both_vals,
+            "active": active_vals,
+        }
 
     def _compute_dashboard_skills_rows(self, vacancies: list[dict], currency: str, order: str = "most", limit: int = 50) -> list[dict]:
         rows = {}

@@ -150,6 +150,84 @@ class StubVacanciesRepository:
         ]
 
 
+class PeriodStatsDashboardVacanciesRepository:
+    def list_vacancies(self, *, include_details=True):
+        return [
+            {
+                "id": "r1_old_active",
+                "role_id": "40",
+                "name": "Base",
+                "employer_name": "Company",
+                "currency": "RUR",
+                "experience": "exp-mid",
+                "skills_raw": "Python",
+                "published_at": "2026-01-10T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+            {
+                "id": "r1_new_archived_both",
+                "role_id": "40",
+                "name": "Archive In Window",
+                "employer_name": "Company",
+                "currency": "RUR",
+                "experience": "exp-mid",
+                "skills_raw": "Python",
+                "published_at": "2026-01-20T10:00:00+00:00",
+                "archived": True,
+                "archived_at": "2026-01-25T10:00:00+00:00",
+            },
+            {
+                "id": "r1_old_open",
+                "role_id": "40",
+                "name": "Old Open",
+                "employer_name": "Company",
+                "currency": "RUR",
+                "experience": "exp-senior",
+                "skills_raw": "Python",
+                "published_at": "2026-01-01T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+            {
+                "id": "r1_archived_in_window",
+                "role_id": "40",
+                "name": "Archived In Window",
+                "employer_name": "Company",
+                "currency": "RUR",
+                "experience": "exp-senior",
+                "skills_raw": "Python",
+                "published_at": "2026-01-14T10:00:00+00:00",
+                "archived": True,
+                "archived_at": "2026-01-24T10:00:00+00:00",
+            },
+            {
+                "id": "r2_open",
+                "role_id": "41",
+                "name": "Second Role",
+                "employer_name": "Company",
+                "currency": "RUR",
+                "experience": "exp-excluded",
+                "skills_raw": "Python",
+                "published_at": "2026-01-05T10:00:00+00:00",
+                "archived": False,
+                "archived_at": None,
+            },
+            {
+                "id": "r2_archived_latest",
+                "role_id": "41",
+                "name": "Second Role Latest",
+                "employer_name": "Company",
+                "currency": "RUR",
+                "experience": "exp-excluded",
+                "skills_raw": "Python",
+                "published_at": "2026-01-01T10:00:00+00:00",
+                "archived": True,
+                "archived_at": "2026-01-30T10:00:00+00:00",
+            },
+        ]
+
+
 def test_get_activity_includes_role_rows_for_summary_ui():
     vacancies_repository = StubVacanciesRepository()
     service = AnalyticsService(
@@ -251,3 +329,44 @@ def test_get_salary_range_keeps_enriched_entry_fields_for_single_role_salary_ui(
     assert item["status"] == "РћС‚РєСЂС‹С‚Р°СЏ"
     assert item["total_vacancies"] == 2
     assert item["top_skills"] == "Python (2)"
+
+
+def test_compute_dashboard_period_stats_reclassifies_overlap_and_old_active_cases():
+    service = AnalyticsService(
+        repository=StubAnalyticsRepository(),
+        vacancies_repository=PeriodStatsDashboardVacanciesRepository(),
+    )
+    filtered = service._get_filtered_vacancies(role_ids=["40", "41"], period="summary")
+    summary = service._compute_dashboard_period_stats(filtered, period="last_14")
+
+    assert summary["total"] == 6
+    assert summary["active"] == 3
+    assert summary["archived"] == 3
+    assert summary["newPublished"] == 1
+    assert summary["publishedAndArchived"] == 1
+    assert summary["activeNewPublished"] == 0
+    assert summary["breakdown"]["active"]["items"]["exp-mid"] == 1
+    assert summary["breakdown"]["active"]["items"]["exp-senior"] == 1
+
+
+def test_compute_dashboard_period_stats_with_role_filter_rebases_reference_window():
+    service = AnalyticsService(
+        repository=StubAnalyticsRepository(),
+        vacancies_repository=PeriodStatsDashboardVacanciesRepository(),
+    )
+    filtered_all = service._get_filtered_vacancies(role_ids=["40", "41"], period="summary")
+    filtered_only_first = service._get_filtered_vacancies(role_ids=["40"], period="summary")
+
+    summary_all = service._compute_dashboard_period_stats(filtered_all, period="last_14")
+    summary_only_first = service._compute_dashboard_period_stats(filtered_only_first, period="last_14")
+
+    assert summary_all["total"] == 6
+    assert summary_all["active"] == 3
+    assert summary_all["archived"] == 3
+    assert summary_all["newPublished"] == 1
+    assert summary_only_first["total"] == 4
+    assert summary_only_first["active"] == 2
+    assert summary_only_first["archived"] == 2
+    assert summary_only_first["newPublished"] == 2
+    assert summary_only_first["publishedAndArchived"] == 2
+    assert summary_only_first["activeNewPublished"] == 0

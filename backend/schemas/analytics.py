@@ -198,11 +198,40 @@ class DashboardCompensationAvailabilityDto(BaseModel):
     non_remote: DashboardCompensationAvailabilityBucketDto
 
 
+class DashboardPeriodStatsSubsetDto(BaseModel):
+    total: int
+    items: dict[str, int]
+
+
+class DashboardPeriodStatsBucketMetricsDto(BaseModel):
+    total: int
+    newPublished: int = 0
+    publishedAndArchived: int = 0
+    shareNewPublished: float = 0.0
+    sharePublishedAndArchived: float = 0.0
+
+
+class DashboardPeriodStatsBucketDto(BaseModel):
+    total: int
+    items: dict[str, int]
+    periodMetrics: DashboardPeriodStatsBucketMetricsDto
+    subsets: dict[str, DashboardPeriodStatsSubsetDto]
+
+
+class DashboardPeriodStatsBreakdownDto(BaseModel):
+    active: DashboardPeriodStatsBucketDto
+    archived: DashboardPeriodStatsBucketDto
+
+
 class DashboardPeriodStatsDto(BaseModel):
     total: int
     active: int
     archived: int
+    newPublished: int
+    publishedAndArchived: int
+    activeNewPublished: int
     avgLifetimeDays: float | None = None
+    breakdown: DashboardPeriodStatsBreakdownDto
 
 
 class DashboardResponseFunnelDto(BaseModel):

@@ -6313,7 +6313,12 @@ function buildTotalsSalarySummaryChartModel(payload, preferredCurrency, metric, 
     var selectedCurrency = normalizeCurrency(preferredCurrency || 'RUR');
     var selectedMetric = String(metric || 'avg').trim().toLowerCase();
     var selectedExperienceLabel = String(selectedExperience || '').trim();
-    var pointColors = ['#00C3D3', '#00AADF', '#007AD8', '#7B61E8', '#D149EF'];
+    var pointColors = [
+        getDashboardPaletteColor('palette-blue-strong'),
+        getDashboardPaletteColor('palette-cyan'),
+        getDashboardPaletteColor('palette-magenta-strong'),
+        getDashboardPaletteColor('palette-red')
+    ];
     var statusDefs = [
         { key: 'open', compactLabel: 'Открытые', singularLabel: 'Открытая' },
         { key: 'archived', compactLabel: 'Архивные', singularLabel: 'Архивная' },
@@ -6529,7 +6534,7 @@ function buildTotalsSalarySummaryChartModel(payload, preferredCurrency, metric, 
         { label: 'Мода', color: pointColors[1], key: 'mode_salary' },
         { label: 'Медиана', color: pointColors[2], key: 'median_salary' },
         { label: 'Среднее', color: pointColors[3], key: 'avg_salary' },
-        { label: 'Макс', color: pointColors[4], key: 'max_salary' }
+        { label: 'Макс', color: pointColors[4 % pointColors.length], key: 'max_salary' }
     ];
     return {
         title: 'Зарплаты',
@@ -8920,10 +8925,10 @@ function renderGlobalTotalsFiltered(parentRole) {
     // ===== Воронка для откликов =====
     function buildFunnelChartHtml(responseCount, interviewCount, resultCount, offerCount) {
         var stages = [
-            { label: 'Отклики', value: responseCount, filterKey: null, filterValue: null, paletteKey: 'palette-cyan-strong' },
-            { label: 'Собес назначен', value: interviewCount, filterKey: 'interview', filterValue: 'yes', paletteKey: 'palette-blue-strong' },
-            { label: 'Результат указан', value: resultCount, filterKey: 'result', filterValue: 'yes', paletteKey: 'palette-violet-strong' },
-            { label: 'Оффер', value: offerCount, filterKey: 'offer', filterValue: 'yes', paletteKey: 'palette-orange-strong' }
+            { label: 'Отклики', value: responseCount, filterKey: null, filterValue: null, paletteKey: 'palette-blue-strong' },
+            { label: 'Собес назначен', value: interviewCount, filterKey: 'interview', filterValue: 'yes', paletteKey: 'palette-cyan' },
+            { label: 'Результат указан', value: resultCount, filterKey: 'result', filterValue: 'yes', paletteKey: 'palette-magenta-strong' },
+            { label: 'Оффер', value: offerCount, filterKey: 'offer', filterValue: 'yes', paletteKey: 'palette-red' }
         ];
 
         var maxValue = responseCount || 1;
@@ -8955,7 +8960,12 @@ function renderGlobalTotalsFiltered(parentRole) {
     }
 
     // ===== Диаграмма зарплат (прогресс-бар с точками) =====
-    var SALARY_GRADIENT_COLORS = ['#00C3D3', '#00AADF', '#007AD8', '#7B61E8', '#D149EF'];
+    var SALARY_GRADIENT_COLORS = [
+        getDashboardPaletteColor('palette-blue-strong'),
+        getDashboardPaletteColor('palette-cyan'),
+        getDashboardPaletteColor('palette-magenta-strong'),
+        getDashboardPaletteColor('palette-red')
+    ];
     var SALARY_METRIC_LABELS = {
         'min': 'Мин',
         'avg': 'Среднее',
