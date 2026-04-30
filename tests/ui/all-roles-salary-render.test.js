@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const UI_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js');
+const UI_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js');
 const UI_SOURCE = fs.readFileSync(UI_SOURCE_PATH, 'utf8');
 
 function extractFunctionSource(name) {
@@ -89,3 +89,4 @@ runTest('restoreAllRolesPeriodState renders salary-all graph when wrapper has no
   assert.equal(calls[0].node, target);
   assert.equal(calls[0].periodLabel, 'all');
 });
+

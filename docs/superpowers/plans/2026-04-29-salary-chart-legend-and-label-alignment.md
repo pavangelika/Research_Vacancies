@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the existing salary data model and point color mapping intact, but simplify the presentation contract in the salary chart renderer. The fix is limited to the salary chart template and CSS so the legend becomes a non-wrapping horizontal row and point values no longer rely on side-based placement.
 
-**Tech Stack:** Vanilla JavaScript, static HTML string rendering in `reports/report.ui.js`, CSS in `reports/styles.css`, Node.js UI regression tests in `tests/ui`.
+**Tech Stack:** Vanilla JavaScript, static HTML string rendering in `reports/static/report.ui.js`, CSS in `reports/styles.css`, Node.js UI regression tests in `tests/ui`.
 
 ---
 
@@ -40,7 +40,7 @@ Do not commit during red state. Keep moving to Task 2.
 ### Task 2: Simplify Salary Point Label Rendering
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Test: `tests/ui/salary-overview-chart.test.js`
 
 - [ ] **Step 1: Replace side-based label class emission with a single centered-above class**
@@ -144,7 +144,7 @@ Expected: both commands PASS.
 
 **Files:**
 - Verify: `reports/report.html`
-- Verify: `reports/report.ui.js`
+- Verify: `reports/static/report.ui.js`
 - Verify: `reports/styles.css`
 
 - [ ] **Step 1: Open the local report in a desktop viewport**
@@ -165,6 +165,7 @@ Check the same four conditions again and confirm mobile does not reintroduce sid
 - [ ] **Step 3: Commit the fix**
 
 ```bash
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/styles.css docs/superpowers/specs/2026-04-29-salary-chart-legend-and-label-alignment-design.md docs/superpowers/plans/2026-04-29-salary-chart-legend-and-label-alignment.md
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/styles.css docs/superpowers/specs/2026-04-29-salary-chart-legend-and-label-alignment-design.md docs/superpowers/plans/2026-04-29-salary-chart-legend-and-label-alignment.md
 git commit -m "fix: align salary chart legend and labels"
 ```
+

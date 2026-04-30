@@ -43,7 +43,7 @@ Proceed directly to implementation.
 ### Task 2: Update Salary Module Layout And Legend Behavior
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/styles.css`
@@ -107,7 +107,7 @@ Expected: PASS.
 ### Task 3: Move Salary Card After Work Format
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 
 - [ ] **Step 1: Locate dashboard card composition order**
@@ -182,7 +182,7 @@ Check in browser that the legend does not cross the container edge on desktop or
 ### Task 6: Run Verification
 
 **Files:**
-- Verify: `reports/report.ui.js`
+- Verify: `reports/static/report.ui.js`
 - Verify: `reports/report.charts.js`
 - Verify: `reports/styles.css`
 - Verify: `reports/static/report.ui.js`
@@ -222,6 +222,7 @@ Confirm the same conditions again on mobile.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/report.charts.js reports/styles.css reports/static/report.ui.js reports/static/report.charts.js reports/static/styles.css docs/superpowers/specs/2026-04-29-dashboard-chart-readability-and-order-design.md docs/superpowers/plans/2026-04-29-dashboard-chart-readability-and-order.md
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/report.charts.js reports/styles.css reports/static/report.ui.js reports/static/report.charts.js reports/static/styles.css docs/superpowers/specs/2026-04-29-dashboard-chart-readability-and-order-design.md docs/superpowers/plans/2026-04-29-dashboard-chart-readability-and-order.md
 git commit -m "fix: refine dashboard chart readability and order"
 ```
+

@@ -3,6 +3,7 @@ import os
 import json
 import psycopg2
 import shutil
+import urllib.request
 import logging
 import socket
 from contextlib import contextmanager
@@ -166,7 +167,6 @@ def build_city_country_map(areas):
 
     city_to_countries = defaultdict(set)
     country_names = set()
-    other_regions_cities = set()
 
     def walk(area, country_name):
         if not area:
@@ -181,25 +181,10 @@ def build_city_country_map(areas):
         cname = country.get('name')
         if not cname:
             continue
-        if cname == '?????? ???????':
-            def add_all_as_countries(area):
-                if not area:
-                    return
-                name = area.get('name')
-                if name:
-                    country_names.add(name)
-                country_names.add(_norm_city(name))
-                for child in area.get('areas') or []:
-                    add_all_as_countries(child)
-
-            for child in country.get('areas') or []:
-                add_all_as_countries(child)
-                walk(child, child.get('name') or '')
-            continue
         country_names.add(cname)
         walk(country, cname)
 
-    return city_to_countries, country_names, other_regions_cities
+    return city_to_countries, country_names
 
 def _build_database_url():
     db_user = os.getenv("DB_USER", "postgres")
@@ -1268,13 +1253,13 @@ def fetch_salary_data(mapping):
         'KGS': 0.011
     }
 
-    areas_cache = os.path.join('reports', 'hh_areas.json')
+    areas_cache = os.path.join(REPORTS_DIR, 'hh_areas.json')
     try:
         areas_data = load_hh_areas(areas_cache)
-        city_country_map, country_names, other_regions_cities = build_city_country_map(areas_data)
+        city_country_map, country_names = build_city_country_map(areas_data)
     except Exception as e:
         logging.warning(f'Failed to load HH areas: {e}')
-        city_country_map, country_names, other_regions_cities = {}, set(), set()
+        city_country_map, country_names = {}, set()
 
     vacancies_by_role = defaultdict(list)
     for row in vacancy_rows:
@@ -1310,10 +1295,7 @@ def fetch_salary_data(mapping):
         country = None
         if city and city_country_map:
             city_norm = city.strip().casefold()
-            if city_norm in other_regions_cities:
-                country = city
-            else:
-                countries = city_country_map.get(city_norm)
+            countries = city_country_map.get(city_norm)
             if country is None and countries and len(countries) == 1:
                 country = next(iter(countries))
             elif country is None and city_norm in country_names:

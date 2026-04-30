@@ -55,7 +55,7 @@
 
 Обновить:
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
 - `reports/static/report.ui.js`
 
 Изменения:
@@ -117,3 +117,4 @@
 - ручная проверка mobile viewport в браузере
 - подтверждение, что overlay открывается встроенным toggle панели
 - подтверждение, что collapsed rail горизонтальный
+

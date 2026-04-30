@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const UI_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js');
-const RENDER_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.render.js');
+const UI_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js');
+const RENDER_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.render.js');
 
 const UI_SOURCE = fs.readFileSync(UI_SOURCE_PATH, 'utf8');
 const RENDER_SOURCE = fs.readFileSync(RENDER_SOURCE_PATH, 'utf8');
@@ -126,3 +126,4 @@ runTest('combined report renderer keeps comparative analysis tabs', () => {
     );
   });
 });
+

@@ -85,7 +85,7 @@ function formatVacancySalaryValue(value, currency) {
     if (text.endsWith(',0')) text = text.slice(0, -2);
     return escapeHtml(text + 'K');
 }
-function buildSalaryTablesHtml(entries) {
+function buildSalarySummaryTablesHtml(entries) {
     var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
     var coverageTotal = 0;
     (entries || []).forEach(function(entry) {
@@ -122,27 +122,39 @@ function buildSalaryTablesHtml(entries) {
     }).join('');
 
     return '<div class="salary-split-tables">' +
-        '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
-            '<h4 style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
-            '<table class="vacancy-table salary-table">' +
-                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>—</th></tr></thead>' +
-                '<tbody>' + coverageRows + '</tbody>' +
-            '</table>' +
+        '<div class="salary-table-block">' +
+            '<div class="vacancy-table-wrap" style="overflow-x: auto; margin-bottom: 16px;">' +
+                '<h4 class="salary-table-title" style="margin: 0 0 8px;">Сводка вакансий по валютам</h4>' +
+                '<table class="vacancy-table salary-table salary-summary-table">' +
+                    '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>—</th></tr></thead>' +
+                    '<tbody>' + coverageRows + '</tbody>' +
+                '</table>' +
+            '</div>' +
         '</div>' +
-        '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
-            '<h4 style="margin: 0 0 8px;">Статистика зарплат</h4>' +
-            '<table class="vacancy-table salary-table">' +
-                '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
-                '<tbody>' + statsRows + '</tbody>' +
-            '</table>' +
+        '<div class="salary-table-block">' +
+            '<div class="vacancy-table-wrap" style="overflow-x: auto;">' +
+                '<h4 class="salary-table-title" style="margin: 0 0 8px;">Статистика зарплат</h4>' +
+                '<table class="vacancy-table salary-table salary-stats-table">' +
+                    '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
+                    '<tbody>' + statsRows + '</tbody>' +
+                '</table>' +
+            '</div>' +
         '</div>' +
     '</div>';
 }
+
+function normalizeReportSalaryCurrency(value) {
+    var curr = String(value || '').trim().toUpperCase();
+    if (curr === 'EURO') return 'EUR';
+    if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') return curr;
+    return '';
+}
+
 function applySalaryTablesMarkup(expDiv, entries) {
     if (!expDiv) return;
     var tableContainer = expDiv.querySelector('.salary-table-container');
     if (!tableContainer) return;
-    tableContainer.innerHTML = buildSalaryTablesHtml(entries || []);
+    tableContainer.innerHTML = buildSalarySummaryTablesHtml(entries || []);
 }
 function renderVacancyDetails(container, withList, withoutList) {
     var combinedList = (withList || []).concat(withoutList || []);
@@ -396,12 +408,6 @@ function renderAllRolesContainer(container, roleContents) {
             EUR: { totals: new Map(), roleCounts: new Map() }
         };
         var displayNames = new Map();
-        function normalizeCurrency(value) {
-            var curr = String(value || '').trim().toUpperCase();
-            if (curr === 'EURO') return 'EUR';
-            if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') return curr;
-            return '';
-        }
 
         filteredRoleContents.forEach(function(roleContent) {
             var roleName = roleContent.dataset.roleName || roleContent.dataset.roleId || 'UNKNOWN_ROLE';
@@ -425,7 +431,7 @@ function renderAllRolesContainer(container, roleContents) {
                     var normalizedNum = Number(normalized);
                     if (!isNaN(normalizedNum) && isFinite(normalizedNum)) avg = normalizedNum;
                 }
-                var currency = normalizeCurrency(vacancy.currency);
+                var currency = normalizeReportSalaryCurrency(vacancy.currency);
                 String(vacancy.skills).split(',').forEach(function(rawSkill) {
                     var label = String(rawSkill || '')
                         .replace(/\u200e/g, '')
@@ -521,12 +527,6 @@ function renderAllRolesContainer(container, roleContents) {
         });
         var currencyBuckets = { RUR: [], USD: [], EUR: [] };
 
-        function normalizeCurrency(value) {
-            var curr = String(value || '').trim().toUpperCase();
-            if (curr === 'EURO') return 'EUR';
-            if (curr === 'RUR' || curr === 'USD' || curr === 'EUR') return curr;
-            return '';
-        }
         function resolveSalaryValue(vacancy) {
             if (!vacancy) return null;
             var from = vacancy.salary_from;
@@ -547,28 +547,11 @@ function renderAllRolesContainer(container, roleContents) {
         function round2(value) {
             return Math.round(Number(value || 0) * 100) / 100;
         }
-        function computeMode(values) {
-            if (!values.length) return null;
-            var counts = new Map();
-            values.forEach(function(v) {
-                var key = Number(v);
-                counts.set(key, (counts.get(key) || 0) + 1);
-            });
-            var bestVal = values[0];
-            var bestCount = 0;
-            counts.forEach(function(count, val) {
-                if (count > bestCount || (count === bestCount && val < bestVal)) {
-                    bestCount = count;
-                    bestVal = val;
-                }
-            });
-            return bestVal;
-        }
 
         roleMeta.forEach(function(role) {
             var byCurrency = { RUR: [], USD: [], EUR: [] };
             (role.vacancies || []).forEach(function(vacancy) {
-                var currency = normalizeCurrency(vacancy && vacancy.currency);
+                var currency = normalizeReportSalaryCurrency(vacancy && vacancy.currency);
                 if (!currency || !byCurrency[currency]) return;
                 var salary = resolveSalaryValue(vacancy);
                 if (salary === null || !isFinite(salary)) return;

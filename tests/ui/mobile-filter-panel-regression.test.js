@@ -3,11 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const FILES = [
-  path.resolve(__dirname, '..', '..', 'reports', 'styles.css'),
   path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css')
 ];
 const UI_FILES = [
-  path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js'),
   path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js')
 ];
 
@@ -215,3 +213,4 @@ runTest('mobile dashboard keeps card column layout isolated from filter overlay 
     );
   });
 });
+

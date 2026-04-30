@@ -53,7 +53,7 @@ Then add the same employer-analysis assertions for both files:
 
 ```js
 [
-  ['reports/report.ui.js', reportUiSource],
+  ['reports/static/report.ui.js', reportUiSource],
   ['reports/static/report.ui.js', staticReportUiSource],
 ].forEach(([label, source]) => {
   assert(source.includes('showgrid: false'), `${label} should disable employer-analysis grid lines`);
@@ -80,7 +80,7 @@ git commit -m "test: cover employer analysis chart gradients"
 ### Task 2: Update employer-analysis chart rendering to remove grid and reduce title gap
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Test: `tests/ui/chart-font-regression.test.js`
 
@@ -110,7 +110,7 @@ Expected: FAIL because the current layout still has `margin.t: 56` and does not 
 
 - [ ] **Step 3: Write minimal implementation**
 
-In both `reports/report.ui.js` and `reports/static/report.ui.js`, update the employer-analysis Plotly layout inside the salary chart renderer from:
+In both `reports/static/report.ui.js` and `reports/static/report.ui.js`, update the employer-analysis Plotly layout inside the salary chart renderer from:
 
 ```js
     Plotly.react(graph.__chartHostEl, [{
@@ -153,14 +153,14 @@ Expected: PASS for the new spacing/grid assertions
 - [ ] **Step 5: Commit**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js tests/ui/chart-font-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js tests/ui/chart-font-regression.test.js
 git commit -m "feat: tighten employer analysis chart layout"
 ```
 
 ### Task 3: Apply donut-matched gradient fills to employer-analysis bars by factor
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -298,7 +298,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/chart-font-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/chart-font-regression.test.js
 git commit -m "feat: add donut gradients to employer analysis chart"
 ```
 
@@ -344,3 +344,4 @@ git status --short
 ```
 
 Expected: no unexpected files beyond the planned employer-analysis changes
+

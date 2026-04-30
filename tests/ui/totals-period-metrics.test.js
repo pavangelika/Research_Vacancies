@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js');
-const DATA_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.data.js');
-const RENDER_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.render.js');
+const SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js');
+const DATA_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.data.js');
+const RENDER_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.render.js');
 const SOURCE = fs.readFileSync(SOURCE_PATH, 'utf8');
 const DATA_SOURCE = fs.readFileSync(DATA_SOURCE_PATH, 'utf8');
 const RENDER_SOURCE = fs.readFileSync(RENDER_SOURCE_PATH, 'utf8');
@@ -404,3 +404,4 @@ runTest('buildEmployerAnalysisRowsFromVacancies supports other currency bucket a
   assert.equal(accreditationFalse.salaryValue, 500);
   assert.equal(accreditationFalse.salaryCount, 3);
 });
+

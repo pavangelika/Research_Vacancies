@@ -4,7 +4,7 @@
 
 **Goal:** Flatten the compact salary overview chart, remove currency card nesting, and add deterministic anti-overlap point placement verified in tests and DevTools.
 
-**Architecture:** Keep the existing salary summary model pipeline in `reports/report.ui.js`, but extend point finalization with a second layout pass that assigns vertical rows after `leftPct` is computed. Update the compact chart HTML renderer to emit flat currency sections instead of nested currency cards, then scope CSS changes to the compact point-chart variant so non-compact salary charts keep their current behavior.
+**Architecture:** Keep the existing salary summary model pipeline in `reports/static/report.ui.js`, but extend point finalization with a second layout pass that assigns vertical rows after `leftPct` is computed. Update the compact chart HTML renderer to emit flat currency sections instead of nested currency cards, then scope CSS changes to the compact point-chart variant so non-compact salary charts keep their current behavior.
 
 **Tech Stack:** Plain JavaScript renderer helpers, CSS in `reports/styles.css` and `reports/static/styles.css`, Node-based UI tests in `tests/ui/*.test.js`, Chrome DevTools for visual verification.
 
@@ -14,7 +14,7 @@
 
 **Files:**
 - Modify: `tests/ui/salary-chart-mode.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 
 - [ ] **Step 1: Write the failing tests for flat compact HTML and point row assignment**
@@ -107,7 +107,7 @@ Expected: FAIL because `assignCompactSalaryPointRows` does not exist yet and the
 
 - [ ] **Step 3: Implement the minimal row-assignment helper and wire it into point finalization**
 
-In `reports/report.ui.js`, add a new helper near `distributePointPositions(...)` and use it inside `finalizeRowPoints(...)`:
+In `reports/static/report.ui.js`, add a new helper near `distributePointPositions(...)` and use it inside `finalizeRowPoints(...)`:
 
 ```js
 function assignCompactSalaryPointRows(points) {
@@ -161,7 +161,7 @@ Expected: PASS for the new row-assignment test and the updated compact chart HTM
 - [ ] **Step 5: Commit the first TDD slice**
 
 ```bash
-git add tests/ui/salary-chart-mode.test.js reports/report.ui.js reports/static/report.ui.js
+git add tests/ui/salary-chart-mode.test.js reports/static/report.ui.js reports/static/report.ui.js
 git commit -m "test: cover flat compact salary point layout"
 ```
 
@@ -169,7 +169,7 @@ git commit -m "test: cover flat compact salary point layout"
 
 **Files:**
 - Modify: `tests/ui/salary-chart-mode.test.js`
-- Modify: `reports/report.ui.js:6097-6150`
+- Modify: `reports/static/report.ui.js:6097-6150`
 - Modify: `reports/static/report.ui.js:6097-6150`
 
 - [ ] **Step 1: Tighten the compact chart test around the new flat body structure**
@@ -230,7 +230,7 @@ Expected: PASS with no `salary-summary-chart-currency-card` or `salary-summary-c
 - [ ] **Step 5: Commit the renderer refactor**
 
 ```bash
-git add tests/ui/salary-chart-mode.test.js reports/report.ui.js reports/static/report.ui.js
+git add tests/ui/salary-chart-mode.test.js reports/static/report.ui.js reports/static/report.ui.js
 git commit -m "feat: flatten compact salary overview chart"
 ```
 
@@ -318,7 +318,7 @@ Use Chrome DevTools against the local report page and verify:
 - [ ] **Step 5: Commit the CSS and verified UI pass**
 
 ```bash
-git add reports/styles.css reports/static/styles.css reports/report.ui.js reports/static/report.ui.js tests/ui/salary-chart-mode.test.js
+git add reports/styles.css reports/static/styles.css reports/static/report.ui.js reports/static/report.ui.js tests/ui/salary-chart-mode.test.js
 git commit -m "style: prevent compact salary point overlap"
 ```
 
@@ -328,3 +328,4 @@ git commit -m "style: prevent compact salary point overlap"
 - [ ] No task changes salary data calculation semantics; only presentation and point layout are touched.
 - [ ] Every production-code change is preceded by a failing test step.
 - [ ] Every file path in the plan exists in the repo today and matches the current renderer/test split.
+

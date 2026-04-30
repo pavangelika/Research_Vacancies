@@ -12,7 +12,7 @@ The change must be scoped to `employer-analysis` only.
 
 ## Current State
 
-The employer salary chart is rendered with Plotly in `reports/report.ui.js` and duplicated in `reports/static/report.ui.js`.
+The employer salary chart is rendered with Plotly in `reports/static/report.ui.js` and duplicated in `reports/static/report.ui.js`.
 
 Current issues:
 
@@ -51,7 +51,7 @@ This avoids a larger chart rewrite and keeps resizing/tooling behavior intact.
 
 Files expected to change:
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
 - `reports/static/report.ui.js`
 - `reports/styles.css`
 - `reports/static/styles.css`
@@ -74,3 +74,4 @@ Validation will confirm:
 - employer-analysis chart shows no background grid
 - all four employer factor families use donut-matched gradients
 - other charts keep their current appearance
+

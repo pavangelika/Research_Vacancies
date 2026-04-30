@@ -12,7 +12,7 @@
 
 ## File Map
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
   Runtime salary-module renderer and any inline row interaction binding.
 - `reports/static/report.ui.js`
   Static mirror of the runtime salary-module renderer and interaction binding.
@@ -27,7 +27,7 @@
 
 **Files:**
 - Modify: `tests/ui/salary-overview-chart.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 
 - [ ] **Step 1: Write the failing UI regression tests for hidden children and missing empty parents**
@@ -119,7 +119,7 @@ Expected: PASS
 - [ ] **Step 6: Commit the rendering-rule changes**
 
 ```bash
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/static/report.ui.js
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/static/report.ui.js
 git commit -m "feat: add salary inline child rows"
 ```
 
@@ -127,7 +127,7 @@ git commit -m "feat: add salary inline child rows"
 
 **Files:**
 - Modify: `tests/ui/salary-overview-chart.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -257,7 +257,7 @@ Expected: PASS
 - [ ] **Step 8: Commit the interaction and styling changes**
 
 ```bash
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: add salary row drilldown toggles"
 ```
 
@@ -292,6 +292,7 @@ Check on `http://127.0.0.1:9000/report.html`:
 - [ ] **Step 4: Commit any final polish if browser verification requires it**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/salary-overview-chart.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/salary-overview-chart.test.js
 git commit -m "fix: polish salary inline drilldown rows"
 ```
+

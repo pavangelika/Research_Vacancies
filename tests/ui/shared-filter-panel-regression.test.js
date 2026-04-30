@@ -4,9 +4,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const FILES = {
-  reportUi: path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js'),
+  reportUi: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js'),
   staticReportUi: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js'),
-  reportFilters: path.resolve(__dirname, '..', '..', 'reports', 'report.filters.js'),
+  reportFilters: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.filters.js'),
   staticReportFilters: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.filters.js')
 };
 
@@ -915,3 +915,4 @@ runTest('offer filter labels match documentation wording', () => {
     assert.deepEqual(Array.from(labels), ['Не получен', 'Получен'], `${path.basename(filePath)} should expose documented offer labels`);
   });
 });
+

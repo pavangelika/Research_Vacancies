@@ -1,5 +1,4 @@
 // ---------- Shared Filters Module ----------
-var SHARED_FILTER_PANEL_STATE_STORAGE_KEY = 'research_vacancies.shared_filter_panel_state';
 var SHARED_FILTER_PANEL_SECTION_META = [
     { key: 'my-filters', label: 'Избранное', icon: 'favorite' },
     { key: 'roles', label: 'Роль', icon: 'person' },
@@ -29,64 +28,6 @@ function getSharedFilterPanelSectionKeyForAnalysis(analysisType) {
     if (current === 'activity' || current === 'weekday' || current === 'skills-monthly') return 'roles';
     if (current === 'all' || current === 'combined') return 'roles';
     return 'roles';
-}
-
-function ensureSharedFilterPanelState() {
-    if (!uiState.shared_filter_panel_state || typeof uiState.shared_filter_panel_state !== 'object') {
-        uiState.shared_filter_panel_state = { collapsed: false, open: true, sections: {}, activeSection: 'roles', lastAnalysis: '', userActivatedSectionKey: '' };
-    }
-    if (typeof uiState.shared_filter_panel_state.collapsed !== 'boolean') {
-        uiState.shared_filter_panel_state.collapsed = false;
-    }
-    if (typeof uiState.shared_filter_panel_state.open !== 'boolean') {
-        uiState.shared_filter_panel_state.open = true;
-    }
-    if (!uiState.shared_filter_panel_state.sections || typeof uiState.shared_filter_panel_state.sections !== 'object') {
-        uiState.shared_filter_panel_state.sections = {};
-    }
-    if (typeof uiState.shared_filter_panel_state.activeSection !== 'string') {
-        uiState.shared_filter_panel_state.activeSection = 'roles';
-    }
-    if (typeof uiState.shared_filter_panel_state.lastAnalysis !== 'string') {
-        uiState.shared_filter_panel_state.lastAnalysis = '';
-    }
-    if (typeof uiState.shared_filter_panel_state.userActivatedSectionKey !== 'string') {
-        uiState.shared_filter_panel_state.userActivatedSectionKey = '';
-    }
-    var sectionKeys = Array.isArray(SHARED_FILTER_PANEL_SECTION_META)
-        ? SHARED_FILTER_PANEL_SECTION_META.map(function(section) {
-            return String(section && section.key || '').trim();
-        }).filter(Boolean)
-        : ['my-filters', 'roles', 'salary', 'responses', 'top', 'vacancy', 'skills'];
-    if (sectionKeys.indexOf('roles') === -1) sectionKeys.unshift('roles');
-    sectionKeys.forEach(function(sectionKey) {
-        if (!Object.prototype.hasOwnProperty.call(uiState.shared_filter_panel_state.sections, sectionKey)) {
-            uiState.shared_filter_panel_state.sections[sectionKey] = false;
-        } else {
-            uiState.shared_filter_panel_state.sections[sectionKey] = uiState.shared_filter_panel_state.sections[sectionKey] === true;
-        }
-    });
-    var activeSection = String(uiState.shared_filter_panel_state.activeSection || '').trim();
-    if (!activeSection || sectionKeys.indexOf(activeSection) === -1) activeSection = 'roles';
-    var openSections = sectionKeys.filter(function(sectionKey) {
-        return uiState.shared_filter_panel_state.sections[sectionKey] === true;
-    });
-    if (openSections.length !== 1 || openSections[0] !== activeSection) {
-        sectionKeys.forEach(function(sectionKey) {
-            uiState.shared_filter_panel_state.sections[sectionKey] = sectionKey === activeSection;
-        });
-    }
-    uiState.shared_filter_panel_state.activeSection = activeSection;
-    return uiState.shared_filter_panel_state;
-}
-
-function persistSharedFilterPanelState() {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    try {
-        window.localStorage.setItem(SHARED_FILTER_PANEL_STATE_STORAGE_KEY, JSON.stringify(ensureSharedFilterPanelState()));
-    } catch (_e) {
-        // ignore storage failures
-    }
 }
 
 function isSharedFilterPanelCollapsed() {

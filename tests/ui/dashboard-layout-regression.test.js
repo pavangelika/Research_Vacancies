@@ -3,10 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const FILES = {
-  reportUi: path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js'),
-  staticReportUi: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js'),
-  reportStyles: path.resolve(__dirname, '..', '..', 'reports', 'styles.css'),
-  staticReportStyles: path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css')
+  reportUi: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js'),
+  reportStyles: path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css')
 };
 
 function read(filePath) {
@@ -49,17 +47,14 @@ function assertStyleContracts(source, label) {
 }
 
 runTest('dashboard runtime renderer keeps explicit natural-height column structure', () => {
-  assertUiContracts(read(FILES.reportUi), 'reports/report.ui.js');
+  assertUiContracts(read(FILES.reportUi), 'reports/static/report.ui.js');
 });
 
 runTest('dashboard static renderer keeps explicit natural-height column structure', () => {
-  assertUiContracts(read(FILES.staticReportUi), 'reports/static/report.ui.js');
+  assertUiContracts(read(FILES.reportUi), 'reports/static/report.ui.js');
 });
 
-runTest('dashboard runtime stylesheet uses natural-height dashboard columns', () => {
-  assertStyleContracts(read(FILES.reportStyles), 'reports/styles.css');
+runTest('dashboard stylesheet uses natural-height dashboard columns', () => {
+  assertStyleContracts(read(FILES.reportStyles), 'reports/static/styles.css');
 });
 
-runTest('dashboard static stylesheet uses natural-height dashboard columns', () => {
-  assertStyleContracts(read(FILES.staticReportStyles), 'reports/static/styles.css');
-});

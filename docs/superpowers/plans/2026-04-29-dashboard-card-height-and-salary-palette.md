@@ -93,7 +93,7 @@ Keep the browser-loaded stylesheet synchronized with the source stylesheet.
 ### Task 2: Move Salary Chart Colors To The Main Palette
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Test: `tests/ui/salary-overview-chart.test.js`
 
@@ -173,6 +173,7 @@ Check that:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add reports/styles.css reports/static/styles.css reports/report.ui.js reports/static/report.ui.js tests/ui/salary-overview-chart.test.js tests/ui/chart-font-regression.test.js
+git add reports/styles.css reports/static/styles.css reports/static/report.ui.js reports/static/report.ui.js tests/ui/salary-overview-chart.test.js tests/ui/chart-font-regression.test.js
 git commit -m "feat: align dashboard card heights and unify salary palette"
 ```
+

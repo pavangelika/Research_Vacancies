@@ -699,8 +699,8 @@ class AnalyticsService:
             value is not None for value in (normalized_interview, normalized_result, normalized_offer)
         ) else {}
         vacancies = self.vacancies_repository.list_vacancies(include_details=False)
+        reference_now = self._normalize_dashboard_datetime(self._get_reference_now())
         filtered = []
-        latest_dt = None
         parsed_rows = []
         for vacancy in vacancies:
             role_id = str(vacancy.get("role_id") or "").strip()
@@ -754,32 +754,48 @@ class AnalyticsService:
             published_dt = self._parse_dt(vacancy.get("published_at"))
             archived_dt = self._parse_dt(vacancy.get("archived_at"))
             parsed_rows.append((vacancy, published_dt, archived_dt))
-            if published_dt is not None and (latest_dt is None or published_dt > latest_dt):
-                latest_dt = published_dt
 
         for vacancy, published_dt, archived_dt in parsed_rows:
-            if self._matches_period(period, published_dt, latest_dt):
+            if self._matches_period(period, published_dt, reference_now):
                 prepared = dict(vacancy)
                 prepared["_published_dt"] = published_dt
                 prepared["_archived_dt"] = archived_dt
                 filtered.append(prepared)
         return filtered
 
-    def _matches_period(self, period: str, published_dt: datetime | None, latest_dt: datetime | None) -> bool:
+    def _matches_period(self, period: str, published_dt: datetime | None, reference_dt: datetime | None) -> bool:
         current = str(period or "summary").strip().lower()
         if current in {"summary", "all"}:
             return True
         if published_dt is None:
             return False
+        normalized_published_dt = self._normalize_dashboard_datetime(published_dt)
+        normalized_reference_dt = self._normalize_dashboard_datetime(reference_dt)
         if current == "today":
-            return latest_dt is not None and published_dt.date() == latest_dt.date()
+            return (
+                normalized_reference_dt is not None
+                and normalized_published_dt is not None
+                and normalized_published_dt.date() == normalized_reference_dt.date()
+            )
         if current == "last_3":
-            return latest_dt is not None and published_dt >= latest_dt - timedelta(days=3)
+            return (
+                normalized_reference_dt is not None
+                and normalized_published_dt is not None
+                and normalized_published_dt >= normalized_reference_dt - timedelta(days=3)
+            )
         if current == "last_7":
-            return latest_dt is not None and published_dt >= latest_dt - timedelta(days=7)
+            return (
+                normalized_reference_dt is not None
+                and normalized_published_dt is not None
+                and normalized_published_dt >= normalized_reference_dt - timedelta(days=7)
+            )
         if current == "last_14":
-            return latest_dt is not None and published_dt >= latest_dt - timedelta(days=14)
-        return published_dt.strftime("%Y-%m") == current
+            return (
+                normalized_reference_dt is not None
+                and normalized_published_dt is not None
+                and normalized_published_dt >= normalized_reference_dt - timedelta(days=14)
+            )
+        return normalized_published_dt is not None and normalized_published_dt.strftime("%Y-%m") == current
 
     def _compute_age_days(self, published_at: str | None, archived_at: str | None) -> float | None:
         published_dt = self._parse_dt(published_at)
@@ -901,6 +917,9 @@ class AnalyticsService:
             return value
         return value.astimezone(timezone.utc).replace(tzinfo=None)
 
+    def _get_reference_now(self) -> datetime:
+        return datetime.now(timezone.utc)
+
     def _start_of_day(self, value: datetime | None) -> datetime | None:
         if value is None:
             return None
@@ -918,26 +937,19 @@ class AnalyticsService:
 
     def _build_dashboard_period_window(self, period: str, vacancies: list[dict]) -> dict[str, datetime | None]:
         current = str(period or "summary").strip().lower()
-        rows = []
-        reference = None
+        reference = self._normalize_dashboard_datetime(self._get_reference_now())
         min_dt = None
         max_dt = None
         for vacancy in vacancies:
             published_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_published_dt") or vacancy.get("published_at")))
-            archived_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_archived_dt") or vacancy.get("archived_at")))
-            rows.append((published_dt, archived_dt))
-            for value in (published_dt, archived_dt):
+            for value in (published_dt,):
                 if value is None:
                     continue
                 if min_dt is None or value < min_dt:
                     min_dt = value
                 if max_dt is None or value > max_dt:
                     max_dt = value
-                if reference is None or value > reference:
-                    reference = value
 
-        if reference is None:
-            reference = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
         if current in {"summary", "all"}:
             if min_dt is None or max_dt is None:
                 fallback = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
@@ -978,7 +990,7 @@ class AnalyticsService:
                 }
 
         if min_dt is None or max_dt is None:
-            fallback = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+            fallback = self._normalize_dashboard_datetime(self._get_reference_now())
             return {"label": period, "start": self._start_of_day(fallback), "end": self._end_of_day(fallback)}
         return {"label": period, "start": self._start_of_day(min_dt), "end": self._end_of_day(max_dt)}
 
@@ -1010,14 +1022,14 @@ class AnalyticsService:
                 "lifetimeDays": None,
             }
         archived_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_archived_dt") or vacancy.get("archived_at")))
-        is_archived = bool(vacancy.get("archived") or archived_dt)
+        is_archived = bool(vacancy.get("archived"))
         new_published = start <= published <= end
-        archived_in_period = archived_dt is not None and start <= archived_dt <= end
-        alive_at_end = published <= end and (not is_archived or archived_dt is None or archived_dt > end)
-        included = new_published or archived_in_period or alive_at_end
-        published_and_archived = new_published and archived_in_period
+        active = new_published and not is_archived
+        archived = new_published and is_archived
+        included = new_published
+        published_and_archived = new_published and is_archived
 
-        reference_now = self._normalize_dashboard_datetime(now) or self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+        reference_now = self._normalize_dashboard_datetime(now) or self._normalize_dashboard_datetime(self._get_reference_now())
         effective_lifetime_end = archived_dt
         if effective_lifetime_end is None:
             effective_lifetime_end = end if end < reference_now else self._start_of_day(reference_now)
@@ -1030,8 +1042,8 @@ class AnalyticsService:
 
         return {
             "included": included,
-            "active": alive_at_end,
-            "archived": archived_in_period,
+            "active": active,
+            "archived": archived,
             "newPublished": new_published,
             "publishedAndArchived": published_and_archived,
             "lifetimeDays": lifetime_days,
@@ -1051,7 +1063,7 @@ class AnalyticsService:
         archived_experience_items = {}
         active_new_published_items = {}
         published_and_archived_items = {}
-        now = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+        now = self._normalize_dashboard_datetime(self._get_reference_now())
 
         for vacancy in list(vacancies or []):
             entry = self._classify_vacancy_for_dashboard_period(vacancy, period_window, now=now)
@@ -1144,7 +1156,7 @@ class AnalyticsService:
         else:
             windows.append(period_window)
 
-        now = self._normalize_dashboard_datetime(datetime.now(timezone.utc))
+        now = self._normalize_dashboard_datetime(self._get_reference_now())
         labels = []
         new_published = []
         archived_vals = []

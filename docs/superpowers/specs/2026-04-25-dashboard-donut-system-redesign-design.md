@@ -38,7 +38,7 @@ Out of scope for this work:
 
 The redesign will be implemented in the existing dashboard render and style paths:
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
 - `reports/static/report.ui.js`
 - `reports/styles.css`
 - `reports/static/styles.css`
@@ -309,7 +309,7 @@ The redesign is complete when all of the following are true:
 
 Primary:
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
 - `reports/static/report.ui.js`
 - `reports/styles.css`
 - `reports/static/styles.css`
@@ -325,4 +325,5 @@ Potential backend/dashboard payload files if data support is missing:
 
 - dashboard payload service or related analytics service modules
 - corresponding backend contract/service tests
+
 

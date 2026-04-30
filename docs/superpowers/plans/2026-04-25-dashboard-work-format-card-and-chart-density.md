@@ -12,10 +12,10 @@
 
 ## File Map
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
   Current runtime dashboard renderer. Modify the work-format card markup and donut shell sizing hooks here.
 - `reports/static/report.ui.js`
-  Static build mirror of the runtime dashboard renderer. Keep it in sync with `reports/report.ui.js`.
+  Static build mirror of the runtime dashboard renderer. Keep it in sync with `reports/static/report.ui.js`.
 - `reports/styles.css`
   Runtime dashboard styles. Update the shared work-format card layout, compact KPI tiles, chart-area density, and donut mobile centering.
 - `reports/static/styles.css`
@@ -31,7 +31,7 @@
 
 **Files:**
 - Modify: `tests/ui/dashboard-compensation-availability.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -297,7 +297,7 @@ Expected: PASS
 - [ ] **Step 8: Commit the shared work-format card changes**
 
 ```bash
-git add tests/ui/dashboard-compensation-availability.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/dashboard-compensation-availability.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: merge work format dashboard cards"
 ```
 
@@ -308,7 +308,7 @@ git commit -m "feat: merge work format dashboard cards"
 - Modify: `tests/ui/donut-legend-regression.test.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 
 - [ ] **Step 1: Write the failing layout regression for denser chart areas and stronger donut centering**
@@ -441,7 +441,7 @@ return '<div class="donut-chart-shell">' +
 
 Apply the same markup shape in:
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
 - `reports/static/report.ui.js`
 
 Only add `donut-chart-stage` if the CSS change needs an explicit chart-only centering wrapper. Do not add any extra wrapper beyond that.
@@ -468,7 +468,7 @@ Expected: PASS
 - [ ] **Step 8: Commit the density and donut-centering changes**
 
 ```bash
-git add tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: tighten dashboard chart density"
 ```
 
@@ -515,6 +515,7 @@ Check on `http://127.0.0.1:9000/report.html`:
 - [ ] **Step 4: Commit any final verification-driven tweaks if needed**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-compensation-availability.test.js tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-compensation-availability.test.js tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js
 git commit -m "fix: polish dashboard work format layout"
 ```
+

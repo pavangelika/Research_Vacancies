@@ -1,4 +1,4 @@
-﻿function openRoleTab(evt, roleId) {
+function openRoleTab(evt, roleId) {
     var i, roleContent;
     roleContent = document.getElementsByClassName("role-content");
     for (i = 0; i < roleContent.length; i++) {
@@ -5966,7 +5966,7 @@ function renderGlobalSalaryFiltered(parentRole) {
     hostExp.dataset.chartContext = buildChartContextLabel(chartPeriodLabel, chartExperienceLabel);
     var tableContainer = hostExp.querySelector('.salary-table-container');
     if (tableContainer) {
-        tableContainer.innerHTML = buildSalaryTablesHtml(entries);
+        tableContainer.innerHTML = buildSalarySummaryTablesHtml(entries);
         bindSalaryRowData(tableContainer, entries);
     }
     applySalaryStatusIcons(hostExp);
@@ -10020,62 +10020,6 @@ function rebuildSalaryFromVacancies(parentRole, block) {
     block.dataset.salaryFiltersReady = '0';
 }
 
-function buildSalaryTablesHtml(entries) {
-    var coverageMap = { 'RUR': 0, 'USD': 0, 'EUR': 0, 'Другая': 0, 'Не заполнена': 0 };
-    var coverageTotal = 0;
-    (entries || []).forEach(function(entry) {
-        if (!entry) return;
-        var count = Number(entry.total_vacancies) || 0;
-        var currency = coverageMap.hasOwnProperty(entry.currency) ? entry.currency : 'Другая';
-        coverageMap[currency] += count;
-        coverageTotal += count;
-    });
-    function pct(value) {
-        return coverageTotal ? (Math.round((value * 10000) / coverageTotal) / 100) + '%' : '0%';
-    }
-    var coverageRows = '<tr>' +
-        '<td>' + coverageTotal + '</td>' +
-        '<td>' + coverageMap['RUR'] + ' (' + pct(coverageMap['RUR']) + ')</td>' +
-        '<td>' + coverageMap['USD'] + ' (' + pct(coverageMap['USD']) + ')</td>' +
-        '<td>' + coverageMap['EUR'] + ' (' + pct(coverageMap['EUR']) + ')</td>' +
-        '<td>' + coverageMap['Другая'] + ' (' + pct(coverageMap['Другая']) + ')</td>' +
-        '<td>' + coverageMap['Не заполнена'] + ' (' + pct(coverageMap['Не заполнена']) + ')</td>' +
-    '</tr>';
-    var statsRows = (entries || []).map(function(entry) {
-        var displayCurrency = entry.currency === 'Не заполнена' ? '—' : entry.currency;
-        return '<tr class="salary-row" data-vacancies-with="" data-vacancies-without="">' +
-            '<td class="status-icon-cell">' + renderStatusIcon(entry.status) + '</td>' +
-            '<td>' + displayCurrency + '</td>' +
-            '<td>' + entry.total_vacancies + '</td>' +
-            '<td>' + Math.round(entry.avg_salary) + '</td>' +
-            '<td>' + (entry.median_salary ? Math.round(entry.median_salary) : '—') + '</td>' +
-            '<td>' + (entry.mode_salary ? Math.round(entry.mode_salary) : '—') + '</td>' +
-            '<td>' + Math.round(entry.min_salary) + '</td>' +
-            '<td>' + Math.round(entry.max_salary) + '</td>' +
-            '<td>' + entry.top_skills + '</td>' +
-        '</tr>';
-    }).join('');
-    return '<div class="salary-split-tables">' +
-        '<div class="salary-table-block">' +
-            '<h4 class="salary-table-title">Сводка вакансий по валютам</h4>' +
-            '<div class="vacancy-table-wrap" style="margin-bottom: 16px;">' +
-            '<table class="vacancy-table salary-table salary-summary-table">' +
-                '<thead><tr><th>Всего вакансий</th><th>RUR</th><th>USD</th><th>EUR</th><th>Другая</th><th>—</th></tr></thead>' +
-                '<tbody>' + coverageRows + '</tbody>' +
-            '</table>' +
-            '</div>' +
-        '</div>' +
-        '<div class="salary-table-block">' +
-            '<h4 class="salary-table-title">Статистика зарплат</h4>' +
-            '<div class="vacancy-table-wrap">' +
-            '<table class="vacancy-table salary-table salary-stats-table">' +
-                '<thead><tr><th>Статус</th><th>Валюта</th><th>Найдено</th><th>Средняя</th><th>Медианная</th><th>Модальная</th><th>Мин</th><th>Макс</th><th>Топ-10 навыков</th></tr></thead>' +
-                '<tbody>' + statsRows + '</tbody>' +
-            '</table>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-}
 
 function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
     var monthId = 'sal-month-' + roleId + '-filter-' + suffix;
@@ -10112,7 +10056,7 @@ function buildSalaryMonthBlock(block, monthData, suffix, roleId) {
             '<div class="salary-display-flex" data-exp-index="' + (idx + 1) + '">' +
                 '<div class="salary-main-content">' +
                     '<div class="salary-table-container">' +
-                        buildSalaryTablesHtml(exp.entries || []) +
+                        buildSalarySummaryTablesHtml(exp.entries || []) +
                     '</div>' +
                     '<div class="salary-graph-container">' +
                         '<div class="plotly-graph" id="salary-graph-' + expId.replace('sal-exp-', '') + '"></div>' +

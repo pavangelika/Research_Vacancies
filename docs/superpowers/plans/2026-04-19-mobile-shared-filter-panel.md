@@ -77,7 +77,7 @@ git commit -m "test: cover mobile shared filter panel state"
 ### Task 2: Remove legacy mobile toggle logic from scripts
 
 **Files:**
-- Modify: `reports/report.ui.js:6814-6877`
+- Modify: `reports/static/report.ui.js:6814-6877`
 - Modify: `reports/static/report.ui.js:6814-6877`
 - Test: `tests/ui/shared-filter-panel-regression.test.js`
 
@@ -123,14 +123,14 @@ Expected: PASS for the new helper assertions and existing shared panel regressio
 - [ ] **Step 5: Commit**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js tests/ui/shared-filter-panel-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js tests/ui/shared-filter-panel-regression.test.js
 git commit -m "refactor: remove floating mobile filter toggle logic"
 ```
 
 ### Task 3: Move mobile overlay behavior onto shared filter panel state
 
 **Files:**
-- Modify: `reports/report.filters.js`
+- Modify: `reports/static/report.filters.js`
 - Modify: `reports/static/report.filters.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -189,7 +189,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add reports/report.filters.js reports/static/report.filters.js reports/styles.css reports/static/styles.css tests/ui/mobile-filter-panel-regression.test.js
+git add reports/static/report.filters.js reports/static/report.filters.js reports/styles.css reports/static/styles.css tests/ui/mobile-filter-panel-regression.test.js
 git commit -m "feat: drive mobile filter panel from shared panel state"
 ```
 
@@ -239,6 +239,7 @@ ok - skills dropdown opening does not auto-scroll panel or window
 - [ ] **Step 4: Commit**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/report.filters.js reports/static/report.filters.js reports/styles.css reports/static/styles.css tests/ui/mobile-filter-panel-regression.test.js tests/ui/shared-filter-panel-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/static/report.filters.js reports/static/report.filters.js reports/styles.css reports/static/styles.css tests/ui/mobile-filter-panel-regression.test.js tests/ui/shared-filter-panel-regression.test.js
 git commit -m "feat: unify mobile shared filter panel behavior"
 ```
+

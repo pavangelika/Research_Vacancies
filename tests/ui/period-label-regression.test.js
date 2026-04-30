@@ -2,10 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const RENDER_PATHS = [
-  path.resolve(__dirname, '..', '..', 'reports', 'report.render.js'),
-  path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.render.js')
-];
+const RENDER_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.render.js');
 
 function runTest(name, fn) {
   try {
@@ -18,17 +15,15 @@ function runTest(name, fn) {
 }
 
 runTest('report renderers use vacancy collection period label across tabs', () => {
-  RENDER_PATHS.forEach((filePath) => {
-    const source = fs.readFileSync(filePath, 'utf8');
-    assert.match(
-      source,
-      /Период сбора вакансий:/,
-      `${path.basename(filePath)} should use the vacancy collection period label`
-    );
-    assert.doesNotMatch(
-      source,
-      /Период публикации:/,
-      `${path.basename(filePath)} should not keep the old publication period label`
-    );
-  });
+  const source = fs.readFileSync(RENDER_SOURCE_PATH, 'utf8');
+  assert.match(
+    source,
+    /Период сбора вакансий:/,
+    `${path.basename(RENDER_SOURCE_PATH)} should use the vacancy collection period label`
+  );
+  assert.doesNotMatch(
+    source,
+    /Период публикации:/,
+    `${path.basename(RENDER_SOURCE_PATH)} should not keep the old publication period label`
+  );
 });

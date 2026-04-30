@@ -12,7 +12,7 @@
 
 ## File Map
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
   Runtime dashboard composition, vacancy donut shell sizing, work-format card markup, burnup/employer card spacing hooks, and salary-module markup if minor structure tweaks are needed.
 - `reports/static/report.ui.js`
   Static mirror of the runtime dashboard renderer.
@@ -34,7 +34,7 @@
 **Files:**
 - Modify: `tests/ui/dashboard-layout-regression.test.js`
 - Modify: `tests/ui/donut-legend-regression.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -78,7 +78,7 @@ Expected: FAIL because donut sizing currently reflects the smaller tightened ver
 
 - [ ] **Step 4: Reorder the dashboard cards in the runtime renderer**
 
-Update the current dashboard overview composition in `reports/report.ui.js` so the card render order becomes:
+Update the current dashboard overview composition in `reports/static/report.ui.js` so the card render order becomes:
 
 ```js
 [
@@ -123,7 +123,7 @@ Expected: PASS
 - [ ] **Step 8: Commit the dashboard order and donut sizing change**
 
 ```bash
-git add tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: restore dashboard order and donut scale"
 ```
 
@@ -131,7 +131,7 @@ git commit -m "feat: restore dashboard order and donut scale"
 
 **Files:**
 - Modify: `tests/ui/dashboard-compensation-availability.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -214,7 +214,7 @@ Expected: PASS
 - [ ] **Step 7: Commit the work-format card redesign**
 
 ```bash
-git add tests/ui/dashboard-compensation-availability.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/dashboard-compensation-availability.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: calm the work-format comparison card"
 ```
 
@@ -390,6 +390,7 @@ Check:
 - [ ] **Step 5: Commit any final browser polish if needed**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-layout-regression.test.js tests/ui/dashboard-compensation-availability.test.js tests/ui/donut-legend-regression.test.js tests/ui/salary-overview-chart.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-layout-regression.test.js tests/ui/dashboard-compensation-availability.test.js tests/ui/donut-legend-regression.test.js tests/ui/salary-overview-chart.test.js
 git commit -m "fix: polish dashboard visual stability"
 ```
+

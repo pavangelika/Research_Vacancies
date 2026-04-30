@@ -3,7 +3,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const CSS_PATHS = [
-  path.resolve(__dirname, '..', '..', 'reports', 'styles.css'),
   path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css')
 ];
 

@@ -12,7 +12,7 @@
 
 ## File Map
 
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
   Runtime dashboard composition, vacancy donut shell markup, work-format matrix markup, salary legend/status rendering, and employer-analysis card renderer.
 - `reports/static/report.ui.js`
   Static mirror of the runtime dashboard renderer.
@@ -35,7 +35,7 @@
 
 **Files:**
 - Modify: `tests/ui/dashboard-layout-regression.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -65,7 +65,7 @@ Expected: FAIL because the vacancy donut card does not yet expose explicit chart
 
 - [ ] **Step 3: Split the runtime vacancy card into protected chart and status areas**
 
-Update the vacancy card renderer in `reports/report.ui.js` so the shell becomes:
+Update the vacancy card renderer in `reports/static/report.ui.js` so the shell becomes:
 
 ```js
 return '<div class="dashboard-card dashboard-card-vacancies">' +
@@ -132,7 +132,7 @@ Expected: PASS
 - [ ] **Step 7: Commit the vacancy-boundary and chart-spacing changes**
 
 ```bash
-git add tests/ui/dashboard-layout-regression.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/dashboard-layout-regression.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: tighten dashboard vacancy and chart layout"
 ```
 
@@ -140,7 +140,7 @@ git commit -m "feat: tighten dashboard vacancy and chart layout"
 
 **Files:**
 - Modify: `tests/ui/dashboard-compensation-availability.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -164,7 +164,7 @@ Expected: FAIL because the current matrix is still flat and does not expose grou
 
 - [ ] **Step 3: Add grouped `Объём` and `Валюты` sections in the runtime renderer**
 
-Reshape `buildDashboardCompensationAvailabilityHtml(summary)` in `reports/report.ui.js` to render:
+Reshape `buildDashboardCompensationAvailabilityHtml(summary)` in `reports/static/report.ui.js` to render:
 
 ```js
 return '<div class="dashboard-card dashboard-work-format-card">' +
@@ -224,7 +224,7 @@ Expected: PASS
 - [ ] **Step 7: Commit the work-format cleanup**
 
 ```bash
-git add tests/ui/dashboard-compensation-availability.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/dashboard-compensation-availability.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: refine dashboard work-format matrix"
 ```
 
@@ -233,7 +233,7 @@ git commit -m "feat: refine dashboard work-format matrix"
 **Files:**
 - Modify: `tests/ui/donut-legend-regression.test.js`
 - Modify: `tests/ui/salary-overview-chart.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -266,7 +266,7 @@ Expected: FAIL because salary legend styling is not yet asserted through the don
 
 - [ ] **Step 3: Rebuild the runtime salary legend with the donut legend markup**
 
-Update the salary legend renderer in `reports/report.ui.js` to emit the same structure as the donut legend:
+Update the salary legend renderer in `reports/static/report.ui.js` to emit the same structure as the donut legend:
 
 ```js
 return '<div class="donut-legend salary-module-legend">' +
@@ -325,7 +325,7 @@ Expected: PASS
 - [ ] **Step 7: Commit the salary legend unification**
 
 ```bash
-git add tests/ui/donut-legend-regression.test.js tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/donut-legend-regression.test.js tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: unify dashboard salary legend styling"
 ```
 
@@ -334,7 +334,7 @@ git commit -m "feat: unify dashboard salary legend styling"
 **Files:**
 - Modify: `tests/ui/chart-font-regression.test.js`
 - Modify: `tests/ui/dashboard-layout-regression.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -358,7 +358,7 @@ Expected: FAIL because the current employer-analysis card still renders ranked r
 
 - [ ] **Step 3: Replace the runtime employer-analysis renderer with filled bars**
 
-Update `buildEmployerOverviewCardHtml(...)` in `reports/report.ui.js` so each factor renders as:
+Update `buildEmployerOverviewCardHtml(...)` in `reports/static/report.ui.js` so each factor renders as:
 
 ```js
 return '<div class="employer-funnel-bar" style="--bar-width:' + widthPct + '%">' +
@@ -411,14 +411,14 @@ Expected: PASS
 - [ ] **Step 7: Commit the employer-analysis redesign**
 
 ```bash
-git add tests/ui/chart-font-regression.test.js tests/ui/dashboard-layout-regression.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/chart-font-regression.test.js tests/ui/dashboard-layout-regression.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: redesign employer analysis as filled bars"
 ```
 
 ### Task 5: Rebuild, Verify In Browser, And Close Out
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -474,6 +474,7 @@ Use a mobile viewport on the same page and confirm:
 - [ ] **Step 5: Commit the verification baseline if any final polish changes were required**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-compensation-availability.test.js tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js tests/ui/salary-overview-chart.test.js tests/ui/chart-font-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-compensation-availability.test.js tests/ui/dashboard-layout-regression.test.js tests/ui/donut-legend-regression.test.js tests/ui/salary-overview-chart.test.js tests/ui/chart-font-regression.test.js
 git commit -m "test: lock dashboard desktop ux refinements"
 ```
+

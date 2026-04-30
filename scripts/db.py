@@ -1,4 +1,4 @@
-import os
+﻿import os
 import logging
 import time
 import socket
@@ -521,24 +521,15 @@ def _update_archived_status_legacy(
         backoff_factor: float = 2.0
 ):
     """
-    РџСЂРѕРІРµСЂСЏРµС‚ РІСЃРµ РІР°РєР°РЅСЃРёРё РІ Р±Р°Р·Рµ:
-    - РµСЃР»Рё id РЅРµС‚ РІ current_vacancy_ids, РїСЂРѕРІРµСЂСЏРµС‚ С‡РµСЂРµР· API HH
-    - 404 в†’ СѓРґР°Р»СЏРµРј Р·Р°РїРёСЃСЊ РёР· Р±Р°Р·С‹
-
-    РџР°СЂР°РјРµС‚СЂС‹:
-        request_delay: Р·Р°РґРµСЂР¶РєР° РјРµР¶РґСѓ Р·Р°РїСЂРѕСЃР°РјРё РІ СЃРµРєСѓРЅРґР°С… (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ 0.2)
-        max_retries: РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїРѕРІС‚РѕСЂРЅС‹С… РїРѕРїС‹С‚РѕРє РїСЂРё РѕС€РёР±РєР°С…
-        backoff_factor: РјРЅРѕР¶РёС‚РµР»СЊ РґР»СЏ СЌРєСЃРїРѕРЅРµРЅС†РёР°Р»СЊРЅРѕР№ Р·Р°РґРµСЂР¶РєРё РїСЂРё РїРѕРІС‚РѕСЂР°С…
+    Legacy archived-status synchronization logic kept for compatibility.
     """
 
     load_dotenv()
     HH_API_URL = os.getenv("HH_API_URL")
 
-    logger.info("РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° РІР°РєР°РЅСЃРёР№ РЅР° Р°СЂС…РёРІРёСЂРѕРІР°РЅРёРµ/СѓРґР°Р»РµРЅРёРµ...")
+    logger.info("Running legacy archived-status sync...")
 
     with get_db_connection() as conn, conn.cursor() as cur:
-
-        # РџРѕР»СѓС‡Р°РµРј РІСЃРµ РІР°РєР°РЅСЃРёРё, РєРѕС‚РѕСЂС‹С… РЅРµС‚ РІ С‚РµРєСѓС‰РµРј СЃРїРёСЃРєРµ
         cur.execute(
             """
             SELECT id
@@ -551,39 +542,35 @@ def _update_archived_status_legacy(
         missing_vacancies = cur.fetchall()
 
         total_missing = len(missing_vacancies)
-        logger.info(f"РќР°Р№РґРµРЅРѕ {total_missing} РІР°РєР°РЅСЃРёР№ РґР»СЏ РїСЂРѕРІРµСЂРєРё")
+        logger.info(f"Found {total_missing} vacancies to check")
 
         for index, (vac_id,) in enumerate(missing_vacancies, 1):
             api_url = f"{HH_API_URL}/{vac_id}"
 
-            # Р”РѕР±Р°РІР»СЏРµРј РїСЂРѕРіСЂРµСЃСЃ-Р»РѕРі
             if index % 10 == 0:
-                logger.info(f"РџСЂРѕРіСЂРµСЃСЃ: РїСЂРѕРІРµСЂРµРЅРѕ {index}/{total_missing} РІР°РєР°РЅСЃРёР№")
+                logger.info(f"Legacy progress: checked {index}/{total_missing} vacancies")
 
             for attempt in range(1, max_retries + 1):
                 try:
                     resp = requests.get(api_url, timeout=timeout)
 
                     if resp.status_code == 404:
-                        # Р’Р°РєР°РЅСЃРёСЏ СѓРґР°Р»РµРЅР° СЃ HH в†’ СѓРґР°Р»СЏРµРј РёР· Р±Р°Р·С‹
                         cur.execute("DELETE FROM get_vacancies WHERE id = %s;", (vac_id,))
                         conn.commit()
-                        logger.info(f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} СѓРґР°Р»РµРЅР° РёР· Р±Р°Р·С‹ (404)")
-                        break  # РЈСЃРїРµС€РЅРѕ РѕР±СЂР°Р±РѕС‚Р°Р»Рё, РІС‹С…РѕРґРёРј РёР· С†РёРєР»Р° РїРѕРїС‹С‚РѕРє
+                        logger.info(f"Vacancy {vac_id} deleted from DB (404)")
+                        break
 
-                    elif resp.status_code in (403, 429):
+                    if resp.status_code in (403, 429):
                         if attempt < max_retries:
-                            # Р­РєСЃРїРѕРЅРµРЅС†РёР°Р»СЊРЅР°СЏ Р·Р°РґРµСЂР¶РєР° РїСЂРё РѕС€РёР±РєР°С… 403/429
                             wait_time = backoff_factor ** attempt
                             logger.warning(
-                                f"Р’Р°РєР°РЅСЃРёСЏ {vac_id}: СЃС‚Р°С‚СѓСЃ {resp.status_code} "
-                                f"(РїРѕРїС‹С‚РєР° {attempt}/{max_retries}). "
-                                f"Р–РґСѓ {wait_time:.1f} СЃРµРєСѓРЅРґ"
+                                f"Vacancy {vac_id}: HTTP {resp.status_code} "
+                                f"(attempt {attempt}/{max_retries}). Waiting {wait_time:.1f}s"
                             )
                             time.sleep(wait_time)
                         else:
                             logger.warning(
-                                f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} РЅРµРґРѕСЃС‚СѓРїРЅР° (403/429) РїРѕСЃР»Рµ {max_retries} РїРѕРїС‹С‚РѕРє, "
+                                f"Vacancy {vac_id}: status {resp.status_code} after {max_retries} attempts"
                             )
                             break
 
@@ -598,38 +585,36 @@ def _update_archived_status_legacy(
                                     archived_at = %s
                                 WHERE id = %s
                                 """,
-                                (datetime.utcnow(), vac_id)
+                                (datetime.utcnow(), vac_id),
                             )
                             conn.commit()
-                            logger.info(f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} Р°СЂС…РёРІРёСЂРѕРІР°РЅР° РїРѕ API")
+                            logger.info(f"Vacancy {vac_id} marked as archived by API")
                         else:
-                            # Р•СЃР»Рё РІР°РєР°РЅСЃРёСЏ РЅРµ Р°СЂС…РёРІРёСЂРѕРІР°РЅР°, РЅРѕ РјС‹ РµС‘ РЅРµ РїРѕР»СѓС‡РёР»Рё РІ С‚РµРєСѓС‰РµРј СЃР±РѕСЂРµ,
-                            # РІРѕР·РјРѕР¶РЅРѕ, РѕРЅР° РїСЂРѕСЃС‚Рѕ РЅРµ РїРѕРїР°РґР°РµС‚ РїРѕРґ С‚РµРєСѓС‰РёРµ С„РёР»СЊС‚СЂС‹
-                            # РћСЃС‚Р°РІР»СЏРµРј РµС‘ РІ Р±Р°Р·Рµ Р±РµР· РёР·РјРµРЅРµРЅРёР№
-                            logger.debug(f"Р’Р°РєР°РЅСЃРёСЏ {vac_id} РЅРµ Р°СЂС…РёРІРёСЂРѕРІР°РЅР°")
-                        break  # РЈСЃРїРµС€РЅРѕ РѕР±СЂР°Р±РѕС‚Р°Р»Рё, РІС‹С…РѕРґРёРј РёР· С†РёРєР»Р° РїРѕРїС‹С‚РѕРє
+                            logger.debug(f"Vacancy {vac_id} is not archived")
+                        break
 
                 except requests.exceptions.Timeout:
-                    logger.warning(f"РўР°Р№РјР°СѓС‚ РїСЂРё РїСЂРѕРІРµСЂРєРµ РІР°РєР°РЅСЃРёРё {vac_id} (РїРѕРїС‹С‚РєР° {attempt}/{max_retries})")
+                    logger.warning(f"Timeout while checking vacancy {vac_id} (attempt {attempt}/{max_retries})")
                     if attempt < max_retries:
                         time.sleep(backoff_factor ** attempt)
                     continue
 
                 except requests.exceptions.RequestException as e:
-                    logger.warning(f"РћС€РёР±РєР° СЃРµС‚Рё РїСЂРё РїСЂРѕРІРµСЂРєРµ РІР°РєР°РЅСЃРёРё {vac_id}: {e} (РїРѕРїС‹С‚РєР° {attempt}/{max_retries})")
+                    logger.warning(
+                        f"Request error for vacancy {vac_id} on attempt {attempt}/{max_retries}: {e}"
+                    )
                     if attempt < max_retries:
                         time.sleep(backoff_factor ** attempt)
                     continue
 
                 except Exception as e:
-                    logger.error(f"РќРµРѕР¶РёРґР°РЅРЅР°СЏ РѕС€РёР±РєР° РїСЂРё РїСЂРѕРІРµСЂРєРµ РІР°РєР°РЅСЃРёРё {vac_id}: {e}")
-                    break  # Р’С‹С…РѕРґРёРј РёР· С†РёРєР»Р° РїРѕРїС‹С‚РѕРє РїСЂРё РЅРµРїСЂРµРґРІРёРґРµРЅРЅС‹С… РѕС€РёР±РєР°С…
+                    logger.error(f"Unexpected error for vacancy {vac_id}: {e}")
+                    break
 
-            # Р”РѕР±Р°РІР»СЏРµРј Р·Р°РґРµСЂР¶РєСѓ РјРµР¶РґСѓ Р·Р°РїСЂРѕСЃР°РјРё СЂР°Р·РЅС‹С… РІР°РєР°РЅСЃРёР№
             if request_delay > 0 and index < total_missing:
                 time.sleep(request_delay)
 
-        logger.info(f"РџСЂРѕРІРµСЂРєР° СЃС‚Р°С‚СѓСЃР° РІР°РєР°РЅСЃРёР№ Р·Р°РІРµСЂС€РµРЅР°. РћР±СЂР°Р±РѕС‚Р°РЅРѕ {total_missing} РІР°РєР°РЅСЃРёР№")
+        logger.info(f"Legacy archived-status sync finished. Checked {total_missing} vacancies.")
 
 
 def update_archived_status(

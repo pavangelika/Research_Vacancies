@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, timezone
 import sys
 
 
@@ -26,6 +27,7 @@ def test_get_dashboard_payload_returns_totals_sections():
         vacancies_repository=StubVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(scope="single", role_ids=["96"], period="last_7")
 
@@ -215,6 +217,7 @@ def test_get_dashboard_payload_applies_non_default_top_settings():
         vacancies_repository=TopModeVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(
         scope="single",
@@ -240,6 +243,7 @@ def test_get_dashboard_payload_applies_non_default_market_trends_settings():
         vacancies_repository=TopModeVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(
         scope="single",
@@ -261,6 +265,7 @@ def test_get_dashboard_payload_applies_market_trends_experience_and_status_filte
         vacancies_repository=TopModeVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(
         scope="single",
@@ -283,6 +288,7 @@ def test_get_dashboard_payload_applies_overview_filters():
         vacancies_repository=TopModeVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(
         scope="single",
@@ -311,6 +317,7 @@ def test_get_dashboard_payload_applies_response_filters():
         vacancies_repository=TopModeVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(
         scope="single",
@@ -330,6 +337,7 @@ def test_get_dashboard_payload_applies_skills_filters():
         vacancies_repository=TopModeVacanciesRepository(),
         responses_service=StubResponsesService(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_dashboard_payload(
         scope="single",

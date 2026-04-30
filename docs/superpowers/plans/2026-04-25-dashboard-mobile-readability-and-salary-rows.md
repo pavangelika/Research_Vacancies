@@ -13,7 +13,7 @@
 ## File Map
 
 **Modify:**
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
   Responsible for runtime dashboard rendering, employer analysis HTML, donut center markup, and salary module row composition.
 - `reports/static/report.ui.js`
   Static mirror of the runtime renderer.
@@ -42,7 +42,7 @@
 
 **Files:**
 - Modify: `tests/ui/chart-font-regression.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -77,7 +77,7 @@ Expected:
 
 - [ ] **Step 3: Implement the ranked-list renderer in the runtime UI**
 
-In `reports/report.ui.js`, replace `buildEmployerAnalysisDonutChartHtml(...)` with a new HTML-ranked renderer.
+In `reports/static/report.ui.js`, replace `buildEmployerAnalysisDonutChartHtml(...)` with a new HTML-ranked renderer.
 
 Target shape:
 
@@ -213,7 +213,7 @@ Expected:
 - [ ] **Step 7: Commit the employer-analysis renderer replacement**
 
 ```powershell
-git add tests/ui/chart-font-regression.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/chart-font-regression.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: replace employer dashboard chart with ranked rows"
 ```
 
@@ -305,7 +305,7 @@ git commit -m "fix: center vacancy donut total on mobile"
 
 **Files:**
 - Modify: `tests/ui/salary-overview-chart.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 
 - [ ] **Step 1: Extend the failing salary regression to require row order and optional subsets**
@@ -337,7 +337,7 @@ Expected:
 
 - [ ] **Step 3: Update salary row normalization in the runtime UI**
 
-In `reports/report.ui.js`, where the salary currency statuses are mapped for `buildTotalsSalaryOverviewSectionHtml(...)`, normalize them through a fixed order list.
+In `reports/static/report.ui.js`, where the salary currency statuses are mapped for `buildTotalsSalaryOverviewSectionHtml(...)`, normalize them through a fixed order list.
 
 Use a helper of this shape:
 
@@ -388,7 +388,7 @@ Expected:
 - [ ] **Step 6: Commit the salary row ordering change**
 
 ```powershell
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/static/report.ui.js
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/static/report.ui.js
 git commit -m "feat: add salary period rows in requested order"
 ```
 
@@ -450,7 +450,7 @@ Check:
 - [ ] **Step 5: Commit any verification-driven cleanup**
 
 ```powershell
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/chart-font-regression.test.js tests/ui/salary-overview-chart.test.js tests/ui/dashboard-layout-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/chart-font-regression.test.js tests/ui/salary-overview-chart.test.js tests/ui/dashboard-layout-regression.test.js
 git commit -m "test: finalize dashboard mobile readability updates"
 ```
 
@@ -478,4 +478,5 @@ No spec gaps remain.
 - Employer-analysis renderer name is consistently `buildEmployerAnalysisRankedChartHtml`.
 - Salary subset keys stay `open`, `new`, `archived`, `period_archived`.
 - Donut centering hook stays `donut-center-label`.
+
 

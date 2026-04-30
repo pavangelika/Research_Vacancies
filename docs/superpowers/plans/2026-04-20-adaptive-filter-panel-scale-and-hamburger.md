@@ -293,7 +293,7 @@ git commit -m "feat: convert shared filter groups and controls to adaptive sizin
 ### Task 4: Replace Toggle Glyph With Hamburger Icon
 
 **Files:**
-- Modify: `reports/report.filters.js:99-104`
+- Modify: `reports/static/report.filters.js:99-104`
 - Modify: `reports/static/report.filters.js:99-104`
 - Test: `tests/ui/shared-filter-panel-regression.test.js`
 
@@ -341,7 +341,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add reports/report.filters.js reports/static/report.filters.js tests/ui/shared-filter-panel-regression.test.js
+git add reports/static/report.filters.js reports/static/report.filters.js tests/ui/shared-filter-panel-regression.test.js
 git commit -m "feat: use hamburger glyph for shared filter toggle"
 ```
 
@@ -424,6 +424,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add reports/styles.css reports/static/styles.css reports/report.filters.js reports/static/report.filters.js tests/ui/mobile-filter-panel-regression.test.js tests/ui/shared-filter-panel-regression.test.js
+git add reports/styles.css reports/static/styles.css reports/static/report.filters.js reports/static/report.filters.js tests/ui/mobile-filter-panel-regression.test.js tests/ui/shared-filter-panel-regression.test.js
 git commit -m "feat: normalize adaptive filter panel scale"
 ```
+

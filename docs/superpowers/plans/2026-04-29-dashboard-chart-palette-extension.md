@@ -52,7 +52,7 @@ Expected: each token appears once per stylesheet with the approved hex value.
 ### Task 2: Centralize Palette Mapping for Target Graphs
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Test: `tests/ui/chart-font-regression.test.js`
 
@@ -152,7 +152,7 @@ Expected: both commands PASS.
 Run:
 
 ```powershell
-rg -n "#00ABCB|#D47CEA|#F10096|#007EDE|#00BD00|#9C41E5|#D24DEE|#FF9200" reports/report.ui.js reports/static/report.ui.js
+rg -n "#00ABCB|#D47CEA|#F10096|#007EDE|#00BD00|#9C41E5|#D24DEE|#FF9200" reports/static/report.ui.js reports/static/report.ui.js
 ```
 
 Expected: no direct hits inside target chart renderers after the palette helper refactor, or only palette-definition-adjacent cases outside those renderers if intentionally retained elsewhere.
@@ -177,6 +177,7 @@ Repeat the same checks on a mobile viewport:
 - [ ] **Step 5: Commit**
 
 ```bash
-git add reports/styles.css reports/static/styles.css reports/report.ui.js reports/static/report.ui.js tests/ui/chart-font-regression.test.js
+git add reports/styles.css reports/static/styles.css reports/static/report.ui.js reports/static/report.ui.js tests/ui/chart-font-regression.test.js
 git commit -m "feat: add reusable dashboard chart palette"
 ```
+

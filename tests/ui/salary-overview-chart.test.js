@@ -3,9 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const DATA_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.data.js');
-const UI_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js');
-const UTILS_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.utils.js');
+const DATA_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.data.js');
+const UI_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js');
+const UTILS_SOURCE_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.utils.js');
 const DATA_SOURCE = fs.readFileSync(DATA_SOURCE_PATH, 'utf8');
 const UI_SOURCE = fs.readFileSync(UI_SOURCE_PATH, 'utf8');
 const UTILS_SOURCE = fs.readFileSync(UTILS_SOURCE_PATH, 'utf8');
@@ -466,3 +466,4 @@ runTest('buildTotalsSalaryOverviewSectionHtml renders only the new overview char
   assert.doesNotMatch(html, /salary-progress-panels/);
   assert.doesNotMatch(html, /salary-summary-chart/);
 });
+

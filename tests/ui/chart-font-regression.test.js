@@ -3,10 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const FILES = {
-  reportUi: path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js'),
-  staticReportUi: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js'),
-  reportStyles: path.resolve(__dirname, '..', '..', 'reports', 'styles.css'),
-  staticReportStyles: path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css')
+  reportUi: path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js'),
+  reportStyles: path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css')
 };
 
 const DONUT_FONT_STACK = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
@@ -38,7 +36,7 @@ runTest('report Plotly defaults use donut legend font stack', () => {
 });
 
 runTest('static Plotly defaults use donut legend font stack', () => {
-  const source = read(FILES.staticReportUi);
+  const source = read(FILES.reportUi);
   assert.match(source, /function getDashboardChartFontFamily\(\)/);
   assert.match(source, new RegExp(`getDashboardCssVar\\('--chart-font-family', "${escapeRegex(DONUT_FONT_STACK)}"\\)`));
   assert.match(source, /axis\.tickfont\.size = axis\.tickfont\.size \|\| secondaryTextSize;/);
@@ -53,7 +51,7 @@ runTest('report salary module legend directly reuses donut legend classes', () =
 });
 
 runTest('static salary module legend directly reuses donut legend classes', () => {
-  const source = read(FILES.staticReportStyles);
+  const source = read(FILES.reportStyles);
   assert.match(source, /\.salary-module-legend\s*\{/);
   assert.doesNotMatch(source, /\.salary-module-legend-item\s*\{/);
   assert.doesNotMatch(source, /\.salary-module-legend-label\s*\{/);
@@ -70,7 +68,7 @@ runTest('report stylesheet defines shared chart typography tokens', () => {
 });
 
 runTest('static stylesheet defines shared chart typography tokens', () => {
-  const source = read(FILES.staticReportStyles);
+  const source = read(FILES.reportStyles);
   assert.match(source, /--chart-font-family:\s*-apple-system,\s*BlinkMacSystemFont,\s*'Segoe UI',\s*Roboto,\s*sans-serif;/);
   assert.match(source, /--chart-secondary-font-size:\s*0\.8rem;/);
   assert.match(source, /--chart-secondary-line-height:\s*1\.5;/);
@@ -104,7 +102,7 @@ runTest('report stylesheet highlights only shared filter icons, not labels', () 
 });
 
 runTest('static stylesheet highlights only shared filter icons, not labels', () => {
-  const source = read(FILES.staticReportStyles);
+  const source = read(FILES.reportStyles);
   assert.doesNotMatch(
     source,
     /shared-filter-panel-rail-button\.active\s+\.shared-filter-panel-rail-text|shared-filter-panel-rail-button\.filled\s+\.shared-filter-panel-rail-text|shared-filter-panel-rail-button\[data-section-filled="1"\]\s+\.shared-filter-panel-rail-text/
@@ -156,7 +154,7 @@ runTest('report employer analysis uses flat ranked bars', () => {
 });
 
 runTest('static employer analysis uses flat ranked bars', () => {
-  const source = read(FILES.staticReportUi);
+  const source = read(FILES.reportUi);
   assertEmployerAnalysisRankedBarConfig(source);
   assert.match(source, /<div class="totals-employer-overview-graph" id="/);
   assert.doesNotMatch(source, /<div class="dashboard-chart-host">[\s\S]*totals-employer-overview-graph/);
@@ -170,7 +168,7 @@ runTest('report burnup chart renders directly inside the card', () => {
 });
 
 runTest('static burnup chart renders directly inside the card', () => {
-  const source = read(FILES.staticReportUi);
+  const source = read(FILES.reportUi);
   assert.match(source, /function buildBurnupChartHtml\(graphId\)/);
   assert.match(source, /<div class="plotly-graph totals-burnup-graph" id="/);
   assert.doesNotMatch(source, /<div class="dashboard-chart-host">[\s\S]*totals-burnup-graph/);
@@ -185,7 +183,7 @@ runTest('report stylesheet defines employer analysis funnel-bar styles', () => {
 });
 
 runTest('static stylesheet defines employer analysis funnel-bar styles', () => {
-  const source = read(FILES.staticReportStyles);
+  const source = read(FILES.reportStyles);
   assert.match(source, /\.employer-funnel-stack\s*\{/);
   assert.match(source, /\.employer-funnel-bar\s*\{/);
   assert.match(source, /\.employer-funnel-label\s*\{/);
@@ -203,7 +201,7 @@ runTest('report stylesheet defines unified dashboard chart tokens', () => {
 });
 
 runTest('static stylesheet defines unified dashboard chart tokens', () => {
-  const source = read(FILES.staticReportStyles);
+  const source = read(FILES.reportStyles);
   assert.match(source, /--dashboard-chart-grid-color:\s*rgba\(148,\s*163,\s*184,\s*0\.16\);/);
   assert.match(source, /--dashboard-chart-axis-color:\s*#64748b;/);
   assert.match(source, /--dashboard-chart-title-color:\s*#334155;/);
@@ -211,3 +209,4 @@ runTest('static stylesheet defines unified dashboard chart tokens', () => {
   assert.match(source, /\.totals-employer-overview-graph\s*\{/);
   assert.doesNotMatch(source, /\.dashboard-chart-host\s*\{/);
 });
+

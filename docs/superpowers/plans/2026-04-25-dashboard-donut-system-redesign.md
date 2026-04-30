@@ -4,7 +4,7 @@
 
 **Goal:** Redesign the Dashboard tab into one donut-led visual system, remove unstable donut click behavior, add `REMOTE`/`non-REMOTE` compensation KPIs, and recompose the dashboard layout for natural-height cards.
 
-**Architecture:** Extend the existing dashboard payload with a focused compensation-availability summary, then refactor the existing dashboard renderers in `reports/report.ui.js` and `reports/static/report.ui.js` so the donut, burnup, salary, funnel, compensation, and employer cards all share the same component language. Replace row-equalized dashboard composition with a natural-height two-column layout on desktop while keeping mobile single-column and keeping donut drilldown inline inside the vacancies card.
+**Architecture:** Extend the existing dashboard payload with a focused compensation-availability summary, then refactor the existing dashboard renderers in `reports/static/report.ui.js` and `reports/static/report.ui.js` so the donut, burnup, salary, funnel, compensation, and employer cards all share the same component language. Replace row-equalized dashboard composition with a natural-height two-column layout on desktop while keeping mobile single-column and keeping donut drilldown inline inside the vacancies card.
 
 **Tech Stack:** FastAPI backend DTO/service layer, vanilla JS dashboard renderers, dashboard CSS, Node-based UI regression tests, Pytest backend contract/service tests.
 
@@ -25,7 +25,7 @@
 
 ### Frontend Runtime
 
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
   - Refactor dashboard card composition, donut drilldown behavior, salary card renderer, compensation card renderer, and supporting event binding.
 - Modify: `reports/styles.css`
   - Replace legacy dashboard row-equalized layout and legacy card styles with the unified donut-system dashboard styles.
@@ -297,7 +297,7 @@ git commit -m "feat: add dashboard compensation availability metrics"
 ## Task 2: Make Donut Interaction Stable and Inline
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -309,7 +309,7 @@ Add assertions to `tests/ui/donut-legend-regression.test.js` that lock in inline
 
 ```javascript
 runTest('dashboard donut markup keeps drilldown inline inside the card', () => {
-  const source = read('reports/report.ui.js');
+  const source = read('reports/static/report.ui.js');
 
   assert.match(source, /<div class="donut-chart-shell">/);
   assert.match(source, /<div class="donut-drilldown" hidden><\\/div>/);
@@ -331,7 +331,7 @@ Run: `node tests\\ui\\donut-legend-regression.test.js`
 
 Expected: FAIL because the new shell/active-state structure is not implemented yet.
 
-- [ ] **Step 3: Refactor donut markup in `reports/report.ui.js`**
+- [ ] **Step 3: Refactor donut markup in `reports/static/report.ui.js`**
 
 Update `buildDonutChartHtml()` so the donut chart and legend live in a stable shell and drilldown always renders beneath that shell.
 
@@ -433,14 +433,14 @@ Expected: PASS
 - [ ] **Step 8: Commit the donut interaction refactor**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/donut-legend-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/donut-legend-regression.test.js
 git commit -m "feat: stabilize dashboard donut drilldown"
 ```
 
 ## Task 3: Redesign Dashboard Composition and Compensation Card
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -471,7 +471,7 @@ function runTest(name, fn) {
 }
 
 runTest('dashboard renderer uses compensation availability card title and remote buckets', () => {
-  const source = read('reports/report.ui.js');
+  const source = read('reports/static/report.ui.js');
 
   assert.match(source, /compensation_availability|compensationAvailability/);
   assert.doesNotMatch(source, /Покрытие зарплат/);
@@ -520,7 +520,7 @@ Run: `node tests\\ui\\dashboard-layout-regression.test.js`
 
 Expected: FAIL because the dashboard layout still uses the legacy row-based layout.
 
-- [ ] **Step 4: Refactor dashboard composition in `reports/report.ui.js`**
+- [ ] **Step 4: Refactor dashboard composition in `reports/static/report.ui.js`**
 
 Replace the current dashboard card assembly so the compensation card uses the new payload field and cards remain in the agreed order.
 
@@ -664,14 +664,14 @@ Expected: PASS
 - [ ] **Step 10: Commit the dashboard composition work**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-compensation-availability.test.js tests/ui/dashboard-layout-regression.test.js tests/ui/mobile-filter-panel-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/dashboard-compensation-availability.test.js tests/ui/dashboard-layout-regression.test.js tests/ui/mobile-filter-panel-regression.test.js
 git commit -m "feat: redesign dashboard layout and compensation card"
 ```
 
 ## Task 4: Redesign Salary, Burnup, Funnel, and Employer Cards Into One System
 
 **Files:**
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -684,7 +684,7 @@ Extend `tests/ui/salary-overview-chart.test.js` to assert the redesigned salary 
 
 ```javascript
 runTest('salary overview renderer uses unified dashboard module structure', () => {
-  const source = read('reports/report.ui.js');
+  const source = read('reports/static/report.ui.js');
 
   assert.match(source, /salary-module/);
   assert.match(source, /salary-module-currency-tabs/);
@@ -717,7 +717,7 @@ Run: `node tests\\ui\\chart-font-regression.test.js`
 
 Expected: FAIL because the unified dashboard chart tokens are not present yet.
 
-- [ ] **Step 4: Refactor salary renderer in `reports/report.ui.js`**
+- [ ] **Step 4: Refactor salary renderer in `reports/static/report.ui.js`**
 
 Replace the old `salary-overview-*` renderer structure with a cleaner unified salary module helper while preserving the underlying salary data semantics.
 
@@ -835,7 +835,7 @@ Expected: PASS
 - [ ] **Step 10: Commit the dashboard card redesign work**
 
 ```bash
-git add reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/salary-overview-chart.test.js tests/ui/chart-font-regression.test.js
+git add reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/salary-overview-chart.test.js tests/ui/chart-font-regression.test.js
 git commit -m "feat: unify dashboard cards with donut system"
 ```
 
@@ -909,4 +909,5 @@ Expected: changes limited to the dashboard payload, dashboard renderers/styles, 
 git add <only files changed during verification>
 git commit -m "fix: polish dashboard donut redesign"
 ```
+
 

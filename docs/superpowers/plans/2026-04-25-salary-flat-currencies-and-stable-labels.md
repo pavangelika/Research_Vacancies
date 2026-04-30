@@ -16,7 +16,7 @@
   Runtime salary overview model builder. Filters invalid experiences and currencies before legend and row generation.
 - `reports/static/report.data.js`
   Static mirror of the runtime salary overview model builder.
-- `reports/report.ui.js`
+- `reports/static/report.ui.js`
   Runtime salary card renderer. Flattens currency sections and renders point labels beside points.
 - `reports/static/report.ui.js`
   Static mirror of the runtime salary card renderer.
@@ -136,7 +136,7 @@ git commit -m "feat: filter unsupported salary legend data"
 
 **Files:**
 - Modify: `tests/ui/salary-overview-chart.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -249,7 +249,7 @@ Expected: PASS
 - [ ] **Step 7: Commit the flat currency layout change**
 
 ```bash
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: flatten salary currency sections"
 ```
 
@@ -257,7 +257,7 @@ git commit -m "feat: flatten salary currency sections"
 
 **Files:**
 - Modify: `tests/ui/salary-overview-chart.test.js`
-- Modify: `reports/report.ui.js`
+- Modify: `reports/static/report.ui.js`
 - Modify: `reports/static/report.ui.js`
 - Modify: `reports/styles.css`
 - Modify: `reports/static/styles.css`
@@ -394,7 +394,7 @@ Expected: PASS
 - [ ] **Step 7: Commit the stable side-label placement change**
 
 ```bash
-git add tests/ui/salary-overview-chart.test.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
+git add tests/ui/salary-overview-chart.test.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css
 git commit -m "feat: stabilize salary point labels"
 ```
 
@@ -436,6 +436,7 @@ Check on `http://127.0.0.1:9000/report.html`:
 - [ ] **Step 5: Commit any final browser polish if needed**
 
 ```bash
-git add reports/report.data.js reports/static/report.data.js reports/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/salary-overview-chart.test.js
+git add reports/report.data.js reports/static/report.data.js reports/static/report.ui.js reports/static/report.ui.js reports/styles.css reports/static/styles.css tests/ui/salary-overview-chart.test.js
 git commit -m "fix: polish salary flat chart layout"
 ```
+

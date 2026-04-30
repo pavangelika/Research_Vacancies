@@ -52,19 +52,24 @@ let uiState = {
     shared_filter_panel_state: {
         open: true,
         collapsed: false,
+        activeSection: 'roles',
+        lastAnalysis: '',
+        userActivatedSectionKey: '',
         sections: {
             roles: true,
             salary: true,
             responses: true,
             top: true,
             vacancy: true,
-            skills: true
+            skills: true,
+            'my-filters': true
         }
     }
 };
 
 var VIEW_MODE_STORAGE_KEY = 'research_vacancies_view_modes';
 var SHARED_FILTER_PANEL_STORAGE_KEY = 'research_vacancies_shared_filter_panel_state';
+var SHARED_FILTER_PANEL_STORAGE_KEY_LEGACY = 'research_vacancies.shared_filter_panel_state';
 var VIEW_MODE_STATE_KEYS = [
     'unified_view_mode',
     'activity_view_mode',
@@ -74,7 +79,36 @@ var VIEW_MODE_STATE_KEYS = [
     'employer_analysis_view_mode'
 ];
 
-var SHARED_FILTER_PANEL_SECTION_KEYS = ['roles', 'salary', 'responses', 'top', 'vacancy', 'skills'];
+var SHARED_FILTER_PANEL_SECTION_KEYS = ['roles', 'salary', 'responses', 'top', 'vacancy', 'skills', 'my-filters'];
+
+function normalizeSectionStateState(state) {
+    if (!state || typeof state !== 'object') return;
+    if (typeof state.open === 'boolean') uiState.shared_filter_panel_state.open = state.open;
+    if (typeof state.collapsed === 'boolean') {
+        uiState.shared_filter_panel_state.collapsed = state.collapsed;
+    } else {
+        uiState.shared_filter_panel_state.collapsed = !uiState.shared_filter_panel_state.open;
+    }
+    if (state.sections && typeof state.sections === 'object') {
+        SHARED_FILTER_PANEL_SECTION_KEYS.forEach(function(key) {
+            if (typeof state.sections[key] === 'boolean') {
+                uiState.shared_filter_panel_state.sections[key] = state.sections[key];
+            }
+        });
+    }
+    if (typeof state.activeSection === 'string') {
+        uiState.shared_filter_panel_state.activeSection = String(state.activeSection).trim();
+    }
+    if (typeof state.lastAnalysis === 'string') {
+        uiState.shared_filter_panel_state.lastAnalysis = String(state.lastAnalysis);
+    }
+    if (typeof state.userActivatedSectionKey === 'string') {
+        uiState.shared_filter_panel_state.userActivatedSectionKey = String(state.userActivatedSectionKey);
+    }
+    if (SHARED_FILTER_PANEL_SECTION_KEYS.indexOf(uiState.shared_filter_panel_state.activeSection) === -1) {
+        uiState.shared_filter_panel_state.activeSection = 'roles';
+    }
+}
 
 function ensureSharedFilterPanelState() {
     if (!uiState.shared_filter_panel_state || typeof uiState.shared_filter_panel_state !== 'object') {
@@ -89,11 +123,33 @@ function ensureSharedFilterPanelState() {
     if (!uiState.shared_filter_panel_state.sections || typeof uiState.shared_filter_panel_state.sections !== 'object') {
         uiState.shared_filter_panel_state.sections = {};
     }
+    if (typeof uiState.shared_filter_panel_state.activeSection !== 'string' || !uiState.shared_filter_panel_state.activeSection) {
+        uiState.shared_filter_panel_state.activeSection = 'roles';
+    }
+    if (typeof uiState.shared_filter_panel_state.lastAnalysis !== 'string') {
+        uiState.shared_filter_panel_state.lastAnalysis = '';
+    }
+    if (typeof uiState.shared_filter_panel_state.userActivatedSectionKey !== 'string') {
+        uiState.shared_filter_panel_state.userActivatedSectionKey = '';
+    }
     SHARED_FILTER_PANEL_SECTION_KEYS.forEach(function(key) {
-        if (typeof uiState.shared_filter_panel_state.sections[key] !== 'boolean') {
-            uiState.shared_filter_panel_state.sections[key] = true;
+        if (!Object.prototype.hasOwnProperty.call(uiState.shared_filter_panel_state.sections, key)) {
+            uiState.shared_filter_panel_state.sections[key] = false;
+        } else {
+            uiState.shared_filter_panel_state.sections[key] = uiState.shared_filter_panel_state.sections[key] === true;
         }
     });
+    if (SHARED_FILTER_PANEL_SECTION_KEYS.indexOf(uiState.shared_filter_panel_state.activeSection) === -1) {
+        uiState.shared_filter_panel_state.activeSection = 'roles';
+    }
+    var openSections = SHARED_FILTER_PANEL_SECTION_KEYS.filter(function(key) {
+        return uiState.shared_filter_panel_state.sections[key] === true;
+    });
+    if (openSections.length !== 1 || openSections[0] !== uiState.shared_filter_panel_state.activeSection) {
+        SHARED_FILTER_PANEL_SECTION_KEYS.forEach(function(key) {
+            uiState.shared_filter_panel_state.sections[key] = key === uiState.shared_filter_panel_state.activeSection;
+        });
+    }
     return uiState.shared_filter_panel_state;
 }
 
@@ -144,28 +200,51 @@ function persistViewModes() {
 function loadPersistedSharedFilterPanelState() {
     ensureSharedFilterPanelState();
     if (typeof window === 'undefined' || !window.localStorage) return;
+    var loaded = false;
     try {
         var raw = window.localStorage.getItem(SHARED_FILTER_PANEL_STORAGE_KEY);
-        if (!raw) return;
-        var parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== 'object') return;
-        if (typeof parsed.open === 'boolean') {
-            uiState.shared_filter_panel_state.open = parsed.open;
-        }
-        if (typeof parsed.collapsed === 'boolean') {
-            uiState.shared_filter_panel_state.collapsed = parsed.collapsed;
-        } else {
-            uiState.shared_filter_panel_state.collapsed = !uiState.shared_filter_panel_state.open;
-        }
-        if (parsed.sections && typeof parsed.sections === 'object') {
-            SHARED_FILTER_PANEL_SECTION_KEYS.forEach(function(key) {
-                if (typeof parsed.sections[key] === 'boolean') {
-                    uiState.shared_filter_panel_state.sections[key] = parsed.sections[key];
+        if (raw) {
+            try {
+                var parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    normalizeSectionStateState(parsed);
+                    loaded = true;
                 }
-            });
+            } catch (_e) {
+                // Ignore malformed current schema state and try legacy fallback.
+            }
+        }
+        if (!loaded) {
+            var legacyRaw = window.localStorage.getItem(SHARED_FILTER_PANEL_STORAGE_KEY_LEGACY);
+            if (!legacyRaw) return;
+            try {
+                var legacyParsed = JSON.parse(legacyRaw);
+                if (!legacyParsed || typeof legacyParsed !== 'object') return;
+                normalizeSectionStateState(legacyParsed);
+            } catch (_e) {
+                return;
+            }
+            if (typeof window === 'undefined' || !window.localStorage) return;
+            try {
+                window.localStorage.setItem(SHARED_FILTER_PANEL_STORAGE_KEY, JSON.stringify(uiState.shared_filter_panel_state));
+                window.localStorage.removeItem(SHARED_FILTER_PANEL_STORAGE_KEY_LEGACY);
+            } catch (_err) {
+                // Ignore migration write failures.
+            }
+            loaded = true;
         }
     } catch (err) {
         // Ignore malformed or unavailable localStorage state.
+    }
+    if (!loaded) return;
+    if (typeof uiState.shared_filter_panel_state.activeSection !== 'string' || !uiState.shared_filter_panel_state.activeSection) {
+        uiState.shared_filter_panel_state.activeSection = 'roles';
+    }
+    if (typeof uiState.shared_filter_panel_state.lastAnalysis !== 'string') {
+        uiState.shared_filter_panel_state.lastAnalysis = '';
+    }
+    if (typeof uiState.shared_filter_panel_state.userActivatedSectionKey !== 'string') {
+        uiState.shared_filter_panel_state.userActivatedSectionKey = '';
     }
 }
 

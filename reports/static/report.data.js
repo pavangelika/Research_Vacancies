@@ -2572,14 +2572,6 @@ function computeAllRolesSkillCostSummaryForMonth(roleContents, month, excludedRo
         if (!isNaN(normalizedNum) && isFinite(normalizedNum)) return normalizedNum;
         return null;
     }
-    function computeMedian(values) {
-        if (!values.length) return 0;
-        var sorted = values.slice().sort((a, b) => a - b);
-        var mid = Math.floor(sorted.length / 2);
-        if (sorted.length % 2) return sorted[mid];
-        return (sorted[mid - 1] + sorted[mid]) / 2;
-    }
-
     var currencyBuckets = {
         RUR: { totals: new Map(), roleCounts: new Map() },
         USD: { totals: new Map(), roleCounts: new Map() },

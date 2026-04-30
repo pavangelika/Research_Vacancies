@@ -2,10 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const REPORT_UI_PATH = path.resolve(__dirname, '..', '..', 'reports', 'report.ui.js');
-const STATIC_REPORT_UI_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js');
-const REPORT_STYLES_PATH = path.resolve(__dirname, '..', '..', 'reports', 'styles.css');
-const STATIC_REPORT_STYLES_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css');
+const REPORT_UI_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'report.ui.js');
+const REPORT_STYLES_PATH = path.resolve(__dirname, '..', '..', 'reports', 'static', 'styles.css');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -123,18 +121,11 @@ function assertStyleContracts(source, label) {
   );
 }
 
-runTest('donut legend UI source keeps labels, classes, and ring ordering in report bundle', () => {
-  assertUiSourceContracts(read(REPORT_UI_PATH), 'reports/report.ui.js');
-});
-
-runTest('donut legend UI source keeps labels, classes, and ring ordering in static bundle', () => {
-  assertUiSourceContracts(read(STATIC_REPORT_UI_PATH), 'reports/static/report.ui.js');
+runTest('donut legend UI source keeps labels, classes, and ring ordering', () => {
+  assertUiSourceContracts(read(REPORT_UI_PATH), 'reports/static/report.ui.js');
 });
 
 runTest('donut legend styles stay unified in report stylesheet', () => {
-  assertStyleContracts(read(REPORT_STYLES_PATH), 'reports/styles.css');
+  assertStyleContracts(read(REPORT_STYLES_PATH), 'reports/static/styles.css');
 });
 
-runTest('donut legend styles stay unified in static stylesheet', () => {
-  assertStyleContracts(read(STATIC_REPORT_STYLES_PATH), 'reports/static/styles.css');
-});

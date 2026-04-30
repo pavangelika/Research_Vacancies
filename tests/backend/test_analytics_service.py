@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, timezone
 import sys
 
 
@@ -209,7 +210,7 @@ class PeriodStatsDashboardVacanciesRepository:
                 "currency": "RUR",
                 "experience": "exp-excluded",
                 "skills_raw": "Python",
-                "published_at": "2026-01-05T10:00:00+00:00",
+                "published_at": "2026-01-18T10:00:00+00:00",
                 "archived": False,
                 "archived_at": None,
             },
@@ -234,6 +235,7 @@ def test_get_activity_includes_role_rows_for_summary_ui():
         repository=StubAnalyticsRepository(),
         vacancies_repository=vacancies_repository,
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_activity(scope="selection", role_ids=["96", "113"], period="last_7")
 
@@ -254,6 +256,7 @@ def test_get_activity_builds_month_entries_for_quick_periods_from_vacancies():
         repository=StubAnalyticsRepository(),
         vacancies_repository=StubVacanciesRepository(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_activity(scope="single", role_ids=["96"], period="last_7")
 
@@ -272,6 +275,7 @@ def test_get_weekday_includes_role_rows_for_summary_ui():
         repository=StubAnalyticsRepository(),
         vacancies_repository=vacancies_repository,
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_weekday(scope="selection", role_ids=["96", "113"], period="last_7")
 
@@ -289,6 +293,7 @@ def test_get_weekday_builds_items_for_quick_periods_from_vacancies():
         repository=StubAnalyticsRepository(),
         vacancies_repository=StubVacanciesRepository(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_weekday(scope="single", role_ids=["96"], period="last_7")
 
@@ -302,6 +307,7 @@ def test_get_skills_cost_builds_month_payload_for_quick_periods_from_vacancies()
         repository=StubAnalyticsRepository(),
         vacancies_repository=StubVacanciesRepository(),
     )
+    service._get_reference_now = lambda: datetime(2026, 4, 24, 10, 0, 0, tzinfo=timezone.utc)
 
     result = service.get_skills_cost(scope="single", role_ids=["96"], period="last_7")
 
@@ -336,17 +342,18 @@ def test_compute_dashboard_period_stats_reclassifies_overlap_and_old_active_case
         repository=StubAnalyticsRepository(),
         vacancies_repository=PeriodStatsDashboardVacanciesRepository(),
     )
+    service._get_reference_now = lambda: datetime(2026, 1, 24, 10, 0, 0, tzinfo=timezone.utc)
     filtered = service._get_filtered_vacancies(role_ids=["40", "41"], period="summary")
     summary = service._compute_dashboard_period_stats(filtered, period="last_14")
 
-    assert summary["total"] == 6
-    assert summary["active"] == 3
-    assert summary["archived"] == 3
-    assert summary["newPublished"] == 1
-    assert summary["publishedAndArchived"] == 1
-    assert summary["activeNewPublished"] == 0
+    assert summary["total"] == 4
+    assert summary["active"] == 2
+    assert summary["archived"] == 2
+    assert summary["newPublished"] == 4
+    assert summary["publishedAndArchived"] == 2
+    assert summary["activeNewPublished"] == 2
     assert summary["breakdown"]["active"]["items"]["exp-mid"] == 1
-    assert summary["breakdown"]["active"]["items"]["exp-senior"] == 1
+    assert summary["breakdown"]["active"]["items"]["exp-excluded"] == 1
 
 
 def test_compute_dashboard_period_stats_with_role_filter_rebases_reference_window():
@@ -354,19 +361,20 @@ def test_compute_dashboard_period_stats_with_role_filter_rebases_reference_windo
         repository=StubAnalyticsRepository(),
         vacancies_repository=PeriodStatsDashboardVacanciesRepository(),
     )
+    service._get_reference_now = lambda: datetime(2026, 1, 24, 10, 0, 0, tzinfo=timezone.utc)
     filtered_all = service._get_filtered_vacancies(role_ids=["40", "41"], period="summary")
     filtered_only_first = service._get_filtered_vacancies(role_ids=["40"], period="summary")
 
     summary_all = service._compute_dashboard_period_stats(filtered_all, period="last_14")
     summary_only_first = service._compute_dashboard_period_stats(filtered_only_first, period="last_14")
 
-    assert summary_all["total"] == 6
-    assert summary_all["active"] == 3
-    assert summary_all["archived"] == 3
-    assert summary_all["newPublished"] == 1
-    assert summary_only_first["total"] == 4
-    assert summary_only_first["active"] == 2
+    assert summary_all["total"] == 4
+    assert summary_all["active"] == 2
+    assert summary_all["archived"] == 2
+    assert summary_all["newPublished"] == 4
+    assert summary_only_first["total"] == 3
+    assert summary_only_first["active"] == 1
     assert summary_only_first["archived"] == 2
-    assert summary_only_first["newPublished"] == 2
+    assert summary_only_first["newPublished"] == 3
     assert summary_only_first["publishedAndArchived"] == 2
-    assert summary_only_first["activeNewPublished"] == 0
+    assert summary_only_first["activeNewPublished"] == 1
