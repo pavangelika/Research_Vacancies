@@ -1745,6 +1745,136 @@
     padding-top: 0.85rem;
     padding-bottom: 0.85rem;
 }
+
+.my-responses-results .vacancy-table-wrap {
+    overflow-x: hidden !important;
+    max-width: 100%;
+}
+
+.my-responses-results .vacancy-table {
+    table-layout: fixed !important;
+    max-width: 100%;
+}
+
+.my-responses-results .vacancy-table th,
+.my-responses-results .vacancy-table td {
+    min-width: 0 !important;
+    width: auto !important;
+    padding: 0.5rem 0.58rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.my-responses-results .vacancy-table th:nth-child(1),
+.my-responses-results .vacancy-table td:nth-child(1) {
+    width: 30% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(2),
+.my-responses-results .vacancy-table td:nth-child(2) {
+    width: 12% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(3),
+.my-responses-results .vacancy-table td:nth-child(3) {
+    width: 8% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(4),
+.my-responses-results .vacancy-table td:nth-child(4) {
+    width: 7% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(5),
+.my-responses-results .vacancy-table td:nth-child(5) {
+    width: 7% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(6),
+.my-responses-results .vacancy-table td:nth-child(6) {
+    width: 5% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(7),
+.my-responses-results .vacancy-table td:nth-child(7),
+.my-responses-results .vacancy-table th:nth-child(8),
+.my-responses-results .vacancy-table td:nth-child(8),
+.my-responses-results .vacancy-table th:nth-child(9),
+.my-responses-results .vacancy-table td:nth-child(9) {
+    width: 11% !important;
+}
+
+.my-responses-results .vacancy-table th:nth-child(10),
+.my-responses-results .vacancy-table td:nth-child(10) {
+    width: 4% !important;
+    text-align: center;
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .my-responses-results .vacancy-table-wrap {
+        overflow-x: visible !important;
+    }
+
+    .my-responses-results .vacancy-table,
+    .my-responses-results .vacancy-table thead,
+    .my-responses-results .vacancy-table tbody,
+    .my-responses-results .vacancy-table tr,
+    .my-responses-results .vacancy-table td,
+    .my-responses-results .vacancy-table th {
+        display: block;
+        width: 100%;
+    }
+
+    .my-responses-results .vacancy-table thead {
+        display: none;
+    }
+
+    .my-responses-results .vacancy-table tr {
+        margin: 0 0 0.65rem;
+        padding: 0.58rem;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 0.75rem;
+        background: #ffffff;
+    }
+
+    .my-responses-results .vacancy-table tbody tr + tr {
+        margin-top: 0.65rem;
+    }
+
+    .my-responses-results .vacancy-table td {
+        border-bottom: 0;
+        display: grid;
+        grid-template-columns: minmax(8rem, 40%) minmax(0, 1fr);
+        align-items: start;
+        gap: 0.2rem 0.65rem;
+        padding: 0.38rem 0.25rem;
+    }
+
+    .my-responses-results .vacancy-table td + td {
+        margin-top: 0.42rem;
+    }
+
+    .my-responses-results .vacancy-table td:nth-child(1)::before { content: "Название"; }
+    .my-responses-results .vacancy-table td:nth-child(2)::before { content: "Работодатель"; }
+    .my-responses-results .vacancy-table td:nth-child(3)::before { content: "Город"; }
+    .my-responses-results .vacancy-table td:nth-child(4)::before { content: "ЗП от"; }
+    .my-responses-results .vacancy-table td:nth-child(5)::before { content: "ЗП до"; }
+    .my-responses-results .vacancy-table td:nth-child(6)::before { content: "Валюта"; }
+    .my-responses-results .vacancy-table td:nth-child(7)::before { content: "Навыки"; }
+    .my-responses-results .vacancy-table td:nth-child(8)::before { content: "Требования"; }
+    .my-responses-results .vacancy-table td:nth-child(9)::before { content: "Обязанности"; }
+    .my-responses-results .vacancy-table td:nth-child(10)::before { content: "Отклик"; }
+
+    .my-responses-results .vacancy-table td::before {
+        font-size: 0.72rem;
+        line-height: 1.2;
+        color: var(--text-secondary);
+        font-weight: 600;
+        display: block;
+    }
+}
+
 .my-responses-results .my-responses-title-link {
     display: flex;
     flex-direction: column;
@@ -1761,10 +1891,8 @@
 }
 .response-calendar-content {
     width: 100%;
-}
-.response-calendar-shell {
     display: grid;
-    grid-template-columns: minmax(0, 4fr) minmax(18rem, 1fr);
+    grid-template-columns: 65% 35%;
     gap: 1.1rem;
     align-items: start;
 }
@@ -2588,7 +2716,7 @@
     min-height: 3.4rem;
 }
 @media (max-width: 980px) {
-    .response-calendar-shell {
+    .response-calendar-content {
         grid-template-columns: 1fr;
     }
     .response-calendar-topbar {
@@ -7890,9 +8018,14 @@ body.report-dashboard .skills-monthly-content,
 body.report-dashboard .salary-content,
 body.report-dashboard .employer-analysis-content,
 body.report-dashboard .totals-content,
-body.report-dashboard .response-calendar-content,
 body.report-dashboard .my-responses-content {
     border: 1px solid var(--dashboard-border);
+    border-radius: 22px;
+    background: var(--dashboard-surface);
+    box-shadow: var(--dashboard-shadow);
+}
+body.report-dashboard .response-calendar-content {
+    border: none;
     border-radius: 22px;
     background: var(--dashboard-surface);
     box-shadow: var(--dashboard-shadow);
@@ -8033,7 +8166,7 @@ body.report-dashboard .my-responses-content {
 }
 
 body.report-dashboard .skills-search-results,
-body.report-dashboard .response-calendar-shell,
+body.report-dashboard .response-calendar-content,
 body.report-dashboard .totals-layout,
 body.report-dashboard .totals-grid,
 body.report-dashboard .totals-overview-chart-card,
@@ -8068,7 +8201,7 @@ body.report-dashboard .employer-analysis-table-container table {
     width: 100%;
 }
 
-body.report-dashboard .response-calendar-shell {
+body.report-dashboard .response-calendar-content {
     background: transparent;
     box-shadow: none;
 }
@@ -9797,4 +9930,5 @@ body.report-dashboard #role-selector .shared-filter-group + .shared-filter-group
         font-size: 1rem;
     }
 }
+
 

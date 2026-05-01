@@ -2768,53 +2768,55 @@ function buildResponseCalendarHtml(parentRole, responses, monthKey, selectedDayK
     var weekHtml = buildResponseCalendarWeekHtml(weekEvents);
     var pendingResultHtml = buildResponseCalendarPendingResultHtml(pendingResultItems);
     return '' +
-        '<div class="response-calendar-shell">' +
-            '<section class="response-calendar-panel response-calendar-panel--board">' +
-                '<div class="response-calendar-topbar">' +
-                    '<div class="response-calendar-topbar-actions">' +
-                        buildResponseCalendarMonthPickerHtml(parentRole, monthKey) +
+        '<section class="response-calendar-panel response-calendar-panel--board">' +
+            '<div class="response-calendar-topbar">' +
+                '<div class="response-calendar-topbar-actions">' +
+                    buildResponseCalendarMonthPickerHtml(parentRole, monthKey) +
+                '</div>' +
+            '</div>' +
+            buildResponseCalendarActiveFiltersHtml(parentRole) +
+            '<div class="response-calendar-weekdays">' +
+                weekdayLabels.map(function(label, index) {
+                    return '<div class="response-calendar-weekday' + (index === todayWeekdayIndex ? ' is-today' : '') + '">' + label + '</div>';
+                }).join('') +
+            '</div>' +
+            '<div class="response-calendar-grid" role="grid" aria-label="Календарь собеседований">' + cells.join('') + '</div>' +
+        '</section>' +
+        '<aside class="response-calendar-panel response-calendar-panel--agenda">' +
+            '<div class="response-calendar-agenda-section">' +
+                '<div class="response-calendar-agenda-head">' +
+                    '<div class="response-calendar-agenda-headline">' +
+                        '<div class="response-calendar-agenda-title">Фокус на дне</div>' +
+                    '</div>' +
+                    '<div class="response-calendar-agenda-date' + (selectedIsToday ? ' is-today' : '') + '">' +
+                        '<span class="response-calendar-agenda-date-text">' + escapeHtml(formatCalendarDayLabel(effectiveSelectedDay)) + '</span>' +
                     '</div>' +
                 '</div>' +
-                buildResponseCalendarActiveFiltersHtml(parentRole) +
-                '<div class="response-calendar-weekdays">' +
-                    weekdayLabels.map(function(label, index) {
-                        return '<div class="response-calendar-weekday' + (index === todayWeekdayIndex ? ' is-today' : '') + '">' + label + '</div>';
-                    }).join('') +
+                '<div class="response-calendar-agenda-list">' + agendaHtml + '</div>' +
+            '</div>' +
+            '<div class="response-calendar-agenda-section">' +
+                '<div class="response-calendar-agenda-head">' +
+                    '<div class="response-calendar-agenda-title">Ближайшие 7 дней</div>' +
                 '</div>' +
-                '<div class="response-calendar-grid" role="grid" aria-label="Календарь собеседований">' + cells.join('') + '</div>' +
-            '</section>' +
-            '<aside class="response-calendar-panel response-calendar-panel--agenda">' +
-                '<div class="response-calendar-agenda-section">' +
-                    '<div class="response-calendar-agenda-head">' +
-                        '<div class="response-calendar-agenda-headline">' +
-                            '<div class="response-calendar-agenda-title">Фокус на дне</div>' +
-                        '</div>' +
-                        '<div class="response-calendar-agenda-date' + (selectedIsToday ? ' is-today' : '') + '">' +
-                            '<span class="response-calendar-agenda-date-text">' + escapeHtml(formatCalendarDayLabel(effectiveSelectedDay)) + '</span>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="response-calendar-agenda-list">' + agendaHtml + '</div>' +
+                '<div class="response-calendar-agenda-list">' + weekHtml + '</div>' +
+            '</div>' +
+            '<div class="response-calendar-agenda-section">' +
+                '<div class="response-calendar-agenda-head">' +
+                    '<div class="response-calendar-agenda-title">Не внесен результат собеса</div>' +
                 '</div>' +
-                '<div class="response-calendar-agenda-section">' +
-                    '<div class="response-calendar-agenda-head">' +
-                        '<div class="response-calendar-agenda-title">Ближайшие 7 дней</div>' +
-                    '</div>' +
-                    '<div class="response-calendar-agenda-list">' + weekHtml + '</div>' +
-                '</div>' +
-                '<div class="response-calendar-agenda-section">' +
-                    '<div class="response-calendar-agenda-head">' +
-                        '<div class="response-calendar-agenda-title">Не внесен результат собеса</div>' +
-                    '</div>' +
-                    '<div class="response-calendar-agenda-list">' + pendingResultHtml + '</div>' +
-                '</div>' +
-            '</aside>' +
-        '</div>';
+                '<div class="response-calendar-agenda-list">' + pendingResultHtml + '</div>' +
+            '</div>' +
+        '</aside>';
 }
 function renderMyResponsesCalendarContent(parentRole, options) {
     options = options || {};
     if (!parentRole) return;
     if (typeof ensureResponseCalendarTab === 'function') ensureResponseCalendarTab(parentRole);
-    var block = parentRole.querySelector('.response-calendar-content');
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '').trim();
+    var analysisId = roleSuffix ? ('responses-calendar-' + roleSuffix) : '';
+    var block = analysisId
+        ? parentRole.querySelector('.response-calendar-content[data-analysis="' + analysisId + '"]')
+        : parentRole.querySelector('.response-calendar-content');
     if (!block) return;
     var requestId = (Number(block.dataset.responsesCalendarRequestId || 0) || 0) + 1;
     block.dataset.responsesCalendarRequestId = String(requestId);
@@ -3086,7 +3088,7 @@ function ensureResponseCalendarTab(parentRole) {
     if (!parentRole || parentRole.id === 'role-all') return;
     var tabs = parentRole.querySelector('.tabs.analysis-tabs');
     if (!tabs) return;
-    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '');
+    var roleSuffix = String(parentRole.id || '').replace(/^role-/, '').trim();
     if (!roleSuffix) return;
     var analysisId = 'responses-calendar-' + roleSuffix;
 

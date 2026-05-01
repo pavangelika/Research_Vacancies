@@ -41,7 +41,7 @@ function getAnalysisSwitchBlocks(parentRole) {
         skillsMonthlyBlock: parentRole.querySelector('.skills-monthly-content'),
         skillsSearchBlock: parentRole.querySelector('.skills-search-content'),
         myResponsesBlock: parentRole.querySelector('.my-responses-content'),
-        responsesCalendarBlock: parentRole.querySelector('.response-calendar-content'),
+        responsesCalendarBlock: parentRole.querySelector('.response-calendar-content[data-analysis^="responses-calendar-"]') || parentRole.querySelector('.response-calendar-content'),
         totalsBlock: parentRole.querySelector('.totals-content'),
         salaryBlock: parentRole.querySelector('.salary-content'),
         employerAnalysisBlock: parentRole.querySelector('.employer-analysis-content')
@@ -221,7 +221,7 @@ function handleMyResponsesAnalysisSwitch(ctx) {
 function handleResponsesCalendarAnalysisSwitch(ctx) {
     var calendarBlock = ctx.blocks.responsesCalendarBlock;
     if (!calendarBlock) return;
-    calendarBlock.style.display = 'block';
+    calendarBlock.style.display = 'grid';
     seedAnalysisBlockFromSibling(calendarBlock, '.response-calendar-content[data-analysis^="responses-calendar-"]', /^Загрузка календаря\.\.\.$/);
     renderMyResponsesCalendarContent(ctx.parentRole);
 }

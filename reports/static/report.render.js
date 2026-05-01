@@ -1138,11 +1138,9 @@ function renderCombinedContainer(container, roleContents) {
             (combinedSeedResponsesHtml || '<div class="skills-search-results my-responses-results"><div class="skills-search-hint">Нет откликов</div></div>') +
         '</div>'
     );
-    var responsesCalendarBlock = (
-        '<div class="response-calendar-content" data-analysis="responses-calendar-all" style="display: none;">' +
-            combinedSeedCalendarHtml +
-        '</div>'
-    );
+    var responsesCalendarBlock = '<div class="response-calendar-content" data-analysis="responses-calendar-all" style="display: none;">' +
+        (combinedSeedCalendarHtml || '') +
+    '</div>';
 
     var salaryBlock = (
         '<div class="salary-content" data-analysis="salary-all" style="display: none;" data-salary="">' +
