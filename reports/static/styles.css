@@ -1675,7 +1675,7 @@
     vertical-align: middle;
 }
 .my-responses-results .vacancy-table {
-    table-layout: auto !important;
+    table-layout: fixed !important;
     width: 100%;
     min-width: 0;
 }
@@ -1692,12 +1692,13 @@
 .my-responses-results .vacancy-table th:nth-child(2),
 .my-responses-results .vacancy-table td:nth-child(2) {
     white-space: normal;
-    min-width: 10rem;
+    width: 22%;
+    min-width: 0;
     text-align: left;
 }
 .my-responses-results .vacancy-table th:nth-child(3),
 .my-responses-results .vacancy-table td:nth-child(3) {
-    min-width: 6.5rem;
+    width: 10%;
 }
 .my-responses-results .vacancy-table th:nth-child(4),
 .my-responses-results .vacancy-table td:nth-child(4),
@@ -1705,7 +1706,8 @@
 .my-responses-results .vacancy-table td:nth-child(5),
 .my-responses-results .vacancy-table th:nth-child(6),
 .my-responses-results .vacancy-table td:nth-child(6) {
-    white-space: nowrap;
+    width: 7%;
+    white-space: normal;
 }
 .my-responses-results .vacancy-table th:nth-child(7),
 .my-responses-results .vacancy-table td:nth-child(7),
@@ -1714,20 +1716,19 @@
 .my-responses-results .vacancy-table th:nth-child(10),
 .my-responses-results .vacancy-table td:nth-child(10) {
     white-space: normal;
-    min-width: 7.2rem;
+    width: 8%;
+    min-width: 0;
     font-size: 0.76rem;
     line-height: 1.3;
 }
 .my-responses-results .vacancy-table th:nth-child(9),
-.my-responses-results .vacancy-table td:nth-child(9),
-.my-responses-results .vacancy-table th:nth-child(11),
-.my-responses-results .vacancy-table td:nth-child(11) {
+.my-responses-results .vacancy-table td:nth-child(9) {
     text-align: center;
-    white-space: nowrap;
-    width: 1%;
+    white-space: normal;
+    width: 4%;
 }
 .my-responses-results .vacancy-table-wrap {
-    overflow-x: auto;
+    overflow-x: visible;
     max-width: 100%;
 }
 .my-responses-results .vacancy-table th:nth-child(11),
@@ -1737,6 +1738,11 @@
     background: transparent;
     box-shadow: none;
     z-index: 1;
+    width: 3rem !important;
+    min-width: 3rem;
+    max-width: 3rem;
+    text-align: center;
+    white-space: nowrap;
 }
 .my-responses-results .vacancy-table th:nth-child(11) {
     z-index: 2;
@@ -1744,71 +1750,6 @@
 .my-responses-results .vacancy-table td:first-child {
     padding-top: 0.85rem;
     padding-bottom: 0.85rem;
-}
-
-.my-responses-results .vacancy-table-wrap {
-    overflow-x: hidden !important;
-    max-width: 100%;
-}
-
-.my-responses-results .vacancy-table {
-    table-layout: fixed !important;
-    max-width: 100%;
-}
-
-.my-responses-results .vacancy-table th,
-.my-responses-results .vacancy-table td {
-    min-width: 0 !important;
-    width: auto !important;
-    padding: 0.5rem 0.58rem;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-.my-responses-results .vacancy-table th:nth-child(1),
-.my-responses-results .vacancy-table td:nth-child(1) {
-    width: 30% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(2),
-.my-responses-results .vacancy-table td:nth-child(2) {
-    width: 12% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(3),
-.my-responses-results .vacancy-table td:nth-child(3) {
-    width: 8% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(4),
-.my-responses-results .vacancy-table td:nth-child(4) {
-    width: 7% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(5),
-.my-responses-results .vacancy-table td:nth-child(5) {
-    width: 7% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(6),
-.my-responses-results .vacancy-table td:nth-child(6) {
-    width: 5% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(7),
-.my-responses-results .vacancy-table td:nth-child(7),
-.my-responses-results .vacancy-table th:nth-child(8),
-.my-responses-results .vacancy-table td:nth-child(8),
-.my-responses-results .vacancy-table th:nth-child(9),
-.my-responses-results .vacancy-table td:nth-child(9) {
-    width: 11% !important;
-}
-
-.my-responses-results .vacancy-table th:nth-child(10),
-.my-responses-results .vacancy-table td:nth-child(10) {
-    width: 4% !important;
-    text-align: center;
-    white-space: nowrap;
 }
 
 @media (max-width: 768px) {
