@@ -240,13 +240,12 @@ def fetch_data(mapping):
         WITH salary_normalized AS (
             SELECT
                 date_trunc('month', published_at) AS month,
-                archived,
                 experience,
                 professional_role,
                 published_at,
                 archived_at,
                 CASE
-                    WHEN archived = true THEN EXTRACT(EPOCH FROM (COALESCE(archived_at, NOW()) - published_at)) / 86400.0
+                    WHEN archived_at IS NOT NULL THEN EXTRACT(EPOCH FROM (archived_at - published_at)) / 86400.0
                     ELSE NULL
                 END AS age_days
             FROM get_vacancies
@@ -257,8 +256,8 @@ def fetch_data(mapping):
             professional_role,
             experience,
             COUNT(*) AS vacancies_total,
-            COUNT(*) FILTER (WHERE archived = true) AS vacancies_archived,
-            COUNT(*) FILTER (WHERE archived = false) AS vacancies_active,
+            COUNT(*) FILTER (WHERE archived_at IS NOT NULL) AS vacancies_archived,
+            COUNT(*) FILTER (WHERE archived_at IS NULL) AS vacancies_active,
             AVG(age_days) AS avg_age_days
         FROM salary_normalized
         GROUP BY month, professional_role, experience
@@ -742,7 +741,7 @@ def fetch_salary_data(mapping):
                 experience,
                 DATE_TRUNC('month', published_at) as month_start,
                 currency,
-                archived,
+                (archived_at IS NOT NULL) as archived,
                 skills,
                 CASE 
                     WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL THEN (salary_from + salary_to) / 2.0
@@ -946,7 +945,7 @@ def fetch_salary_data(mapping):
                 professional_role,
                 experience,
                 currency,
-                archived,
+                (archived_at IS NOT NULL) as archived,
                 skills,
                 CASE 
                     WHEN salary_from IS NOT NULL AND salary_to IS NOT NULL THEN (salary_from + salary_to) / 2.0
@@ -1275,7 +1274,7 @@ def fetch_salary_data(mapping):
             role_key = str(role_id)
             role_name = mapping.get(role_key, f"ID {role_id} (неизвестная роль)")
         month_str = published_at.strftime('%Y-%m')
-        status = 'Архивная' if archived else 'Открытая'
+        status = 'Архивная' if archived_at else 'Открытая'
         display_currency = _display_currency(currency)
         has_salary = salary_from is not None or salary_to is not None
 

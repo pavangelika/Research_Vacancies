@@ -1,4 +1,4 @@
-from collections import defaultdict
+﻿from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import re
 
@@ -22,10 +22,10 @@ class AnalyticsService:
         activity = self.get_activity(scope=scope, role_ids=role_ids, period=period)
         salary = self.get_salary_range(scope=scope, role_ids=role_ids, period=period)
         metrics = [
-            {"key": "roles", "label": "Роли", "value": len(activity["role_ids"]) if activity["role_ids"] else 0},
-            {"key": "vacancies_total", "label": "Всего вакансий", "value": activity["summary"]["total"]},
-            {"key": "vacancies_active", "label": "Активные вакансии", "value": activity["summary"]["active"]},
-            {"key": "salary_rows", "label": "Зарплатные срезы", "value": len(salary["items"])},
+            {"key": "roles", "label": "Р РѕР»Рё", "value": len(activity["role_ids"]) if activity["role_ids"] else 0},
+            {"key": "vacancies_total", "label": "Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№", "value": activity["summary"]["total"]},
+            {"key": "vacancies_active", "label": "РђРєС‚РёРІРЅС‹Рµ РІР°РєР°РЅСЃРёРё", "value": activity["summary"]["active"]},
+            {"key": "salary_rows", "label": "Р—Р°СЂРїР»Р°С‚РЅС‹Рµ СЃСЂРµР·С‹", "value": len(salary["items"])},
         ]
         return {
             "scope": scope,
@@ -36,32 +36,50 @@ class AnalyticsService:
 
     def get_activity(self, *, scope: str = "all", role_ids: list[str] | None = None, period: str = "summary") -> dict:
         rows = self._filter_roles(self.repository.get_activity(), role_ids)
-        aggregated = defaultdict(lambda: defaultdict(lambda: {"total": 0, "active": 0, "archived": 0, "age_sum": 0.0, "age_count": 0}))
         selected_role_ids = [row["id"] for row in rows]
-        filtered_vacancies = self._get_filtered_vacancies(role_ids=role_ids, period=period)
-        role_rows = self._build_activity_role_rows(rows, vacancies=filtered_vacancies)
-        quick_period_entries = self._build_activity_period_entries(vacancies=filtered_vacancies, period=period)
+        summary_vacancies = self._get_filtered_vacancies(role_ids=role_ids, period="summary")
+        activity_period_window = self._build_dashboard_period_window(period, list(summary_vacancies))
+        role_rows = self._build_activity_role_rows(rows, vacancies=summary_vacancies, period_window=activity_period_window)
+        period_entries = self._build_activity_period_entries(
+            vacancies=summary_vacancies,
+            period=period,
+            period_window=activity_period_window,
+        )
 
-        for role in rows:
-            for month in role.get("months", []):
-                month_name = month.get("month") or ""
-                if period != "summary" and month_name != period:
-                    continue
-                if period == "summary" and not month_name.startswith("За "):
-                    continue
-                if period != "summary" and month_name.startswith("За "):
-                    continue
-                for entry in month.get("entries", []):
-                    exp = entry.get("experience")
-                    if exp == "Всего":
+        aggregated = defaultdict(lambda: defaultdict(lambda: {"total": 0, "active": 0, "archived": 0, "age_sum": 0.0, "age_count": 0}))
+        if period == "summary":
+            for role in rows:
+                for month in role.get("months", []):
+                    month_name = month.get("month") or ""
+                    if period != "summary" and month_name != period:
                         continue
-                    bucket = aggregated[month_name][exp]
-                    bucket["total"] += int(entry.get("total") or 0)
-                    bucket["active"] += int(entry.get("active") or 0)
-                    bucket["archived"] += int(entry.get("archived") or 0)
-                    if entry.get("avg_age") is not None:
-                        bucket["age_sum"] += float(entry.get("avg_age")) * int(entry.get("total") or 0)
-                        bucket["age_count"] += int(entry.get("total") or 0)
+                    if period == "summary" and not month_name.startswith("Р—Р° "):
+                        continue
+                    if period != "summary" and month_name.startswith("Р—Р° "):
+                        continue
+                    for entry in month.get("entries", []):
+                        exp = entry.get("experience")
+                        if exp == "Р’СЃРµРіРѕ":
+                            continue
+                        bucket = aggregated[month_name][exp]
+                        bucket["total"] += int(entry.get("total") or 0)
+                        bucket["active"] += int(entry.get("active") or 0)
+                        bucket["archived"] += int(entry.get("archived") or 0)
+                        if entry.get("avg_age") is not None:
+                            bucket["age_sum"] += float(entry.get("avg_age")) * int(entry.get("total") or 0)
+                            bucket["age_count"] += int(entry.get("total") or 0)
+        else:
+            for entry in period_entries:
+                exp = entry.get("experience") or "РќРµ СѓРєР°Р·Р°РЅ"
+                if exp == "Р’СЃРµРіРѕ":
+                    continue
+                bucket = aggregated[period][exp]
+                bucket["total"] += int(entry.get("total") or 0)
+                bucket["active"] += int(entry.get("active") or 0)
+                bucket["archived"] += int(entry.get("archived") or 0)
+                if entry.get("avg_age_days") is not None:
+                    bucket["age_sum"] += float(entry.get("avg_age_days")) * int(entry.get("total") or 0)
+                    bucket["age_count"] += int(entry.get("total") or 0)
 
         months = []
         total_summary = {"total": 0, "active": 0, "archived": 0}
@@ -86,9 +104,10 @@ class AnalyticsService:
             month_entries.sort(key=lambda item: item["experience"])
             months.append({"month": month_name, "entries": month_entries})
 
-        if not months and quick_period_entries:
-            months.append({"month": period, "entries": quick_period_entries})
-            for entry in quick_period_entries:
+        if period != "summary":
+            months = [{"month": period, "entries": period_entries}]
+            total_summary = {"total": 0, "active": 0, "archived": 0}
+            for entry in period_entries:
                 total_summary["total"] += int(entry.get("total") or 0)
                 total_summary["active"] += int(entry.get("active") or 0)
                 total_summary["archived"] += int(entry.get("archived") or 0)
@@ -101,38 +120,41 @@ class AnalyticsService:
             "summary": total_summary,
             "role_rows": role_rows,
         }
-
     def get_weekday(self, *, scope: str = "all", role_ids: list[str] | None = None, period: str = "summary") -> dict:
         rows = self._filter_roles(self.repository.get_weekday(), role_ids)
         grouped = defaultdict(lambda: {"publications": 0, "archives": 0, "pub_hours": [], "arch_hours": []})
         selected_role_ids = [row["id"] for row in rows]
+        summary_vacancies = self._get_filtered_vacancies(role_ids=role_ids, period="summary")
+        period_window = self._build_dashboard_period_window(period, list(summary_vacancies))
         filtered_vacancies = self._get_filtered_vacancies(role_ids=role_ids, period=period)
-        role_rows = self._build_weekday_role_rows(rows, vacancies=filtered_vacancies)
+        role_rows = self._build_weekday_role_rows(rows, vacancies=filtered_vacancies, period_window=period_window)
 
-        for role in rows:
-            for item in role.get("weekdays", []):
-                weekday = item.get("weekday") or ""
-                bucket = grouped[weekday]
-                bucket["publications"] += int(item.get("publications") or 0)
-                bucket["archives"] += int(item.get("archives") or 0)
-                if item.get("avg_pub_hour"):
-                    bucket["pub_hours"].append(item.get("avg_pub_hour"))
-                if item.get("avg_arch_hour"):
-                    bucket["arch_hours"].append(item.get("avg_arch_hour"))
+        if period == "summary":
+            for role in rows:
+                for item in role.get("weekdays", []):
+                    weekday = item.get("weekday") or ""
+                    bucket = grouped[weekday]
+                    bucket["publications"] += int(item.get("publications") or 0)
+                    bucket["archives"] += int(item.get("archives") or 0)
+                    if item.get("avg_pub_hour"):
+                        bucket["pub_hours"].append(item.get("avg_pub_hour"))
+                    if item.get("avg_arch_hour"):
+                        bucket["arch_hours"].append(item.get("avg_arch_hour"))
 
-        items = []
-        for weekday, vals in grouped.items():
-            items.append(
-                {
-                    "weekday": weekday,
-                    "publications": vals["publications"],
-                    "archives": vals["archives"],
-                    "avg_pub_hour": vals["pub_hours"][0] if vals["pub_hours"] else "—",
-                    "avg_arch_hour": vals["arch_hours"][0] if vals["arch_hours"] else "—",
-                }
-            )
-        if not items:
-            items = self._build_weekday_items(vacancies=filtered_vacancies, period=period)
+            items = []
+            for weekday, vals in grouped.items():
+                items.append(
+                    {
+                        "weekday": weekday,
+                        "publications": vals["publications"],
+                        "archives": vals["archives"],
+                        "avg_pub_hour": vals["pub_hours"][0] if vals["pub_hours"] else "вЂ”",
+                        "avg_arch_hour": vals["arch_hours"][0] if vals["arch_hours"] else "вЂ”",
+                    }
+                )
+        else:
+            items = self._build_weekday_items(vacancies=filtered_vacancies, period_window=period_window)
+
         items.sort(key=lambda item: item["weekday"])
         return {
             "scope": scope,
@@ -141,7 +163,6 @@ class AnalyticsService:
             "items": items,
             "role_rows": role_rows,
         }
-
     def get_skills_cost(
         self,
         *,
@@ -153,26 +174,42 @@ class AnalyticsService:
         rows = self._filter_roles(self.repository.get_skills_cost(), role_ids)
         selected_role_ids = [row["id"] for row in rows]
         skills = defaultdict(lambda: {"count": 0, "roles": defaultdict(int)})
-        month_items = self._build_skills_months(rows=rows, role_ids=role_ids, period=period)
 
-        for role in rows:
-            role_id = role["id"]
-            role_name = role.get("name") or role_id
-            role_months = role.get("months_list", [])
-            for month in role_months:
-                month_name = month.get("month") or ""
-                if period != "summary" and month_name != period:
+        if period == "summary":
+            month_items = self._build_skills_months(rows=rows, role_ids=role_ids, period=period)
+            for role in rows:
+                role_id = role["id"]
+                role_name = role.get("name") or role_id
+                role_months = role.get("months_list", [])
+                for month in role_months:
+                    month_name = month.get("month") or ""
+                    if period != "summary" and month_name != period:
+                        continue
+                    if period == "summary" and not month_name.startswith("Р—Р° "):
+                        continue
+                    if period != "summary" and month_name.startswith("Р—Р° "):
+                        continue
+                    for exp in month.get("experiences", []):
+                        for skill in exp.get("skills", []):
+                            name = skill.get("skill") or ""
+                            count = int(skill.get("count") or 0)
+                            skills[name]["count"] += count
+                            skills[name]["roles"][(role_id, role_name)] += count
+        else:
+            period_vacancies = self._get_filtered_vacancies(role_ids=role_ids, period=period)
+            month_items = [self._build_skills_month_from_vacancies(vacancies=period_vacancies, period=period)]
+            role_name_by_id = {row["id"]: row.get("name") or row["id"] for row in rows}
+            for vacancy in period_vacancies:
+                role_id = str(vacancy.get("role_id") or "").strip()
+                if not role_id:
                     continue
-                if period == "summary" and not month_name.startswith("За "):
-                    continue
-                if period != "summary" and month_name.startswith("За "):
-                    continue
-                for exp in month.get("experiences", []):
-                    for skill in exp.get("skills", []):
-                        name = skill.get("skill") or ""
-                        count = int(skill.get("count") or 0)
-                        skills[name]["count"] += count
-                        skills[name]["roles"][(role_id, role_name)] += count
+                role_name = role_name_by_id.get(role_id, role_id)
+                for raw_skill in str(vacancy.get("skills_raw") or "").split(","):
+                    skill_name = str(raw_skill or "").strip()
+                    if not skill_name:
+                        continue
+                    skills[skill_name]["count"] += 1
+                    skills[skill_name]["roles"][(role_id, role_name)] += 1
 
         items = []
         for skill_name, vals in skills.items():
@@ -196,54 +233,112 @@ class AnalyticsService:
                     "roles": role_rows,
                 }
             )
-        items.sort(key=lambda row: (-row["mention_count"], row["skill"].lower()))
+
         return {
             "scope": scope,
             "role_ids": selected_role_ids,
             "period_label": period,
             "currency": currency,
-            "items": items[:50],
+            "items": items,
             "months": month_items,
         }
-
     def get_salary_range(self, *, scope: str = "all", role_ids: list[str] | None = None, period: str = "summary") -> dict:
         rows = self._filter_roles(self.repository.get_salary_range(), role_ids)
         selected_role_ids = [row["id"] for row in rows]
         items = []
 
-        for role in rows:
-            role_id = role["id"]
-            role_name = role.get("name") or role_id
-            for month in role.get("months_list", []):
-                month_name = month.get("month") or ""
-                if period != "summary" and month_name != period:
-                    continue
-                if period == "summary" and not month_name.startswith("За "):
-                    continue
-                if period != "summary" and month_name.startswith("За "):
-                    continue
-                for exp in month.get("experiences", []):
-                    for entry in exp.get("entries", []):
-                        items.append(
-                            {
-                                "role_id": role_id,
-                                "role_name": role_name,
-                                "month": month_name,
-                                "experience": exp.get("experience") or "",
-                                "status": entry.get("status") or "",
-                                "currency": entry.get("currency") or "",
-                                "count": int(entry.get("total_vacancies") or 0),
-                                "total_vacancies": int(entry.get("total_vacancies") or 0),
-                                "avg_salary": entry.get("avg_salary"),
-                                "median_salary": entry.get("median_salary"),
-                                "mode_salary": entry.get("mode_salary"),
-                                "min_salary": entry.get("min_salary"),
-                                "max_salary": entry.get("max_salary"),
-                                "top_skills": entry.get("top_skills") or "",
-                            }
-                        )
-        return {"scope": scope, "role_ids": selected_role_ids, "period_label": period, "items": items}
+        if period == "summary":
+            for role in rows:
+                role_id = role["id"]
+                role_name = role.get("name") or role_id
+                for month in role.get("months_list", []):
+                    month_name = month.get("month") or ""
+                    if period != "summary" and month_name != period:
+                        continue
+                    if period == "summary" and not month_name.startswith("Р—Р° "):
+                        continue
+                    if period != "summary" and month_name.startswith("Р—Р° "):
+                        continue
+                    for exp in month.get("experiences", []):
+                        for entry in exp.get("entries", []):
+                            items.append(
+                                {
+                                    "role_id": role_id,
+                                    "role_name": role_name,
+                                    "month": month_name,
+                                    "experience": exp.get("experience") or "",
+                                    "status": entry.get("status") or "",
+                                    "currency": entry.get("currency") or "",
+                                    "count": int(entry.get("total_vacancies") or 0),
+                                    "total_vacancies": int(entry.get("total_vacancies") or 0),
+                                    "avg_salary": entry.get("avg_salary"),
+                                    "median_salary": entry.get("median_salary"),
+                                    "mode_salary": entry.get("mode_salary"),
+                                    "min_salary": entry.get("min_salary"),
+                                    "max_salary": entry.get("max_salary"),
+                                    "top_skills": entry.get("top_skills") or "",
+                                }
+                            )
+            return {"scope": scope, "role_ids": selected_role_ids, "period_label": period, "items": items}
 
+        filtered_vacancies = self._get_filtered_vacancies(role_ids=role_ids, period=period)
+        role_name_by_id = {row["id"]: row.get("name") or row["id"] for row in rows}
+        grouped = {}
+        for vacancy in filtered_vacancies:
+            role_id = str(vacancy.get("role_id") or "").strip()
+            if not role_id:
+                continue
+            role_name = role_name_by_id.get(role_id) or role_id
+            experience = str(vacancy.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
+            status = "РђСЂС…РёРІРЅР°СЏ" if vacancy.get("archived_at") else "РћС‚РєСЂС‹С‚Р°СЏ"
+            currency_value = self._normalize_totals_currency(vacancy.get("currency"))
+            if not currency_value:
+                continue
+            key = (role_id, role_name, experience, status, currency_value)
+            bucket = grouped.get(key)
+            if bucket is None:
+                bucket = {
+                    "role_id": role_id,
+                    "role_name": role_name,
+                    "month": period,
+                    "experience": experience,
+                    "status": status,
+                    "currency": currency_value,
+                    "salary_values": [],
+                    "skill_counts": defaultdict(int),
+                    "count": 0,
+                }
+                grouped[key] = bucket
+            bucket["count"] += 1
+            salary_value = self._compute_salary_value(vacancy)
+            if salary_value is not None:
+                bucket["salary_values"].append(float(salary_value))
+            for raw_skill in str(vacancy.get("skills_raw") or "").split(","):
+                skill_name = str(raw_skill or "").strip()
+                if not skill_name:
+                    continue
+                bucket["skill_counts"][skill_name] += 1
+
+        for bucket in grouped.values():
+            salaries = bucket.pop("salary_values")
+            total_vacancies = int(bucket["count"] or 0)
+            top_skills = [
+                skill for skill, _ in sorted(
+                    bucket["skill_counts"].items(),
+                    key=lambda item: (-item[1], item[0]),
+                )[:10]
+            ]
+            bucket["count"] = total_vacancies
+            bucket["total_vacancies"] = total_vacancies
+            bucket["avg_salary"] = sum(salaries) / len(salaries) if salaries else None
+            bucket["median_salary"] = self._compute_median(salaries)
+            bucket["mode_salary"] = self._compute_mode(salaries)
+            bucket["min_salary"] = min(salaries) if salaries else None
+            bucket["max_salary"] = max(salaries) if salaries else None
+            bucket["top_skills"] = ", ".join(top_skills)
+            items.append(bucket)
+
+        return {"scope": scope, "role_ids": selected_role_ids, "period_label": period, "items": items}
     def get_employers(self, *, scope: str = "all", role_ids: list[str] | None = None, period: str = "summary") -> dict:
         rows = self._filter_roles(self.repository.get_employers(), role_ids)
         selected_role_ids = [row["id"] for row in rows]
@@ -351,9 +446,9 @@ class AnalyticsService:
             "role_ids": activity["role_ids"],
             "period_label": activity["period_label"],
             "metrics": [
-                {"key": "roles", "label": "Роли", "value": len(activity["role_ids"]) if activity["role_ids"] else 0},
-                {"key": "vacancies_total", "label": "Всего вакансий", "value": activity["summary"]["total"]},
-                {"key": "vacancies_active", "label": "Активные вакансии", "value": activity["summary"]["active"]},
+                {"key": "roles", "label": "Р РѕР»Рё", "value": len(activity["role_ids"]) if activity["role_ids"] else 0},
+                {"key": "vacancies_total", "label": "Р’СЃРµРіРѕ РІР°РєР°РЅСЃРёР№", "value": activity["summary"]["total"]},
+                {"key": "vacancies_active", "label": "РђРєС‚РёРІРЅС‹Рµ РІР°РєР°РЅСЃРёРё", "value": activity["summary"]["active"]},
             ],
             "salary_rows": salary_rows,
             "salary_coverage": self._compute_dashboard_salary_coverage(filtered_vacancies),
@@ -407,31 +502,36 @@ class AnalyticsService:
             return rows
         return [row for row in rows if str(row.get("id") or "") in role_id_set]
 
-    def _build_activity_role_rows(self, rows: list[dict], *, vacancies: list[dict]) -> list[dict]:
+    def _build_activity_role_rows(
+        self,
+        rows: list[dict],
+        *,
+        vacancies: list[dict],
+        period_window: dict[str, datetime | None],
+    ) -> list[dict]:
         role_name_by_id = {
             str(row.get("id") or ""): str(row.get("name") or row.get("id") or "").strip()
             for row in rows
             if str(row.get("id") or "").strip()
         }
         grouped = defaultdict(lambda: {"total": 0, "active": 0, "archived": 0, "age_sum": 0.0, "age_count": 0})
+        now = self._normalize_dashboard_datetime(self._get_reference_now())
 
         for vacancy in vacancies:
+            entry = self._classify_vacancy_for_dashboard_period(vacancy, period_window, now=now)
+            if not entry["included"]:
+                continue
             role_id = str(vacancy.get("role_id") or "").strip()
             if not role_id:
                 continue
             bucket = grouped[role_id]
             bucket["total"] += 1
-            archived = bool(vacancy.get("archived"))
-            if archived:
-                bucket["archived"] += 1
-            else:
+            if entry["active"]:
                 bucket["active"] += 1
-            age_days = self._compute_age_days(
-                vacancy.get("_published_dt") or vacancy.get("published_at"),
-                vacancy.get("_archived_dt") or vacancy.get("archived_at"),
-            )
-            if age_days is not None:
-                bucket["age_sum"] += age_days
+            if entry["archived"]:
+                bucket["archived"] += 1
+            if entry["lifetimeDays"] is not None:
+                bucket["age_sum"] += entry["lifetimeDays"]
                 bucket["age_count"] += 1
 
         items = []
@@ -456,27 +556,29 @@ class AnalyticsService:
         )
         return items
 
-    def _build_activity_period_entries(self, *, vacancies: list[dict], period: str) -> list[dict]:
-        current = str(period or "summary").strip().lower()
-        if current not in {"today", "last_3", "last_7", "last_14"}:
-            return []
+    def _build_activity_period_entries(
+        self,
+        *,
+        vacancies: list[dict],
+        period: str,
+        period_window: dict[str, datetime | None],
+    ) -> list[dict]:
         grouped = defaultdict(lambda: {"total": 0, "active": 0, "archived": 0, "age_sum": 0.0, "age_count": 0})
+        now = self._normalize_dashboard_datetime(self._get_reference_now())
 
         for vacancy in vacancies:
-            experience = str(vacancy.get("experience") or "").strip() or "Не указан"
+            entry = self._classify_vacancy_for_dashboard_period(vacancy, period_window, now=now)
+            if not entry["included"]:
+                continue
+            experience = str(vacancy.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
             bucket = grouped[experience]
             bucket["total"] += 1
-            archived = bool(vacancy.get("archived"))
-            if archived:
-                bucket["archived"] += 1
-            else:
+            if entry["active"]:
                 bucket["active"] += 1
-            age_days = self._compute_age_days(
-                vacancy.get("_published_dt") or vacancy.get("published_at"),
-                vacancy.get("_archived_dt") or vacancy.get("archived_at"),
-            )
-            if age_days is not None:
-                bucket["age_sum"] += age_days
+            if entry["archived"]:
+                bucket["archived"] += 1
+            if entry["lifetimeDays"] is not None:
+                bucket["age_sum"] += entry["lifetimeDays"]
                 bucket["age_count"] += 1
 
         items = []
@@ -493,24 +595,38 @@ class AnalyticsService:
             )
         return items
 
-    def _build_weekday_role_rows(self, rows: list[dict], *, vacancies: list[dict]) -> list[dict]:
+    def _build_weekday_role_rows(
+        self,
+        rows: list[dict],
+        *,
+        vacancies: list[dict],
+        period_window: dict[str, datetime | None],
+    ) -> list[dict]:
         role_name_by_id = {
             str(row.get("id") or ""): str(row.get("name") or row.get("id") or "").strip()
             for row in rows
             if str(row.get("id") or "").strip()
         }
         grouped = defaultdict(lambda: {"publications": 0, "archives": 0, "days": set()})
+        now = self._normalize_dashboard_datetime(self._get_reference_now())
 
         for vacancy in vacancies:
             role_id = str(vacancy.get("role_id") or "").strip()
             published_dt = vacancy.get("_published_dt") or self._parse_dt(vacancy.get("published_at"))
+            archived_dt = vacancy.get("_archived_dt") or self._parse_dt(vacancy.get("archived_at"))
             if not role_id or published_dt is None:
                 continue
+            entry = self._classify_vacancy_for_dashboard_period(vacancy, period_window, now=now)
+            if not entry["included"]:
+                continue
             bucket = grouped[role_id]
-            bucket["publications"] += 1
-            if vacancy.get("archived"):
+            if entry["newPublished"]:
+                bucket["publications"] += 1
+                bucket["days"].add(published_dt.date().isoformat())
+            if entry["archived"]:
                 bucket["archives"] += 1
-            bucket["days"].add(published_dt.date().isoformat())
+                if archived_dt is not None:
+                    bucket["days"].add(archived_dt.date().isoformat())
 
         items = []
         for role_id, vals in grouped.items():
@@ -526,22 +642,24 @@ class AnalyticsService:
         items.sort(key=lambda item: (-float(item["avg_pub"] or 0), str(item["name"] or "")))
         return items
 
-    def _build_weekday_items(self, *, vacancies: list[dict], period: str) -> list[dict]:
-        current = str(period or "summary").strip().lower()
-        if current not in {"today", "last_3", "last_7", "last_14"}:
-            return []
+    def _build_weekday_items(self, *, vacancies: list[dict], period_window: dict[str, datetime | None]) -> list[dict]:
         grouped = defaultdict(lambda: {"publications": 0, "archives": 0, "pub_hours": [], "arch_hours": []})
+        now = self._normalize_dashboard_datetime(self._get_reference_now())
 
         for vacancy in vacancies:
             published_dt = vacancy.get("_published_dt") or self._parse_dt(vacancy.get("published_at"))
+            archived_dt = vacancy.get("_archived_dt") or self._parse_dt(vacancy.get("archived_at"))
             if published_dt is None:
+                continue
+            entry = self._classify_vacancy_for_dashboard_period(vacancy, period_window, now=now)
+            if not entry["included"]:
                 continue
             weekday = published_dt.strftime("%A")
             bucket = grouped[weekday]
-            bucket["publications"] += 1
-            bucket["pub_hours"].append(published_dt.hour)
-            archived_dt = vacancy.get("_archived_dt") or self._parse_dt(vacancy.get("archived_at"))
-            if archived_dt is not None:
+            if entry["newPublished"]:
+                bucket["publications"] += 1
+                bucket["pub_hours"].append(published_dt.hour)
+            if entry["archived"] and archived_dt is not None:
                 bucket["archives"] += 1
                 bucket["arch_hours"].append(archived_dt.hour)
 
@@ -554,29 +672,30 @@ class AnalyticsService:
                     "weekday": weekday,
                     "publications": vals["publications"],
                     "archives": vals["archives"],
-                    "avg_pub_hour": f"{pub_avg:02d}:00" if pub_avg is not None else "—",
-                    "avg_arch_hour": f"{arch_avg:02d}:00" if arch_avg is not None else "—",
+                    "avg_pub_hour": f"{pub_avg:02d}:00" if pub_avg is not None else "вЂ”",
+                    "avg_arch_hour": f"{arch_avg:02d}:00" if arch_avg is not None else "вЂ”",
                 }
             )
         return items
 
     def _build_skills_months(self, *, rows: list[dict], role_ids: list[str] | None, period: str) -> list[dict]:
         current = str(period or "summary").strip().lower()
-        if current in {"today", "last_3", "last_7", "last_14"}:
-            return [self._build_skills_month_from_vacancies(role_ids=role_ids, period=period)]
+        if current not in {"summary", "all"}:
+            vacancies = self._get_filtered_vacancies(role_ids=role_ids, period=period)
+            return [self._build_skills_month_from_vacancies(vacancies=vacancies, period=period)]
 
         month_buckets: dict[str, dict[str, dict]] = defaultdict(dict)
         for role in rows:
             for month in role.get("months_list", []):
                 month_name = str(month.get("month") or "").strip()
+                if period == "summary" and not month_name.startswith("Р—Р° "):
+                    continue
                 if period != "summary" and month_name != period:
                     continue
-                if period == "summary" and not month_name.startswith("За "):
-                    continue
-                if period != "summary" and month_name.startswith("За "):
+                if period != "summary" and month_name.startswith("Р—Р° "):
                     continue
                 for exp in month.get("experiences", []):
-                    experience = str(exp.get("experience") or "").strip() or "Не указан"
+                    experience = str(exp.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
                     bucket = month_buckets[month_name].get(experience)
                     if bucket is None:
                         bucket = {
@@ -602,14 +721,13 @@ class AnalyticsService:
             )
         return items
 
-    def _build_skills_month_from_vacancies(self, *, role_ids: list[str] | None, period: str) -> dict:
-        vacancies = self._get_filtered_vacancies(role_ids=role_ids, period=period)
+    def _build_skills_month_from_vacancies(self, *, vacancies: list[dict], period: str) -> dict:
         grouped: dict[str, dict] = {}
         for vacancy in vacancies:
             raw_skills = str(vacancy.get("skills_raw") or "").strip()
             if not raw_skills:
                 continue
-            experience = str(vacancy.get("experience") or "").strip() or "Не указан"
+            experience = str(vacancy.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
             bucket = grouped.get(experience)
             if bucket is None:
                 bucket = {
@@ -708,13 +826,13 @@ class AnalyticsService:
                 continue
             if experience_set and str(vacancy.get("experience") or "").strip() not in experience_set:
                 continue
-            vacancy_status = "archived" if vacancy.get("archived") else "open"
+            vacancy_status = "archived" if vacancy.get("archived_at") else "open"
             if normalized_status in {"open", "archived"} and vacancy_status != normalized_status:
                 continue
             vacancy_country = str(vacancy.get("country") or "").strip()
-            if normalized_country == "ru" and vacancy_country != "Россия":
+            if normalized_country == "ru" and vacancy_country != "Р РѕСЃСЃРёСЏ":
                 continue
-            if normalized_country == "not_ru" and vacancy_country == "Россия":
+            if normalized_country == "not_ru" and vacancy_country == "Р РѕСЃСЃРёСЏ":
                 continue
             vacancy_currency = self._normalize_totals_currency(vacancy.get("currency"))
             if currency_set and vacancy_currency not in currency_set:
@@ -755,12 +873,25 @@ class AnalyticsService:
             archived_dt = self._parse_dt(vacancy.get("archived_at"))
             parsed_rows.append((vacancy, published_dt, archived_dt))
 
-        for vacancy, published_dt, archived_dt in parsed_rows:
-            if self._matches_period(period, published_dt, reference_now):
+        current = str(period or "summary").strip().lower()
+        if current in {"summary", "all"}:
+            for vacancy, published_dt, archived_dt in parsed_rows:
                 prepared = dict(vacancy)
                 prepared["_published_dt"] = published_dt
                 prepared["_archived_dt"] = archived_dt
                 filtered.append(prepared)
+            return filtered
+
+        period_window = self._build_dashboard_period_window(current, [row[0] for row in parsed_rows])
+        now = reference_now
+        for vacancy, published_dt, archived_dt in parsed_rows:
+            prepared = dict(vacancy)
+            entry = self._classify_vacancy_for_dashboard_period(prepared, period_window, now=now)
+            if not entry["included"]:
+                continue
+            prepared["_published_dt"] = published_dt
+            prepared["_archived_dt"] = archived_dt
+            filtered.append(prepared)
         return filtered
 
     def _matches_period(self, period: str, published_dt: datetime | None, reference_dt: datetime | None) -> bool:
@@ -1008,6 +1139,7 @@ class AnalyticsService:
                 "active": False,
                 "archived": False,
                 "newPublished": False,
+                "archivedInPeriod": False,
                 "publishedAndArchived": False,
                 "lifetimeDays": None,
             }
@@ -1018,33 +1150,41 @@ class AnalyticsService:
                 "active": False,
                 "archived": False,
                 "newPublished": False,
+                "archivedInPeriod": False,
                 "publishedAndArchived": False,
                 "lifetimeDays": None,
             }
         archived_dt = self._normalize_dashboard_datetime(self._parse_dt(vacancy.get("_archived_dt") or vacancy.get("archived_at")))
-        is_archived = bool(vacancy.get("archived"))
-        new_published = start <= published <= end
-        active = new_published and not is_archived
-        archived = new_published and is_archived
-        included = new_published
-        published_and_archived = new_published and is_archived
-
         reference_now = self._normalize_dashboard_datetime(now) or self._normalize_dashboard_datetime(self._get_reference_now())
-        effective_lifetime_end = archived_dt
-        if effective_lifetime_end is None:
-            effective_lifetime_end = end if end < reference_now else self._start_of_day(reference_now)
+        period_end = end
+        if reference_now is not None and period_end is not None:
+            period_end = min(end, reference_now)
+            period_end = period_end.replace(microsecond=0)
+        new_published = start <= published <= period_end if period_end is not None else False
+        archived_in_period = archived_dt is not None and start <= archived_dt <= end
+        active = (
+            period_end is not None
+            and published <= period_end
+            and (
+                archived_dt is None
+                or archived_dt > period_end
+            )
+        )
+        included = new_published or archived_in_period or active
+        published_and_archived = new_published and archived_in_period
 
         lifetime_days = None
-        if new_published and effective_lifetime_end is not None:
-            delta = effective_lifetime_end - published
-            if delta.total_seconds() >= 0:
-                lifetime_days = int(delta.total_seconds() // (60 * 60 * 24))
+        if included and period_end is not None:
+            lifetime_end = archived_dt if archived_dt is not None and archived_dt <= period_end else period_end
+            if lifetime_end >= published:
+                lifetime_days = int((lifetime_end - published).total_seconds() // (60 * 60 * 24))
 
         return {
             "included": included,
             "active": active,
-            "archived": archived,
+            "archived": archived_in_period,
             "newPublished": new_published,
+            "archivedInPeriod": archived_in_period,
             "publishedAndArchived": published_and_archived,
             "lifetimeDays": lifetime_days,
             "experience": str(vacancy.get("experience") or vacancy.get("_experience") or "?? ??????"),
@@ -1282,7 +1422,7 @@ class AnalyticsService:
     def _compute_dashboard_top_vacancies(self, vacancies: list[dict], currency: str, order: str = "high", limit: int = 15) -> list[dict]:
         result = []
         for vacancy in vacancies:
-            if bool(vacancy.get("archived") or vacancy.get("archived_at")) or self._normalize_totals_currency(vacancy.get("currency")) != currency:
+            if bool(vacancy.get("archived_at")) or self._normalize_totals_currency(vacancy.get("currency")) != currency:
                 continue
             salary = self._compute_salary_value(vacancy)
             if salary is None:
@@ -1297,8 +1437,8 @@ class AnalyticsService:
     def _build_dashboard_salary_month_data(self, vacancies: list[dict], label: str) -> dict:
         grouped = defaultdict(lambda: defaultdict(lambda: {"with": [], "without": []}))
         for vacancy in vacancies:
-            experience = str(vacancy.get("experience") or "").strip() or "Не указан"
-            status = "Архивная" if vacancy.get("archived") or vacancy.get("archived_at") else "Открытая"
+            experience = str(vacancy.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
+            status = "РђСЂС…РёРІРЅР°СЏ" if vacancy.get("archived_at") else "РћС‚РєСЂС‹С‚Р°СЏ"
             currency = self._normalize_salary_bucket(vacancy.get("currency"))
             has_salary = vacancy.get("salary_from") is not None or vacancy.get("salary_to") is not None
             bucket = grouped[experience][(status, currency)]
@@ -1319,12 +1459,12 @@ class AnalyticsService:
     def _build_dashboard_employer_overview(self, vacancies: list[dict], currency: str, metric: str) -> dict:
         filtered = [vacancy for vacancy in vacancies if self._normalize_totals_currency(vacancy.get("currency")) == currency and self._compute_salary_value(vacancy) is not None]
         categories = [
-            ("ИТ-аккредитация: Нет", lambda vacancy: not bool(vacancy.get("employer_accredited"))),
-            ("ИТ-аккредитация: Да", lambda vacancy: bool(vacancy.get("employer_accredited"))),
-            ("Тестовое задание: Нет", lambda vacancy: not bool(vacancy.get("has_test"))),
-            ("Тестовое задание: Да", lambda vacancy: bool(vacancy.get("has_test"))),
-            ("Сопроводительное письмо: Нет", lambda vacancy: not bool(vacancy.get("cover_letter_required"))),
-            ("Сопроводительное письмо: Да", lambda vacancy: bool(vacancy.get("cover_letter_required"))),
+            ("РРў-Р°РєРєСЂРµРґРёС‚Р°С†РёСЏ: РќРµС‚", lambda vacancy: not bool(vacancy.get("employer_accredited"))),
+            ("РРў-Р°РєРєСЂРµРґРёС‚Р°С†РёСЏ: Р”Р°", lambda vacancy: bool(vacancy.get("employer_accredited"))),
+            ("РўРµСЃС‚РѕРІРѕРµ Р·Р°РґР°РЅРёРµ: РќРµС‚", lambda vacancy: not bool(vacancy.get("has_test"))),
+            ("РўРµСЃС‚РѕРІРѕРµ Р·Р°РґР°РЅРёРµ: Р”Р°", lambda vacancy: bool(vacancy.get("has_test"))),
+            ("РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ: РќРµС‚", lambda vacancy: not bool(vacancy.get("cover_letter_required"))),
+            ("РЎРѕРїСЂРѕРІРѕРґРёС‚РµР»СЊРЅРѕРµ РїРёСЃСЊРјРѕ: Р”Р°", lambda vacancy: bool(vacancy.get("cover_letter_required"))),
         ]
         labels, values = [], []
         for label, matcher in categories:
@@ -1521,7 +1661,7 @@ class AnalyticsService:
                 continue
             if allowed_roles and role_id not in allowed_roles:
                 continue
-            experience = str(vacancy.get("experience") or "").strip() or "Не указан"
+            experience = str(vacancy.get("experience") or "").strip() or "РќРµ СѓРєР°Р·Р°РЅ"
             key = (role_id, experience) if split_by_experience else (role_id, "")
             grouped[key].append(vacancy)
         result = []
@@ -1647,10 +1787,10 @@ class AnalyticsService:
     def _normalize_salary_bucket(self, value: str | None) -> str:
         current = self._normalize_totals_currency(value)
         if current == "OTHER":
-            return "Другая"
+            return "Р”СЂСѓРіР°СЏ"
         if current:
             return current
-        return "Не заполнена"
+        return "РќРµ Р·Р°РїРѕР»РЅРµРЅР°"
 
     def _compute_salary_value(self, vacancy: dict) -> float | None:
         values = [float(value) for value in (vacancy.get("salary_from"), vacancy.get("salary_to")) if value is not None]
@@ -1703,10 +1843,7 @@ class AnalyticsService:
         if published is None:
             return None
         if archived is None:
-            if vacancy.get("archived"):
-                archived = datetime.now(published.tzinfo)
-            else:
-                return None
+            return None
         diff = archived - published
         if diff.total_seconds() < 0:
             return None

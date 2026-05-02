@@ -1270,7 +1270,7 @@ function normalizeMyResponsesOfferForApi(parentRole) {
 
 function adaptResponseApiItem(item) {
     var vacancyId = String(item && item.vacancy_id || item && item.id || '').trim();
-    var archived = !!(item && item.archived);
+    var archived = isVacancyArchivedByDate(item);
     return {
         id: vacancyId,
         vacancy_id: vacancyId,
@@ -1585,8 +1585,11 @@ function formatResumeAtValue(value) {
     var min = String(date.getMinutes()).padStart(2, '0');
     return dd + '.' + mm + '.' + yyyy + ' ' + hh + ':' + min;
 }
+function isVacancyArchivedByDate(item) {
+    return !!parsePublishedAtDate(item && item.archived_at);
+}
 function isArchivedResponseVacancy(item) {
-    return !!(item && (item.archived === true || item.archived === 1 || item.archived === '1' || item.archived === 'true' || item.archived_at));
+    return isVacancyArchivedByDate(item);
 }
 function getMyResponseStatusLabel(item) {
     return isArchivedResponseVacancy(item) ? 'Архивная' : 'Открытая';
@@ -1964,7 +1967,7 @@ function buildMyResponsesTableHtml(vacancies) {
         var salaryToNum = Number(v.salary_to);
         var salaryFromSort = isFinite(salaryFromNum) ? String(salaryFromNum) : '';
         var salaryToSort = isFinite(salaryToNum) ? String(salaryToNum) : '';
-        return '<tr>' +
+    return '<tr>' +
             '<td>' + buildMyResponseTitleCell(v) + '</td>' +
             '<td>' + employerCell + '</td>' +
             '<td>' + formatCell(v.city) + '</td>' +
@@ -1973,7 +1976,7 @@ function buildMyResponsesTableHtml(vacancies) {
             '<td>' + offerCell + '</td>' +
             '<td>' + formatResumeAtValue(v.resume_at) + '</td>' +
             '<td>' + formatResumeAtValue(v.published_at || (source && (source.published_at || source.created_at))) + '</td>' +
-            '<td class="status-icon-cell">' + asArchiveIcon(v && (v.archived !== undefined || v.archived_at) ? v : (source || {})) + '</td>' +
+            '<td class="status-icon-cell">' + asArchiveIcon((v && v.archived_at) || (source && source.archived_at) ? v : (source || {})) + '</td>' +
             '<td>' + formatResumeAtValue(v.archived_at || (source && source.archived_at)) + '</td>' +
             '<td>' + interviewCell + '</td>' +
         '</tr>';
@@ -5150,7 +5153,7 @@ function totalsClassifyVacancyForPeriod(vacancy, periodWindow) {
     }
     var published = parsePublishedAtDate(vacancy.published_at);
     var archivedAt = parsePublishedAtDate(vacancy.archived_at);
-    var isArchived = !!(vacancy.archived === true || vacancy.archived === 1 || vacancy.archived === '1' || vacancy.archived === 'true' || archivedAt);
+    var isArchived = !!archivedAt;
     var newPublished = !!(published && published >= start && published <= end);
     var archivedInPeriod = !!(archivedAt && archivedAt >= start && archivedAt <= end);
     var aliveAtEnd = !!(published && published <= end && (!isArchived || !archivedAt || archivedAt > end));
@@ -6014,7 +6017,8 @@ function renderGlobalActivityFiltered(parentRole) {
     }
     if (!Array.isArray(parentRole._data.activityFilteredApi)) return;
     var vacancies = parentRole._data.activityFilteredApi.slice();
-    var entries = computeActivityEntriesFromVacancies(vacancies);
+    var periodWindows = normalizeTotalsPeriodWindows(selectedPeriods, vacancies);
+    var entries = computeActivityEntriesFromVacancies(vacancies, periodWindows);
 
     Array.from(parentRole.querySelectorAll('.month-content.activity-only')).forEach(function(monthDiv) {
         monthDiv.style.display = 'none';
@@ -7306,7 +7310,7 @@ function totalsComputeTopVacanciesBySalary(vacancies, currency, direction) {
     var order = normalizeTotalsTopOrder(direction, ['high', 'low'], 'high');
     return (vacancies || []).map(function(v) {
         if (!v) return null;
-        var isArchived = !!(v.archived === true || v.archived === 1 || v.archived === '1' || String(v.archived || '').toLowerCase() === 'true' || v.archived_at);
+        var isArchived = isVacancyArchivedByDate(v);
         if (isArchived) return null;
         if (normalizeTotalsCurrency(v.currency) !== curr) return null;
         var salaryValue = computeSalaryValue(v, curr);
@@ -7394,12 +7398,7 @@ function computeVacancyAgeDays(vacancy) {
     if (!published) return null;
     var archived = parsePublishedAtDate(vacancy.archived_at);
     if (!archived) {
-        var archivedRaw = String(vacancy.archived || '').toLowerCase();
-        if (vacancy.archived === true || vacancy.archived === 1 || archivedRaw === '1' || archivedRaw === 'true') {
-            archived = new Date();
-        } else {
-            return null;
-        }
+        return null;
     }
     var diffMs = archived.getTime() - published.getTime();
     if (!isFinite(diffMs) || diffMs < 0) return null;
@@ -7454,10 +7453,15 @@ function totalsBuild14dTrend(vacancies, windowDays) {
         var published = parsePublishedAtDate(v.published_at);
         var start = totalsBucketStartUtc(published, size);
         if (!isFinite(start)) return;
+        var end = start + size * 24 * 60 * 60 * 1000 - 1;
+        var entry = totalsClassifyVacancyForPeriod(v, {
+            start: new Date(start),
+            end: new Date(end)
+        });
+        if (!entry || !entry.included) return;
         var b = ensureBucket(start);
         b.total += 1;
-        var isArchived = !!(v.archived === true || v.archived === 1 || v.archived === '1' || v.archived === 'true' || v.archived_at);
-        if (isArchived) b.archived += 1;
+        if (entry.archived) b.archived += 1;
         else b.active += 1;
         var curr = normalizeTotalsCurrency(v.currency);
         var salaryValue = computeSalaryValue(v, curr);
@@ -7465,7 +7469,7 @@ function totalsBuild14dTrend(vacancies, windowDays) {
             b.withSalary += 1;
             if (b.salaryByCurrency[curr]) b.salaryByCurrency[curr].values.push(Number(salaryValue));
         }
-        var age = computeVacancyAgeDays(v);
+        var age = entry.lifetimeDays;
         if (age !== null && age !== undefined && isFinite(age)) {
             b.ageSum += Number(age);
             b.ageCount += 1;
@@ -11369,7 +11373,7 @@ function aggregateActivityEntries(entries) {
     return rows;
 }
 
-function computeActivityEntriesFromVacancies(vacancies) {
+function computeActivityEntriesFromVacancies(vacancies, periodWindows) {
     var expOrder = getExperienceOrder();
     var labels = getExperienceLabels();
     var expMap = {};
@@ -11380,26 +11384,32 @@ function computeActivityEntriesFromVacancies(vacancies) {
         var bucket = expMap[exp] || { experience: exp, total: 0, archived: 0, active: 0, ageSum: 0, ageCount: 0 };
         bucket.total += 1;
 
-        var status = String(v._status || '').toLowerCase();
-        var isArchived = status.indexOf('архив') >= 0 || !!v.archived_at;
-        if (isArchived) bucket.archived += 1;
-        else bucket.active += 1;
-
-        if (isArchived && v.published_at && v.archived_at) {
-            var pub = new Date(v.published_at);
-            var arch = new Date(v.archived_at);
-            if (!isNaN(pub) && !isNaN(arch)) {
-                var diffMs = arch - pub;
-                if (diffMs >= 0) {
-                    bucket.ageSum += diffMs / (1000 * 60 * 60 * 24);
-                    bucket.ageCount += 1;
+        var hasWindows = Array.isArray(periodWindows) && periodWindows.length > 0;
+        var entry = null;
+        if (hasWindows) {
+            for (var i = 0; i < periodWindows.length; i++) {
+                var candidate = totalsClassifyVacancyForPeriod(v, periodWindows[i]);
+                if (candidate && candidate.included) {
+                    entry = candidate;
+                    break;
                 }
             }
+        } else {
+            entry = totalsClassifyVacancyForPeriod(v, {
+                start: new Date(0),
+                end: new Date(8640000000000000)
+            });
+        }
+        if (!entry || !entry.included) return;
+
+        if (entry.archived) bucket.archived += 1;
+        else bucket.active += 1;
+        if (entry.lifetimeDays !== null && entry.lifetimeDays !== undefined && isFinite(entry.lifetimeDays)) {
+            bucket.ageSum += Number(entry.lifetimeDays);
+            bucket.ageCount += 1;
         }
         expMap[exp] = bucket;
-    });
-
-    var rows = Object.values(expMap).map(function(b) {
+    });    var rows = Object.values(expMap).map(function(b) {
         return {
             experience: b.experience,
             total: b.total,
@@ -14021,6 +14031,7 @@ function applySalaryViewMode(expDiv, entries) {
     }
 
 }
+
 
 
 

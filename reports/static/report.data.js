@@ -500,7 +500,7 @@ function adaptSingleRoleSalaryMonthFromApi(data, label) {
         var experience = String(item && item.experience || '').trim() || 'Не указан';
         if (!groupedByExperience[experience]) groupedByExperience[experience] = [];
         groupedByExperience[experience].push({
-            status: String(item && item.status || '').trim() || 'Открытая',
+            status: item && item.archived_at ? 'Архивная' : 'Открытая',
             currency: String(item && item.currency || '').trim().toUpperCase() || 'RUR',
             total_vacancies: Number(item && (item.total_vacancies !== undefined ? item.total_vacancies : item.count)) || 0,
             vacancies_with_salary: Number(item && (item.total_vacancies !== undefined ? item.total_vacancies : item.count)) || 0,
@@ -818,7 +818,7 @@ function adaptVacancyApiItem(item) {
     var employer = item && item.employer ? item.employer : {};
     var location = item && item.location ? item.location : {};
     var salary = item && item.salary ? item.salary : {};
-    var status = String(item && item.status || '').trim().toLowerCase() === 'archived' ? 'Архивная' : 'Открытая';
+    var status = item && item.archived_at ? 'Архивная' : 'Открытая';
     var skills = Array.isArray(item && item.skills) ? item.skills.slice() : [];
     var experience = String(item && item.experience || '').trim();
     return {

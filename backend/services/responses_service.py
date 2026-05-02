@@ -105,7 +105,7 @@ class ResponsesService:
                 "currency": None,
                 "resume_at": None,
                 "published_at": details.get("published_at"),
-                "archived": bool(details.get("archived")),
+                "archived": bool(details.get("archived_at")),
                 "archived_at": details.get("archived_at"),
             }
 
@@ -121,7 +121,7 @@ class ResponsesService:
                 "currency": summary_source.get("currency"),
                 "resume_at": summary_source.get("resume_at"),
                 "published_at": summary_source.get("published_at"),
-                "archived": bool(summary_source.get("archived")),
+                "archived": bool(summary_source.get("archived_at")),
                 "archived_at": summary_source.get("archived_at"),
             },
             "details": {
@@ -172,7 +172,7 @@ class ResponsesService:
             "currency": item.get("currency"),
             "resume_at": item.get("resume_at"),
             "published_at": item.get("published_at"),
-            "archived": bool(item.get("archived")),
+            "archived": bool(item.get("archived_at")),
             "archived_at": item.get("archived_at"),
             "interview_filled": bool(item.get("interview_filled")),
             "offer_salary": offer_salary,
@@ -203,9 +203,9 @@ class ResponsesService:
         for item in items:
             if normalized_role_ids and str(item.get("role_id") or "") not in normalized_role_ids:
                 continue
-            if normalized_status == "open" and item.get("archived"):
+            if normalized_status == "open" and item.get("archived_at"):
                 continue
-            if normalized_status == "archived" and not item.get("archived"):
+            if normalized_status == "archived" and not item.get("archived_at"):
                 continue
             if normalized_currency != "ALL" and normalized_currency != "all" and str(item.get("currency") or "").upper() != normalized_currency:
                 continue

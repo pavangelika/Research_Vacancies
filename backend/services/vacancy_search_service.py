@@ -186,7 +186,7 @@ class VacancySearchService:
                 "currency": item.get("currency"),
             },
             "experience": item.get("experience"),
-            "status": "archived" if item.get("archived") else "open",
+            "status": "archived" if item.get("archived_at") else "open",
             "skills": skills,
             "requirement": item.get("requirement"),
             "responsibility": item.get("responsibility"),
